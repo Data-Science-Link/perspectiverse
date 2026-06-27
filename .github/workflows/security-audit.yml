@@ -1,0 +1,165 @@
+name: Security Audit Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  schedule:
+    # Run weekly security audit every Monday at 12:00 PM UTC
+    - cron: '0 12 * * 1'
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 🔍 Display context
+      run: |
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "🔵 Pull Request: ${{ github.event.pull_request.title }}"
+          echo "   PR Number: #${{ github.event.pull_request.number }}"
+        else
+          echo "🔵 Push to: ${{ github.ref_name }}"
+        fi
+        COMMIT_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+        echo "📝 Commit: $COMMIT_SHORT"
+        echo "👤 Author: ${{ github.actor }}"
+        echo "📅 Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Create virtual environment
+      run: |
+        uv venv
+        echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
+    - name: Install project dependencies
+      run: |
+        source .venv/bin/activate
+        uv pip install setuptools standard-pkg-resources hatchling editables
+        uv pip install -e ".[dev]" --no-build-isolation
+
+    - name: Code security scan (Bandit)
+      continue-on-error: true
+      run: |
+        echo "📋 Scanning Python code for security issues..."
+        source .venv/bin/activate
+        bandit -r data_engineering/ -f json -o bandit-report.json || true
+
+    - name: Dependency vulnerability scan (pip-audit)
+      continue-on-error: true
+      run: |
+        echo "📦 Scanning dependencies for known vulnerabilities..."
+        source .venv/bin/activate
+        # Use pip-audit directly on the installed environment
+        pip-audit --format json --output pip-audit-report.json || true
+
+    - name: Check for high/critical vulnerabilities
+      run: |
+        echo "🔍 Analyzing scan results..."
+        source .venv/bin/activate
+        VULN_COUNT=0
+
+        # Check Bandit for high-severity issues
+        if [ -f bandit-report.json ]; then
+          HIGH_COUNT=$(cat bandit-report.json | jq '[.results[]? | select(.issue_severity == "HIGH" or .issue_severity == "MEDIUM")] | length' 2>/dev/null || echo "0")
+          if [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "❌ Found $HIGH_COUNT high/medium severity code issues"
+            VULN_COUNT=$((VULN_COUNT + HIGH_COUNT))
+          fi
+        fi
+
+        # Check pip-audit results
+        if [ -f pip-audit-report.json ]; then
+          AUDIT_COUNT=$(cat pip-audit-report.json | jq '.vulnerabilities | length' 2>/dev/null || echo "0")
+          if [ "$AUDIT_COUNT" -gt 0 ]; then
+            echo "❌ Found $AUDIT_COUNT vulnerable dependencies"
+            VULN_COUNT=$((VULN_COUNT + AUDIT_COUNT))
+          fi
+        fi
+
+        # Fail if any high/critical issues found
+        if [ "$VULN_COUNT" -gt 0 ]; then
+          echo "❌ BLOCKING: Found $VULN_COUNT security issue(s) that must be fixed"
+          echo "Please update vulnerable dependencies and fix code issues"
+          exit 1
+        else
+          echo "✅ No blocking security issues found in project code"
+        fi
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-scan-results
+        path: |
+          bandit-report.json
+          pip-audit-report.json
+        retention-days: 7
+
+    - name: Comment on PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          let commentBody = `## 🔒 Security Scan Complete\n\n`;
+          let hasIssues = false;
+
+          if (fs.existsSync('bandit-report.json')) {
+            const banditReport = JSON.parse(fs.readFileSync('bandit-report.json', 'utf8'));
+            const highMediumIssues = (banditReport.metrics?.["_totals"]?.issue_counts?.HIGH || 0) + (banditReport.metrics?.["_totals"]?.issue_counts?.MEDIUM || 0);
+            if (highMediumIssues > 0) {
+              commentBody += `**Code Security (Bandit):** ❌ Found ${highMediumIssues} high/medium severity issues.\n`;
+              hasIssues = true;
+            } else {
+              commentBody += `**Code Security (Bandit):** ✅ No high/medium severity issues found.\n`;
+            }
+          } else {
+            commentBody += `**Code Security (Bandit):** ⚠️ Report not found. Check logs.\n`;
+          }
+
+          if (fs.existsSync('pip-audit-report.json')) {
+            const pipAuditReport = JSON.parse(fs.readFileSync('pip-audit-report.json', 'utf8'));
+            const vulnCount = pipAuditReport.vulnerabilities?.length || 0;
+            if (vulnCount > 0) {
+              commentBody += `**Dependencies (pip-audit):** ❌ Found ${vulnCount} vulnerable dependencies.\n`;
+              hasIssues = true;
+            } else {
+              commentBody += `**Dependencies (pip-audit):** ✅ No vulnerable dependencies found.\n`;
+            }
+          } else {
+            commentBody += `**Dependencies (pip-audit):** ⚠️ Report not found. Check logs.\n`;
+          }
+
+          if (hasIssues) {
+            commentBody += `\n**Action Required:** Please review the issues and fix them before merging. See Actions logs for details.`;
+          } else {
+            commentBody += `\nAll security checks passed!`;
+          }
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: commentBody
+          });
