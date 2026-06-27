@@ -10,30 +10,41 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `FILES.md` | This file - complete file listing and organization guide |
 | `LICENSE` | Project license |
 | `pyproject.toml` | Python project configuration, dependencies, and build system |
-| `.gitignore` | Git ignore rules for Python, data files, logs, and IDE files |
+| `package.json` | Frontend dependencies and scripts |
+| `.gitignore` | Git ignore rules |
 | `uv.lock` | Lock file for uv package manager (generated) |
 
-## Scripts
+## Pipeline (`pipeline/`)
+
+| File/Directory | Description |
+|----------------|-------------|
+| `pipeline/run_pipeline.py` | Main orchestrator script for data ingestion and processing |
+| `pipeline/data/` | Local storage for SQLite databases and raw JSONs |
+| `pipeline/config/` | Pipeline configuration files |
+| `pipeline/data_sources/` | Source-specific extraction scripts (e.g., Bluesky) |
+
+## Frontend (`src/` & `public/`)
+
+| File/Directory | Description |
+|----------------|-------------|
+| `src/` | React components and Three.js visualization code |
+| `public/` | Static assets |
+| `public/data.json` | The bridge: Output of pipeline, input for frontend |
+| `index.html` | Entry point for the web application |
+| `tailwind.config.js` | Tailwind CSS configuration |
+| `postcss.config.js` | PostCSS configuration |
+
+## Documentation (`project_documentation/`)
 
 | File | Description |
 |------|-------------|
-| `scripts/security_check.sh` | Security scanning script for local development (Bandit + pip-audit) |
+| `Project Architecture_ Discourse Universe.md` | Conceptual overview and high-level architecture |
+| `Technical Implementation Canvas.md` | Technical details and implementation stages |
+| `UI & 3D Implementation Canvas_ Perspectiverse.md` | Frontend design and 3D visualization details |
 
-## GitHub Configuration (`.github/`)
+## Scripts & CI/CD
+
 | File | Description |
 |------|-------------|
-| `workflows/security-audit.yml` | Automated security scanning workflow (Bandit + pip-audit) |
-
-## Data Engineering Files (`data_engineering/`)
-
-| Directory | Description |
-|-----------|-------------|
-| `config/` | Central configuration files |
-| `scripts/` | Main pipeline orchestrators and scripts |
-| `data_sources/` | Extraction and processing scripts for various data sources |
-
-## Final Output (`data_final/`)
-
-| Directory | Description |
-|-----------|-------------|
-| `data_final/` | Final processed Markdown files ready for use |
+| `scripts/security_check.sh` | Security scanning script for local development |
+| `.github/workflows/security-audit.yml` | Automated security scanning workflow |

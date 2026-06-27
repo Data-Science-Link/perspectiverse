@@ -63,7 +63,7 @@ jobs:
       run: |
         echo "📋 Scanning Python code for security issues..."
         source .venv/bin/activate
-        bandit -r data_engineering/ -f json -o bandit-report.json || true
+        bandit -r pipeline/ -f json -o bandit-report.json || true
 
     - name: Dependency vulnerability scan (pip-audit)
       continue-on-error: true

@@ -2,13 +2,15 @@
 Live mapping the universe of human attention and perspectives
 
 ## 🎯 Project Overview
-Perspectiverse aims to map the universe of human attention and perspectives through a reproducible data engineering pipeline.
+Perspectiverse aims to map the universe of human attention and perspectives through a reproducible data engineering pipeline and an immersive 3D visualization.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.10+
+- Node.js & npm
 - [uv](https://github.com/astral-sh/uv) (fast Python package manager)
+- [Ollama](https://ollama.ai/) (for local LLM processing)
 
 ### Installation
 
@@ -18,28 +20,26 @@ Perspectiverse aims to map the universe of human attention and perspectives thro
    cd perspectiverse
    ```
 
-2. **Set up the virtual environment:**
+2. **Set up the Python environment:**
    ```bash
    uv venv
-   ```
-
-3. **Install dependencies:**
-   ```bash
    uv sync
-   ```
-
-4. **Activate the environment:**
-   ```bash
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
-## 📁 Project Structure
-The project follows an intuitive structure inspired by [the_depositum](https://github.com/Data-Science-Link/the_depositum):
+3. **Set up the Frontend:**
+   ```bash
+   npm install
+   ```
 
-- `data_engineering/`: Contains all technical components for data extraction and transformation.
-- `data_final/`: Contains the final output files (optimized for AI tools).
-- `scripts/`: Useful utility scripts, including security checks.
-- `.github/workflows/`: Automated CI/CD pipelines, including security audits.
+## 📁 Project Structure
+- `pipeline/`: Python backend code for data ingestion and NLP processing.
+  - `data/`: Local storage for raw and intermediate data.
+  - `run_pipeline.py`: Main orchestrator script.
+- `public/`: Static web assets, including the generated `data.json`.
+- `src/`: React and React Three Fiber frontend source code.
+- `project_documentation/`: High-level design and implementation documents.
+- `scripts/`: Utility scripts for security and maintenance.
 
 For a detailed file listing, see [FILES.md](FILES.md).
 
