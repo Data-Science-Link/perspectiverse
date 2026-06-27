@@ -1,0 +1,42 @@
+[project]
+name = "perspectiverse"
+version = "0.1.0"
+description = "Live mapping the universe of human attention and perspectives"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "User"}
+]
+
+dependencies = [
+    "requests>=2.31.0",
+    "ebooklib>=0.18",
+    "beautifulsoup4>=4.12.0",
+    "striprtf>=0.0.26",
+    "pyyaml>=6.0",
+    "pypdf>=3.17.0",
+    "pdfplumber>=0.10.0",
+    "pydub>=0.25.1",
+    "pyloudnorm>=0.1.1",
+    "numpy>=1.24.0,<2.0",
+    "openai-whisper==20231117",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "bandit>=1.7.5",
+    "pip-audit>=2.6.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.extra-build-dependencies]
+openai-whisper = ["standard-pkg-resources"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["data_engineering"]
