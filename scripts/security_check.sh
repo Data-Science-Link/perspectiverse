@@ -24,7 +24,7 @@ fi
 
 echo ""
 echo "📋 Running Bandit security scan..."
-bandit -r data_engineering/ -f json -o bandit-report.json || true
+bandit -r pipeline/ -f json -o bandit-report.json || true
 
 echo ""
 echo "📦 Running pip-audit dependency scan..."
@@ -68,8 +68,11 @@ import os
 if os.path.exists('pip-audit-report.json'):
     with open('pip-audit-report.json') as f:
         data = json.load(f)
-        vulns = data.get('vulnerabilities', [])
-        print(len(vulns))
+        if 'dependencies' in data:
+            count = sum(len(d.get('vulns', [])) for d in data['dependencies'])
+        else:
+            count = len(data.get('vulnerabilities', []))
+        print(count)
 else:
     print(0)
 " 2>/dev/null || echo "0")

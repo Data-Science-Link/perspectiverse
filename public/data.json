@@ -1,0 +1,23 @@
+{
+  "last_updated": "2024-06-04",
+  "total_posts": 10000,
+  "topics": [
+    {
+      "id": 1,
+      "name": "Artificial Intelligence",
+      "total_volume_percent": 35.5,
+      "perspectives": [
+        {
+          "id": "1A",
+          "title": "Job Replacement Fear",
+          "summary": "Users are heavily anxious about recent layoffs attributed to automation.",
+          "volume_percent": 45.0,
+          "representative_posts": [
+            {"author": "user1.bsky", "text": "Just lost my copywriting gig to an LLM...", "likes": 402},
+            {"author": "user2.bsky", "text": "The tech bros don't care about the working class.", "likes": 150}
+          ]
+        }
+      ]
+    }
+  ]
+}
