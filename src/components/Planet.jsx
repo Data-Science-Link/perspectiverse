@@ -69,10 +69,14 @@ export default function Planet({
           document.body.style.cursor = 'auto'
         }}
       >
+        <mesh>
+          <sphereGeometry args={[0.95, 12, 12]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
         {isSun && (
-          <mesh>
-            <sphereGeometry args={[1.15, 24, 24]} />
-            <meshBasicMaterial color={color} transparent opacity={0.09} />
+          <mesh raycast={() => null}>
+            <sphereGeometry args={[1.25, 24, 24]} />
+            <meshBasicMaterial color={color} transparent opacity={0.1} />
           </mesh>
         )}
         <group ref={cube}>
@@ -89,20 +93,25 @@ export default function Planet({
         </group>
       </group>
       <Html
-        position={[0, scale * 1.35, 0]}
+        position={[0, scale * 1.45, 0]}
         center
-        distanceFactor={18}
-        style={{ pointerEvents: 'none' }}
+        distanceFactor={16}
+        zIndexRange={[10, 0]}
       >
-        <div
+        <button
+          type="button"
           className="planet-label"
           style={{
             opacity: dimmed ? 0.28 : 1,
             borderColor: hexToRgba(color, dimmed ? 0.18 : 0.55),
           }}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelectTopic(topic.id)
+          }}
         >
           {topic.name}
-        </div>
+        </button>
       </Html>
     </group>
   )
@@ -112,8 +121,8 @@ export function OrbitRing({ index }) {
   const radius = orbitRadius(index, false)
   return (
     <mesh rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
-      <ringGeometry args={[radius - 0.01, radius + 0.01, 128]} />
-      <meshBasicMaterial color="#9aa6d6" transparent opacity={0.07} />
+      <ringGeometry args={[radius - 0.014, radius + 0.014, 160]} />
+      <meshBasicMaterial color="#c5cbe8" transparent opacity={0.16} />
     </mesh>
   )
 }

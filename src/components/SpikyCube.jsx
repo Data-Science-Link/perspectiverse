@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { spikeColor } from '../lib/colors'
 
-const BOX_SIZE = 0.72
+const BOX_SIZE = 0.36
 const BOX_HALF = BOX_SIZE / 2
 
 const FACES = [
@@ -24,7 +24,7 @@ export default function SpikyCube({
   const spikes = useMemo(
     () =>
       perspectives.slice(0, 6).map((perspective, index) => {
-        const height = 0.22 + (perspective.volume_percent / 100) * 1.85
+        const height = 0.16 + (perspective.volume_percent / 100) * 3.35
         return {
           ...perspective,
           index,
@@ -42,11 +42,12 @@ export default function SpikyCube({
         <meshStandardMaterial
           color={coreColor}
           emissive={coreColor}
-          emissiveIntensity={dimmed ? 0.08 : 0.28}
-          roughness={0.38}
-          metalness={0.22}
+          emissiveIntensity={dimmed ? 0.08 : 0.45}
+          roughness={0.34}
+          metalness={0.16}
           transparent
           opacity={dimmed ? 0.35 : 1}
+          flatShading
         />
       </mesh>
       {spikes.map((spike) => {
@@ -81,15 +82,17 @@ export default function SpikyCube({
                   : undefined
               }
             >
-              <coneGeometry args={[0.5, spike.height, 4]} />
+              <coneGeometry args={[0.28, spike.height, 4]} />
               <meshStandardMaterial
                 color={spike.color}
                 emissive={spike.color}
-                emissiveIntensity={selected ? 1.15 : dimmed ? 0.04 : 0.22}
-                roughness={0.32}
-                metalness={0.18}
+                emissiveIntensity={selected ? 1.35 : dimmed ? 0.04 : 0.32}
+                roughness={0.28}
+                metalness={0.12}
                 transparent
                 opacity={dimmed ? 0.28 : 1}
+                flatShading
+                toneMapped={false}
               />
             </mesh>
           </group>

@@ -5,7 +5,7 @@ import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { cameraOffsetForScale, topicScale } from '../lib/layout'
 import { OrbitRing, default as Planet } from './Planet'
 
-const HOME_VIEW = [0, 8.6, 21.5, 0, 0, 0]
+const HOME_VIEW = [0, 6.2, 14.8, 0, 0, 0]
 
 function FocusCamera({ controlsRef, anchors, selectedTopic }) {
   const lastId = useRef(null)
@@ -66,7 +66,7 @@ function Universe({
       <ambientLight intensity={0.28} />
       <pointLight position={[0, 0, 0]} intensity={2.4} distance={42} color="#ffe7a3" />
       <pointLight position={[12, 14, 8]} intensity={0.55} color="#9db7ff" />
-      <Stars radius={90} depth={42} count={4500} factor={3.4} saturation={0} fade speed={0.35} />
+      <Stars radius={80} depth={50} count={6000} factor={4.2} saturation={0} fade speed={0.4} />
       {topics.slice(1).map((topic, index) => (
         <OrbitRing key={`ring-${topic.id}`} index={index + 1} />
       ))}
@@ -110,8 +110,9 @@ export default function Observatory({
   return (
     <section className="observatory">
       <Canvas
-        camera={{ position: [0, 8.6, 21.5], fov: 42, near: 0.1, far: 120 }}
-        dpr={[1, 1.75]}
+        camera={{ position: [0, 6.2, 14.8], fov: 42, near: 0.1, far: 120 }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, powerPreference: 'high-performance' }}
         onPointerMissed={onClearSelection}
       >
         <Universe

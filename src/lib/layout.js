@@ -1,15 +1,15 @@
 export function topicScale(volumePercent) {
-  return 0.62 + (volumePercent / 100) * 2.15
+  return 0.42 + (volumePercent / 100) * 3.35
 }
 
 export function orbitRadius(index, isSun) {
   if (isSun) return 0
-  return 5.1 + index * 1.72
+  return 3.8 + index * 1.22
 }
 
 export function orbitSpeed(index, isSun) {
   if (isSun) return 0
-  return 0.11 / Math.sqrt(index + 2.2)
+  return 0.13 / Math.sqrt(index + 2.2)
 }
 
 export function orbitInclination(index, isSun) {
@@ -18,7 +18,7 @@ export function orbitInclination(index, isSun) {
 }
 
 export function cameraOffsetForScale(scale) {
-  return 3.4 + scale * 1.35
+  return 2.8 + scale * 1.55
 }
 
 export function formatNumber(value) {
