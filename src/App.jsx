@@ -1,20 +1,89 @@
-import React from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Observatory from './components/Observatory'
+import Sidebar from './components/Sidebar'
 
-function App() {
+export default function App() {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState(null)
+  const [selectedTopicId, setSelectedTopicId] = useState(null)
+  const [selectedPerspectiveId, setSelectedPerspectiveId] = useState(null)
+
+  useEffect(() => {
+    const url = `${import.meta.env.BASE_URL}data.json`
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Could not load ${url}`)
+        }
+        return response.json()
+      })
+      .then((payload) => {
+        const topics = [...(payload.topics ?? [])].sort(
+          (a, b) => b.total_volume_percent - a.total_volume_percent,
+        )
+        setData({ ...payload, topics })
+      })
+      .catch((err) => setError(err.message))
+  }, [])
+
+  const selectedTopic = useMemo(
+    () => data?.topics.find((topic) => topic.id === selectedTopicId) ?? null,
+    [data, selectedTopicId],
+  )
+  const selectedPerspective = useMemo(
+    () => selectedTopic?.perspectives.find((face) => face.id === selectedPerspectiveId) ?? null,
+    [selectedTopic, selectedPerspectiveId],
+  )
+
+  const selectTopic = (topicId) => {
+    setSelectedTopicId(topicId)
+    setSelectedPerspectiveId(null)
+  }
+
+  const selectPerspective = (perspectiveId) => {
+    setSelectedPerspectiveId(perspectiveId)
+  }
+
+  const clearSelection = () => {
+    setSelectedTopicId(null)
+    setSelectedPerspectiveId(null)
+  }
+
+  if (error) {
+    return (
+      <div className="boot-screen">
+        <p>The observatory could not load its sky.</p>
+        <p className="boot-detail">{error}</p>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="boot-screen">
+        <p>Charting this week&apos;s discourse…</p>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex h-screen w-screen bg-black text-white">
-      <div className="w-2/3 border-r border-gray-800">
-        {/* 3D Canvas will go here */}
-        <div className="flex h-full items-center justify-center">
-          <p className="text-xl italic">3D Observatory (React Three Fiber)</p>
-        </div>
-      </div>
-      <div className="w-1/3 p-8 overflow-y-auto">
-        <h1 className="text-3xl font-bold mb-4">Perspectiverse</h1>
-        <p className="text-gray-400">Select a planet to begin exploring the discourse.</p>
-      </div>
+    <div className="app-shell">
+      <Observatory
+        topics={data.topics}
+        selectedTopicId={selectedTopicId}
+        selectedPerspectiveId={selectedPerspectiveId}
+        onSelectTopic={selectTopic}
+        onSelectPerspective={selectPerspective}
+        onClearSelection={clearSelection}
+      />
+      <Sidebar
+        data={data}
+        selectedTopic={selectedTopic}
+        selectedPerspective={selectedPerspective}
+        onSelectTopic={selectTopic}
+        onSelectPerspective={selectPerspective}
+        onClearSelection={clearSelection}
+      />
     </div>
   )
 }
-
-export default App
