@@ -65,6 +65,9 @@ node_modules/
 pipeline/data/*
 !pipeline/data/.gitkeep
 
+# Local pipeline overrides. The example file stays tracked.
+pipeline/config/pipeline.yaml
+
 # Processed data (keep structure, ignore content)
 data_engineering/data_sources/*/raw/*
 !data_engineering/data_sources/*/raw/.gitkeep

@@ -4,19 +4,19 @@ Live mapping the universe of human attention and perspectives.
 
 Perspectiverse turns a week of public conversation into a 3D solar system. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Each planet is a **spiky cube**: six pyramid faces, one per dominant perspective, with spike length driven by that face's share of the conversation.
 
-The analytical sidebar reacts to the sky. Select a planet to inspect its six faces. Select a face to read the representative posts that formed the cluster.
+The analytical sidebar reacts to the sky. Filter by category, select a planet to turn its cube, then select a face to read the representative posts.
 
 ## Current status
 
-The look and feel of the daily observatory is in place and driven by a schema-compatible **demo** `public/data.json` (10 topics × 6 perspectives). The live Bluesky → BERTopic → LLM pipeline is intentionally deferred so the visualization can be judged on its own.
+The observatory runs on a schema-compatible **demo** `public/data.json` (10 topics × 6 perspectives) until a live snapshot is published. The live path is implemented and can be run locally or on the daily Actions job. It defaults to a **small** Bluesky sample (200 posts) so the plumbing can be proved without a 10k embed. Raise `sample_size` in `pipeline/config/pipeline.example.yaml` toward 10000 for a fuller window.
 
 | Layer | State |
 | --- | --- |
-| Demo universe (`public/data.json`) | Ready |
-| React + R3F observatory | Ready |
-| Analytical sidebar | Ready |
-| GitHub Pages deploy workflow | Ready (enable Pages → GitHub Actions) |
-| Live social ingestion + NLP | Not started |
+| Demo universe (`public/data.json`, `mode: demo`) | Ready, labeled synthetic in the sidebar |
+| Live pipeline (`--live`) | Ready, lexical clustering by default |
+| React + R3F observatory | Ready, with category filters and inspect mode |
+| GitHub Pages | Workflow ready. Pages source is still a repo setting |
+| Daily refresh | `.github/workflows/pipeline.yml` |
 
 ## Quick start
 
@@ -24,7 +24,8 @@ The look and feel of the daily observatory is in place and driven by a schema-co
 
 - Python 3.10+
 - Node.js 20+ and npm
-- Optional: [uv](https://github.com/astral-sh/uv) for the later Python pipeline
+- [uv](https://github.com/astral-sh/uv) for the Python environment
+- Optional: [Ollama](https://ollama.com/) for local face labels
 
 ### Frontend
 
@@ -33,42 +34,56 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL. You should see the Discourse Universe on the left and the briefing sidebar on the right.
+Open the printed local URL. Filter the sky, click a planet, drag to turn the locked cube, then click a spike or a sidebar bar.
 
 ```bash
 npm run build
 npm run preview
 ```
 
-### Demo data
-
-`public/data.json` is the bridge file: output of the pipeline, input for the frontend.
+### Pipeline
 
 ```bash
-python -m pipeline.run_pipeline
+uv venv
+uv sync
+source .venv/bin/activate
+python -m pipeline.run_pipeline --demo
+python -m pipeline.run_pipeline --live
 ```
 
-Until the real sorter and explainer land, that command rewrites the demo universe. Edit `pipeline/generate_demo_data.py` if you want a different day's sky.
+`--demo` rewrites the synthetic universe. `--live` extracts a 7-day English Bluesky sample, cleans it into `pipeline/data/posts.db`, clusters 10 planets and 6 faces, labels the faces, and overwrites `public/data.json`. With no flag, the command defaults to `--demo`.
 
-## Project structure
+Copy `.env.example` to `.env` for secrets. The public Bluesky search works with `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` left blank. Set both to use an app password from Bluesky settings. Do not commit `.env`.
 
-- `src/` — React Three Fiber observatory and sidebar
-- `public/data.json` — daily snapshot consumed on load
-- `pipeline/` — data generation now; ingestion and NLP later
-- `project_documentation/` — architecture and UI canvases
-- `.github/workflows/` — security audit, frontend CI, GitHub Pages
+To rehearse the live path without the network, point `--output` somewhere other than `public/data.json` unless you mean to replace the demo sky:
 
-See [FILES.md](FILES.md) for a complete listing.
+```bash
+python -m pipeline.run_pipeline --live --fixture tests/fixtures/tiny_posts.json --output /tmp/perspectiverse-data.json
+```
+
+The example config uses `label_backend: auto` (Ollama, then an API key, then the fallback title). Set `label_backend: heuristic` in a local `pipeline.yaml` to name faces from top terms instead.
+
+## Who can approve a PR to main
+
+The **Main Branch Protections** ruleset requires one approving review from a code owner, plus the `security-audit` check. `.github/CODEOWNERS` names `@Data-Science-Link` for the whole repo. That account approves merges to `main`. This repository's ruleset is not something a pull request can turn off.
 
 ## GitHub Pages
 
-The `Deploy GitHub Pages` workflow builds the Vite app with `base: /perspectiverse/` and publishes `dist/`. In the repository settings, set Pages to **GitHub Actions**, then merge to `main` (or run the workflow manually). The live site will be:
+The site is not live until Pages is switched on. The merge deploy failed because the source was never set (`Ensure GitHub Pages has been enabled`).
+
+1. Open https://github.com/Data-Science-Link/perspectiverse/settings/pages
+2. Set **Source** to **GitHub Actions**
+3. Re-run **Deploy GitHub Pages**
+
+The workflow builds with `base: /perspectiverse/`. After a green deploy the site is:
 
 `https://data-science-link.github.io/perspectiverse/`
 
+Setting the repository homepage to that URL is optional and done in the same settings screen. The daily job does not push to `main` (the ruleset would block it). It uploads `data.json` and commits it on the unprotected `data-snapshot` branch. The Pages build uses that file when the branch exists.
+
 ## Security
 
-Automated scanning still runs on every push and pull request:
+Automated scanning still runs on every push and pull request, weekly on Mondays, and on demand (`workflow_dispatch`):
 
 - **Bandit** for Python
 - **pip-audit** for Python dependencies
@@ -76,3 +91,15 @@ Automated scanning still runs on every push and pull request:
 ```bash
 ./scripts/security_check.sh
 ```
+
+Pytest runs in `.github/workflows/pytest.yml` without downloading the embedding model. The lexical clusterer is what CI executes.
+
+## Project structure
+
+- `src/` — React Three Fiber observatory and sidebar
+- `public/data.json` — snapshot the frontend loads
+- `pipeline/` — demo writer and live ingestion
+- `project_documentation/` — architecture and UI canvases
+- `.github/workflows/` — security audit, tests, frontend CI, daily pipeline, GitHub Pages
+
+See [FILES.md](FILES.md) and [pipeline/README.md](pipeline/README.md).

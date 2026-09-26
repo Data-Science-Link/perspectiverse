@@ -14,34 +14,48 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `package-lock.json` | Locked frontend dependencies |
 | `vite.config.js` | Vite + React config, including the GitHub Pages base path |
 | `.eslintrc.cjs` | Frontend lint rules (React Three Fiber friendly) |
+| `.env.example` | Bluesky and optional LLM environment variables |
+| `.github/CODEOWNERS` | `@Data-Science-Link` approves pull requests to `main` |
 | `index.html` | Vite HTML entry |
 | `.gitignore` | Git ignore rules |
-| `uv.lock` | Lock file for uv package manager (generated) |
+| `uv.lock` | Lock file for uv package manager |
 
 ## Pipeline (`pipeline/`)
 
 | File/Directory | Description |
 | --- | --- |
-| `pipeline/run_pipeline.py` | Orchestrator. Currently writes the demo universe. |
-| `pipeline/generate_demo_data.py` | Schema-compatible 10×6 demo dataset and validator |
-| `pipeline/data/` | Local storage for SQLite databases and raw extracts |
-| `pipeline/config/` | Pipeline configuration files |
-| `pipeline/data_sources/` | Source-specific extraction scripts (e.g. Bluesky) |
-| `tests/test_demo_data.py` | Contract tests for the demo payload |
+| `pipeline/run_pipeline.py` | `--demo` or `--live` entry point |
+| `pipeline/generate_demo_data.py` | Synthetic 10×6 universe |
+| `pipeline/live.py` | Extract, cluster, label, write `data.json` |
+| `pipeline/schema.py` | Shared `data.json` contract |
+| `pipeline/settings.py` | YAML config loader |
+| `pipeline/cleaning.py` | URL, handle, and spam cleaning |
+| `pipeline/store.py` | SQLite posts and derived membership |
+| `pipeline/topics.py` | 10 planets (lexical or BERTopic) |
+| `pipeline/perspectives.py` | 6 faces and representative posts |
+| `pipeline/label.py` | Ollama, API, or fallback titles |
+| `pipeline/assemble.py` | Writes `public/data.json` |
+| `pipeline/cluster_math.py` | TF-IDF and k-means |
+| `pipeline/http_json.py` | Allow-listed JSON HTTP |
+| `pipeline/config/pipeline.example.yaml` | Sample size, models, `min_cluster_size` |
+| `pipeline/data/` | Gitignored SQLite store (`posts.db`) |
+| `pipeline/data_sources/extract_bluesky.py` | Bluesky 7-day sample |
+| `tests/` | Contract tests and the tiny live fixture |
 
 ## Frontend (`src/` & `public/`)
 
 | File/Directory | Description |
 | --- | --- |
-| `src/App.jsx` | Loads `data.json` and owns selection state |
-| `src/components/Observatory.jsx` | React Three Fiber canvas, camera, bloom, stars |
-| `src/components/Planet.jsx` | Orbital motion, labels, click handling |
-| `src/components/SpikyCube.jsx` | Central cube plus six volume-scaled pyramids |
-| `src/components/MiniCube.jsx` | Isolated spinning preview in the sidebar |
-| `src/components/Sidebar.jsx` | Welcome, topic, and perspective panels |
+| `src/App.jsx` | Loads `data.json`, category filter, selection |
+| `src/components/Observatory.jsx` | Canvas, camera, bloom, WebGL remount |
+| `src/components/Planet.jsx` | Orbits, inspect drag, hover stats |
+| `src/components/SpikyCube.jsx` | Cube, spikes, larger pick cones |
+| `src/components/MiniCube.jsx` | Sidebar preview |
+| `src/components/Sidebar.jsx` | Welcome, filter, honesty copy, posts |
+| `src/lib/categories.js` | Category list and filter helper |
 | `src/lib/colors.js` | Planet and spike palette |
-| `src/lib/layout.js` | Orbit radii, planet scale, and number formatting |
-| `public/data.json` | The bridge: output of the pipeline, input for the frontend |
+| `src/lib/layout.js` | Orbit radii, planet scale, formatting |
+| `public/data.json` | Snapshot the observatory loads |
 | `public/vite.svg` | Favicon |
 
 ## Documentation (`project_documentation/`)
@@ -56,7 +70,11 @@ This document provides a complete listing of all files in the Perspectiverse rep
 
 | File | Description |
 | --- | --- |
-| `scripts/security_check.sh` | Security scanning script for local development |
-| `.github/workflows/security-audit.yml` | Bandit + pip-audit |
-| `.github/workflows/frontend.yml` | Lint and production build |
-| `.github/workflows/pages.yml` | Publish the static observatory to GitHub Pages |
+| `scripts/security_check.sh` | Local Bandit and pip-audit |
+| `scripts/check_categories.mjs` | Category filter helper check |
+| `scripts/check_data_contract.mjs` | Asserts the built `dist/data.json` contract |
+| `.github/workflows/security-audit.yml` | Bandit + pip-audit, including `workflow_dispatch` |
+| `.github/workflows/pytest.yml` | Pytest without a model download |
+| `.github/workflows/frontend.yml` | Lint, category check, build, data contract |
+| `.github/workflows/pipeline.yml` | Daily live run, artifact, `data-snapshot` branch |
+| `.github/workflows/pages.yml` | GitHub Pages, overlaying `data-snapshot` when present |

@@ -1,8 +1,8 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { hexToRgba, topicColor } from '../lib/colors'
-import { orbitInclination, orbitRadius, orbitSpeed, topicScale } from '../lib/layout'
+import { formatPercent, orbitInclination, orbitRadius, orbitSpeed, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
 
 export default function Planet({
@@ -18,12 +18,16 @@ export default function Planet({
   const group = useRef()
   const cube = useRef()
   const angle = useRef(index * 0.62)
+  const drag = useRef(null)
+  const suppressClick = useRef(false)
+  const [hovered, setHovered] = useState(false)
   const isSun = index === 0
   const radius = orbitRadius(index, isSun)
   const speed = orbitSpeed(index, isSun)
   const inclination = orbitInclination(index, isSun)
   const scale = topicScale(topic.total_volume_percent)
   const color = topicColor(topic.id)
+  const pickScale = Math.max(1, 1.15 / Math.max(scale, 0.35))
 
   useFrame((_, delta) => {
     if (!isSun && !selected) {
@@ -46,12 +50,38 @@ export default function Planet({
       }
     }
 
-    if (cube.current) {
+    if (cube.current && !selected) {
       cube.current.rotation.x += delta * 0.22
       cube.current.rotation.y += delta * 0.34
       cube.current.rotation.z += delta * 0.08
     }
   })
+
+  const startDrag = (event) => {
+    if (!selected) return
+    event.stopPropagation()
+    suppressClick.current = false
+    drag.current = { x: event.clientX, y: event.clientY, moved: false }
+    if (event.target?.setPointerCapture && event.pointerId != null) {
+      event.target.setPointerCapture(event.pointerId)
+    }
+  }
+
+  const moveDrag = (event) => {
+    if (!drag.current || !cube.current) return
+    const dx = event.clientX - drag.current.x
+    const dy = event.clientY - drag.current.y
+    if (Math.abs(dx) + Math.abs(dy) > 3) drag.current.moved = true
+    cube.current.rotation.y += dx * 0.012
+    cube.current.rotation.x += dy * 0.012
+    drag.current.x = event.clientX
+    drag.current.y = event.clientY
+  }
+
+  const endDrag = () => {
+    if (drag.current?.moved) suppressClick.current = true
+    drag.current = null
+  }
 
   return (
     <group ref={group}>
@@ -59,13 +89,22 @@ export default function Planet({
         scale={scale}
         onClick={(event) => {
           event.stopPropagation()
+          if (suppressClick.current) {
+            suppressClick.current = false
+            return
+          }
           onSelectTopic(topic.id)
         }}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
         onPointerOver={(event) => {
           event.stopPropagation()
-          document.body.style.cursor = 'pointer'
+          setHovered(true)
+          document.body.style.cursor = selected ? 'grab' : 'pointer'
         }}
         onPointerOut={() => {
+          setHovered(false)
           document.body.style.cursor = 'auto'
         }}
       >
@@ -85,25 +124,24 @@ export default function Planet({
             coreColor={color}
             selectedPerspectiveId={selectedPerspectiveId}
             dimmed={dimmed}
+            pickScale={pickScale}
             onSelectPerspective={(perspectiveId) => {
+              if (suppressClick.current) {
+                suppressClick.current = false
+                return
+              }
               onSelectTopic(topic.id)
               onSelectPerspective(perspectiveId)
             }}
           />
         </group>
       </group>
-      <Html
-        position={[0, scale * 1.45, 0]}
-        center
-        distanceFactor={16}
-        zIndexRange={[10, 0]}
-      >
+      <Html position={[0, scale * 1.45, 0]} center distanceFactor={16} zIndexRange={[10, 0]}>
         <button
           type="button"
-          className="planet-label"
+          className={`planet-label ${dimmed ? 'is-dimmed' : ''}`}
           style={{
-            opacity: dimmed ? 0.28 : 1,
-            borderColor: hexToRgba(color, dimmed ? 0.18 : 0.55),
+            borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
           }}
           onClick={(event) => {
             event.stopPropagation()
@@ -113,6 +151,13 @@ export default function Planet({
           {topic.name}
         </button>
       </Html>
+      {hovered && (
+        <Html position={[0, scale * 1.95, 0]} center distanceFactor={18} zIndexRange={[12, 0]}>
+          <div className="planet-hover">
+            {topic.category} · {formatPercent(topic.total_volume_percent)}
+          </div>
+        </Html>
+      )}
     </group>
   )
 }

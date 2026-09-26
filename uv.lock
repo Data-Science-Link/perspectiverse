@@ -1461,6 +1461,7 @@ dependencies = [
     { name = "ollama" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or python_full_version >= '3.14'" },
     { name = "pandas", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and python_full_version < '3.14'" },
+    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -1482,6 +1483,7 @@ requires-dist = [
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.6.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 provides-extras = ["dev"]
 

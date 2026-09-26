@@ -8,6 +8,7 @@ on:
   schedule:
     # Run weekly security audit every Monday at 12:00 PM UTC
     - cron: '0 12 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -1,29 +1,52 @@
 """Perspectiverse pipeline entry point.
 
-The live Bluesky → BERTopic → Ollama path is not wired yet. Until that work
-lands, this orchestrator writes the schema-compatible demo universe so the
-frontend has a daily `public/data.json` to render.
+--demo writes the synthetic universe. --live extracts, clusters, labels, and
+writes public/data.json. With no flag, the command stays on --demo so the
+existing local workflow keeps working.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
 
-def _import_writer():
-    try:
-        from pipeline.generate_demo_data import write_demo_data
-    except ImportError:  # script execution: python pipeline/run_pipeline.py
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from pipeline.generate_demo_data import write_demo_data
-    return write_demo_data
+def _ensure_path() -> None:
+    root = Path(__file__).resolve().parent.parent
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
 
 
-def main() -> None:
-    print("Starting Perspectiverse pipeline (demo universe mode)...")
-    write_demo_data = _import_writer()
-    output = write_demo_data()
+def main(argv: list[str] | None = None) -> None:
+    _ensure_path()
+    parser = argparse.ArgumentParser(description="Run the Perspectiverse pipeline")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--demo", action="store_true", help="Write the synthetic demo universe")
+    mode.add_argument("--live", action="store_true", help="Extract, cluster, label, and write a live snapshot")
+    parser.add_argument("--fixture", type=Path, default=None, help="JSON posts used instead of Bluesky (requires --live)")
+    parser.add_argument("--output", type=Path, default=None, help="Destination data.json path")
+    parser.add_argument("--config", type=Path, default=None, help="YAML settings file")
+    parser.add_argument("--db", type=Path, default=None, help="SQLite path (default pipeline/data/posts.db)")
+    args = parser.parse_args(argv)
+
+    if args.fixture and not args.live:
+        parser.error("--fixture requires --live")
+
+    if args.live:
+        from pipeline.live import run_live
+
+        print("Starting Perspectiverse pipeline (live mode)...")
+        run_live(fixture=args.fixture, output=args.output, config=args.config, db_path=args.db)
+        print("Pipeline complete.")
+        return
+
+    from pipeline.generate_demo_data import write_demo_data
+
+    if not args.demo:
+        print("No mode flag given; defaulting to --demo.")
+    print("Starting Perspectiverse pipeline (demo mode)...")
+    output = write_demo_data(args.output)
     print(f"Wrote {output}")
     print("Pipeline complete. public/data.json is ready for the observatory.")
 

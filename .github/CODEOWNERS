@@ -1,0 +1,5 @@
+# Reviews required to merge into main.
+# The Main Branch Protections ruleset sets require_code_owner_review.
+# @Data-Science-Link is the owner who can approve those pull requests.
+
+* @Data-Science-Link

@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install lightweight test dependencies
+        run: |
+          uv venv
+          # Skip the BERTopic/torch stack. Tests use the lexical backend only.
+          uv pip install -e . --no-deps
+          uv pip install pytest pyyaml "numpy>=1.24,<2"
+
+      - name: Pytest
+        run: |
+          source .venv/bin/activate
+          pytest tests -q
