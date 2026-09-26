@@ -13,8 +13,22 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from pipeline.schema import NOISE_POLICY, validate_payload
+
 DEMO_TOTAL_POSTS = 100_000
 DEMO_LAST_UPDATED = date(2026, 9, 26).isoformat()
+DEMO_CATEGORIES = {
+    1: "Technology",
+    2: "Economy",
+    3: "Environment",
+    4: "Health",
+    5: "Economy",
+    6: "Politics",
+    7: "Technology",
+    8: "Education",
+    9: "Sports",
+    10: "Media",
+}
 
 # Topics are ordered by volume. Topic 1 is the sun at the origin.
 DEMO_TOPICS: list[dict[str, Any]] = [
@@ -753,49 +767,18 @@ DEMO_TOPICS: list[dict[str, Any]] = [
 
 def build_demo_payload(last_updated: str = DEMO_LAST_UPDATED, total_posts: int = DEMO_TOTAL_POSTS) -> dict[str, Any]:
     """Return a data.json document that matches the UI canvas schema."""
+    topics = [{**topic, "category": DEMO_CATEGORIES[topic["id"]]} for topic in DEMO_TOPICS]
     payload = {
         "last_updated": last_updated,
         "total_posts": total_posts,
-        "topics": DEMO_TOPICS,
+        "window_hours": 168,
+        "source": "synthetic",
+        "mode": "demo",
+        "noise_policy": NOISE_POLICY,
+        "topics": topics,
     }
     validate_payload(payload)
     return payload
-
-
-def validate_payload(payload: dict[str, Any]) -> None:
-    """Fail fast if the demo universe drifts from the contract the UI expects."""
-    topics = payload.get("topics") or []
-    if len(topics) != 10:
-        raise ValueError(f"Expected 10 topics, found {len(topics)}")
-
-    topic_volume = 0.0
-    seen_topic_ids: set[int] = set()
-    for topic in topics:
-        topic_id = topic["id"]
-        if topic_id in seen_topic_ids:
-            raise ValueError(f"Duplicate topic id {topic_id}")
-        seen_topic_ids.add(topic_id)
-        if not topic.get("name"):
-            raise ValueError(f"Topic {topic_id} is missing a name")
-        perspectives = topic.get("perspectives") or []
-        if len(perspectives) != 6:
-            raise ValueError(f"Topic {topic_id} should have 6 perspectives, found {len(perspectives)}")
-        topic_volume += float(topic["total_volume_percent"])
-        face_volume = 0.0
-        seen_faces: set[str] = set()
-        for face in perspectives:
-            face_id = face["id"]
-            if face_id in seen_faces:
-                raise ValueError(f"Duplicate perspective id {face_id}")
-            seen_faces.add(face_id)
-            if not face.get("representative_posts"):
-                raise ValueError(f"Perspective {face_id} needs representative posts")
-            face_volume += float(face["volume_percent"])
-        if abs(face_volume - 100.0) > 0.15:
-            raise ValueError(f"Topic {topic_id} perspective volumes sum to {face_volume}, not 100")
-
-    if abs(topic_volume - 100.0) > 0.15:
-        raise ValueError(f"Topic volumes sum to {topic_volume}, not 100")
 
 
 def default_output_path() -> Path:

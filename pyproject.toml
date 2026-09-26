@@ -15,7 +15,11 @@ dependencies = [
     "bertopic>=0.16.0",
     "ollama>=0.1.0",
     "numpy>=1.24.0,<2.0",
+    "pyyaml>=6.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
 
 [project.optional-dependencies]
 dev = [

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
@@ -6,6 +6,12 @@ import { cameraOffsetForScale, topicScale } from '../lib/layout'
 import { OrbitRing, default as Planet } from './Planet'
 
 const HOME_VIEW = [0, 6.2, 14.8, 0, 0, 0]
+// camera-controls ACTION bits: ROTATE 1, TRUCK 2, DOLLY 16, TOUCH_ROTATE 64,
+// TOUCH_TRUCK 128, TOUCH_DOLLY 1024, TOUCH_DOLLY_TRUCK 4096. NONE is 0.
+const ORBIT_MOUSE = { left: 1, middle: 16, right: 2, wheel: 16 }
+const INSPECT_MOUSE = { left: 0, middle: 0, right: 0, wheel: 16 }
+const ORBIT_TOUCH = { one: 64, two: 4096, three: 128 }
+const INSPECT_TOUCH = { one: 0, two: 1024, three: 0 }
 
 function FocusCamera({ controlsRef, anchors, selectedTopic }) {
   const lastId = useRef(null)
@@ -52,6 +58,7 @@ function Universe({
   const controlsRef = useRef()
   const anchors = useRef({})
   const selectedTopic = topics.find((topic) => topic.id === selectedTopicId) ?? null
+  const inspecting = Boolean(selectedTopic)
 
   useEffect(() => {
     return () => {
@@ -90,6 +97,8 @@ function Universe({
         maxDistance={46}
         dollyToCursor
         smoothTime={0.35}
+        mouseButtons={inspecting ? INSPECT_MOUSE : ORBIT_MOUSE}
+        touches={inspecting ? INSPECT_TOUCH : ORBIT_TOUCH}
       />
       <FocusCamera controlsRef={controlsRef} anchors={anchors} selectedTopic={selectedTopic} />
       <EffectComposer disableNormalPass>
@@ -103,17 +112,41 @@ export default function Observatory({
   topics,
   selectedTopicId,
   selectedPerspectiveId,
+  category,
   onSelectTopic,
   onSelectPerspective,
   onClearSelection,
 }) {
+  const [epoch, setEpoch] = useState(0)
+  const onCreated = useCallback(({ gl }) => {
+    const canvas = gl.domElement
+    let remounted = false
+    const remount = () => {
+      if (remounted) return
+      remounted = true
+      setEpoch((value) => value + 1)
+    }
+    const onLost = (event) => {
+      event.preventDefault()
+      remount()
+    }
+    canvas.addEventListener('webglcontextlost', onLost)
+    canvas.addEventListener('webglcontextrestored', remount)
+  }, [])
+
+  const hint = selectedTopicId
+    ? 'Drag to turn the cube · Click a spike or a sidebar bar'
+    : 'Drag to orbit · Scroll to zoom · Click a planet or a spike'
+
   return (
     <section className="observatory">
       <Canvas
+        key={epoch}
         camera={{ position: [0, 6.2, 14.8], fov: 42, near: 0.1, far: 120 }}
         dpr={[1, 1.5]}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false }}
         onPointerMissed={onClearSelection}
+        onCreated={onCreated}
       >
         <Universe
           topics={topics}
@@ -123,8 +156,13 @@ export default function Observatory({
           onSelectPerspective={onSelectPerspective}
         />
       </Canvas>
+      {topics.length === 0 && (
+        <div className="observatory-empty">
+          <p>No planets in {category}.</p>
+        </div>
+      )}
       <div className="observatory-chrome">
-        <p>Drag to orbit · Scroll to zoom · Click a planet or a spike</p>
+        <p>{hint}</p>
       </div>
     </section>
   )

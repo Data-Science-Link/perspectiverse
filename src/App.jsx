@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import Observatory from './components/Observatory'
 import Sidebar from './components/Sidebar'
+import { CATEGORIES, filterTopics } from './lib/categories'
+
+function initialCategory() {
+  const requested = new URLSearchParams(window.location.search).get('category')
+  if (!requested || requested === 'all') return 'all'
+  return requested
+}
 
 export default function App() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const [category, setCategory] = useState(initialCategory)
   const [selectedTopicId, setSelectedTopicId] = useState(null)
   const [selectedPerspectiveId, setSelectedPerspectiveId] = useState(null)
 
@@ -26,9 +34,14 @@ export default function App() {
       .catch((err) => setError(err.message))
   }, [])
 
+  const visibleTopics = useMemo(
+    () => (data ? filterTopics(data.topics, category) : []),
+    [data, category],
+  )
+
   const selectedTopic = useMemo(
-    () => data?.topics.find((topic) => topic.id === selectedTopicId) ?? null,
-    [data, selectedTopicId],
+    () => visibleTopics.find((topic) => topic.id === selectedTopicId) ?? null,
+    [visibleTopics, selectedTopicId],
   )
   const selectedPerspective = useMemo(
     () => selectedTopic?.perspectives.find((face) => face.id === selectedPerspectiveId) ?? null,
@@ -45,6 +58,12 @@ export default function App() {
   }
 
   const clearSelection = () => {
+    setSelectedTopicId(null)
+    setSelectedPerspectiveId(null)
+  }
+
+  const changeCategory = (next) => {
+    setCategory(next)
     setSelectedTopicId(null)
     setSelectedPerspectiveId(null)
   }
@@ -69,20 +88,25 @@ export default function App() {
   return (
     <div className="app-shell">
       <Observatory
-        topics={data.topics}
+        topics={visibleTopics}
         selectedTopicId={selectedTopicId}
         selectedPerspectiveId={selectedPerspectiveId}
+        category={category}
         onSelectTopic={selectTopic}
         onSelectPerspective={selectPerspective}
         onClearSelection={clearSelection}
       />
       <Sidebar
         data={data}
+        topics={visibleTopics}
+        categories={CATEGORIES}
+        category={category}
         selectedTopic={selectedTopic}
         selectedPerspective={selectedPerspective}
         onSelectTopic={selectTopic}
         onSelectPerspective={selectPerspective}
         onClearSelection={clearSelection}
+        onCategory={changeCategory}
       />
     </div>
   )

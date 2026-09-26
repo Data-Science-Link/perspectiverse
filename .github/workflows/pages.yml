@@ -30,6 +30,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Overlay data snapshot
+        run: |
+          if git ls-remote --exit-code --heads origin data-snapshot >/dev/null 2>&1; then
+            git fetch --depth 1 origin data-snapshot
+            git checkout FETCH_HEAD -- public/data.json
+            echo "Using public/data.json from data-snapshot"
+          else
+            echo "No data-snapshot branch yet; using the committed demo data.json"
+          fi
+
       - name: Build
         env:
           GITHUB_PAGES: "true"

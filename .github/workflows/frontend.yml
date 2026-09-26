@@ -25,5 +25,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Category helper
+        run: node scripts/check_categories.mjs
+
       - name: Build
         run: npm run build
+
+      - name: Check built data.json contract
+        run: node scripts/check_data_contract.mjs

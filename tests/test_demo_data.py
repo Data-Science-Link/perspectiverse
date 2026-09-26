@@ -5,9 +5,23 @@ def test_demo_payload_matches_ui_contract():
     payload = build_demo_payload()
     validate_payload(payload)
     assert payload["total_posts"] == 100_000
+    assert payload["mode"] == "demo"
+    assert payload["source"] == "synthetic"
+    assert payload["window_hours"] == 168
     assert len(payload["topics"]) == 10
     assert payload["topics"][0]["id"] == 1
+    assert payload["topics"][0]["category"]
     assert payload["topics"][0]["total_volume_percent"] >= payload["topics"][-1]["total_volume_percent"]
+    assert {topic["category"] for topic in payload["topics"]} >= {
+        "Politics",
+        "Sports",
+        "Technology",
+        "Economy",
+        "Environment",
+        "Health",
+        "Education",
+        "Media",
+    }
 
 
 def test_each_planet_has_six_faces_and_posts():

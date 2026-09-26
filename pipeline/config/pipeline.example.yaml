@@ -1,0 +1,39 @@
+# Copy to pipeline/config/pipeline.yaml to override locally (gitignored).
+# sample_size 200 proves the plumbing. The production target is 10000.
+window_hours: 168
+sample_size: 200
+# sample_size: 10000
+
+# Clusters smaller than this become Topic -1 and drop out of the volume
+# denominator. 2 matches the 200-post plumbing sample: the lexical pass asks
+# for 11 clusters and the smallest can be noise while 10 planets remain.
+# Use 8 on a few hundred well-separated posts, and 15-25 once sample_size
+# is near 10000.
+min_cluster_size: 2
+
+# lexical: numpy TF-IDF, no model download. bertopic: all-MiniLM-L6-v2 via BERTopic.
+cluster_backend: lexical
+embedding_model: all-MiniLM-L6-v2
+
+# auto tries Ollama, then an OpenAI-compatible API, then a visible fallback title.
+# heuristic skips the network and names faces from top terms.
+label_backend: auto
+ollama_model: llama3.2
+openai_model: gpt-4o-mini
+
+representative_posts: 12
+language: en
+seed: 0
+
+# Rotated so a small public search is not one keyword.
+queries:
+  - the
+  - people
+  - today
+  - because
+  - work
+  - city
+  - game
+  - health
+  - school
+  - news

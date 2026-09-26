@@ -1,6 +1,10 @@
 {
   "last_updated": "2026-09-26",
   "total_posts": 100000,
+  "window_hours": 168,
+  "source": "synthetic",
+  "mode": "demo",
+  "noise_policy": "Topic -1 is dropped and excluded from the volume denominator.",
   "topics": [
     {
       "id": 1,
@@ -145,7 +149,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Technology"
     },
     {
       "id": 2,
@@ -290,7 +295,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Economy"
     },
     {
       "id": 3,
@@ -435,7 +441,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Environment"
     },
     {
       "id": 4,
@@ -580,7 +587,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Health"
     },
     {
       "id": 5,
@@ -725,7 +733,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Economy"
     },
     {
       "id": 6,
@@ -870,7 +879,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Politics"
     },
     {
       "id": 7,
@@ -1015,7 +1025,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Technology"
     },
     {
       "id": 8,
@@ -1160,7 +1171,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Education"
     },
     {
       "id": 9,
@@ -1305,7 +1317,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Sports"
     },
     {
       "id": 10,
@@ -1450,7 +1463,8 @@
             }
           ]
         }
-      ]
+      ],
+      "category": "Media"
     }
   ]
 }
