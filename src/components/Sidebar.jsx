@@ -29,15 +29,15 @@ function WelcomePanel({ data, onSelectTopic }) {
       <div className="stat-grid">
         <div>
           <strong>{formatNumber(data.total_posts)}</strong>
-          <span>posts in the 7-day window</span>
+          <span>posts this week</span>
         </div>
         <div>
           <strong>{data.topics.length}</strong>
-          <span>planets in the sky</span>
+          <span>planets</span>
         </div>
         <div>
           <strong>{data.last_updated}</strong>
-          <span>daily snapshot</span>
+          <span>snapshot</span>
         </div>
       </div>
       <div className="how-to">
