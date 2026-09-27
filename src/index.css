@@ -40,6 +40,64 @@ button {
     var(--void);
 }
 
+.site-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 52px;
+  padding: calc(0.4rem + env(safe-area-inset-top)) 0.9rem 0.4rem;
+  z-index: 30;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: rgba(11, 13, 20, 0.72);
+  cursor: pointer;
+}
+
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.site-chrome-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.site-chrome-title {
+  margin: 0;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.15rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.site-chrome-sub {
+  margin: 0.12rem 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .observatory {
   position: relative;
   flex: 1 1 auto;
@@ -76,6 +134,7 @@ button {
 
 .panel {
   padding: 1.7rem 1.5rem 2.4rem;
+  animation: rise 0.24s ease;
 }
 
 .eyebrow {
@@ -248,8 +307,18 @@ h3 {
 }
 
 .perspective-card {
-  padding: 0.85rem 0.15rem 1rem;
+  position: relative;
+  padding: 0.85rem 1.4rem 1rem 0.15rem;
   border-bottom: 1px solid var(--line);
+  min-height: 44px;
+}
+
+.card-chevron {
+  position: absolute;
+  right: 0.15rem;
+  top: 1rem;
+  color: var(--muted);
+  font-size: 1.2rem;
 }
 
 .perspective-card.is-active {
@@ -264,10 +333,179 @@ h3 {
 
 .back-link {
   width: auto;
+  min-height: 44px;
   margin-bottom: 0.9rem;
   padding: 0;
   color: #f4c14e;
   letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pv-graphic {
+  margin: 0 0 1rem;
+}
+
+.pv-graphic svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pv-graphic figcaption,
+.mobile-prompt {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.pv-graphic.is-compact {
+  margin: 0 0 0.75rem;
+}
+
+.planet-rail {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.15rem 0 0.35rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.planet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.planet-chip small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+}
+
+.menu-backdrop {
+  flex: 1;
+  border: 0;
+  background: rgba(5, 6, 11, 0.55);
+  cursor: pointer;
+}
+
+.menu-drawer {
+  width: min(420px, 92vw);
+  height: 100%;
+  overflow-y: auto;
+  padding: calc(1rem + env(safe-area-inset-top)) 1.25rem calc(2rem + env(safe-area-inset-bottom));
+  border-right: 1px solid var(--line);
+  background: linear-gradient(180deg, #0c0e16, #080910 70%);
+  animation: drawer-in 0.22s ease;
+}
+
+.menu-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.menu-head h2 {
+  margin: 0;
+}
+
+.menu-section + .menu-section {
+  margin-top: 1.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+
+.menu-section p,
+.menu-section li {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.menu-section ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.menu-planets {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.menu-planet {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.7rem;
+  align-items: center;
+  min-height: 44px;
+  width: 100%;
+  padding: 0.45rem 0.15rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-planet strong,
+.menu-planet em {
+  display: block;
+}
+
+.menu-planet em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.8rem;
+}
+
+.menu-feedback {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 0.4rem;
+  color: #f4c14e;
+}
+
+.filter-strip.is-menu {
+  padding: 0;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .perspective-stat {
@@ -327,6 +565,7 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  min-height: 36px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
@@ -388,22 +627,85 @@ h3 {
   color: var(--muted);
 }
 
+@media (min-width: 901px) {
+  .site-chrome {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(100% - min(420px, 36vw));
+    background: linear-gradient(180deg, rgba(5, 6, 11, 0.78), rgba(5, 6, 11, 0));
+    pointer-events: none;
+  }
+
+  .site-chrome .icon-btn {
+    pointer-events: auto;
+  }
+}
+
 @media (max-width: 900px) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+
   .app-shell {
     flex-direction: column;
-    overflow: auto;
+    overflow: hidden;
+    height: 100dvh;
+  }
+
+  .site-chrome {
+    flex: 0 0 auto;
+    background: rgba(5, 6, 11, 0.88);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(14px);
   }
 
   .observatory {
-    height: 54vh;
-    min-height: 320px;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
   }
 
   .sidebar {
     width: 100%;
     min-width: 0;
+    flex: 0 1 auto;
+    max-height: 38vh;
     height: auto;
     border-left: 0;
     border-top: 1px solid var(--line);
+  }
+
+  .app-shell.is-drilled .observatory {
+    display: none;
+  }
+
+  .app-shell.is-drilled .sidebar {
+    flex: 1 1 auto;
+    max-height: none;
+  }
+
+  .panel.is-mobile-home {
+    padding: 1rem 1rem 1.2rem;
+  }
+
+  .panel.is-topic,
+  .panel.is-face {
+    padding-top: 1.15rem;
+  }
+
+  .observatory-chrome {
+    left: 1rem;
+    right: 1rem;
+    bottom: 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .menu-drawer {
+    animation: none;
   }
 }

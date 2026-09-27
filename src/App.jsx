@@ -1,20 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Observatory from './components/Observatory'
 import Sidebar from './components/Sidebar'
-import { CATEGORIES, filterTopics } from './lib/categories'
+import SiteChrome from './components/SiteChrome'
+import SiteMenu from './components/SiteMenu'
+import { CATEGORIES, categoryCounts, filterTopics } from './lib/categories'
+import { decorateVisibleTopics } from './lib/planets'
+import { readSelectionFromURL, resetScroll, writeSelectionToURL } from './lib/navigation'
+import { useIsMobile } from './lib/useMediaQuery'
 
-function initialCategory() {
-  const requested = new URLSearchParams(window.location.search).get('category')
-  if (!requested || requested === 'all') return 'all'
-  return requested
+function initialSelection() {
+  return readSelectionFromURL()
 }
 
 export default function App() {
+  const boot = useMemo(initialSelection, [])
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
-  const [category, setCategory] = useState(initialCategory)
-  const [selectedTopicId, setSelectedTopicId] = useState(null)
-  const [selectedPerspectiveId, setSelectedPerspectiveId] = useState(null)
+  const [category, setCategory] = useState(boot.category)
+  const [selectedTopicId, setSelectedTopicId] = useState(boot.topicId)
+  const [selectedPerspectiveId, setSelectedPerspectiveId] = useState(boot.perspectiveId)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const isMobile = useIsMobile()
+  const shellRef = useRef(null)
 
   useEffect(() => {
     const url = `${import.meta.env.BASE_URL}data.json`
@@ -35,7 +42,7 @@ export default function App() {
   }, [])
 
   const visibleTopics = useMemo(
-    () => (data ? filterTopics(data.topics, category) : []),
+    () => (data ? decorateVisibleTopics(data.topics, filterTopics(data.topics, category)) : []),
     [data, category],
   )
 
@@ -48,25 +55,60 @@ export default function App() {
     [selectedTopic, selectedPerspectiveId],
   )
 
+  const commitSelection = (next, mode = 'push') => {
+    setCategory(next.category)
+    setSelectedTopicId(next.topicId)
+    setSelectedPerspectiveId(next.perspectiveId)
+    writeSelectionToURL(next, mode)
+  }
+
   const selectTopic = (topicId) => {
-    setSelectedTopicId(topicId)
-    setSelectedPerspectiveId(null)
+    commitSelection({ category, topicId, perspectiveId: null })
   }
 
   const selectPerspective = (perspectiveId) => {
-    setSelectedPerspectiveId(perspectiveId)
+    commitSelection({ category, topicId: selectedTopicId, perspectiveId })
+  }
+
+  const stepBack = () => {
+    if (selectedPerspectiveId) {
+      commitSelection({ category, topicId: selectedTopicId, perspectiveId: null })
+      return
+    }
+    commitSelection({ category, topicId: null, perspectiveId: null })
   }
 
   const clearSelection = () => {
-    setSelectedTopicId(null)
-    setSelectedPerspectiveId(null)
+    commitSelection({ category, topicId: null, perspectiveId: null })
   }
 
   const changeCategory = (next) => {
-    setCategory(next)
+    commitSelection({ category: next, topicId: null, perspectiveId: null })
+  }
+
+  useEffect(() => {
+    const onPop = () => {
+      const snap = readSelectionFromURL()
+      setCategory(snap.category)
+      setSelectedTopicId(snap.topicId)
+      setSelectedPerspectiveId(snap.perspectiveId)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  useLayoutEffect(() => {
+    resetScroll(shellRef.current)
+  }, [selectedTopicId, selectedPerspectiveId, menuOpen])
+
+  useEffect(() => {
+    if (!data) return
+    if (!selectedTopicId) return
+    if (selectedTopic) return
+    writeSelectionToURL({ category, topicId: null, perspectiveId: null }, 'replace')
     setSelectedTopicId(null)
     setSelectedPerspectiveId(null)
-  }
+  }, [data, selectedTopic, selectedTopicId, category])
 
   if (error) {
     return (
@@ -85,8 +127,31 @@ export default function App() {
     )
   }
 
+  const drilled = Boolean(selectedTopic)
+  const chromeTitle = selectedPerspective?.title
+    ?? selectedTopic?.name
+    ?? 'Perspectiverse'
+  const chromeSubtitle = selectedPerspective
+    ? selectedTopic.name
+    : selectedTopic
+      ? `${selectedTopic.body?.name} · ${selectedTopic.category}`
+      : isMobile
+        ? 'Tap a cube to begin'
+        : 'Discourse Universe'
+
   return (
-    <div className="app-shell">
+    <div
+      ref={shellRef}
+      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${drilled ? 'is-drilled' : ''}`}
+    >
+      <SiteChrome
+        drilled={drilled}
+        title={chromeTitle}
+        subtitle={isMobile && !drilled ? 'Tap a cube to begin' : chromeSubtitle}
+        backLabel={selectedPerspective ? `Back to ${selectedTopic.name}` : 'Back to the sky'}
+        onBack={stepBack}
+        onOpenMenu={() => setMenuOpen(true)}
+      />
       <Observatory
         topics={visibleTopics}
         selectedTopicId={selectedTopicId}
@@ -103,10 +168,22 @@ export default function App() {
         category={category}
         selectedTopic={selectedTopic}
         selectedPerspective={selectedPerspective}
+        isMobile={isMobile}
         onSelectTopic={selectTopic}
         onSelectPerspective={selectPerspective}
         onClearSelection={clearSelection}
         onCategory={changeCategory}
+      />
+      <SiteMenu
+        open={menuOpen}
+        data={data}
+        topics={visibleTopics}
+        categories={CATEGORIES}
+        category={category}
+        counts={categoryCounts(data.topics)}
+        onClose={() => setMenuOpen(false)}
+        onCategory={changeCategory}
+        onSelectTopic={selectTopic}
       />
     </div>
   )

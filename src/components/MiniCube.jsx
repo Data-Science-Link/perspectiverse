@@ -17,7 +17,8 @@ function SpinningPreview({ topic, selectedPerspectiveId, onSelectPerspective }) 
     <group ref={group} scale={1.15}>
       <SpikyCube
         perspectives={topic.perspectives}
-        coreColor={topicColor(topic.id)}
+        body={topic.body}
+        coreColor={topicColor(topic.id, topic.body)}
         selectedPerspectiveId={selectedPerspectiveId}
         onSelectPerspective={onSelectPerspective}
       />

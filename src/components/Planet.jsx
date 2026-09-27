@@ -21,12 +21,13 @@ export default function Planet({
   const drag = useRef(null)
   const suppressClick = useRef(false)
   const [hovered, setHovered] = useState(false)
-  const isSun = index === 0
+  const body = topic.body
+  const isSun = body?.key === 'sun' || index === 0
   const radius = orbitRadius(index, isSun)
   const speed = orbitSpeed(index, isSun)
   const inclination = orbitInclination(index, isSun)
   const scale = topicScale(topic.total_volume_percent)
-  const color = topicColor(topic.id)
+  const color = topicColor(topic.id, body)
   const pickScale = Math.max(1, 1.15 / Math.max(scale, 0.35))
 
   useFrame((_, delta) => {
@@ -115,12 +116,13 @@ export default function Planet({
         {isSun && (
           <mesh raycast={() => null}>
             <sphereGeometry args={[1.25, 24, 24]} />
-            <meshBasicMaterial color={color} transparent opacity={0.1} />
+            <meshBasicMaterial color={color} transparent opacity={0.14} />
           </mesh>
         )}
         <group ref={cube}>
           <SpikyCube
             perspectives={topic.perspectives}
+            body={body}
             coreColor={color}
             selectedPerspectiveId={selectedPerspectiveId}
             dimmed={dimmed}

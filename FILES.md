@@ -46,14 +46,21 @@ This document provides a complete listing of all files in the Perspectiverse rep
 
 | File/Directory | Description |
 | --- | --- |
-| `src/App.jsx` | Loads `data.json`, category filter, selection |
+| `src/App.jsx` | Loads `data.json`, category filter, URL-backed selection |
 | `src/components/Observatory.jsx` | Canvas, camera, bloom, WebGL remount |
 | `src/components/Planet.jsx` | Orbits, inspect drag, hover stats |
-| `src/components/SpikyCube.jsx` | Cube, spikes, larger pick cones |
+| `src/components/SpikyCube.jsx` | Planet-skinned cores, spikes, Saturn rings |
 | `src/components/MiniCube.jsx` | Sidebar preview |
-| `src/components/Sidebar.jsx` | Welcome, filter, honesty copy, posts |
+| `src/components/Sidebar.jsx` | Welcome, topic, and face panels |
+| `src/components/SiteChrome.jsx` | Sticky header, back arrow, hamburger |
+| `src/components/SiteMenu.jsx` | About, graphic, filters, feedback |
+| `src/components/PerspectiverseGraphic.jsx` | SVG explainer of the solar-system metaphor |
 | `src/lib/categories.js` | Category list and filter helper |
 | `src/lib/colors.js` | Planet and spike palette |
+| `src/lib/planets.js` | Solar-system order and body metadata |
+| `src/lib/planetTextures.js` | Canvas skins for Sun through Pluto |
+| `src/lib/navigation.js` | Query-string selection and scroll reset |
+| `src/lib/useMediaQuery.js` | Mobile breakpoint hook |
 | `src/lib/layout.js` | Orbit radii, planet scale, formatting |
 | `public/data.json` | Snapshot the observatory loads |
 | `public/vite.svg` | Favicon |
@@ -72,6 +79,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | --- | --- |
 | `scripts/security_check.sh` | Local Bandit and pip-audit |
 | `scripts/check_categories.mjs` | Category filter helper check |
+| `scripts/check_planets.mjs` | Solar-system order and selection URLs |
 | `scripts/check_data_contract.mjs` | Asserts the built `dist/data.json` contract |
 | `.github/workflows/security-audit.yml` | Bandit + pip-audit, including `workflow_dispatch` |
 | `.github/workflows/pytest.yml` | Pytest without a model download |

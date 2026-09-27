@@ -6,6 +6,10 @@ Perspectiverse turns a week of public conversation into a 3D solar system. The l
 
 The analytical sidebar reacts to the sky. Filter by category, select a planet to turn its cube, then select a face to read the representative posts.
 
+On a phone the sky stays up front: name, graphic, and a prompt to tap a cube. Opening a planet jumps to a tight topic page (summary + the six perspectives). Opening a perspective jumps again to representative posts, always from the top, with a back arrow and the browser back button wired to the same stack. The hamburger holds project info, the Perspectiverse graphic, filters, and feedback.
+
+Bodies keep solar-system skins in volume order: the largest topic is the Sun, then Mercury through Pluto.
+
 ## Current status
 
 The observatory runs on a schema-compatible **demo** `public/data.json` (10 topics × 6 perspectives) until a live snapshot is published. The live path is implemented and can be run locally or on the daily Actions job. It defaults to a **small** Bluesky sample (200 posts) so the plumbing can be proved without a 10k embed. Raise `sample_size` in `pipeline/config/pipeline.example.yaml` toward 10000 for a fuller window.
