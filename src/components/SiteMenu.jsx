@@ -48,7 +48,6 @@ export default function SiteMenu({
 
   return (
     <div className="menu-layer">
-      <button type="button" className="menu-backdrop" aria-label="Close menu" onClick={onClose} />
       <aside className="menu-drawer" role="dialog" aria-modal="true" aria-labelledby="menu-title">
         <div className="menu-head">
           <div>
@@ -166,6 +165,7 @@ export default function SiteMenu({
           </a>
         </section>
       </aside>
+      <button type="button" className="menu-backdrop" aria-label="Close menu" onClick={onClose} />
     </div>
   )
 }

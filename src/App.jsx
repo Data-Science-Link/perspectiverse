@@ -157,6 +157,7 @@ export default function App() {
         selectedTopicId={selectedTopicId}
         selectedPerspectiveId={selectedPerspectiveId}
         category={category}
+        isMobile={isMobile}
         onSelectTopic={selectTopic}
         onSelectPerspective={selectPerspective}
         onClearSelection={clearSelection}

@@ -18,7 +18,7 @@ export function orbitInclination(index, isSun) {
 }
 
 export function cameraOffsetForScale(scale) {
-  return 2.8 + scale * 1.55
+  return 3.4 + scale * 1.7
 }
 
 export function formatNumber(value) {

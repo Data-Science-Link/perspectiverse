@@ -3,15 +3,15 @@ import { DoubleSide } from 'three'
 import { spikeColor } from '../lib/colors'
 import { createBodyTexture, createRingTexture } from '../lib/planetTextures'
 
-const CORE_RADIUS = 0.32
+const CORE_RADIUS = 0.82
 
 const FACES = [
-  { position: [0, CORE_RADIUS * 0.92, 0], rotation: [0, 0, 0] },
-  { position: [0, -CORE_RADIUS * 0.92, 0], rotation: [Math.PI, 0, 0] },
-  { position: [CORE_RADIUS * 0.92, 0, 0], rotation: [0, 0, -Math.PI / 2] },
-  { position: [-CORE_RADIUS * 0.92, 0, 0], rotation: [0, 0, Math.PI / 2] },
-  { position: [0, 0, CORE_RADIUS * 0.92], rotation: [Math.PI / 2, 0, 0] },
-  { position: [0, 0, -CORE_RADIUS * 0.92], rotation: [-Math.PI / 2, 0, 0] },
+  { position: [0, CORE_RADIUS * 0.96, 0], rotation: [0, 0, 0] },
+  { position: [0, -CORE_RADIUS * 0.96, 0], rotation: [Math.PI, 0, 0] },
+  { position: [CORE_RADIUS * 0.96, 0, 0], rotation: [0, 0, -Math.PI / 2] },
+  { position: [-CORE_RADIUS * 0.96, 0, 0], rotation: [0, 0, Math.PI / 2] },
+  { position: [0, 0, CORE_RADIUS * 0.96], rotation: [Math.PI / 2, 0, 0] },
+  { position: [0, 0, -CORE_RADIUS * 0.96], rotation: [-Math.PI / 2, 0, 0] },
 ]
 
 function SaturnRings() {
@@ -20,7 +20,7 @@ function SaturnRings() {
 
   return (
     <mesh rotation={[Math.PI / 2.15, 0.18, 0]} raycast={() => null}>
-      <ringGeometry args={[0.52, 1.08, 72]} />
+      <ringGeometry args={[1.02, 1.72, 80]} />
       <meshBasicMaterial
         map={texture}
         transparent
@@ -45,7 +45,7 @@ export default function SpikyCube({
   const spikes = useMemo(
     () =>
       perspectives.slice(0, 6).map((perspective, index) => {
-        const height = 0.16 + (perspective.volume_percent / 100) * 3.35
+        const height = 0.2 + (perspective.volume_percent / 100) * 1.05
         return {
           ...perspective,
           index,
@@ -64,19 +64,20 @@ export default function SpikyCube({
   useEffect(() => () => texture.dispose(), [texture])
 
   const color = body?.color ?? coreColor
-  const emissive = dimmed ? 0.02 : body?.emissive ?? 0.35
+  const isSun = body?.key === 'sun'
+  const emissive = dimmed ? 0.02 : isSun ? 1.15 : 0.06
 
   return (
     <group>
       <mesh>
-        <sphereGeometry args={[CORE_RADIUS, 48, 32]} />
+        <sphereGeometry args={[CORE_RADIUS, 64, 48]} />
         <meshStandardMaterial
           map={texture}
           color={dimmed ? '#6b7280' : '#ffffff'}
           emissive={color}
           emissiveIntensity={emissive}
-          roughness={body?.key === 'sun' ? 0.22 : 0.48}
-          metalness={0.08}
+          roughness={isSun ? 0.28 : 0.62}
+          metalness={0.04}
           transparent
           opacity={dimmed ? 0.16 : 1}
         />

@@ -361,7 +361,11 @@ h3 {
 }
 
 .pv-graphic.is-compact {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.55rem;
+}
+
+.pv-graphic.is-compact svg {
+  max-height: 118px;
 }
 
 .planet-rail {

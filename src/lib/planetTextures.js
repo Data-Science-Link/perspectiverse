@@ -90,9 +90,9 @@ function venusShade(nx, ny) {
 }
 
 function earthShade(nx, ny) {
-  const ocean = [38, 92, 168]
-  const land = [62, 140, 78]
-  const desert = [194, 168, 92]
+  const ocean = [28, 78, 168]
+  const land = [52, 148, 68]
+  const desert = [210, 176, 86]
   const ice = [236, 244, 250]
   const cloud = fbm(nx * 9, ny * 11, 19, 4)
 
@@ -124,7 +124,7 @@ function earthShade(nx, ny) {
 
 function marsShade(nx, ny) {
   const n = fbm(nx * 8, ny * 9, 7.7, 5)
-  const base = mix([168, 62, 28], [214, 118, 62], n)
+  const base = mix([176, 48, 22], [226, 108, 48], n)
   const dark = fbm(nx * 5, ny * 6, 3.3, 3)
   let color = dark > 0.7 ? mix(base, [92, 36, 20], 0.45) : base
   if (ny < 0.08 || ny > 0.92) color = mix(color, [245, 236, 220], 0.8)
@@ -134,7 +134,7 @@ function marsShade(nx, ny) {
 function jupiterShade(nx, ny) {
   const bands = 0.5 + 0.5 * Math.sin(ny * Math.PI * 14)
   const turbulence = fbm(nx * 6, ny * 18, 12.2, 4)
-  const base = mix([214, 164, 96], [168, 112, 64], clamp01(bands * 0.7 + turbulence * 0.3))
+  const base = mix([226, 172, 92], [150, 92, 48], clamp01(bands * 0.8 + turbulence * 0.28))
   const spot = ellipse(nx, ny, 0.72, 0.6, 0.08, 0.05)
   if (spot < 1) return mix(base, [196, 78, 48], clamp01(1 - spot))
   return base

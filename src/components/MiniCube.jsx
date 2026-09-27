@@ -29,9 +29,10 @@ function SpinningPreview({ topic, selectedPerspectiveId, onSelectPerspective }) 
 export default function MiniCube({ topic, selectedPerspectiveId, onSelectPerspective }) {
   return (
     <div className="mini-cube">
-      <Canvas camera={{ position: [2.6, 1.6, 2.6], fov: 40 }} dpr={[1, 1.5]}>
-        <ambientLight intensity={0.55} />
-        <pointLight position={[2, 3, 2]} intensity={1.4} color="#fff1c2" />
+      <Canvas camera={{ position: [3.4, 2.0, 3.4], fov: 38 }} dpr={[1, 1.5]}>
+        <ambientLight intensity={0.7} />
+        <pointLight position={[2, 3, 2]} intensity={1.6} color="#fff1c2" />
+        <directionalLight position={[-2, 2, 3]} intensity={0.6} />
         <SpinningPreview
           topic={topic}
           selectedPerspectiveId={selectedPerspectiveId}

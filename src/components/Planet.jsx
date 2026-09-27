@@ -14,6 +14,7 @@ export default function Planet({
   anchors,
   onSelectTopic,
   onSelectPerspective,
+  isMobile = false,
 }) {
   const group = useRef()
   const cube = useRef()
@@ -115,8 +116,8 @@ export default function Planet({
         </mesh>
         {isSun && (
           <mesh raycast={() => null}>
-            <sphereGeometry args={[1.25, 24, 24]} />
-            <meshBasicMaterial color={color} transparent opacity={0.14} />
+            <sphereGeometry args={[1.08, 32, 32]} />
+            <meshBasicMaterial color={color} transparent opacity={0.16} />
           </mesh>
         )}
         <group ref={cube}>
@@ -138,23 +139,25 @@ export default function Planet({
           />
         </group>
       </group>
-      <Html position={[0, scale * 1.45, 0]} center distanceFactor={16} zIndexRange={[10, 0]}>
-        <button
-          type="button"
-          className={`planet-label ${dimmed ? 'is-dimmed' : ''}`}
-          style={{
-            borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
-          }}
-          onClick={(event) => {
-            event.stopPropagation()
-            onSelectTopic(topic.id)
-          }}
-        >
-          {topic.name}
-        </button>
-      </Html>
-      {hovered && (
-        <Html position={[0, scale * 1.95, 0]} center distanceFactor={18} zIndexRange={[12, 0]}>
+      {!isMobile && (
+        <Html position={[0, scale * 1.45, 0]} center distanceFactor={18} zIndexRange={[10, 0]}>
+          <button
+            type="button"
+            className={`planet-label ${dimmed ? 'is-dimmed' : ''}`}
+            style={{
+              borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
+            }}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelectTopic(topic.id)
+            }}
+          >
+            {topic.name}
+          </button>
+        </Html>
+      )}
+      {!isMobile && hovered && (
+        <Html position={[0, scale * 1.95, 0]} center distanceFactor={20} zIndexRange={[12, 0]}>
           <div className="planet-hover">
             {topic.category} · {formatPercent(topic.total_volume_percent)}
           </div>
