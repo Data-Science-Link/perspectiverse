@@ -3,6 +3,22 @@ import { tokenize } from './tokenize.js'
 export const MIN_MATCH_SCORE = 0.08
 
 const SHORT_KEEPERS = new Set(['ai', 'us', 'uk', 'eu', 'un'])
+const ENGAGE_STOP = new Set([
+  'more',
+  'than',
+  'very',
+  'also',
+  'some',
+  'any',
+  'really',
+  'even',
+  'still',
+  'over',
+  'going',
+  'gonna',
+  'thing',
+  'things',
+])
 const WHY_CUES = ['because', 'need', 'needs', 'cannot', 'without', 'unless', 'if']
 const WHY_RE = /\b(why|how come|what makes|what are they|what do (people|they))\b/i
 const COUNTER_RE = /\b(missing|other side|push back|disagree|debate|wrong|overblown|actually)\b/i
@@ -20,32 +36,52 @@ export function expandTokens(tokens) {
   for (const token of tokens) {
     if (!token) continue
     out.add(token)
-    if (token.endsWith('s') && token.length > 4) out.add(token.slice(0, -1))
+    if (token.endsWith('s') && token.length >= 4) out.add(token.slice(0, -1))
     if (token.endsWith('ing') && token.length > 6) out.add(token.slice(0, -3))
     if (token.endsWith('ed') && token.length > 5) out.add(token.slice(0, -2))
   }
   return [...out]
 }
 
-export function queryTokens(query) {
-  const base = tokenize(query)
-  const extras = (String(query ?? '').toLowerCase().match(/\b[a-z]{2}\b/g) ?? [])
+function shortKeepersIn(text) {
+  return (String(text ?? '').toLowerCase().match(/\b[a-z]{2}\b/g) ?? [])
     .filter((token) => SHORT_KEEPERS.has(token))
-  return expandTokens([...base, ...extras])
 }
 
-export function scoreText(queryToks, text) {
-  const postToks = new Set(expandTokens(tokenize(text)))
-  if (!queryToks.length || !postToks.size) return 0
-  let overlap = 0
-  for (const token of queryToks) {
-    if (postToks.has(token)) overlap += 1
+export function queryTokens(query) {
+  const base = tokenize(query).filter((token) => !ENGAGE_STOP.has(token))
+  return expandTokens([...base, ...shortKeepersIn(query)])
+}
+
+export function documentFrequencies(rows) {
+  const df = new Map()
+  for (const row of rows) {
+    const tokens = new Set([...expandTokens(tokenize(row.text)), ...shortKeepersIn(row.text)])
+    for (const token of tokens) df.set(token, (df.get(token) ?? 0) + 1)
   }
-  if (overlap === 0) return 0
+  return { df, n: rows.length }
+}
+
+export function tokenWeight(token, stats) {
+  const df = stats?.df?.get(token) ?? 1
+  const n = stats?.n ?? 8
+  const idf = Math.log((n + 1) / df)
+  const rarity = SHORT_KEEPERS.has(token) || token.length >= 6 ? 1.7 : 1
+  return idf * rarity
+}
+
+export function scoreText(queryToks, text, stats = null) {
+  const postToks = new Set([...expandTokens(tokenize(text)), ...shortKeepersIn(text)])
+  if (!queryToks.length || !postToks.size) return 0
+  const matched = queryToks.filter((token) => postToks.has(token))
+  if (!matched.length) return 0
+  const distinctive = matched.filter((token) => token.length >= 5 || SHORT_KEEPERS.has(token))
   const union = new Set([...queryToks, ...postToks]).size
-  const jaccard = overlap / union
-  const coverage = overlap / queryToks.length
-  return 0.62 * coverage + 0.38 * jaccard
+  const jaccard = matched.length / union
+  const coverage = matched.length / queryToks.length
+  const weighted = matched.reduce((total, token) => total + tokenWeight(token, stats), 0)
+  const bonus = distinctive.length ? 0.06 : 0
+  return 0.38 * coverage + 0.18 * jaccard + 0.44 * Math.min(weighted / 4, 1) + bonus
 }
 
 export function collectPosts(topics, { topicId = null, perspectiveId = null } = {}) {
@@ -203,9 +239,11 @@ export function engage(query, topics, options = {}) {
   const tokens = queryTokens(text)
   const intent = detectIntent(text)
   const scope = options.perspectiveId ? 'face' : options.topicId != null ? 'planet' : 'sky'
-  const rows = collectPosts(topics, options).map((row) => ({
+  const collected = collectPosts(topics, options)
+  const stats = documentFrequencies(collected)
+  const rows = collected.map((row) => ({
     ...row,
-    score: tokens.length ? scoreText(tokens, row.text) : 0,
+    score: tokens.length ? scoreText(tokens, row.text, stats) : 0,
     why: WHY_CUES.some((cue) => String(row.text).toLowerCase().includes(cue)),
   }))
   const scored = [...rows].sort((left, right) => {
@@ -214,13 +252,17 @@ export function engage(query, topics, options = {}) {
   })
   const hits = scored.filter((row) => row.score >= MIN_MATCH_SCORE)
 
-  const allFaces = [...groupBy(scored, 'faceId').values()].map(faceRecord)
+  const scopedFaces = scope === 'sky'
+    ? [...groupBy(hits, 'faceId').values()].map(faceRecord)
+    : [...groupBy(scored, 'faceId').values()].map(faceRecord)
   const hitFaces = [...groupBy(hits, 'faceId').values()].map(faceRecord)
     .sort((left, right) => right.score - left.score)
   const hitTopics = [...groupBy(hits, 'topicId').values()].map((group) => topicRecord(group, topics))
     .sort((left, right) => right.score - left.score)
 
-  const loudFace = [...allFaces].sort((left, right) => left.rank - right.rank || right.volume - left.volume)[0] ?? null
+  const loudFace = scope === 'sky'
+    ? null
+    : [...scopedFaces].sort((left, right) => left.rank - right.rank || right.volume - left.volume)[0] ?? null
   const bestFace = hitFaces[0] ?? null
   const bestTopic = hitTopics[0] ?? null
   const sun = topics?.[0]
@@ -234,7 +276,7 @@ export function engage(query, topics, options = {}) {
 
   const presence = scope === 'sky'
     ? classifySky(hitTopics)
-    : classifyPlanet(hits, hitFaces.length ? hitFaces : allFaces)
+    : classifyPlanet(hits, hitFaces.length ? hitFaces : scopedFaces)
 
   const loudUnmatchedFace = loudFace && bestFace && loudFace.id !== bestFace.id ? loudFace : null
 
@@ -307,10 +349,22 @@ export function verdictCopy(result) {
       body: 'The representative posts in this scope do not overlap your frame. It may live under the cap, or it may not be here.',
     }
   }
-  if (result.presence === 'majority' && result.scope === 'sky' && result.bestTopic) {
+  if (result.scope === 'sky') {
+    if (result.presence === 'majority' && result.bestTopic) {
+      return {
+        title: 'You landed on the sun',
+        body: `“${result.bestTopic.name}” is the largest topic in view. That is volume, not virtue.`,
+      }
+    }
+    if (result.bestTopic && result.sun && result.bestTopic.id !== result.sun.id) {
+      return {
+        title: 'Not the sun',
+        body: `Your words gather on “${result.bestTopic.name}” (${result.bestTopic.volume.toFixed(1)}% of the sky). The sun is “${result.sun.name}.”`,
+      }
+    }
     return {
-      title: 'You landed on the sun',
-      body: `“${result.bestTopic.name}” is the largest topic in view. That is volume, not virtue.`,
+      title: 'Your words are on this sky',
+      body: 'Open a planet to see whether you are gold or a quieter spike.',
     }
   }
   if (result.presence === 'majority' && result.bestFace) {
@@ -329,12 +383,6 @@ export function verdictCopy(result) {
     return {
       title: 'Minority spike',
       body: `Your take lands on “${result.bestFace.title}” (${result.bestFace.volume.toFixed(1)}%). Gold is “${result.loudUnmatchedFace.title}” (${result.loudUnmatchedFace.volume.toFixed(1)}%) and barely overlaps you.`,
-    }
-  }
-  if (result.bestTopic && result.sun && result.bestTopic.id !== result.sun.id) {
-    return {
-      title: 'Not the sun',
-      body: `Your words gather on “${result.bestTopic.name}” (${result.bestTopic.volume.toFixed(1)}% of the sky). The sun is “${result.sun.name}.”`,
     }
   }
   return {

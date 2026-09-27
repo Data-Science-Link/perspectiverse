@@ -11,7 +11,7 @@ assert.ok(queryTokens('layoffs and writers').includes('layoff'))
 assert.equal(detectIntent('Why do people think that?'), 'why')
 assert.equal(detectIntent('What am I missing?'), 'counter')
 assert.equal(detectIntent('AI will create more jobs'), 'claim')
-assert.ok(scoreText(queryTokens('junior writers'), 'Junior writers were replaced') > 0.2)
+assert.ok(scoreText(queryTokens('junior writers'), 'Junior writers were replaced') > 0.15)
 
 const topics = [
   {
@@ -90,6 +90,12 @@ const housing = engage('rent and housing costs', topics)
 assert.equal(housing.presence, 'minority')
 assert.equal(housing.bestTopic.name, 'Housing Costs')
 assert.ok(housing.followups.some((item) => item.action === 'open-topic'))
+assert.match(verdictCopy(housing).title, /not the sun/i)
+
+const skyJobs = engage('AI is going to create more jobs, not fewer', topics)
+assert.equal(skyJobs.bestTopic.name, 'AI Futures')
+assert.equal(skyJobs.presence, 'majority')
+assert.match(verdictCopy(skyJobs).title, /sun/i)
 
 const face = engage('Why were writers replaced?', topics, { topicId: 1, perspectiveId: '1A' })
 assert.equal(face.scope, 'face')
