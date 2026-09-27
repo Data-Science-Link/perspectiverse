@@ -1,32 +1,49 @@
-export const TOPIC_COLORS = {
-  1: '#f4c14e',
-  2: '#f27a45',
-  3: '#3ecf9a',
-  4: '#5b9dff',
-  5: '#e15b7a',
-  6: '#b07cff',
-  7: '#3fd0e8',
-  8: '#e8d36a',
-  9: '#6ee07a',
-  10: '#c9a2ff',
-}
+import { SOLAR_BODIES } from './planets.js'
 
-export const SPIKE_COLORS = ['#ffe08a', '#ff8b5c', '#7ee0c2', '#7eb6ff', '#f08ab0', '#d2b0ff']
+export const TOPIC_COLORS = Object.fromEntries(
+  SOLAR_BODIES.map((body, index) => [index + 1, body.color]),
+)
 
-export function topicColor(topicId) {
+// Brand suite, always loudest → quietest. Gold is the primary opinion.
+export const PERSPECTIVE_COLORS = [
+  '#f4c14e',
+  '#ff7a3d',
+  '#6ea8ff',
+  '#c77dff',
+  '#2fd2a8',
+  '#ff6b9d',
+]
+
+export const SPIKE_COLORS = PERSPECTIVE_COLORS
+
+export function topicColor(topicId, body) {
+  if (body?.color) return body.color
   return TOPIC_COLORS[topicId] ?? '#9aa3b5'
 }
 
-export function spikeColor(index) {
-  return SPIKE_COLORS[index % SPIKE_COLORS.length]
+export function spikeColor(rank) {
+  return PERSPECTIVE_COLORS[rank % PERSPECTIVE_COLORS.length]
+}
+
+export function rankPerspectives(perspectives = []) {
+  return [...perspectives].sort((a, b) => {
+    const delta = (b.volume_percent ?? 0) - (a.volume_percent ?? 0)
+    if (delta !== 0) return delta
+    return String(a.id).localeCompare(String(b.id))
+  })
+}
+
+export function perspectiveRank(perspectives, perspectiveId) {
+  return rankPerspectives(perspectives).findIndex((item) => item.id === perspectiveId)
 }
 
 export function hexToRgba(hex, alpha = 1) {
-  const normalized = hex.replace('#', '')
+  const normalized = (hex ?? '#9aa3b5').replace('#', '')
   const value = normalized.length === 3
     ? normalized.split('').map((part) => part + part).join('')
     : normalized
   const int = Number.parseInt(value, 16)
+  if (!Number.isFinite(int)) return `rgba(154, 163, 181, ${alpha})`
   const r = (int >> 16) & 255
   const g = (int >> 8) & 255
   const b = int & 255

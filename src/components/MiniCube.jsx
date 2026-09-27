@@ -1,24 +1,43 @@
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
-import { topicColor } from '../lib/colors'
+import { useMemo, useRef } from 'react'
+import { Quaternion, Vector3 } from 'three'
+import { rankPerspectives, topicColor } from '../lib/colors'
+import { faceLayout } from '../lib/faces'
 import SpikyCube from './SpikyCube'
 
-function SpinningPreview({ topic, selectedPerspectiveId, onSelectPerspective }) {
+const CAMERA = new Vector3(3.4, 2.0, 3.4).normalize()
+const _look = new Vector3()
+const _target = new Quaternion()
+
+function Preview({ topic, selectedPerspectiveId, onSelectPerspective }) {
   const group = useRef()
+  const ranked = useMemo(
+    () => rankPerspectives(topic.perspectives),
+    [topic.perspectives],
+  )
+  const layout = useMemo(() => faceLayout(ranked.length), [ranked.length])
+  const focusIndex = ranked.findIndex((face) => face.id === selectedPerspectiveId)
 
   useFrame((_, delta) => {
-    if (group.current) {
-      group.current.rotation.y += delta * 0.7
-      group.current.rotation.x += delta * 0.18
+    if (!group.current) return
+    if (focusIndex >= 0 && layout[focusIndex]) {
+      _look.set(...layout[focusIndex].direction)
+      _target.setFromUnitVectors(_look, CAMERA)
+      group.current.quaternion.slerp(_target, 1 - Math.exp(-delta * 6))
+      return
     }
+    group.current.rotation.y += delta * 0.7
+    group.current.rotation.x += delta * 0.18
   })
 
   return (
     <group ref={group} scale={1.15}>
       <SpikyCube
         perspectives={topic.perspectives}
-        coreColor={topicColor(topic.id)}
+        body={topic.body}
+        coreColor={topicColor(topic.id, topic.body)}
         selectedPerspectiveId={selectedPerspectiveId}
+        showSpikes
         onSelectPerspective={onSelectPerspective}
       />
     </group>
@@ -28,10 +47,11 @@ function SpinningPreview({ topic, selectedPerspectiveId, onSelectPerspective }) 
 export default function MiniCube({ topic, selectedPerspectiveId, onSelectPerspective }) {
   return (
     <div className="mini-cube">
-      <Canvas camera={{ position: [2.6, 1.6, 2.6], fov: 40 }} dpr={[1, 1.5]}>
-        <ambientLight intensity={0.55} />
-        <pointLight position={[2, 3, 2]} intensity={1.4} color="#fff1c2" />
-        <SpinningPreview
+      <Canvas camera={{ position: [3.4, 2.0, 3.4], fov: 38 }} dpr={[1, 1.5]}>
+        <ambientLight intensity={0.7} />
+        <pointLight position={[2, 3, 2]} intensity={1.6} color="#fff1c2" />
+        <directionalLight position={[-2, 2, 3]} intensity={0.6} />
+        <Preview
           topic={topic}
           selectedPerspectiveId={selectedPerspectiveId}
           onSelectPerspective={onSelectPerspective}

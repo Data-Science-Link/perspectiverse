@@ -1,10 +1,17 @@
 name: Security Audit Pipeline
 
+# Required by the Main Branch Protections ruleset (check name: security-audit).
+# Do not add path filters. A skipped required check stays "Waiting for status"
+# forever, including on docs-only PRs.
+#
+# push is unfiltered so a feature-branch push still reports the check when the
+# pull_request webhook is dropped (draft / bot-opened PRs). Keep workflow_dispatch
+# so a missing run can be started from the Actions tab without a new commit.
 on:
   push:
-    branches: [ main, master, develop ]
   pull_request:
     branches: [ main, master, develop ]
+    types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     # Run weekly security audit every Monday at 12:00 PM UTC
     - cron: '0 12 * * 1'

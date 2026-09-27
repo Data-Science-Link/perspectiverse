@@ -13,7 +13,21 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from pipeline.schema import NOISE_POLICY, validate_payload
+from pipeline.schema import NOISE_POLICY, to_percents, validate_payload
+
+# Demo sky shows the 2–6 face range: cube, tetrahedron, triad, poles, etc.
+DEMO_FACE_COUNTS = {
+    1: 6,
+    2: 4,
+    3: 3,
+    4: 5,
+    5: 4,
+    6: 2,
+    7: 6,
+    8: 3,
+    9: 4,
+    10: 2,
+}
 
 DEMO_TOTAL_POSTS = 100_000
 DEMO_LAST_UPDATED = date(2026, 9, 26).isoformat()
@@ -765,9 +779,28 @@ DEMO_TOPICS: list[dict[str, Any]] = [
 ]
 
 
+def _with_face_count(topic: dict[str, Any], count: int) -> dict[str, Any]:
+    faces = list(topic["perspectives"][:count])
+    weights = [max(1, int(round(float(face["volume_percent"]) * 10))) for face in faces]
+    percents = to_percents(weights)
+    return {
+        **topic,
+        "perspectives": [
+            {**face, "volume_percent": percent}
+            for face, percent in zip(faces, percents)
+        ],
+    }
+
+
 def build_demo_payload(last_updated: str = DEMO_LAST_UPDATED, total_posts: int = DEMO_TOTAL_POSTS) -> dict[str, Any]:
     """Return a data.json document that matches the UI canvas schema."""
-    topics = [{**topic, "category": DEMO_CATEGORIES[topic["id"]]} for topic in DEMO_TOPICS]
+    topics = [
+        _with_face_count(
+            {**topic, "category": DEMO_CATEGORIES[topic["id"]]},
+            DEMO_FACE_COUNTS[topic["id"]],
+        )
+        for topic in DEMO_TOPICS
+    ]
     payload = {
         "last_updated": last_updated,
         "total_posts": total_posts,

@@ -1,9 +1,16 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { hexToRgba, topicColor } from '../lib/colors'
+import { Quaternion, Vector3 } from 'three'
+import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
+import { faceLayout } from '../lib/faces'
 import { formatPercent, orbitInclination, orbitRadius, orbitSpeed, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
+
+const _world = new Vector3()
+const _toCamera = new Vector3()
+const _look = new Vector3()
+const _target = new Quaternion()
 
 export default function Planet({
   topic,
@@ -14,6 +21,7 @@ export default function Planet({
   anchors,
   onSelectTopic,
   onSelectPerspective,
+  isMobile = false,
 }) {
   const group = useRef()
   const cube = useRef()
@@ -21,15 +29,21 @@ export default function Planet({
   const drag = useRef(null)
   const suppressClick = useRef(false)
   const [hovered, setHovered] = useState(false)
-  const isSun = index === 0
+  const body = topic.body
+  const isSun = body?.key === 'sun' || index === 0
   const radius = orbitRadius(index, isSun)
   const speed = orbitSpeed(index, isSun)
   const inclination = orbitInclination(index, isSun)
   const scale = topicScale(topic.total_volume_percent)
-  const color = topicColor(topic.id)
-  const pickScale = Math.max(1, 1.15 / Math.max(scale, 0.35))
+  const color = topicColor(topic.id, body)
+  const ranked = useMemo(
+    () => rankPerspectives(topic.perspectives),
+    [topic.perspectives],
+  )
+  const layout = useMemo(() => faceLayout(ranked.length), [ranked.length])
+  const focusIndex = ranked.findIndex((face) => face.id === selectedPerspectiveId)
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (!isSun && !selected) {
       angle.current += delta * speed
     }
@@ -50,7 +64,18 @@ export default function Planet({
       }
     }
 
-    if (cube.current && !selected) {
+    if (!cube.current) return
+
+    if (selected && focusIndex >= 0 && layout[focusIndex] && !drag.current) {
+      group.current.getWorldPosition(_world)
+      _toCamera.copy(state.camera.position).sub(_world).normalize()
+      _look.set(...layout[focusIndex].direction)
+      _target.setFromUnitVectors(_look, _toCamera)
+      cube.current.quaternion.slerp(_target, 1 - Math.exp(-delta * 6))
+      return
+    }
+
+    if (!selected) {
       cube.current.rotation.x += delta * 0.22
       cube.current.rotation.y += delta * 0.34
       cube.current.rotation.z += delta * 0.08
@@ -112,19 +137,20 @@ export default function Planet({
           <sphereGeometry args={[0.95, 12, 12]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        {isSun && (
+        {isSun && !selected && (
           <mesh raycast={() => null}>
-            <sphereGeometry args={[1.25, 24, 24]} />
-            <meshBasicMaterial color={color} transparent opacity={0.1} />
+            <sphereGeometry args={[1.08, 32, 32]} />
+            <meshBasicMaterial color={color} transparent opacity={0.16} />
           </mesh>
         )}
         <group ref={cube}>
           <SpikyCube
             perspectives={topic.perspectives}
+            body={body}
             coreColor={color}
             selectedPerspectiveId={selectedPerspectiveId}
             dimmed={dimmed}
-            pickScale={pickScale}
+            showSpikes={selected}
             onSelectPerspective={(perspectiveId) => {
               if (suppressClick.current) {
                 suppressClick.current = false
@@ -136,23 +162,25 @@ export default function Planet({
           />
         </group>
       </group>
-      <Html position={[0, scale * 1.45, 0]} center distanceFactor={16} zIndexRange={[10, 0]}>
-        <button
-          type="button"
-          className={`planet-label ${dimmed ? 'is-dimmed' : ''}`}
-          style={{
-            borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
-          }}
-          onClick={(event) => {
-            event.stopPropagation()
-            onSelectTopic(topic.id)
-          }}
-        >
-          {topic.name}
-        </button>
-      </Html>
-      {hovered && (
-        <Html position={[0, scale * 1.95, 0]} center distanceFactor={18} zIndexRange={[12, 0]}>
+      {!isMobile && (
+        <Html position={[0, scale * 1.45, 0]} center distanceFactor={18} zIndexRange={[10, 0]}>
+          <button
+            type="button"
+            className={`planet-label ${dimmed ? 'is-dimmed' : ''}`}
+            style={{
+              borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
+            }}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelectTopic(topic.id)
+            }}
+          >
+            {topic.name}
+          </button>
+        </Html>
+      )}
+      {!isMobile && hovered && (
+        <Html position={[0, scale * 1.95, 0]} center distanceFactor={20} zIndexRange={[12, 0]}>
           <div className="planet-hover">
             {topic.category} · {formatPercent(topic.total_volume_percent)}
           </div>

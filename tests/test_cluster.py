@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from pipeline.perspectives import select_representatives, split_perspectives
+from pipeline.perspectives import choose_n_faces, select_representatives, split_perspectives
 from pipeline.schema import to_percents
 from pipeline.topics import _keep_top, cluster_texts
 from tests.corpus import FACES, TOPICS, build_tiny_posts
@@ -30,10 +30,10 @@ def test_lexical_cluster_drops_noise_and_keeps_ten():
     assert names == set(TOPICS)
 
 
-def test_each_topic_splits_into_six_faces():
+def test_each_topic_splits_into_two_to_six_faces():
     posts = [post for post in build_tiny_posts() if "zzzznoise" not in post["text"] and post["text"].startswith("climate")]
     split = split_perspectives([post["text"] for post in posts], seed=0)
-    assert len(split["faces"]) == 6
+    assert 2 <= len(split["faces"]) <= 6
     assert all(face["size"] >= 1 for face in split["faces"])
     volumes = to_percents([face["size"] for face in split["faces"]])
     assert abs(sum(volumes) - 100.0) < 0.05
@@ -61,9 +61,15 @@ def test_checked_in_fixture_matches_builder():
 
 def test_face_terms_cover_the_six_labels():
     posts = [post for post in build_tiny_posts() if post["text"].startswith("football")]
-    split = split_perspectives([post["text"] for post in posts], seed=0)
+    split = split_perspectives([post["text"] for post in posts], n_faces=6, seed=0)
     found = {term for face in split["faces"] for term in face["terms"]}
     assert set(FACES).issubset(found)
+
+
+def test_choose_n_faces_collapses_a_binary_topic():
+    texts = [f"alpha alpha alpha cluster {index}" for index in range(12)]
+    texts += [f"omega omega omega cluster {index}" for index in range(12)]
+    assert choose_n_faces(texts, seed=0) == 2
 
 
 def test_lexical_cluster_rebalances_an_uneven_live_sample():
