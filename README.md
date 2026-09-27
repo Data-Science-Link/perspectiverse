@@ -6,6 +6,8 @@ Perspectiverse turns a week of public conversation into a 3D solar system. The l
 
 The analytical sidebar reacts to the sky. Filter by category, select a planet to turn its cube, then select a face to read the representative posts.
 
+This is not social listening, brand monitoring, or a poll. Those tools start from a query, a named entity, or a survey instrument. Perspectiverse starts from a week of public posts and keeps the ten largest topics, each cut into six perspectives. [Similar Products and Differentiation](project_documentation/Similar%20Products%20and%20Differentiation.md) maps the neighboring categories — monitoring, listening, civic deliberation, news-literacy, researcher topic maps — and says what this observatory adds.
+
 ## Current status
 
 The observatory runs on a schema-compatible **demo** `public/data.json` (10 topics × 6 perspectives) until a live snapshot is published. The live path is implemented and can be run locally or on the daily Actions job. It defaults to a **small** Bluesky sample (200 posts) so the plumbing can be proved without a 10k embed. Raise `sample_size` in `pipeline/config/pipeline.example.yaml` toward 10000 for a fuller window.
@@ -99,7 +101,7 @@ Pytest runs in `.github/workflows/pytest.yml` without downloading the embedding 
 - `src/` — React Three Fiber observatory and sidebar
 - `public/data.json` — snapshot the frontend loads
 - `pipeline/` — demo writer and live ingestion
-- `project_documentation/` — architecture and UI canvases
+- `project_documentation/` — architecture, UI canvases, and how this differs from neighboring products
 - `.github/workflows/` — security audit, tests, frontend CI, daily pipeline, GitHub Pages
 
 See [FILES.md](FILES.md) and [pipeline/README.md](pipeline/README.md).

@@ -65,6 +65,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `Project Architecture_ Discourse Universe.md` | Conceptual overview and high-level architecture |
 | `Technical Implementation Canvas.md` | Technical details and implementation stages |
 | `UI & 3D Implementation Canvas_ Perspectiverse.md` | Frontend design and 3D visualization details |
+| `Similar Products and Differentiation.md` | Neighboring product categories and how this observatory differs |
 
 ## Scripts & CI/CD
 
