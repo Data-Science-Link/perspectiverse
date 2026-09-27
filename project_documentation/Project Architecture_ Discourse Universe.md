@@ -11,7 +11,7 @@
 
 ## **2\. Motivation & Societal Value**
 
-While standard sentiment dashboards (bar charts, line graphs) are built for data analysts, Discourse Universe acts as an "empathy machine" built for the general public. It solves two major issues with modern media consumption:
+While standard sentiment dashboards (bar charts, line graphs) are built for data analysts, Discourse Universe acts as an "empathy machine" built for the general public. Social listening, brand monitoring, polling, and civic deliberation tools sit in the same neighborhood and optimize for different jobs; the landscape and the gaps are in [Similar Products and Differentiation](Similar%20Products%20and%20Differentiation.md). It solves two major issues with modern media consumption:
 
 1. **Correcting the Distortion of Scale:** Social algorithms often make fringe outrage seem like the most important issue in the world. By utilizing a gravitational physics model, users intuitively grasp scale. A manufactured culture-war asteroid is visually dwarfed by a massive gas-giant representing housing costs.  
 2. **Forcing Nuance:** By requiring every topic to be viewed through 6 distinct faces (e.g., Financial, Ethical, Skeptical), the UI forces users to confront the reality that issues are multi-dimensional, breaking binary "For vs. Against" echo chambers.

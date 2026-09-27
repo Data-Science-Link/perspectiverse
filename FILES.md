@@ -74,6 +74,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `Project Architecture_ Discourse Universe.md` | Conceptual overview and high-level architecture |
 | `Technical Implementation Canvas.md` | Technical details and implementation stages |
 | `UI & 3D Implementation Canvas_ Perspectiverse.md` | Frontend design and 3D visualization details |
+| `Similar Products and Differentiation.md` | Neighboring product categories and how this observatory differs |
 
 ## Scripts & CI/CD
 
@@ -83,7 +84,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `scripts/check_categories.mjs` | Category filter helper check |
 | `scripts/check_planets.mjs` | Solar-system order and selection URLs |
 | `scripts/check_data_contract.mjs` | Asserts the built `dist/data.json` contract |
-| `.github/workflows/security-audit.yml` | Bandit + pip-audit, including `workflow_dispatch` |
+| `.github/workflows/security-audit.yml` | Bandit + pip-audit on every push/PR, plus `workflow_dispatch` |
 | `.github/workflows/pytest.yml` | Pytest without a model download |
 | `.github/workflows/frontend.yml` | Lint, category check, build, data contract |
 | `.github/workflows/pipeline.yml` | Daily live run, artifact, `data-snapshot` branch |
