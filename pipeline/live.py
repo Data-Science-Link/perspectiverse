@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
 
 from pipeline.assemble import assemble_payload, face_id, topic_name, write_payload
@@ -39,6 +40,7 @@ def run_live(
             sample_size=int(settings["sample_size"]),
             window_hours=int(settings["window_hours"]),
             queries=list(settings["queries"]),
+            rng=random.Random(int(settings["seed"])),
         )
         source = "bluesky"
         if not raw_posts:

@@ -1,9 +1,11 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from pipeline.perspectives import select_representatives, split_perspectives
 from pipeline.schema import to_percents
-from pipeline.topics import cluster_texts
+from pipeline.topics import _keep_top, cluster_texts
 from tests.corpus import FACES, TOPICS, build_tiny_posts
 
 
@@ -62,3 +64,43 @@ def test_face_terms_cover_the_six_labels():
     split = split_perspectives([post["text"] for post in posts], seed=0)
     found = {term for face in split["faces"] for term in face["terms"]}
     assert set(FACES).issubset(found)
+
+
+def test_lexical_cluster_rebalances_an_uneven_live_sample():
+    texts = []
+    for topic in TOPICS[:9]:
+        for copy in range(12):
+            texts.append(f"{topic} {topic} {topic} {topic} discussion {copy}")
+    for word in ("zzzzalpha", "zzzzbravo"):
+        for copy in range(4):
+            texts.append(f"{word} {word} {word} outlier {copy}")
+    clustered = cluster_texts(texts, min_cluster_size=2, cluster_backend="lexical", seed=0)
+    assert len(clustered["topics"]) == 10
+    assert all(topic["size"] >= 6 for topic in clustered["topics"])
+
+
+def test_keep_top_rebalances_short_clusters_into_ten_planets():
+    texts = []
+    labels = []
+    for topic in range(9):
+        word = f"topic{topic:02d}word"
+        for copy in range(8):
+            texts.append(f"{word} {word} {word} extra context {copy}")
+            labels.append(topic)
+    for topic, word in ((9, "leftoveralpha"), (10, "leftoverbravo")):
+        for copy in range(4):
+            texts.append(f"{word} {word} {word} extra context {copy}")
+            labels.append(topic)
+
+    clustered = _keep_top(texts, labels, {}, min_cluster_size=6, keep=10)
+    assert len(clustered["topics"]) == 10
+    assert all(topic["size"] >= 6 for topic in clustered["topics"])
+    assert clustered["noise_count"] == 2
+    assert sum(1 for assignment in clustered["assignments"] if assignment >= 0) == 78
+
+
+def test_keep_top_rejects_too_few_posts():
+    texts = ["alpha beta gamma extra"] * 50
+    labels = [index % 11 for index in range(50)]
+    with pytest.raises(RuntimeError, match="found 50 posts"):
+        _keep_top(texts, labels, {}, min_cluster_size=6, keep=10)
