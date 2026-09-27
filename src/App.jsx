@@ -87,6 +87,10 @@ export default function App() {
   }
 
   useEffect(() => {
+    const previous = window.history.scrollRestoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual'
+    }
     const onPop = () => {
       const snap = readSelectionFromURL()
       setCategory(snap.category)
@@ -94,7 +98,12 @@ export default function App() {
       setSelectedPerspectiveId(snap.perspectiveId)
     }
     window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = previous
+      }
+    }
   }, [])
 
   useLayoutEffect(() => {

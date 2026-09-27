@@ -25,7 +25,16 @@ export default function SiteChrome({
   return (
     <header className="site-chrome">
       {drilled ? (
-        <button type="button" className="icon-btn" onClick={onBack} aria-label={backLabel}>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onBack()
+          }}
+          aria-label={backLabel}
+        >
           <BackIcon />
         </button>
       ) : (

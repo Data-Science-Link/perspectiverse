@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { categoryCounts } from '../lib/categories'
 import { hexToRgba, spikeColor, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent, sortPosts, topicScale } from '../lib/layout'
@@ -249,12 +249,18 @@ export default function Sidebar({
   const empty = topics.length === 0
   const scroller = useRef(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (scroller.current) scroller.current.scrollTop = 0
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
   }, [selectedTopic?.id, selectedPerspective?.id, category])
 
   return (
-    <aside ref={scroller} className="sidebar">
+    <aside
+      ref={scroller}
+      className="sidebar"
+      key={`${selectedTopic?.id ?? 'home'}-${selectedPerspective?.id ?? 'list'}-${category}`}
+    >
       {!isMobile && (
         <FilterStrip
           categories={categories}

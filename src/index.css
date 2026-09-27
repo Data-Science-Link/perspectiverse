@@ -689,6 +689,8 @@ h3 {
   .app-shell.is-drilled .sidebar {
     flex: 1 1 auto;
     max-height: none;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .panel.is-mobile-home {
