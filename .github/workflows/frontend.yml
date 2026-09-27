@@ -31,6 +31,9 @@ jobs:
       - name: Planet order helper
         run: node scripts/check_planets.mjs
 
+      - name: Engagement helper
+        run: node scripts/check_engagement.mjs
+
       - name: Build
         run: npm run build
 

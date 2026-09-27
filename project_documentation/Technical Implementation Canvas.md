@@ -2,6 +2,8 @@
 
 **Core Philosophy:** Lightweight, local-first data processing, outputting to a static, serverless frontend.
 
+The public sky stays in that shape. Conversational LLM engagement and on-demand brand universes are designed in [Planet Engagement Architecture](Planet%20Engagement%20Architecture.md) and [Custom Universe and Archive Architecture](Custom%20Universe%20and%20Archive%20Architecture.md). They need extra storage and a clerk or queue; they are not required to render today's observatory. The living sequence and maintain-cost table is [ROADMAP.md](../ROADMAP.md).
+
 ## **1\. Environment & Architecture**
 
 * **IDE:** Cursor  
@@ -13,7 +15,8 @@
 ### **Directory Structure**
 
 perspectiverse/  
-├── docs/                 \# Markdown documentation  
+├── project_documentation/ \# Architecture, roadmap notes, canvases  
+├── ROADMAP.md            \# Living sequence and maintain-cost  
 ├── pipeline/             \# Python backend code  
 │   ├── data/             \# Local storage (SQLite / raw JSONs)  
 │   ├── run\_pipeline.py   \# Main orchestrator script  

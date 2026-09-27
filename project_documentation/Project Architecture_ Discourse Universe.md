@@ -65,9 +65,32 @@ To maintain analytical integrity, the project must acknowledge the following bli
 * **Demographic Bias:** Reddit and Bluesky do not represent the global population. They skew younger, more male (Reddit), and highly Western/tech-centric. This visualizes the *Internet's* discourse, not humanity's.  
 * **Margin Flattening:** When an LLM summarizes a cluster of 500 posts into one sentence, it naturally prioritizes the loudest, most consensus-driven voice in that group. Highly nuanced or minority opinions within that sub-cluster will be washed out.
 
-## **8\. Development Roadmap (Cursor MVP)**
+## **8. Development Roadmap**
 
-* **Stage 1: Data Ingestion (5-8 hrs):** Write Python scripts to authenticate with Reddit/Bluesky APIs, pull 7 days of data, clean text (regex/spam filtering), and store in SQLite.  
-* **Stage 2: The NLP Engine (15-20 hrs):** Implement BERTopic and HDBSCAN. Tune hyperparameters (like min\_cluster\_size) until the 10 topics and 6 sub-themes make logical sense on raw text.  
-* **Stage 3: LLM Integration & Automation (3-5 hrs):** Write the prompt to force JSON extraction from the LLM. Format the final output to data.json. Wrap the script in a GitHub Actions YAML file to run daily.  
-* **Stage 4: 3D Web Frontend (10-15 hrs):** Initialize a React Three Fiber project. Build the orbital physics, map the JSON data to cube dimensions and textures, and implement the click-to-rotate interaction mechanics.
+Stages 1–4 below were the Cursor MVP. They are largely shipped: Bluesky extract, lexical clustering (BERTopic optional), 10 planets with 2–6 faces, daily Actions job, static React Three Fiber observatory. The live sample is still small (200 default; 10k is the production target). Face textures and Reddit ingestion are not in the current code.
+
+The living roadmap — including planet-level debate, an LLM clerk, retaining posts, custom brand universes, a Google plugin, and what those cost to keep alive — is **[ROADMAP.md](../ROADMAP.md)**. Architecture for the two new surfaces:
+
+* [Planet Engagement Architecture](Planet%20Engagement%20Architecture.md) — talk to a planet or a face without breaking the daily/static split
+* [Custom Universe and Archive Architecture](Custom%20Universe%20and%20Archive%20Architecture.md) — retain more than twelve posts; generate a sky from a brand or a highlighted sentence
+
+MVP stages (historical):
+
+* **Stage 1: Data Ingestion:** Python scripts to authenticate with Reddit/Bluesky APIs, pull 7 days of data, clean text (regex/spam filtering), and store in SQLite. *(Bluesky path shipped; Reddit not started.)*
+* **Stage 2: The NLP Engine:** BERTopic / HDBSCAN locally; lexical TF-IDF + k-means on CI. Ten topics, two to six faces.
+* **Stage 3: LLM Integration & Automation:** JSON labels from Ollama or a mini model; GitHub Actions daily; fallback titles when neither is present.
+* **Stage 4: 3D Web Frontend:** React Three Fiber observatory, inspect mode, mobile drill-down, representative posts in the sidebar.
+
+## **9. Cost model (honest)**
+
+The 7-day window and the once-a-day job exist so the public sky stays under a dollar. That holds only while we throw the sample away and publish a snapshot.
+
+| Mode | What we keep | Typical monthly maintain |
+| --- | --- | --- |
+| **Today** | `data.json` + ephemeral runner SQLite | **$0–$1** |
+| **Thicker snapshot** | More representative posts, terms, briefing cards | still **~$0–$1** |
+| **Planet LLM clerk** | Quote packs + a gated model | **$5–$20** box, then **tokens** ($0 if Ollama; hundreds if public and ungated) |
+| **Custom universes / plugin** | Query drains or a short firehose window + on-demand cluster | **$20–$80** lean; more if we chat on every sky |
+| **Unbounded firehose** | Years of raw posts | storage on the order of **$20–$50 per retained year** plus ingest and legal review |
+
+Do not put an API key in the Pages bundle. Do not generate a new universe in the visitor's browser. Those two choices are how this cost table stays true.

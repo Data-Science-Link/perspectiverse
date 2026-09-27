@@ -602,6 +602,159 @@ h3 {
   line-height: 1.45;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.engage {
+  margin-top: 1.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+
+.engage h2 {
+  margin-bottom: 0.45rem;
+}
+
+.engage-form textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: 4.5rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.engage-form textarea:focus {
+  outline: 2px solid rgba(244, 193, 78, 0.55);
+  outline-offset: 1px;
+}
+
+.engage-starters,
+.engage-followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.7rem 0 0;
+}
+
+.engage-followups {
+  margin-top: 1.1rem;
+}
+
+.engage-followups h3,
+.engage-quotes h3 {
+  width: 100%;
+  margin-bottom: 0.35rem;
+}
+
+.engage-verdict {
+  margin: 1rem 0 0.4rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.engage-verdict strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.15rem;
+}
+
+.engage-verdict p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.engage-verdict-meta {
+  margin-top: 0.55rem !important;
+  font-size: 0.8rem;
+}
+
+.engage-verdict.is-absent {
+  border-color: rgba(244, 193, 78, 0.5);
+  background: rgba(244, 193, 78, 0.08);
+}
+
+.engage-verdict.is-minority {
+  border-color: rgba(255, 122, 61, 0.45);
+  background: rgba(255, 122, 61, 0.08);
+}
+
+.engage-verdict.is-majority {
+  border-color: rgba(47, 210, 168, 0.4);
+  background: rgba(47, 210, 168, 0.08);
+}
+
+.engage-verdict.is-split {
+  border-color: rgba(110, 168, 255, 0.45);
+  background: rgba(110, 168, 255, 0.08);
+}
+
+.engage-faces {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.engage-face {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.engage-face strong,
+.engage-face em {
+  display: block;
+}
+
+.engage-face em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.78rem;
+}
+
+.engage-quotes {
+  margin-top: 1rem;
+}
+
+.engage-quote-meta,
+.engage-empty {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.engage.is-compact .lede {
+  display: none;
+}
+
+.engage.is-compact textarea {
+  min-height: 3.2rem;
+}
+
 .observatory-empty {
   position: absolute;
   inset: 0;

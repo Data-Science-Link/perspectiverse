@@ -4,7 +4,7 @@ Live mapping the universe of human attention and perspectives.
 
 Perspectiverse turns a week of public conversation into a 3D solar system. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Planet size is share of attention. In the sky they wear solar-system skins. Open one and the sphere dissolves into a **crystal of two to six faces** — one per real perspective, never more than a cube. Face length is that view's share of the conversation. Colors always run gold → ember → sky → violet → jade → rose, loudest first.
 
-The analytical sidebar reacts to the sky. Filter by category, select a planet to turn its cube, then select a face to read the representative posts.
+The analytical sidebar reacts to the sky. Filter by category, select a planet to turn its cube, then select a face to read the representative posts. **Test your take** — a claim, a question, or a brand — against the snapshot. The page answers with other people's words and says whether you landed on the loud face, a minority spike, or nowhere in this week's sky.
 
 This is not social listening, brand monitoring, or a poll. Those tools start from a query, a named entity, or a survey instrument. Perspectiverse starts from a week of public posts and keeps the ten largest topics, each cut into two to six perspectives. [Similar Products and Differentiation](project_documentation/Similar%20Products%20and%20Differentiation.md) maps the neighboring categories — monitoring, listening, civic deliberation, news-literacy, researcher topic maps — and says what this observatory adds.
 
@@ -23,6 +23,8 @@ The observatory runs on a schema-compatible **demo** `public/data.json` (10 topi
 | React + R3F observatory | Ready, with category filters and inspect mode |
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
 | Daily refresh | `.github/workflows/pipeline.yml` |
+| Test your take (extractive anti-echo) | Ready, client-side, no API |
+| Custom sky from `--query` | Ready for operators; not a public form |
 
 ## Quick start
 
@@ -40,7 +42,7 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL. Filter the sky, click a planet, drag to turn the locked cube, then click a spike or a sidebar bar.
+Open the printed local URL. Filter the sky, click a planet, drag to turn the locked cube, then click a spike or a sidebar bar. In the sidebar, type a take or a brand into **Test your take** to see whether this week's sky contains it.
 
 ```bash
 npm run build
@@ -68,6 +70,14 @@ python -m pipeline.run_pipeline --live --fixture tests/fixtures/tiny_posts.json 
 ```
 
 The example config uses `label_backend: auto` (Ollama, then an API key, then the fallback title). Set `label_backend: heuristic` in a local `pipeline.yaml` to name faces from top terms instead.
+
+To pull a **brand-shaped or claim-shaped sample** instead of the default common-English queries (still a 7-day search, still the same 10-planet job):
+
+```bash
+python -m pipeline.run_pipeline --live --query "acme" --query "acme shoes" --output /tmp/acme.json
+```
+
+That is the free operator path toward custom universes. It does not retain history and it is not the public homepage. The civic sky stays unsupervised; see [ROADMAP.md](ROADMAP.md).
 
 ## Who can approve a PR to main
 
@@ -107,7 +117,8 @@ Pytest runs in `.github/workflows/pytest.yml` without downloading the embedding 
 - `src/` — React Three Fiber observatory and sidebar
 - `public/data.json` — snapshot the frontend loads
 - `pipeline/` — demo writer and live ingestion
-- `project_documentation/` — architecture, UI canvases, and how this differs from neighboring products
+- `project_documentation/` — architecture, UI canvases, engagement/archive designs, and how this differs from neighboring products
+- `ROADMAP.md` — what ships, what would change the architecture, and what it costs to keep
 - `.github/workflows/` — security audit, tests, frontend CI, daily pipeline, GitHub Pages
 
-See [FILES.md](FILES.md) and [pipeline/README.md](pipeline/README.md).
+See [FILES.md](FILES.md), [pipeline/README.md](pipeline/README.md), and [ROADMAP.md](ROADMAP.md).
