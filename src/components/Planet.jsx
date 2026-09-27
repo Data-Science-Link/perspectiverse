@@ -137,7 +137,7 @@ export default function Planet({
           <sphereGeometry args={[0.95, 12, 12]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        {isSun && (
+        {isSun && !selected && (
           <mesh raycast={() => null}>
             <sphereGeometry args={[1.08, 32, 32]} />
             <meshBasicMaterial color={color} transparent opacity={0.16} />
