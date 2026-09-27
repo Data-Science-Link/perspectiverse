@@ -4,7 +4,7 @@ export default function PerspectiverseGraphic({ compact = false }) {
       <svg viewBox="0 0 360 220" role="img" aria-labelledby="pv-graphic-title pv-graphic-desc">
         <title id="pv-graphic-title">How Perspectiverse is shaped</title>
         <desc id="pv-graphic-desc">
-          A sun at the center, orbiting planets, and one opened body whose spikes are its
+          A sun at the center, orbiting planets, and one opened crystal whose faces are its
           perspectives.
         </desc>
         <rect width="360" height="220" rx="18" fill="#070914" />
@@ -18,13 +18,12 @@ export default function PerspectiverseGraphic({ compact = false }) {
         <circle cx="62" cy="70" r="9" fill="#c1440e" />
         <circle cx="48" cy="150" r="11" fill="#d4a056" />
         <g transform="translate(268 110)">
-          <polygon points="0,-38 16,-8 0,8 -16,-8" fill="#ffe08a" />
-          <polygon points="0,38 16,8 0,-8 -16,8" fill="#ff8b5c" />
-          <polygon points="38,0 8,16 -8,0 8,-16" fill="#7ee0c2" />
-          <polygon points="-38,0 -8,16 8,0 -8,-16" fill="#7eb6ff" />
-          <polygon points="22,28 14,4 -4,8 6,22" fill="#f08ab0" />
-          <polygon points="-22,-28 -14,-4 4,-8 -6,-22" fill="#d2b0ff" />
-          <rect x="-11" y="-11" width="22" height="22" rx="3" fill="#e6d3a3" />
+          <polygon points="0,-36 18,-10 0,8 -18,-10" fill="#f4c14e" />
+          <polygon points="0,36 18,10 0,-8 -18,10" fill="#ff7a3d" />
+          <polygon points="36,0 10,16 -8,0 10,-16" fill="#6ea8ff" />
+          <polygon points="-36,0 -10,16 8,0 -10,-16" fill="#c77dff" />
+          <polygon points="20,26 12,4 -4,8 6,20" fill="#2fd2a8" />
+          <polygon points="-20,-26 -12,-4 4,-8 -6,-20" fill="#ff6b9d" />
         </g>
         <text x="124" y="204" textAnchor="middle" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, sans-serif">
           Topics orbit by volume
@@ -36,8 +35,8 @@ export default function PerspectiverseGraphic({ compact = false }) {
       {!compact && (
         <figcaption>
           The largest topic is the sun. The next nine take solar-system skins in order:
-          Mercury through Pluto. Size is attention. Spikes appear when you open a planet —
-          two to six faces, length by share of posts, not truth.
+          Mercury through Pluto. Size is attention. Open a planet and the sphere dissolves
+          into a crystal: two to six faces, gold first, length by share of posts.
         </figcaption>
       )}
     </figure>

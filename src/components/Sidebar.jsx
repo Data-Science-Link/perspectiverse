@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { shapeName } from '../lib/faces'
 import { categoryCounts } from '../lib/categories'
-import { hexToRgba, spikeColor, topicColor } from '../lib/colors'
+import { hexToRgba, rankPerspectives, spikeColor, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent, sortPosts, topicScale } from '../lib/layout'
 import MiniCube from './MiniCube'
 import PerspectiverseGraphic from './PerspectiverseGraphic'
@@ -83,7 +83,8 @@ function WelcomePanel({ data, topics, isMobile, onSelectTopic }) {
       <p className="lede">
         A gravitational map of a week of public conversation. The largest topic is the sun.
         The rest orbit by volume and wear Mercury through Pluto in that order. Open a planet
-        and it grows two to six spikes — one per real perspective, never more than a cube.
+        and the sphere dissolves into a crystal of two to six faces — one per real
+        perspective, never more than a cube. Gold is always the loudest view.
       </p>
       <div className="stat-grid">
         <div>
@@ -144,6 +145,7 @@ function EmptyCategory({ category, onShowAll }) {
 
 function TopicPanel({ topic, selectedPerspectiveId, isMobile, onSelectPerspective, onBack }) {
   const color = topicColor(topic.id, topic.body)
+  const ranked = rankPerspectives(topic.perspectives)
   return (
     <div className="panel is-topic">
       {!isMobile && (
@@ -166,7 +168,10 @@ function TopicPanel({ topic, selectedPerspectiveId, isMobile, onSelectPerspectiv
       />
       <div className="perspective-list">
         <h2>Perspectives</h2>
-        {topic.perspectives.map((perspective, index) => (
+        <p className="topic-row-meta">
+          Gold is the loudest view, then ember, sky, violet, jade, rose.
+        </p>
+        {ranked.map((perspective, index) => (
           <button
             key={perspective.id}
             type="button"
@@ -194,8 +199,7 @@ function TopicPanel({ topic, selectedPerspectiveId, isMobile, onSelectPerspectiv
 }
 
 function PerspectivePanel({ topic, perspective, isMobile, onBack }) {
-  const index = topic.perspectives.findIndex((item) => item.id === perspective.id)
-  const color = spikeColor(index)
+  const color = spikeColor(rankPerspectives(topic.perspectives).findIndex((item) => item.id === perspective.id))
   const posts = sortPosts(perspective.representative_posts)
 
   return (

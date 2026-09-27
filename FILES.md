@@ -58,6 +58,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `src/lib/categories.js` | Category list and filter helper |
 | `src/lib/colors.js` | Planet and spike palette |
 | `src/lib/faces.js` | 2–6 spike layouts and shape names |
+| `src/lib/polyhedra.js` | Cube, tetrahedron, pyramid, prism, diamond solids |
 | `src/lib/planets.js` | Solar-system order and body metadata |
 | `src/lib/planetTextures.js` | Canvas skins for Sun through Pluto |
 | `src/lib/navigation.js` | Query-string selection and scroll reset |

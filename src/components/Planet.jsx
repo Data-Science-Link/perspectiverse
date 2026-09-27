@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { Quaternion, Vector3 } from 'three'
-import { hexToRgba, topicColor } from '../lib/colors'
+import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
 import { formatPercent, orbitInclination, orbitRadius, orbitSpeed, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
@@ -36,12 +36,12 @@ export default function Planet({
   const inclination = orbitInclination(index, isSun)
   const scale = topicScale(topic.total_volume_percent)
   const color = topicColor(topic.id, body)
-  const pickScale = Math.max(1, 1.15 / Math.max(scale, 0.35))
-  const layout = useMemo(
-    () => faceLayout(topic.perspectives.length),
-    [topic.perspectives.length],
+  const ranked = useMemo(
+    () => rankPerspectives(topic.perspectives),
+    [topic.perspectives],
   )
-  const focusIndex = topic.perspectives.findIndex((face) => face.id === selectedPerspectiveId)
+  const layout = useMemo(() => faceLayout(ranked.length), [ranked.length])
+  const focusIndex = ranked.findIndex((face) => face.id === selectedPerspectiveId)
 
   useFrame((state, delta) => {
     if (!isSun && !selected) {
@@ -151,7 +151,6 @@ export default function Planet({
             selectedPerspectiveId={selectedPerspectiveId}
             dimmed={dimmed}
             showSpikes={selected}
-            pickScale={pickScale}
             onSelectPerspective={(perspectiveId) => {
               if (suppressClick.current) {
                 suppressClick.current = false

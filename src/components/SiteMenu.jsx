@@ -69,8 +69,9 @@ export default function SiteMenu({
           <p>
             A week of public conversation, mapped as a solar system. The largest topic sits at
             the center as the sun. The next nine orbit by volume and wear Mercury through Pluto
-            in that order. Size is share of attention. Open a planet and it grows two to six
-            spikes — one per real perspective, never more than a cube.
+            in that order. Size is share of attention. Open a planet and the sphere dissolves
+            into a crystal of two to six faces. Gold is the loudest perspective, then ember,
+            sky, violet, jade, and rose.
           </p>
           <p>
             Source: {data.mode === 'demo' || data.source === 'synthetic'
@@ -85,9 +86,9 @@ export default function SiteMenu({
         <section className="menu-section">
           <h3>How to read this</h3>
           <ul>
-            <li>On a phone, tap a planet. The page jumps to that topic and the spikes appear.</li>
-            <li>On a desktop, drag to orbit, then click a planet to grow its faces.</li>
-            <li>A long spike is louder because more posts clustered there, not because it is truer.</li>
+            <li>On a phone, tap a planet. The page jumps to that topic and the sphere becomes geometry.</li>
+            <li>On a desktop, drag to orbit, then click a planet to dissolve it into its crystal.</li>
+            <li>The longest face is louder because more posts clustered there, not because it is truer.</li>
           </ul>
         </section>
 

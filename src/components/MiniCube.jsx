@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import { Quaternion, Vector3 } from 'three'
-import { topicColor } from '../lib/colors'
+import { rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
 import SpikyCube from './SpikyCube'
 
@@ -11,11 +11,12 @@ const _target = new Quaternion()
 
 function Preview({ topic, selectedPerspectiveId, onSelectPerspective }) {
   const group = useRef()
-  const layout = useMemo(
-    () => faceLayout(topic.perspectives.length),
-    [topic.perspectives.length],
+  const ranked = useMemo(
+    () => rankPerspectives(topic.perspectives),
+    [topic.perspectives],
   )
-  const focusIndex = topic.perspectives.findIndex((face) => face.id === selectedPerspectiveId)
+  const layout = useMemo(() => faceLayout(ranked.length), [ranked.length])
+  const focusIndex = ranked.findIndex((face) => face.id === selectedPerspectiveId)
 
   useFrame((_, delta) => {
     if (!group.current) return
