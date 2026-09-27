@@ -32,7 +32,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/cleaning.py` | URL, handle, and spam cleaning |
 | `pipeline/store.py` | SQLite posts and derived membership |
 | `pipeline/topics.py` | 10 planets (lexical or BERTopic) |
-| `pipeline/perspectives.py` | 6 faces and representative posts |
+| `pipeline/perspectives.py` | 2–6 faces and representative posts |
 | `pipeline/label.py` | Ollama, API, or fallback titles |
 | `pipeline/assemble.py` | Writes `public/data.json` |
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
@@ -57,6 +57,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `src/components/PerspectiverseGraphic.jsx` | SVG explainer of the solar-system metaphor |
 | `src/lib/categories.js` | Category list and filter helper |
 | `src/lib/colors.js` | Planet and spike palette |
+| `src/lib/faces.js` | 2–6 spike layouts and shape names |
 | `src/lib/planets.js` | Solar-system order and body metadata |
 | `src/lib/planetTextures.js` | Canvas skins for Sun through Pluto |
 | `src/lib/navigation.js` | Query-string selection and scroll reset |

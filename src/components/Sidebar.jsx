@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
+import { shapeName } from '../lib/faces'
 import { categoryCounts } from '../lib/categories'
 import { hexToRgba, spikeColor, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent, sortPosts, topicScale } from '../lib/layout'
@@ -81,8 +82,8 @@ function WelcomePanel({ data, topics, isMobile, onSelectTopic }) {
       )}
       <p className="lede">
         A gravitational map of a week of public conversation. The largest topic is the sun.
-        The rest orbit by volume and wear Mercury through Pluto in that order. Six spikes on
-        each body are the dominant perspectives inside that topic.
+        The rest orbit by volume and wear Mercury through Pluto in that order. Open a planet
+        and it grows two to six spikes — one per real perspective, never more than a cube.
       </p>
       <div className="stat-grid">
         <div>
@@ -113,7 +114,8 @@ function WelcomePanel({ data, topics, isMobile, onSelectTopic }) {
                 {topic.body?.name ?? (index === 0 ? 'Sun' : `Orbit ${index}`)} · {topic.name}
               </span>
               <span className="topic-row-meta">
-                {topic.category} · {topic.perspectives.length} perspectives
+                {topic.category} · {shapeName(topic.perspectives.length)} ·{' '}
+                {topic.perspectives.length} perspectives
               </span>
             </span>
             <VolumeBar value={topic.total_volume_percent} color={topicColor(topic.id, topic.body)} />
@@ -150,7 +152,7 @@ function TopicPanel({ topic, selectedPerspectiveId, isMobile, onSelectPerspectiv
         </button>
       )}
       <p className="eyebrow" style={{ color }}>
-        {topic.body?.name} · {topic.category}
+        {topic.body?.name} · {shapeName(topic.perspectives.length)} · {topic.category}
       </p>
       <h1>{topic.name}</h1>
       <p className="lede">
@@ -208,6 +210,7 @@ function PerspectivePanel({ topic, perspective, isMobile, onBack }) {
       </p>
       <h1>{perspective.title}</h1>
       <p className="lede">{perspective.summary}</p>
+      <MiniCube topic={topic} selectedPerspectiveId={perspective.id} />
       <p className="caveat">This sentence flattens disagreement inside the cluster.</p>
       <div
         className="perspective-stat"

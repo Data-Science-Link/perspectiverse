@@ -1,9 +1,16 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
+import { Quaternion, Vector3 } from 'three'
 import { hexToRgba, topicColor } from '../lib/colors'
+import { faceLayout } from '../lib/faces'
 import { formatPercent, orbitInclination, orbitRadius, orbitSpeed, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
+
+const _world = new Vector3()
+const _toCamera = new Vector3()
+const _look = new Vector3()
+const _target = new Quaternion()
 
 export default function Planet({
   topic,
@@ -30,8 +37,13 @@ export default function Planet({
   const scale = topicScale(topic.total_volume_percent)
   const color = topicColor(topic.id, body)
   const pickScale = Math.max(1, 1.15 / Math.max(scale, 0.35))
+  const layout = useMemo(
+    () => faceLayout(topic.perspectives.length),
+    [topic.perspectives.length],
+  )
+  const focusIndex = topic.perspectives.findIndex((face) => face.id === selectedPerspectiveId)
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (!isSun && !selected) {
       angle.current += delta * speed
     }
@@ -52,7 +64,18 @@ export default function Planet({
       }
     }
 
-    if (cube.current && !selected) {
+    if (!cube.current) return
+
+    if (selected && focusIndex >= 0 && layout[focusIndex] && !drag.current) {
+      group.current.getWorldPosition(_world)
+      _toCamera.copy(state.camera.position).sub(_world).normalize()
+      _look.set(...layout[focusIndex].direction)
+      _target.setFromUnitVectors(_look, _toCamera)
+      cube.current.quaternion.slerp(_target, 1 - Math.exp(-delta * 6))
+      return
+    }
+
+    if (!selected) {
       cube.current.rotation.x += delta * 0.22
       cube.current.rotation.y += delta * 0.34
       cube.current.rotation.z += delta * 0.08
@@ -127,6 +150,7 @@ export default function Planet({
             coreColor={color}
             selectedPerspectiveId={selectedPerspectiveId}
             dimmed={dimmed}
+            showSpikes={selected}
             pickScale={pickScale}
             onSelectPerspective={(perspectiveId) => {
               if (suppressClick.current) {

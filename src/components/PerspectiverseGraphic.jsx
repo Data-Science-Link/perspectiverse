@@ -4,7 +4,7 @@ export default function PerspectiverseGraphic({ compact = false }) {
       <svg viewBox="0 0 360 220" role="img" aria-labelledby="pv-graphic-title pv-graphic-desc">
         <title id="pv-graphic-title">How Perspectiverse is shaped</title>
         <desc id="pv-graphic-desc">
-          A sun at the center, orbiting planets, and one cube whose six spikes are six
+          A sun at the center, orbiting planets, and one opened body whose spikes are its
           perspectives.
         </desc>
         <rect width="360" height="220" rx="18" fill="#070914" />
@@ -30,13 +30,14 @@ export default function PerspectiverseGraphic({ compact = false }) {
           Topics orbit by volume
         </text>
         <text x="268" y="204" textAnchor="middle" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, sans-serif">
-          Six spikes, six views
+          Open it: two to six views
         </text>
       </svg>
       {!compact && (
         <figcaption>
           The largest topic is the sun. The next nine take solar-system skins in order:
-          Mercury through Pluto. Spike length is share of the conversation, not truth.
+          Mercury through Pluto. Size is attention. Spikes appear when you open a planet —
+          two to six faces, length by share of posts, not truth.
         </figcaption>
       )}
     </figure>

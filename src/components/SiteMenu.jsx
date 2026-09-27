@@ -69,8 +69,8 @@ export default function SiteMenu({
           <p>
             A week of public conversation, mapped as a solar system. The largest topic sits at
             the center as the sun. The next nine orbit by volume and wear Mercury through Pluto
-            in that order. Each body still grows six spikes — the dominant perspectives inside
-            that topic.
+            in that order. Size is share of attention. Open a planet and it grows two to six
+            spikes — one per real perspective, never more than a cube.
           </p>
           <p>
             Source: {data.mode === 'demo' || data.source === 'synthetic'
@@ -85,8 +85,8 @@ export default function SiteMenu({
         <section className="menu-section">
           <h3>How to read this</h3>
           <ul>
-            <li>On a phone, tap a cube. The page jumps to that topic.</li>
-            <li>On a desktop, drag to orbit, scroll to zoom, click a planet to inspect it.</li>
+            <li>On a phone, tap a planet. The page jumps to that topic and the spikes appear.</li>
+            <li>On a desktop, drag to orbit, then click a planet to grow its faces.</li>
             <li>A long spike is louder because more posts clustered there, not because it is truer.</li>
           </ul>
         </section>

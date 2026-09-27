@@ -18,6 +18,8 @@ CATEGORIES = (
     "Media",
 )
 NOISE_POLICY = "Topic -1 is dropped and excluded from the volume denominator."
+MIN_FACES = 2
+MAX_FACES = 6
 
 CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "Sports": ("sport", "football", "soccer", "league", "player", "game", "coach"),
@@ -95,8 +97,11 @@ def validate_payload(payload: dict[str, Any]) -> None:
         if topic.get("category") not in CATEGORIES:
             raise ValueError(f"Topic {topic_id} has an unknown category")
         perspectives = topic.get("perspectives") or []
-        if len(perspectives) != 6:
-            raise ValueError(f"Topic {topic_id} should have 6 perspectives, found {len(perspectives)}")
+        if not MIN_FACES <= len(perspectives) <= MAX_FACES:
+            raise ValueError(
+                f"Topic {topic_id} should have {MIN_FACES}-{MAX_FACES} perspectives, "
+                f"found {len(perspectives)}"
+            )
         topic_volume += float(topic["total_volume_percent"])
         face_volume = 0.0
         seen_faces: set[str] = set()

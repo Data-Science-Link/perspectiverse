@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { clampFaceCount, faceLayout, shapeName } from '../src/lib/faces.js'
 import { SOLAR_BODIES, bodyForRank, decorateTopics } from '../src/lib/planets.js'
 import { selectionURL } from '../src/lib/navigation.js'
 
@@ -27,4 +28,14 @@ assert.equal(
 )
 assert.equal(selectionURL({ category: 'all', topicId: null, perspectiveId: null }), '/perspectiverse/')
 
-console.log('planet order and selection urls ok')
+assert.equal(clampFaceCount(1), 2)
+assert.equal(clampFaceCount(9), 6)
+assert.equal(shapeName(4), 'Tetrahedron')
+assert.equal(shapeName(6), 'Cube')
+assert.equal(faceLayout(2).length, 2)
+assert.equal(faceLayout(4).length, 4)
+assert.equal(faceLayout(6).length, 6)
+assert.equal(faceLayout(4)[0].radialSegments, 3)
+assert.equal(faceLayout(6)[0].radialSegments, 4)
+
+console.log('planet order, selection urls, and face layouts ok')

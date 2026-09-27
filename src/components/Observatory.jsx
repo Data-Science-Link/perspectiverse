@@ -149,8 +149,8 @@ export default function Observatory({
   }, [])
 
   const hint = selectedTopicId
-    ? 'Drag to turn the cube · Tap a spike for that perspective'
-    : 'Drag to orbit · Pinch or scroll to zoom · Tap a cube to open it'
+    ? 'Spikes are perspectives · Drag to turn · Tap a spike to face it'
+    : 'Drag to orbit · Pinch or scroll to zoom · Tap a planet to grow its spikes'
 
   return (
     <section className="observatory">

@@ -27,7 +27,7 @@ def cluster_texts(
         raw_labels, term_lookup = _lexical_labels(texts, min_cluster_size, seed)
     else:
         raise ValueError(f"Unknown cluster_backend {cluster_backend}")
-    # Six faces need six posts, so a planet is never smaller than that.
+    # Keep enough posts that a planet can still grow two to six faces.
     return _keep_top(texts, raw_labels, term_lookup, max(min_cluster_size, 6))
 
 
