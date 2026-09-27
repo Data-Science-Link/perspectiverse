@@ -25,8 +25,9 @@ const categories = new Set([
 let topicVolume = 0
 for (const topic of payload.topics) {
   if (!categories.has(topic.category)) fail(`Bad category on topic ${topic.id}`)
-  if (!Array.isArray(topic.perspectives) || topic.perspectives.length !== 6) {
-    fail(`Topic ${topic.id} does not have 6 faces`)
+  const faceCount = topic.perspectives?.length
+  if (!Array.isArray(topic.perspectives) || faceCount < 2 || faceCount > 6) {
+    fail(`Topic ${topic.id} should have 2-6 faces, found ${faceCount}`)
   }
   topicVolume += Number(topic.total_volume_percent)
   let faceVolume = 0

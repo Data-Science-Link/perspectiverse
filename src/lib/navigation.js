@@ -1,0 +1,44 @@
+export function readSelectionFromURL() {
+  const params = new URLSearchParams(window.location.search)
+  const category = params.get('category') || 'all'
+  const topicRaw = params.get('topic')
+  const topicId = topicRaw == null || topicRaw === '' ? null : Number(topicRaw)
+  const face = params.get('face')
+  return {
+    category,
+    topicId: Number.isFinite(topicId) ? topicId : null,
+    perspectiveId: face || null,
+  }
+}
+
+export function selectionURL({ category, topicId, perspectiveId }) {
+  const params = new URLSearchParams()
+  if (category && category !== 'all') params.set('category', category)
+  if (topicId != null) params.set('topic', String(topicId))
+  if (perspectiveId) params.set('face', perspectiveId)
+  const search = params.toString()
+  return `${window.location.pathname}${search ? `?${search}` : ''}`
+}
+
+export function writeSelectionToURL(selection, mode = 'push') {
+  const next = selectionURL(selection)
+  const current = `${window.location.pathname}${window.location.search}`
+  if (next === current) return
+  const state = {
+    category: selection.category ?? 'all',
+    topicId: selection.topicId ?? null,
+    perspectiveId: selection.perspectiveId ?? null,
+  }
+  if (mode === 'replace') {
+    window.history.replaceState(state, '', next)
+    return
+  }
+  window.history.pushState(state, '', next)
+}
+
+export function resetScroll(scroller) {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
+  if (scroller) scroller.scrollTop = 0
+}

@@ -2,9 +2,13 @@
 
 Live mapping the universe of human attention and perspectives.
 
-Perspectiverse turns a week of public conversation into a 3D solar system. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Each planet is a **spiky cube**: six pyramid faces, one per dominant perspective, with spike length driven by that face's share of the conversation.
+Perspectiverse turns a week of public conversation into a 3D solar system. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Planet size is share of attention. In the sky they wear solar-system skins. Open one and the sphere dissolves into a **crystal of two to six faces** — one per real perspective, never more than a cube. Face length is that view's share of the conversation. Colors always run gold → ember → sky → violet → jade → rose, loudest first.
 
 The analytical sidebar reacts to the sky. Filter by category, select a planet to turn its cube, then select a face to read the representative posts.
+
+On a phone the sky stays up front: name, graphic, and a prompt to tap a planet. Opening a planet jumps to a tight topic page (summary + its perspectives). Opening a perspective turns that face toward you and shows representative posts, always from the top, with a back arrow and the browser back button wired to the same stack. The hamburger holds project info, the Perspectiverse graphic, filters, and feedback.
+
+Bodies keep solar-system skins in volume order: the largest topic is the Sun, then Mercury through Pluto.
 
 ## Current status
 

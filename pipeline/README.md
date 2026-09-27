@@ -1,6 +1,6 @@
 # Data Engineering Pipeline
 
-Daily job: ingest a 7-day window of English posts, cluster 10 planets and 6 faces, label the faces, and write `public/data.json`.
+Daily job: ingest a 7-day window of English posts, cluster 10 planets and 2–6 faces, label the faces, and write `public/data.json`.
 
 ## Commands
 
@@ -43,7 +43,7 @@ The default `sample_size` is **200** so a run can finish without a laptop-sized 
 
 `cluster_backend: bertopic` uses BERTopic with `all-MiniLM-L6-v2`. That import pulls the embedding stack (`uv sync` locally). It is not what the scheduled job installs.
 
-The lexical pass asks for 11 clusters. Anything smaller than `min_cluster_size` is Topic -1. A planet also needs at least 6 posts so it can be cut into 6 faces, so the effective floor is `max(min_cluster_size, 6)`. If more than 10 clusters remain, the smaller ones are dropped too. If a messy sample leaves fewer than 10 planets above that floor, leftover and surplus posts are reassigned so the snapshot still has 10 cubes. **Topic -1 is excluded from the volume denominator.** Topic percents and face percents are renormalized to 100. `total_posts` still counts the cleaned sample, including noise. The sidebar says those outliers are left out of the percentages.
+The lexical pass asks for 11 clusters. Anything smaller than `min_cluster_size` is Topic -1. A planet also needs at least 6 posts so it can grow two to six faces, so the effective floor is `max(min_cluster_size, 6)`. If more than 10 clusters remain, the smaller ones are dropped too. If a messy sample leaves fewer than 10 planets above that floor, leftover and surplus posts are reassigned so the snapshot still has 10 bodies. **Topic -1 is excluded from the volume denominator.** Topic percents and face percents are renormalized to 100. `total_posts` still counts the cleaned sample, including noise. The sidebar says those outliers are left out of the percentages.
 
 `min_cluster_size` starts at **2** so a 200-post sample can still publish 10 planets. Use **8** when the posts separate cleanly, and **15–25** once `sample_size` is near 10000 so tiny clumps do not become planets.
 
@@ -51,7 +51,7 @@ Planet ids are 1–10 in descending volume for that snapshot. They are stable in
 
 ## Faces
 
-Each kept planet is split with k-means, `n=6`. One face may dominate; its volume is still renormalized with the others so a lopsided cube stays valid.
+Each kept planet is split with k-means into **2–6 faces**, chosen from how the posts separate. A cube is the ceiling, not the default. One face may dominate; its volume is still renormalized with the others so a lopsided body stays valid.
 
 Representative posts: **highest likes first**, then nearer the face centroid in TF-IDF space. The cap is `representative_posts` (12). A tiny cluster may have fewer, but never zero, and every post has `likes`.
 

@@ -1,7 +1,10 @@
+import { useLayoutEffect, useRef } from 'react'
+import { shapeName } from '../lib/faces'
 import { categoryCounts } from '../lib/categories'
-import { hexToRgba, spikeColor, topicColor } from '../lib/colors'
+import { hexToRgba, rankPerspectives, spikeColor, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent, sortPosts, topicScale } from '../lib/layout'
 import MiniCube from './MiniCube'
+import PerspectiverseGraphic from './PerspectiverseGraphic'
 
 function VolumeBar({ value, color, active = false }) {
   return (
@@ -15,19 +18,6 @@ function VolumeBar({ value, color, active = false }) {
       <span className="volume-bar-value">{formatPercent(value)}</span>
     </div>
   )
-}
-
-function sourceLine(data) {
-  if (data.mode === 'demo' || data.source === 'synthetic') {
-    return 'a synthetic sample written for this demo'
-  }
-  if (data.source === 'bluesky') {
-    return 'public English posts on Bluesky'
-  }
-  if (data.source === 'fixture') {
-    return 'a local fixture, not a live feed'
-  }
-  return 'the snapshot bundled with this page'
 }
 
 function FilterStrip({ categories, category, counts, onCategory }) {
@@ -55,8 +45,32 @@ function FilterStrip({ categories, category, counts, onCategory }) {
   )
 }
 
-function WelcomePanel({ data, topics, onSelectTopic }) {
-  const windowHours = data.window_hours ?? 168
+function WelcomePanel({ data, topics, isMobile, onSelectTopic }) {
+  if (isMobile) {
+    return (
+      <div className="panel is-mobile-home">
+        <PerspectiverseGraphic compact />
+        <p className="mobile-prompt">Tap a cube to open its topic.</p>
+        <div className="planet-rail" aria-label="Today's planets">
+          {topics.map((topic) => (
+            <button
+              key={topic.id}
+              type="button"
+              className="planet-chip"
+              onClick={() => onSelectTopic(topic.id)}
+            >
+              <span className="swatch" style={{ background: topicColor(topic.id, topic.body) }} />
+              <span>
+                {topic.body?.name}
+                <small>{topic.name}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="panel">
       <p className="eyebrow">Discourse Universe</p>
@@ -67,9 +81,10 @@ function WelcomePanel({ data, topics, onSelectTopic }) {
         </p>
       )}
       <p className="lede">
-        A gravitational map of a week of public conversation. The largest topic sits at the
-        center. The rest orbit by volume. Each planet is a cube whose six spikes are the
-        dominant perspectives inside that topic.
+        A gravitational map of a week of public conversation. The largest topic is the sun.
+        The rest orbit by volume and wear Mercury through Pluto in that order. Open a planet
+        and the sphere dissolves into a crystal of two to six faces — one per real
+        perspective, never more than a cube. Gold is always the loudest view.
       </p>
       <div className="stat-grid">
         <div>
@@ -85,25 +100,6 @@ function WelcomePanel({ data, topics, onSelectTopic }) {
           <span>snapshot</span>
         </div>
       </div>
-      <div className="how-to">
-        <h2>How to read this</h2>
-        <ul>
-          <li>
-            Source: {sourceLine(data)}. Window: the last {windowHours} hours.
-          </li>
-          <li>Drag to orbit. Scroll to zoom. Click empty space to pull back.</li>
-          <li>Click a planet — or a row below — to lock the camera and turn that cube.</li>
-          <li>A long spike is not louder because it is truer. It is louder because more posts clustered there.</li>
-        </ul>
-      </div>
-      <div className="how-to">
-        <h2>What this is not</h2>
-        <ul>
-          <li>This is internet discourse, not a poll of humanity. Bluesky is not everyone.</li>
-          <li>A face summary collapses dissent inside that cluster. Minority views can disappear into one sentence.</li>
-          <li>Posts that fit no planet are left out of the percentages.</li>
-        </ul>
-      </div>
       <div className="topic-list">
         <h2>Today&apos;s planets</h2>
         {topics.map((topic, index) => (
@@ -113,16 +109,17 @@ function WelcomePanel({ data, topics, onSelectTopic }) {
             className="topic-row"
             onClick={() => onSelectTopic(topic.id)}
           >
-            <span className="swatch" style={{ background: topicColor(topic.id) }} />
+            <span className="swatch" style={{ background: topicColor(topic.id, topic.body) }} />
             <span className="topic-row-copy">
               <span className="topic-row-name">
-                {index === 0 ? 'Sun' : `Orbit ${index}`} · {topic.name}
+                {topic.body?.name ?? (index === 0 ? 'Sun' : `Orbit ${index}`)} · {topic.name}
               </span>
               <span className="topic-row-meta">
-                {topic.category} · {topic.perspectives.length} perspectives
+                {topic.category} · {shapeName(topic.perspectives.length)} ·{' '}
+                {topic.perspectives.length} perspectives
               </span>
             </span>
-            <VolumeBar value={topic.total_volume_percent} color={topicColor(topic.id)} />
+            <VolumeBar value={topic.total_volume_percent} color={topicColor(topic.id, topic.body)} />
           </button>
         ))}
       </div>
@@ -146,20 +143,23 @@ function EmptyCategory({ category, onShowAll }) {
   )
 }
 
-function TopicPanel({ topic, selectedPerspectiveId, onSelectPerspective, onBack }) {
+function TopicPanel({ topic, selectedPerspectiveId, isMobile, onSelectPerspective, onBack }) {
+  const color = topicColor(topic.id, topic.body)
+  const ranked = rankPerspectives(topic.perspectives)
   return (
-    <div className="panel">
-      <button type="button" className="back-link" onClick={onBack}>
-        All topics
-      </button>
-      <p className="eyebrow" style={{ color: topicColor(topic.id) }}>
-        {topic.category} · {topic.id === 1 ? 'Central sun' : 'Orbiting planet'}
+    <div className="panel is-topic">
+      {!isMobile && (
+        <button type="button" className="back-link" onClick={onBack}>
+          ← All topics
+        </button>
+      )}
+      <p className="eyebrow" style={{ color }}>
+        {topic.body?.name} · {shapeName(topic.perspectives.length)} · {topic.category}
       </p>
       <h1>{topic.name}</h1>
       <p className="lede">
-        {formatPercent(topic.total_volume_percent)} of the kept conversation. Scale in the
-        sky is {topicScale(topic.total_volume_percent).toFixed(2)}× the baseline cube — volume,
-        not virtue.
+        {formatPercent(topic.total_volume_percent)} of the kept conversation. Scale in the sky
+        is {topicScale(topic.total_volume_percent).toFixed(2)}× — volume, not virtue.
       </p>
       <MiniCube
         topic={topic}
@@ -167,7 +167,11 @@ function TopicPanel({ topic, selectedPerspectiveId, onSelectPerspective, onBack 
         onSelectPerspective={onSelectPerspective}
       />
       <div className="perspective-list">
-        {topic.perspectives.map((perspective, index) => (
+        <h2>Perspectives</h2>
+        <p className="topic-row-meta">
+          Gold is the loudest view, then ember, sky, violet, jade, rose.
+        </p>
+        {ranked.map((perspective, index) => (
           <button
             key={perspective.id}
             type="button"
@@ -186,6 +190,7 @@ function TopicPanel({ topic, selectedPerspectiveId, onSelectPerspective, onBack 
               color={spikeColor(index)}
               active={selectedPerspectiveId === perspective.id}
             />
+            <span className="card-chevron" aria-hidden="true">›</span>
           </button>
         ))}
       </div>
@@ -193,21 +198,23 @@ function TopicPanel({ topic, selectedPerspectiveId, onSelectPerspective, onBack 
   )
 }
 
-function PerspectivePanel({ topic, perspective, onBack }) {
-  const index = topic.perspectives.findIndex((item) => item.id === perspective.id)
-  const color = spikeColor(index)
+function PerspectivePanel({ topic, perspective, isMobile, onBack }) {
+  const color = spikeColor(rankPerspectives(topic.perspectives).findIndex((item) => item.id === perspective.id))
   const posts = sortPosts(perspective.representative_posts)
 
   return (
-    <div className="panel">
-      <button type="button" className="back-link" onClick={onBack}>
-        Back to {topic.name}
-      </button>
+    <div className="panel is-face">
+      {!isMobile && (
+        <button type="button" className="back-link" onClick={onBack}>
+          ← Back to {topic.name}
+        </button>
+      )}
       <p className="eyebrow" style={{ color }}>
-        {topic.name} · Face {perspective.id}
+        {topic.body?.name} · {topic.name}
       </p>
       <h1>{perspective.title}</h1>
       <p className="lede">{perspective.summary}</p>
+      <MiniCube topic={topic} selectedPerspectiveId={perspective.id} />
       <p className="caveat">This sentence flattens disagreement inside the cluster.</p>
       <div
         className="perspective-stat"
@@ -239,6 +246,7 @@ export default function Sidebar({
   category,
   selectedTopic,
   selectedPerspective,
+  isMobile,
   onSelectTopic,
   onSelectPerspective,
   onClearSelection,
@@ -246,23 +254,42 @@ export default function Sidebar({
 }) {
   const counts = categoryCounts(data.topics)
   const empty = topics.length === 0
+  const scroller = useRef(null)
+
+  useLayoutEffect(() => {
+    if (scroller.current) scroller.current.scrollTop = 0
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+  }, [selectedTopic?.id, selectedPerspective?.id, category])
 
   return (
-    <aside className="sidebar">
-      <FilterStrip
-        categories={categories}
-        category={category}
-        counts={counts}
-        onCategory={onCategory}
-      />
+    <aside
+      ref={scroller}
+      className="sidebar"
+      key={`${selectedTopic?.id ?? 'home'}-${selectedPerspective?.id ?? 'list'}-${category}`}
+    >
+      {!isMobile && (
+        <FilterStrip
+          categories={categories}
+          category={category}
+          counts={counts}
+          onCategory={onCategory}
+        />
+      )}
       {empty && <EmptyCategory category={category} onShowAll={() => onCategory('all')} />}
       {!empty && !selectedTopic && (
-        <WelcomePanel data={data} topics={topics} onSelectTopic={onSelectTopic} />
+        <WelcomePanel
+          data={data}
+          topics={topics}
+          isMobile={isMobile}
+          onSelectTopic={onSelectTopic}
+        />
       )}
       {!empty && selectedTopic && !selectedPerspective && (
         <TopicPanel
           topic={selectedTopic}
           selectedPerspectiveId={null}
+          isMobile={isMobile}
           onSelectPerspective={onSelectPerspective}
           onBack={onClearSelection}
         />
@@ -271,6 +298,7 @@ export default function Sidebar({
         <PerspectivePanel
           topic={selectedTopic}
           perspective={selectedPerspective}
+          isMobile={isMobile}
           onBack={() => onSelectPerspective(null)}
         />
       )}

@@ -28,6 +28,9 @@ jobs:
       - name: Category helper
         run: node scripts/check_categories.mjs
 
+      - name: Planet order helper
+        run: node scripts/check_planets.mjs
+
       - name: Build
         run: npm run build
 

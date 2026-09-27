@@ -24,10 +24,16 @@ def test_demo_payload_matches_ui_contract():
     }
 
 
-def test_each_planet_has_six_faces_and_posts():
+def test_each_planet_has_two_to_six_faces_and_posts():
     payload = build_demo_payload()
+    counts = {topic["id"]: len(topic["perspectives"]) for topic in payload["topics"]}
+    assert counts[1] == 6
+    assert counts[2] == 4
+    assert counts[6] == 2
+    assert min(counts.values()) >= 2
+    assert max(counts.values()) <= 6
+    assert len(set(counts.values())) > 1
     for topic in payload["topics"]:
-        assert len(topic["perspectives"]) == 6
         for face in topic["perspectives"]:
             assert len(face["representative_posts"]) >= 2
             assert all("likes" in post for post in face["representative_posts"])
