@@ -181,6 +181,61 @@ def cluster_kmeans(matrix: np.ndarray, k: int, seed: int = 0, iters: int = 12) -
     return _fill_empty(matrix, labels, centers)
 
 
+def grow_clusters_to_min(
+    matrix: np.ndarray,
+    labels: np.ndarray,
+    selected: set[int],
+    min_size: int,
+) -> np.ndarray:
+    """Move leftover or surplus rows so every selected cluster has min_size members.
+
+    Leftover rows (labels not in `selected`) are taken first. Surplus rows come
+    from selected clusters that already sit above `min_size`. Prefer the row
+    closest to the short cluster's centroid so the grown planet stays coherent.
+    """
+    labels = np.asarray(labels, dtype=int).copy()
+    chosen = set(selected)
+    if not chosen:
+        return labels
+
+    def count(label: int) -> int:
+        return int(np.sum(labels == label))
+
+    def centroid(label: int) -> np.ndarray:
+        mask = labels == label
+        if not np.any(mask):
+            return np.zeros(matrix.shape[1], dtype=float)
+        return matrix[mask].mean(axis=0)
+
+    for _ in range(matrix.shape[0] * 2):
+        short = [label for label in chosen if count(label) < min_size]
+        if not short:
+            return labels
+        target = min(short, key=lambda label: (count(label), label))
+        target_center = centroid(target)
+        best_row = None
+        best_key = None
+        for row in range(matrix.shape[0]):
+            label = int(labels[row])
+            if label == target:
+                continue
+            if label in chosen:
+                if count(label) <= min_size:
+                    continue
+                priority = 1
+            else:
+                priority = 0
+            delta = matrix[row] - target_center
+            key = (priority, float(np.dot(delta, delta)), row)
+            if best_key is None or key < best_key:
+                best_key = key
+                best_row = row
+        if best_row is None:
+            break
+        labels[best_row] = target
+    return labels
+
+
 def distances_to_centers(matrix: np.ndarray, labels: np.ndarray, centers: np.ndarray) -> list[float]:
     values: list[float] = []
     for row, label in enumerate(labels):

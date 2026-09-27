@@ -38,16 +38,21 @@ def extract_posts(
     seen: set[str] = set()
 
     for query in queries:
-        page = getter(query, None, per_query)
-        for raw in page.get("posts") or []:
-            post = normalize_post(raw)
-            if post is None or post["uri"] in seen:
-                continue
-            created = _parse_time(post["created_at"])
-            if created < cutoff or created > moment + timedelta(hours=1):
-                continue
-            seen.add(post["uri"])
-            collected.append(post)
+        cursor = None
+        for _page in range(8):
+            page = getter(query, cursor, per_query)
+            for raw in page.get("posts") or []:
+                post = normalize_post(raw)
+                if post is None or post["uri"] in seen:
+                    continue
+                created = _parse_time(post["created_at"])
+                if created < cutoff or created > moment + timedelta(hours=1):
+                    continue
+                seen.add(post["uri"])
+                collected.append(post)
+            cursor = page.get("cursor")
+            if not cursor or len(collected) >= sample_size * 2:
+                break
         if len(collected) >= sample_size * 2:
             break
 

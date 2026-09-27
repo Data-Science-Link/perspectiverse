@@ -48,3 +48,31 @@ def test_extract_keeps_window_and_samples():
 
 def test_normalize_post_requires_text_and_time():
     assert normalize_post({"uri": "at://x"}) is None
+
+
+def test_extract_follows_cursor_until_the_window_is_full():
+    now = datetime(2026, 9, 26, tzinfo=timezone.utc)
+    fresh = (now - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    calls = []
+
+    def fetch(query, cursor, limit):
+        calls.append((query, cursor, limit))
+        if cursor is None:
+            return {
+                "posts": [_post("at://page-1", fresh, "First page talking about rent in the city today.")],
+                "cursor": "next",
+            }
+        return {
+            "posts": [_post("at://page-2", fresh, "Second page talking about school schedules today.")],
+        }
+
+    posts = extract_posts(
+        sample_size=2,
+        window_hours=168,
+        queries=["the"],
+        fetch=fetch,
+        now=now,
+        rng=__import__("random").Random(0),
+    )
+    assert {post["uri"] for post in posts} == {"at://page-1", "at://page-2"}
+    assert calls == [("the", None, 25), ("the", "next", 25)]

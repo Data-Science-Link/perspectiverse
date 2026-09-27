@@ -7,6 +7,8 @@ sample_size: 200
 # Clusters smaller than this become Topic -1 and drop out of the volume
 # denominator. 2 matches the 200-post plumbing sample: the lexical pass asks
 # for 11 clusters and the smallest can be noise while 10 planets remain.
+# A live sample that leaves two short clusters still publishes: leftover
+# posts are folded into the next planet so 10 cubes remain.
 # Use 8 on a few hundred well-separated posts, and 15-25 once sample_size
 # is near 10000.
 min_cluster_size: 2
