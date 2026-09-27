@@ -280,10 +280,13 @@ export function engage(query, topics, options = {}) {
 
   const loudUnmatchedFace = loudFace && bestFace && loudFace.id !== bestFace.id ? loudFace : null
 
-  const supporting = uniquePosts(
-    (intent === 'why' ? [...hits].sort((left, right) => Number(right.why) - Number(left.why) || right.score - left.score) : hits),
-    3,
-  )
+  const supportingPool = bestTopic
+    ? hits.filter((row) => row.topicId === bestTopic.id)
+    : hits
+  const whySorted = intent === 'why'
+    ? [...supportingPool].sort((left, right) => Number(right.why) - Number(left.why) || right.score - left.score)
+    : supportingPool
+  const supporting = uniquePosts(whySorted.length ? whySorted : hits, 3)
   const counterPool = intent === 'counter' || presence === 'minority' || presence === 'split'
     ? scored.filter((row) => !bestFace || row.faceId !== bestFace.id)
     : scored.filter((row) => bestFace && row.faceId !== bestFace.id && row.faceRank === 0)
