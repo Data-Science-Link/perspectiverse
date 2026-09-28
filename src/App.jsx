@@ -173,7 +173,7 @@ export default function App() {
     ?? selectedTopic?.name
     ?? 'Perspectiverse'
   const chromeSubtitle = sitePage
-    ? sitePage.subtitle
+    ? null
     : selectedPerspective
       ? selectedTopic.name
       : selectedTopic

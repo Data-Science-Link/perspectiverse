@@ -494,7 +494,7 @@ h3 {
 .menu-backdrop {
   flex: 1;
   border: 0;
-  background: rgba(5, 6, 11, 0.55);
+  background: rgba(5, 6, 11, 0.72);
   cursor: pointer;
 }
 
@@ -504,7 +504,9 @@ h3 {
   overflow-y: auto;
   padding: calc(1rem + env(safe-area-inset-top)) 1.25rem calc(2rem + env(safe-area-inset-bottom));
   border-right: 1px solid var(--line);
-  background: linear-gradient(180deg, #0c0e16, #080910 70%);
+  background: #080910;
+  isolation: isolate;
+  transform: translateZ(0);
   animation: drawer-in 0.22s ease;
 }
 
@@ -878,8 +880,9 @@ h3 {
 
 .method-overview {
   display: block;
-  width: 100%;
+  width: min(100%, 26rem);
   height: auto;
+  margin-inline: auto;
 }
 
 .method-figure figcaption {
@@ -1079,15 +1082,16 @@ h3 {
 }
 
 .app-shell.is-page .site-chrome {
-  position: sticky;
+  position: relative;
   top: 0;
   left: 0;
   width: 100%;
   flex: 0 0 auto;
+  min-height: 56px;
   pointer-events: auto;
-  background: rgba(5, 6, 11, 0.92);
+  background: #080910;
   border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(14px);
+  backdrop-filter: none;
 }
 
 .panel .tagline {
@@ -1256,12 +1260,12 @@ h3 {
   }
 
   .app-shell.is-page .site-chrome {
-    position: sticky;
+    position: relative;
     width: 100%;
     pointer-events: auto;
-    background: rgba(5, 6, 11, 0.92);
+    background: #080910;
     border-bottom: 1px solid var(--line);
-    backdrop-filter: blur(14px);
+    backdrop-filter: none;
   }
 
   .site-page {
