@@ -156,7 +156,12 @@ test.describe('Perspectiverse views', () => {
     await page.goto('/?page=author')
     await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Michael Link' })).toBeVisible()
+    await expect(page.getByText(/analytics engineer in Austin/)).toBeVisible()
     await expect(page.getByRole('link', { name: /Data-Science-Link/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Michael Link' })).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/data-science-link',
+    )
 
     await page.goto('/?page=vision')
     await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toHaveCount(0)
@@ -166,6 +171,7 @@ test.describe('Perspectiverse views', () => {
 
     await page.goto('/?page=connect')
     await expect(page.getByRole('heading', { name: 'Say hello' })).toBeVisible()
+    await expect(page.getByText(/Michael Link is in Austin/)).toBeVisible()
     await expect(page.getByRole('link', { name: /^GitHub/ })).toBeVisible()
     await expect(page.getByRole('link', { name: /LinkedIn/ })).toHaveAttribute(
       'href',

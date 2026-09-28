@@ -6,6 +6,7 @@ export const SPONSORS_URL = 'https://github.com/sponsors/Data-Science-Link'
 export const LINKEDIN_URL = 'https://www.linkedin.com/in/data-science-link'
 export const AUTHOR_NAME = 'Michael Link'
 export const AUTHOR_HANDLE = 'Data-Science-Link'
+export const AUTHOR_LOCATION = 'Austin, Texas'
 
 export const SITE_PAGES = [
   {

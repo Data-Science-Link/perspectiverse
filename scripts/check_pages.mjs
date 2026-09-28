@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   AUTHOR_NAME,
+  AUTHOR_LOCATION,
   LINKEDIN_URL,
   SITE_PAGES,
   isSitePage,
@@ -10,6 +11,7 @@ import {
 import { selectionURL, readSelectionFromURL } from '../src/lib/navigation.js'
 
 assert.equal(AUTHOR_NAME, 'Michael Link')
+assert.equal(AUTHOR_LOCATION, 'Austin, Texas')
 assert.equal(LINKEDIN_URL, 'https://www.linkedin.com/in/data-science-link')
 assert.deepEqual(
   SITE_PAGES.map((page) => page.id),

@@ -1,6 +1,7 @@
 import {
   AUTHOR_GITHUB_URL,
   AUTHOR_HANDLE,
+  AUTHOR_LOCATION,
   AUTHOR_NAME,
   FEEDBACK_URL,
   LINKEDIN_URL,
@@ -237,9 +238,24 @@ function AuthorPage({ onOpenPage }) {
   return (
     <>
       <p className="lede">
-        {AUTHOR_NAME} builds Perspectiverse as a civic observatory: a way to see the shape
+        {AUTHOR_NAME} is a data systems and analytics engineer in {AUTHOR_LOCATION}.
+        He builds Perspectiverse as a personal civic project: a way to see the shape
         of public talk without asking a feed to decide what matters.
       </p>
+      <section>
+        <h2>Background</h2>
+        <p>
+          He started in water resources and ecological engineering — a B.S. at Oregon
+          State, then a master&apos;s at UT Austin — and now spends his days turning
+          messy operational data into something a decision can stand on. The habit is
+          the same here: take a noisy public record, make the structure visible, and
+          refuse to pretend a loud corner is the whole sky.
+        </p>
+        <p>
+          Perspectiverse is independent of his day job. MIT licensed, cheap on purpose,
+          and meant to stay readable on a phone.
+        </p>
+      </section>
       <section>
         <h2>Why this exists</h2>
         <p>
@@ -247,10 +263,6 @@ function AuthorPage({ onOpenPage }) {
           fight can look like the whole sky. This project puts attention and disagreement
           in space: planet size for how widely something was discussed, faces for the
           actual views inside it.
-        </p>
-        <p>
-          It is an independent research prototype — MIT licensed, cheap on purpose, and
-          meant to stay readable on a phone.
         </p>
       </section>
       <section>
@@ -263,15 +275,15 @@ function AuthorPage({ onOpenPage }) {
             </a>
           </li>
           <li>
-            This repo:{' '}
-            <a href={REPO_URL} target="_blank" rel="noreferrer">
-              perspectiverse
+            LinkedIn:{' '}
+            <a href={LINKEDIN_URL} target="_blank" rel="noreferrer">
+              {AUTHOR_NAME}
             </a>
           </li>
           <li>
-            Prefer a note?{' '}
-            <a href={FEEDBACK_URL} target="_blank" rel="noreferrer">
-              Open a GitHub issue
+            This repo:{' '}
+            <a href={REPO_URL} target="_blank" rel="noreferrer">
+              perspectiverse
             </a>
           </li>
         </ul>
@@ -409,12 +421,13 @@ function IssueIcon() {
   )
 }
 
-function ConnectPage() {
+function ConnectPage({ onOpenPage }) {
   return (
     <>
       <p className="lede">
-        Code, conversation, and the person behind the sky. These are the public ways
-        to reach this project — no inbox hiding in the page.
+        {AUTHOR_NAME} is in {AUTHOR_LOCATION}. If you want to talk about the sky, the
+        method, a missing perspective, or just say hello — these are the public doors.
+        There is no inbox hiding in the page.
       </p>
       <nav className="connect-list" aria-label="Ways to connect">
         <a className="connect-link" href={AUTHOR_GITHUB_URL} target="_blank" rel="noreferrer">
@@ -428,7 +441,7 @@ function ConnectPage() {
           <LinkedInIcon />
           <span>
             <strong>LinkedIn</strong>
-            <em>{AUTHOR_NAME} — work and writing</em>
+            <em>{AUTHOR_NAME} — {AUTHOR_LOCATION}, data systems and analytics</em>
           </span>
         </a>
         <a className="connect-link" href={REPO_URL} target="_blank" rel="noreferrer">
@@ -450,6 +463,9 @@ function ConnectPage() {
         There is no project Twitter, Bluesky, or email form. If that changes, it will
         show up here.
       </p>
+      <button type="button" className="text-link" onClick={() => onOpenPage('author')}>
+        About the author
+      </button>
     </>
   )
 }
