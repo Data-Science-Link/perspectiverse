@@ -2,13 +2,13 @@
 
 Live mapping the universe of human attention and perspectives.
 
-Perspectiverse turns a week of public conversation into a 3D solar system. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Planet size is share of attention. In the sky they wear solar-system skins. Open one and the sphere dissolves into a **crystal of two to six faces** — one per real perspective, never more than a cube. Face length is that view's share of the conversation. Colors always run gold → ember → sky → violet → jade → rose, loudest first.
+Perspectiverse turns a week of public conversation into a 3D solar system so you do not live in an echo chamber. Tilt the solar system to see **every** perspective, then check where yours stacks up. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Planet size is share of public attention — whether the general public was talking about that topic. Planets wear solar-system skins. Open one and the sphere dissolves into a **crystal of two to six faces** — one per real perspective, never more than a cube. Face length is that view's share of the conversation. Gold is the majority (loudest) view; shorter faces are minority opinions. Colors always run gold → ember → sky → violet → jade → rose, loudest first.
 
-The analytical sidebar reacts to the sky. Filter by category, select a planet to turn its cube, then select a face to read the representative posts. **Test your take** — a claim, a question, or a brand — against the snapshot. The page answers with other people's words and says whether you landed on the loud face, a minority spike, or nowhere in this week's sky.
+The analytical sidebar reacts to the solar system. Filter by category with the **Solar System** dropdown, select a planet to turn its cube, then select a face to read the representative posts. A first-visit welcome explains the metaphor; the menu can reopen it.
 
 This is not social listening, brand monitoring, or a poll. Those tools start from a query, a named entity, or a survey instrument. Perspectiverse starts from a week of public posts and keeps the ten largest topics, each cut into two to six perspectives. [Similar Products and Differentiation](project_documentation/Similar%20Products%20and%20Differentiation.md) maps the neighboring categories — monitoring, listening, civic deliberation, news-literacy, researcher topic maps — and says what this observatory adds.
 
-On a phone the sky stays up front: name, graphic, and a prompt to tap a planet. Opening a planet jumps to a tight topic page (summary + its perspectives). Opening a perspective turns that face toward you and shows representative posts, always from the top, with a back arrow and the browser back button wired to the same stack. The hamburger holds project info, the Perspectiverse graphic, filters, and feedback.
+On a phone the solar system stays up front: tagline, a short prompt, and a rail of planets. Opening a planet jumps to a tight topic page (summary + its perspectives). Opening a perspective turns that face toward you and shows representative posts, always from the top, with a back arrow and the browser back button wired to the same stack. The hamburger holds project info, filters, and feedback.
 
 Bodies keep solar-system skins in volume order: the largest topic is the Sun, then Mercury through Pluto.
 
@@ -23,7 +23,7 @@ The observatory runs on a schema-compatible **demo** `public/data.json` (10 topi
 | React + R3F observatory | Ready, with category filters and inspect mode |
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
 | Daily refresh | `.github/workflows/pipeline.yml` |
-| Test your take (extractive anti-echo) | Ready, client-side, no API |
+| Conversational LLM on a planet | Roadmap only (Horizon A) |
 | Custom sky from `--query` | Ready for operators; not a public form |
 
 ## Quick start
@@ -42,7 +42,13 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL. Filter the sky, click a planet, drag to turn the locked cube, then click a spike or a sidebar bar. In the sidebar, type a take or a brand into **Test your take** to see whether this week's sky contains it.
+Open the printed local URL. Filter the solar system, click a planet, drag to turn the locked cube, then click a spike or a sidebar bar. The first visit opens a short welcome that explains size, tilt, and the crystal. The opening camera is pulled back so all ten planets fit in view.
+
+```bash
+npm run test
+```
+
+That lints, runs the Node helpers, builds, then Playwright against **desktop and mobile** viewports. CI does the same in `.github/workflows/frontend.yml`.
 
 ```bash
 npm run build

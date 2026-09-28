@@ -10,6 +10,8 @@ The public observatory today is three cheap moves:
 
 That design is why the bill is ~$0. It is also why "chat with the planet" is not a feature you bolt onto `App.jsx`.
 
+**Status on the public sky:** the extractive Path 0 panel ("Test your take") was removed. Token overlap was not insightful enough. Conversational LLM reading remains Horizon A. The live site teaches anti-echo with geometry: tilt, planet size, and majority vs minority faces.
+
 ## The job
 
 A self-confident visitor believes they already know the argument. They open a planet (or a face) and want to:
@@ -149,7 +151,7 @@ These belong in the UI, not in a slide.
 
 | Path | Code | Notes |
 | --- | --- | --- |
-| Path 0 | `src/lib/tokenize.js`, `src/lib/engagement.js`, `src/components/EngagementPanel.jsx` | Ships now |
+| Path 0 (withdrawn) | removed from the public site | Extractive overlap was not insightful enough; LLM remains Horizon A |
 | Quote pack | future field on each perspective, or a sibling `briefing.json` | Optional fields do not break `schema.py` |
 | Clerk | not in repo | Add only with a host, a cap, and a prompt test suite |
 

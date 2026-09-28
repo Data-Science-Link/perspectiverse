@@ -23,6 +23,29 @@ export function orbitRadius(index, isSun) {
   return 3.8 + index * 1.22
 }
 
+const SUN_VISUAL_RADIUS = 3.1
+const LABEL_PAD = 2.6
+
+export function systemExtent(planetCount = 10) {
+  const outerIndex = Math.max(1, Number(planetCount) - 1)
+  return orbitRadius(outerIndex, false) + SUN_VISUAL_RADIUS + LABEL_PAD
+}
+
+export function homeLookAt(isMobile = false, planetCount = 10) {
+  const extent = systemExtent(planetCount)
+  const fov = isMobile ? 48 : 42
+  const half = (fov * Math.PI) / 360
+  const distance = (extent / Math.sin(half)) * (isMobile ? 1.16 : 1.08)
+  const y = distance * (isMobile ? 0.38 : 0.44)
+  const z = Math.sqrt(Math.max(distance * distance - y * y, 1))
+  return [0, y, z, 0, 0, 0]
+}
+
+export function homeMaxDistance(isMobile = false, planetCount = 10) {
+  const [x, y, z] = homeLookAt(isMobile, planetCount)
+  return Math.hypot(x, y, z) * 1.4
+}
+
 export function orbitElements(index, isSun, id) {
   if (isSun) {
     return { radius: 0, speed: 0, inclination: 0, node: 0, phase: 0 }

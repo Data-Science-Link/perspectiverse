@@ -9,7 +9,7 @@
 * **The Sun:** The \#1 topic sits at \[0,0,0\].  
 * **The Planets:** Topics 2-10 orbit the center at varying distances.  
 * **The Labels:** Floating 3D text (or screen-space HTML) sits slightly above each planet, showing only the 2-word topic name (e.g., "AI Regulation").  
-* **The Animation:** All planets orbit the center continuously. Simultaneously, each planet rotates on its own X/Y/Z axes so the user can see all 6 faces spinning.  
+* **The Opening Camera:** The first view is pulled back so the full ten-planet solar system fits on screen (desktop and mobile). Users can still pinch or scroll to zoom.  
 * **The Geometry (The Spiky Cubes):**  
   * A standard cube has flat faces. We will modify this so each of the 6 faces acts like the base of a 4-sided pyramid.  
   * The height (extrusion) of that pyramid's peak is driven directly by the percentage of conversation volume for that perspective.  
@@ -17,7 +17,7 @@
 
 ### **The Analytical Sidebar (Right 1/3)**
 
-* **Default State (No Selection):** Welcome text, project philosophy, instructions on how to navigate the 3D space, and high-level global stats (total posts analyzed this week).  
+* **Default State (No Selection):** Welcome text, project philosophy, a **Solar System** category dropdown, instructions on how to navigate the 3D space, and high-level global stats (total posts analyzed this week).  
 * **Topic Selected State (Clicking a Planet):**  
   * The 3D camera smoothly flies to and locks onto the selected planet.  
   * The sidebar updates: Shows an isolated, spinning render of the spiky cube at the top.  
@@ -26,10 +26,10 @@
   * The sidebar drills down further.  
   * It displays the specific perspective details.  
   * Below that: A scrollable feed of the actual representative Bluesky posts that formed this cluster, sorted by like count descending.
-* **Test your take (sky, planet, or face):**  
-  * A claim, question, or brand is scored against representative posts already in `data.json`.  
-  * The panel states majority / minority / split / absent, then quotes.  
-  * Follow-up chips re-ask or open another face. No network call. This is the static-site anti-echo chamber; a real LLM clerk is a later architecture (see the engagement note and [ROADMAP.md](../ROADMAP.md)).
+* **Welcome tour (first visit):**  
+  * Explains tilt (see every perspective), planet size (public attention), and the crystal (majority vs minority faces).  
+  * Includes a don't-show-again option; the menu can reopen it.  
+  * Conversational LLM reading of a planet is a later architecture (see [ROADMAP.md](../ROADMAP.md) Horizon A).
 
 ## **2\. Technical Stack Implications**
 

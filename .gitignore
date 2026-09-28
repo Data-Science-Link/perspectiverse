@@ -99,6 +99,9 @@ Thumbs.db
 .coverage
 htmlcov/
 .tox/
+playwright-report/
+test-results/
+blob-report/
 
 # Jupyter Notebooks
 .ipynb_checkpoints

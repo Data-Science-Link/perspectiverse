@@ -1,16 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
-import { cameraOffsetForScale, orbitElements, topicScale } from '../lib/layout'
+import { cameraOffsetForScale, homeLookAt, homeMaxDistance, orbitElements, topicScale } from '../lib/layout'
+import { skySettings } from '../lib/skySettings'
 import { OrbitRing, default as Planet } from './Planet'
 import TwinklingStars from './TwinklingStars'
 
-const HOME_VIEW_DESKTOP = [0, 6.2, 14.8, 0, 0, 0]
-const HOME_VIEW_MOBILE = [0, 4.4, 12.2, 0, 0, 0]
-
-function homeView(isMobile) {
-  return isMobile ? HOME_VIEW_MOBILE : HOME_VIEW_DESKTOP
+function homeView(isMobile, planetCount = 10) {
+  return homeLookAt(isMobile, planetCount)
 }
 // camera-controls ACTION bits: ROTATE 1, TRUCK 2, DOLLY 16, TOUCH_ROTATE 64,
 // TOUCH_TRUCK 128, TOUCH_DOLLY 1024, TOUCH_DOLLY_TRUCK 4096. NONE is 0.
@@ -19,17 +17,24 @@ const INSPECT_MOUSE = { left: 0, middle: 0, right: 0, wheel: 16 }
 const ORBIT_TOUCH = { one: 64, two: 4096, three: 128 }
 const INSPECT_TOUCH = { one: 0, two: 1024, three: 0 }
 
-function FocusCamera({ controlsRef, anchors, selectedTopic, isMobile, volumeMax = 100 }) {
+function FocusCamera({ controlsRef, anchors, selectedTopic, isMobile, planetCount = 10, volumeMax = 100 }) {
   const lastId = useRef(null)
+  const booted = useRef(false)
+
+  useEffect(() => {
+    booted.current = false
+  }, [isMobile, planetCount])
 
   useFrame(() => {
     const controls = controlsRef.current
     if (!controls) return
+    const home = homeView(isMobile, planetCount)
 
     if (!selectedTopic) {
-      if (lastId.current !== null) {
-        controls.setLookAt(...homeView(isMobile), true)
+      if (!booted.current || lastId.current !== null) {
+        controls.setLookAt(...home, lastId.current !== null)
         lastId.current = null
+        booted.current = true
       }
       return
     }
@@ -49,6 +54,7 @@ function FocusCamera({ controlsRef, anchors, selectedTopic, isMobile, volumeMax 
       true,
     )
     lastId.current = selectedTopic.id
+    booted.current = true
   })
 
   return null
@@ -63,11 +69,13 @@ function Universe({
   onSelectPerspective,
   showOrbits = false,
   volumeMax = 100,
+  settings,
 }) {
   const controlsRef = useRef()
   const anchors = useRef({})
   const selectedTopic = topics.find((topic) => topic.id === selectedTopicId) ?? null
   const inspecting = Boolean(selectedTopic)
+  const maxDistance = homeMaxDistance(isMobile, topics.length)
 
   useEffect(() => {
     return () => {
@@ -78,13 +86,23 @@ function Universe({
   return (
     <>
       <color attach="background" args={['#05060b']} />
-      <fog attach="fog" args={['#05060b', 26, 72]} />
+      <fog attach="fog" args={['#05060b', 90, 170]} />
       <ambientLight intensity={0.28} />
-      <pointLight position={[0, 0, 0]} intensity={2.8} distance={42} color="#ffe7a3" />
+      <pointLight position={[0, 0, 0]} intensity={2.8} distance={80} color="#ffe7a3" />
       <pointLight position={[12, 14, 8]} intensity={0.7} color="#9db7ff" />
       <directionalLight position={[-8, 10, 6]} intensity={1.15} color="#fff6d8" />
-      <Stars radius={80} depth={50} count={5200} factor={3.8} saturation={0} fade speed={0.18} />
-      <TwinklingStars />
+      {settings.dreiStars > 0 && (
+        <Stars
+          radius={120}
+          depth={70}
+          count={settings.dreiStars}
+          factor={3.8}
+          saturation={0}
+          fade
+          speed={0.18}
+        />
+      )}
+      <TwinklingStars count={settings.twinkleStars} radius={110} />
       {showOrbits && topics.slice(1).map((topic, index) => {
         const orbit = orbitElements(index + 1, false, topic.id)
         return (
@@ -93,6 +111,7 @@ function Universe({
             index={index + 1}
             inclination={orbit.inclination}
             node={orbit.node}
+            segments={settings.ringSegments}
           />
         )
       })}
@@ -109,13 +128,16 @@ function Universe({
           onSelectPerspective={onSelectPerspective}
           isMobile={isMobile}
           volumeMax={volumeMax}
+          quality={settings.textureQuality}
+          sphereDetail={settings.sphereDetail}
+          haloDetail={settings.haloDetail}
         />
       ))}
       <CameraControls
         ref={controlsRef}
         makeDefault
         minDistance={3.2}
-        maxDistance={46}
+        maxDistance={maxDistance}
         dollyToCursor
         smoothTime={0.35}
         mouseButtons={inspecting ? INSPECT_MOUSE : ORBIT_MOUSE}
@@ -126,11 +148,14 @@ function Universe({
         anchors={anchors}
         selectedTopic={selectedTopic}
         isMobile={isMobile}
+        planetCount={topics.length}
         volumeMax={volumeMax}
       />
-      <EffectComposer disableNormalPass>
-        <Bloom intensity={0.32} luminanceThreshold={0.42} luminanceSmoothing={0.45} mipmapBlur />
-      </EffectComposer>
+      {settings.bloom && (
+        <EffectComposer disableNormalPass>
+          <Bloom intensity={0.32} luminanceThreshold={0.42} luminanceSmoothing={0.45} mipmapBlur />
+        </EffectComposer>
+      )}
     </>
   )
 }
@@ -148,20 +173,18 @@ export default function Observatory({
 }) {
   const [epoch, setEpoch] = useState(0)
   const [showOrbits, setShowOrbits] = useState(false)
+  const remounts = useRef(0)
+  const settings = useMemo(() => skySettings(isMobile), [isMobile])
+  const home = useMemo(() => homeLookAt(isMobile, topics.length), [isMobile, topics.length])
   const onCreated = useCallback(({ gl }) => {
     const canvas = gl.domElement
-    let remounted = false
-    const remount = () => {
-      if (remounted) return
-      remounted = true
-      setEpoch((value) => value + 1)
-    }
     const onLost = (event) => {
       event.preventDefault()
-      remount()
+      if (remounts.current >= 1) return
+      remounts.current += 1
+      setEpoch((value) => value + 1)
     }
     canvas.addEventListener('webglcontextlost', onLost)
-    canvas.addEventListener('webglcontextrestored', remount)
   }, [])
 
   const hint = selectedTopicId
@@ -173,13 +196,19 @@ export default function Observatory({
       <Canvas
         key={`${epoch}-${isMobile ? 'm' : 'd'}`}
         camera={{
-          position: isMobile ? [0, 4.4, 12.2] : [0, 6.2, 14.8],
+          position: [home[0], home[1], home[2]],
           fov: isMobile ? 48 : 42,
           near: 0.1,
-          far: 120,
+          far: 180,
         }}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false }}
+        dpr={settings.dpr}
+        gl={{
+          antialias: settings.antialias,
+          powerPreference: settings.powerPreference,
+          failIfMajorPerformanceCaveat: false,
+          preserveDrawingBuffer: true,
+          stencil: false,
+        }}
         onPointerMissed={onClearSelection}
         onCreated={onCreated}
       >
@@ -192,6 +221,7 @@ export default function Observatory({
           onSelectPerspective={onSelectPerspective}
           showOrbits={showOrbits}
           volumeMax={volumeMax}
+          settings={settings}
         />
       </Canvas>
       {topics.length === 0 && (

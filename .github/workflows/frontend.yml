@@ -31,11 +31,17 @@ jobs:
       - name: Planet order helper
         run: node scripts/check_planets.mjs
 
-      - name: Engagement helper
-        run: node scripts/check_engagement.mjs
+      - name: Sky and onboarding helpers
+        run: node scripts/check_sky.mjs
 
       - name: Build
         run: npm run build
 
       - name: Check built data.json contract
         run: node scripts/check_data_contract.mjs
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Desktop and mobile views
+        run: npm run test:e2e

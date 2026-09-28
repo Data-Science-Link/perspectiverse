@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
+import { SITE_TAGLINE } from '../lib/copy'
 import { hexToRgba } from '../lib/colors'
 import { formatPercent } from '../lib/layout'
-import PerspectiverseGraphic from './PerspectiverseGraphic'
 import SkySelect from './SkySelect'
 
 const FEEDBACK_URL =
@@ -25,6 +25,7 @@ export default function SiteMenu({
   onClose,
   onCategory,
   onSelectTopic,
+  onShowWelcome,
 }) {
   const closeRef = useRef(null)
 
@@ -54,6 +55,7 @@ export default function SiteMenu({
           <div>
             <p className="eyebrow">Menu</p>
             <h2 id="menu-title">Perspectiverse</h2>
+            <p className="menu-tagline">{SITE_TAGLINE}</p>
           </div>
           <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close menu">
             <CloseIcon />
@@ -61,36 +63,42 @@ export default function SiteMenu({
         </div>
 
         <section className="menu-section">
-          <h3>The graphic</h3>
-          <PerspectiverseGraphic />
-        </section>
-
-        <section className="menu-section">
           <h3>About the project</h3>
           <p>
-            A week of public conversation, mapped as a solar system. The largest topic sits at
-            the center as the sun. The next nine orbit by volume and wear Mercury through Pluto
-            in that order. Size is share of attention. Open a planet and the sphere dissolves
-            into a crystal of two to six faces. Gold is the loudest perspective, then ember,
-            sky, violet, jade, and rose.
+            A week of public conversation, mapped as a solar system so you do not live
+            in an echo chamber. Tilt the solar system to see every perspective, then check where
+            yours stacks up: is the topic you care about of interest to the general
+            public, and are you the majority or a minority opinion?
+          </p>
+          <p>
+            The largest topic sits at the center as the sun. The next nine orbit by
+            volume and wear Mercury through Pluto in that order. Size is share of
+            attention. Open a planet and the sphere dissolves into a crystal of two to
+            six faces. Gold is the loudest perspective, then ember, sky, violet, jade,
+            and rose.
           </p>
           <p>
             Source: {data.mode === 'demo' || data.source === 'synthetic'
-              ? 'a synthetic demo sky, not a live feed'
+              ? 'a synthetic demo solar system, not a live feed'
               : data.source === 'bluesky'
                 ? 'public English posts on Bluesky'
                 : 'the snapshot bundled with this page'}.
             Window: the last {data.window_hours ?? 168} hours. Snapshot {data.last_updated}.
           </p>
+          {onShowWelcome && (
+            <button type="button" className="menu-feedback" onClick={onShowWelcome}>
+              Show the welcome tour
+            </button>
+          )}
         </section>
 
         <section className="menu-section">
           <h3>How to read this</h3>
           <ul>
-            <li>On a phone, tap a planet. The page jumps to that topic and the sphere becomes geometry.</li>
-            <li>On a desktop, drag to orbit, then click a planet to dissolve it into its crystal.</li>
-            <li>The longest face is louder because more posts clustered there, not because it is truer.</li>
-            <li>Test your take against the snapshot. A claim, a brand, or a question — you may be the sun, a minority spike, or not on the sky at all.</li>
+            <li>Drag, pinch, or tilt to orbit. Planets keep turning so every side comes into view.</li>
+            <li>Planet size is public attention that week — whether the general public was talking about it.</li>
+            <li>Tap a planet. The sphere becomes geometry: each face is a real perspective, length is its share, gold is the majority.</li>
+            <li>That is where your view stacks up — majority, minority, or missing from this solar system.</li>
           </ul>
         </section>
 
@@ -104,7 +112,7 @@ export default function SiteMenu({
         </section>
 
         <section className="menu-section">
-          <h3>Filter the sky</h3>
+          <h3>Filter the solar system</h3>
           <SkySelect
             id="menu-sky-select"
             categories={categories}

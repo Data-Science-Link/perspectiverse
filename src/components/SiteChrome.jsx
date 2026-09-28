@@ -17,7 +17,8 @@ function BackIcon() {
 export default function SiteChrome({
   drilled = false,
   title = 'Perspectiverse',
-  subtitle = 'Discourse Universe',
+  subtitle = 'See every perspective — and where yours stands.',
+  tagline = false,
   backLabel = 'Back',
   onBack,
   onOpenMenu,
@@ -44,7 +45,9 @@ export default function SiteChrome({
       )}
       <div className="site-chrome-copy">
         <p className="site-chrome-title">{title}</p>
-        {subtitle && <p className="site-chrome-sub">{subtitle}</p>}
+        {subtitle && (
+          <p className={`site-chrome-sub ${tagline ? 'is-tagline' : ''}`}>{subtitle}</p>
+        )}
       </div>
       {drilled && (
         <button type="button" className="icon-btn" onClick={onOpenMenu} aria-label="Open menu">
