@@ -47,7 +47,7 @@ test.describe('Perspectiverse views', () => {
     await page.getByRole('button', { name: 'Enter the sky' }).click()
     await expect(welcome).toBeHidden()
 
-    await expect(page.getByText('See every perspective — and where yours stands.')).toBeVisible()
+    await expect(page.getByRole('banner').getByText('See every perspective — and where yours stands.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Show orbit lines' })).toBeVisible()
     await expect(page.locator('.observatory canvas')).toBeVisible()
     await expect(page.getByText('Test your take')).toHaveCount(0)
