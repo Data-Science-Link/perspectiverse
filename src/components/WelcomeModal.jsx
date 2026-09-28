@@ -47,7 +47,7 @@ export default function WelcomeModal({ open, onClose }) {
         <div className="welcome-body">
           <p>
             This is a map of a week of public conversation — not your feed. Tilt the
-            sky so you can see <strong>every</strong> perspective, then check where
+            solar system so you can see <strong>every</strong> perspective, then check where
             yours stacks up. The point is to step out of an echo chamber: is the topic
             you care about actually of interest to the general public, and are you the
             majority or a minority opinion?
@@ -77,7 +77,7 @@ export default function WelcomeModal({ open, onClose }) {
               Clicking in opens two to six faces. Face length is how much of that
               topic sits in that view. The long gold face is the majority. Shorter
               faces are minority opinions. Turn it until you see whether your take is
-              the sun, a spike, or missing from this sky.
+              the sun, a spike, or missing from this solar system.
             </p>
           </section>
         </div>
@@ -91,7 +91,7 @@ export default function WelcomeModal({ open, onClose }) {
             Don&apos;t show this again
           </label>
           <button type="button" className="welcome-enter" onClick={dismiss}>
-            Enter the sky
+            Enter the solar system
           </button>
         </footer>
       </aside>

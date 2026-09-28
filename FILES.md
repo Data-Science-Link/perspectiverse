@@ -48,17 +48,17 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | File/Directory | Description |
 | --- | --- |
 | `src/App.jsx` | Loads `data.json`, category filter, URL-backed selection |
-| `src/components/Observatory.jsx` | Canvas, camera, bloom (desktop), lighter mobile sky |
+| `src/components/Observatory.jsx` | Canvas, camera, bloom (desktop), lighter mobile solar system |
 | `src/components/Planet.jsx` | Orbits, inspect drag, hover stats |
 | `src/components/SpikyCube.jsx` | Planet-skinned cores, spikes, Saturn rings |
 | `src/components/MiniCube.jsx` | Sidebar preview |
 | `src/components/Sidebar.jsx` | Welcome, topic, and face panels |
 | `src/components/WelcomeModal.jsx` | First-visit tour with don't-show-again |
 | `src/components/TwinklingStars.jsx` | Shader-based star twinkle |
-| `src/components/SkySelect.jsx` | Compact sky/category dropdown |
+| `src/components/SkySelect.jsx` | Compact Solar System category dropdown |
 | `src/components/SiteChrome.jsx` | Sticky header, tagline, back arrow, hamburger |
 | `src/components/SiteMenu.jsx` | About, how to read, filters, feedback |
-| `src/lib/copy.js` | Title, tagline, welcome storage |
+| `src/lib/copy.js` | Title, tagline, Solar System label, welcome storage |
 | `src/lib/skySettings.js` | Desktop vs mobile render budget |
 | `src/lib/categories.js` | Category list and filter helper |
 | `src/lib/colors.js` | Planet and spike palette |
@@ -68,7 +68,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `src/lib/planetTextures.js` | Cached canvas skins for Sun through Pluto |
 | `src/lib/navigation.js` | Query-string selection and scroll reset |
 | `src/lib/useMediaQuery.js` | Mobile breakpoint hook |
-| `src/lib/layout.js` | Orbit radii, planet scale, formatting |
+| `src/lib/layout.js` | Orbit radii, planet scale, home camera framing |
 | `public/data.json` | Snapshot the observatory loads |
 | `public/vite.svg` | Favicon |
 | `tests/e2e/views.spec.js` | Playwright desktop and mobile view checks |

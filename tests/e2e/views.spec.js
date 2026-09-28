@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-async function enterSky(page) {
+async function enterSolarSystem(page) {
   const welcome = page.getByRole('dialog', { name: 'Perspectiverse' })
   if (await welcome.isVisible().catch(() => false)) {
-    await page.getByRole('button', { name: 'Enter the sky' }).click()
+    await page.getByRole('button', { name: 'Enter the solar system' }).click()
     await expect(welcome).toBeHidden()
   }
 }
@@ -44,7 +44,7 @@ test.describe('Perspectiverse views', () => {
     await expect(welcome).toContainText('crystal')
     await expect(page.getByLabel("Don't show this again")).toBeVisible()
     await page.getByLabel("Don't show this again").check()
-    await page.getByRole('button', { name: 'Enter the sky' }).click()
+    await page.getByRole('button', { name: 'Enter the solar system' }).click()
     await expect(welcome).toBeHidden()
 
     await expect(page.getByRole('banner').getByText('See every perspective — and where yours stands.')).toBeVisible()
@@ -53,6 +53,7 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByText('Test your take')).toHaveCount(0)
     await expect(page.getByText('Anti-echo')).toHaveCount(0)
     await expect(page.locator('.pv-graphic')).toHaveCount(0)
+    await expect(page.getByText('Solar System', { exact: true }).first()).toBeVisible()
 
     await expect.poll(async () => {
       const stats = await observatoryStats(page)
@@ -63,8 +64,8 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('button', { name: 'Hide orbit lines' })).toBeVisible()
 
     if (testInfo.project.name === 'mobile') {
-      await expect(page.getByLabel('Choose which topics fill the sky')).toBeVisible()
-      await expect(page.getByText(/Drag the sky to see every side/)).toBeVisible()
+      await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
+      await expect(page.getByText(/Drag the solar system to see every side/)).toBeVisible()
     } else {
       await expect(page.getByRole('heading', { name: 'Perspectiverse' })).toBeVisible()
       await expect(page.getByText(/do not live in an echo chamber/)).toBeVisible()
@@ -77,7 +78,7 @@ test.describe('Perspectiverse views', () => {
     })
     await page.goto('/')
     await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toHaveCount(0)
-    await enterSky(page)
+    await enterSolarSystem(page)
     await page.getByRole('button', { name: 'Open menu' }).click()
     await page.getByRole('button', { name: 'Show the welcome tour' }).click()
     await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toBeVisible()

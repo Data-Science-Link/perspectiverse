@@ -70,7 +70,7 @@ If you need to know that a customer just complained on Bluesky, use a monitor. I
 
 - **Query-shaped vs week-shaped.** Listening tools are excellent at "everything about Brand X." They are structurally bad at "what mattered this week if I do not name a brand." If housing costs dominate the sample and your query was "AI regulation," housing never appears. Perspectiverse inverts that: unsupervised clustering, then keep the ten largest remaining neighborhoods. Topic -1 (noise) is dropped from the percentages on purpose.
 - **Sentiment line vs six faces.** Listening sentiment is usually positive / negative / neutral, sometimes with emotion tags. That is the binary the architecture canvas is written against. A planet here must show six perspectives. "Financial," "ethical," and "skeptical" can coexist on one cube. A 50% spike is visible as geometry, not a footnote under a pie chart.
-- **Analyst UI vs public observatory.** Listening UIs assume a trained user who will build queries, save dashboards, and export CSVs. Perspectiverse assumes a visitor who will drag the sky, click a planet, and read posts. The 3D metaphor is the interface, not a novelty skin on a table.
+- **Analyst UI vs public observatory.** Listening UIs assume a trained user who will build queries, save dashboards, and export CSVs. Perspectiverse assumes a visitor who will drag the solar system, click a planet, and read posts. The 3D metaphor is the interface, not a novelty skin on a table.
 
 Listening is the category people reach for first, and it is the one this project is most often confused with. The shared ingredient is "cluster social posts and label them." The jobs are opposite: listening *narrows* to a commercial object; Perspectiverse *opens* to the week's objects.
 

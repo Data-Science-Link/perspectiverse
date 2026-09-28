@@ -1,3 +1,5 @@
+import { SOLAR_SYSTEM_LABEL } from '../lib/copy'
+
 export default function SkySelect({
   categories,
   category,
@@ -7,12 +9,12 @@ export default function SkySelect({
 }) {
   return (
     <label className="sky-select" htmlFor={id}>
-      <span>Sky</span>
+      <span>{SOLAR_SYSTEM_LABEL}</span>
       <select
         id={id}
         value={category}
         onChange={(event) => onCategory(event.target.value)}
-        aria-label="Choose which topics fill the sky"
+        aria-label="Choose which topics fill the solar system"
       >
         <option value="all">All topics</option>
         {categories.map((name) => (

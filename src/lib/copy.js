@@ -1,5 +1,6 @@
 export const SITE_TITLE = 'Perspectiverse'
 export const SITE_TAGLINE = 'See every perspective — and where yours stands.'
+export const SOLAR_SYSTEM_LABEL = 'Solar System'
 export const WELCOME_STORAGE_KEY = 'perspectiverse.hide-welcome'
 
 export function isWelcomeHidden() {
@@ -15,6 +16,6 @@ export function setWelcomeHidden(hidden) {
     if (hidden) window.localStorage.setItem(WELCOME_STORAGE_KEY, '1')
     else window.localStorage.removeItem(WELCOME_STORAGE_KEY)
   } catch {
-    // Private mode or disabled storage should never block the sky.
+    // Private mode or disabled storage should never block the solar system.
   }
 }

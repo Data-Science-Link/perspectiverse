@@ -66,7 +66,7 @@ export default function SiteMenu({
           <h3>About the project</h3>
           <p>
             A week of public conversation, mapped as a solar system so you do not live
-            in an echo chamber. Tilt the sky to see every perspective, then check where
+            in an echo chamber. Tilt the solar system to see every perspective, then check where
             yours stacks up: is the topic you care about of interest to the general
             public, and are you the majority or a minority opinion?
           </p>
@@ -79,7 +79,7 @@ export default function SiteMenu({
           </p>
           <p>
             Source: {data.mode === 'demo' || data.source === 'synthetic'
-              ? 'a synthetic demo sky, not a live feed'
+              ? 'a synthetic demo solar system, not a live feed'
               : data.source === 'bluesky'
                 ? 'public English posts on Bluesky'
                 : 'the snapshot bundled with this page'}.
@@ -98,7 +98,7 @@ export default function SiteMenu({
             <li>Drag, pinch, or tilt to orbit. Planets keep turning so every side comes into view.</li>
             <li>Planet size is public attention that week — whether the general public was talking about it.</li>
             <li>Tap a planet. The sphere becomes geometry: each face is a real perspective, length is its share, gold is the majority.</li>
-            <li>That is where your view stacks up — majority, minority, or missing from this sky.</li>
+            <li>That is where your view stacks up — majority, minority, or missing from this solar system.</li>
           </ul>
         </section>
 
@@ -112,7 +112,7 @@ export default function SiteMenu({
         </section>
 
         <section className="menu-section">
-          <h3>Filter the sky</h3>
+          <h3>Filter the solar system</h3>
           <SkySelect
             id="menu-sky-select"
             categories={categories}

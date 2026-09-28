@@ -56,7 +56,7 @@ function WelcomePanel({
           onCategory={onCategory}
         />
         <p className="mobile-prompt">
-          Drag the sky to see every side. Bigger planets are what more people talked
+          Drag the solar system to see every side. Bigger planets are what more people talked
           about this week. Tap one to open its opinions — gold is the majority view.
         </p>
         <div className="planet-rail" aria-label="Today's planets">
@@ -86,12 +86,12 @@ function WelcomePanel({
       <p className="tagline">{SITE_TAGLINE}</p>
       {data.mode === 'demo' && (
         <p className="demo-banner">
-          Synthetic demo sky. These posts were written as a fixture, not pulled from a live feed.
+          Synthetic demo solar system. These posts were written as a fixture, not pulled from a live feed.
         </p>
       )}
       <p className="lede">
         A week of public conversation, mapped as a solar system so you do not live in an
-        echo chamber. Tilt the sky to see every perspective. Planet size is how much of
+        echo chamber. Tilt the solar system to see every perspective. Planet size is how much of
         the public was talking about that topic. Open a planet and the sphere dissolves
         into a crystal of two to six faces — gold is the majority view, shorter faces
         are minority opinions. That is where yours stacks up.
@@ -140,7 +140,7 @@ function WelcomePanel({
 function EmptyCategory({ category, onShowAll }) {
   return (
     <div className="panel">
-      <p className="eyebrow">Empty sky</p>
+      <p className="eyebrow">Empty solar system</p>
       <h1>Nothing in {category}</h1>
       <p className="lede">
         This snapshot has no planets tagged {category}. The canvas stays up so the view is empty

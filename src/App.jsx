@@ -126,7 +126,7 @@ export default function App() {
   if (error) {
     return (
       <div className="boot-screen">
-        <p>The observatory could not load its sky.</p>
+        <p>The observatory could not load its solar system.</p>
         <p className="boot-detail">{error}</p>
       </div>
     )
@@ -161,7 +161,7 @@ export default function App() {
         title={chromeTitle}
         subtitle={chromeSubtitle}
         tagline={!drilled}
-        backLabel={selectedPerspective ? `Back to ${selectedTopic.name}` : 'Back to the sky'}
+        backLabel={selectedPerspective ? `Back to ${selectedTopic.name}` : 'Back to the solar system'}
         onBack={stepBack}
         onOpenMenu={() => setMenuOpen(true)}
       />
