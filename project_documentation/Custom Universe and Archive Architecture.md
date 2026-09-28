@@ -27,7 +27,7 @@ People hear "7-day window" and picture a firehose on disk. We do not have that. 
 
 After clustering, write the cleaned sample (and face membership) to object storage before the runner dies. 200–10,000 posts × ~1–2 KB is nothing.
 
-**Unlocks:** reruns, better extractive debate, debugging a bad planet, a 30-day trail of *samples* (not of Bluesky).
+**Unlocks:** reruns, better extractive debate, debugging a bad planet, a 30-day trail of *samples* (not of Bluesky), and **URI-overlap matching** so Horizon C can tell whether yesterday's planet and today's are the same neighborhood instead of guessing from names.
 
 **Steady cost:** $0–$2 / month.
 
@@ -197,4 +197,4 @@ This is still cheap next to Brandwatch. It is not the $0 public observatory. Pri
 4. Ship the extension against that job. Do not build the extension first.
 5. Only then consider Jetstream. Search-API drains will carry a surprising number of brands without a firehose.
 
-See [ROADMAP.md](../ROADMAP.md) for how this sits next to the civic sky.
+See [ROADMAP.md](../ROADMAP.md) for how this sits next to the civic sky. Dated public skies and topic tracking (a different job from retaining a firehose) are [Historical Skies and Topic Continuity](Historical%20Skies%20and%20Topic%20Continuity.md).

@@ -187,6 +187,8 @@ Academic controversy-mapping (Issue Crawler, Govcom.org, and the "mapping contro
 
 **How Perspectiverse differs.** Searching for a term and arguing about it are different behaviors. Trends will not give you six faces. Platform "trending" is also a poor picture of scale: it is whatever the ranking system chose to boost. The solar system is a counter-ranking. It is still a sample, still biased, but the ranking rule is "largest clusters in this extract," not "most engaging."
 
+A **time slider on this observatory** would still be cluster mass in the extract, not a search index. Day-over-day shares on a 7-day overlapping window are also a poor "what's hot" chart unless we store identity and a flow measure. That design is [Historical Skies and Topic Continuity](Historical%20Skies%20and%20Topic%20Continuity.md), not a scrape of Google Trends.
+
 ## 13. Researcher topic maps and text networks
 
 **Examples:** [Nomic Atlas](https://atlas.nomic.ai/) (embedding maps with hierarchical topic labels), [InfraNodus](https://infranodus.com/) (words as a network; topics as communities; structural gaps), [Communalytic](https://communalytic.org/) (computational social science, including 3D views of a collected corpus), BERTopic's own visualizations, pyLDAvis, Voyant, Overview, TensorBoard's embedding projector.
