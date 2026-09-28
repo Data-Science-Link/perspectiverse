@@ -61,6 +61,31 @@ test.describe('Perspectiverse views', () => {
       return stats.width > 64 && stats.height > 64 && stats.lit > 8
     }, { timeout: 20_000 }).toBeTruthy()
 
+    await expect.poll(async () => {
+      const sun = await page.locator('.observatory canvas').evaluate((canvas) => {
+        const width = canvas.width
+        const height = canvas.height
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
+        if (!gl || width < 8 || height < 8) return { r: 0, g: 0, b: 0 }
+        const size = 10
+        const pixels = new Uint8Array(size * size * 4)
+        const x = Math.max(0, Math.floor(width / 2 - size / 2))
+        const y = Math.max(0, Math.floor(height / 2 - size / 2))
+        gl.readPixels(x, y, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+        let r = 0
+        let g = 0
+        let b = 0
+        const samples = size * size
+        for (let i = 0; i < pixels.length; i += 4) {
+          r += pixels[i]
+          g += pixels[i + 1]
+          b += pixels[i + 2]
+        }
+        return { r: r / samples, g: g / samples, b: b / samples }
+      })
+      return sun.r > 140 && sun.g > 90 && sun.r > sun.b + 20
+    }, { timeout: 20_000 }).toBeTruthy()
+
     await page.getByRole('button', { name: 'Show orbit lines' }).click()
     await expect(page.getByRole('button', { name: 'Hide orbit lines' })).toBeVisible()
 

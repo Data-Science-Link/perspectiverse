@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { Quaternion, Vector3 } from 'three'
+import { AdditiveBlending, Quaternion, Vector3 } from 'three'
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
 import { formatPercent, orbitElements, setOrbitPosition, topicScale } from '../lib/layout'
@@ -144,11 +144,45 @@ export default function Planet({
           <sphereGeometry args={[0.95, 12, 12]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        {isSun && !selected && (
-          <mesh raycast={() => null}>
-            <sphereGeometry args={[1.08, haloDetail[0], haloDetail[1]]} />
-            <meshBasicMaterial color={color} transparent opacity={0.16} />
-          </mesh>
+        {isSun && !selected && !dimmed && (
+          <group raycast={() => null}>
+            <mesh raycast={() => null} renderOrder={1}>
+              <sphereGeometry args={[1.08, haloDetail[0], haloDetail[1]]} />
+              <meshBasicMaterial
+                color="#ffe7a0"
+                transparent
+                opacity={0.28}
+                blending={AdditiveBlending}
+                depthWrite={false}
+                depthTest
+                toneMapped={false}
+              />
+            </mesh>
+            <mesh raycast={() => null} renderOrder={1}>
+              <sphereGeometry args={[1.28, Math.max(16, haloDetail[0] - 8), Math.max(16, haloDetail[1] - 8)]} />
+              <meshBasicMaterial
+                color={color}
+                transparent
+                opacity={0.14}
+                blending={AdditiveBlending}
+                depthWrite={false}
+                depthTest
+                toneMapped={false}
+              />
+            </mesh>
+            <mesh raycast={() => null} renderOrder={1}>
+              <sphereGeometry args={[1.52, Math.max(12, haloDetail[0] - 12), Math.max(12, haloDetail[1] - 12)]} />
+              <meshBasicMaterial
+                color="#ffb347"
+                transparent
+                opacity={0.07}
+                blending={AdditiveBlending}
+                depthWrite={false}
+                depthTest
+                toneMapped={false}
+              />
+            </mesh>
+          </group>
         )}
         <group ref={cube}>
           <SpikyCube

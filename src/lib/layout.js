@@ -1,5 +1,5 @@
 export const PLANET_MESH_RADIUS = 0.95
-export const SUN_HALO_RADIUS = 1.08
+export const SUN_HALO_RADIUS = 1.28
 export const SATURN_RING_RADIUS = 1.72
 export const ORBIT_CLEARANCE = 0.72
 const LABEL_PAD = 2.6
