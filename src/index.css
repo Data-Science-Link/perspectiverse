@@ -728,14 +728,41 @@ h3 {
 .welcome-card {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
   width: min(32rem, 100%);
   max-height: min(90dvh, 44rem);
-  overflow-y: auto;
-  padding: 1.4rem 1.3rem 1.3rem;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 1.1rem;
   background: linear-gradient(180deg, #10131c, #080910 72%);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.welcome-card:focus {
+  outline: none;
+}
+
+.welcome-head,
+.welcome-foot {
+  flex: 0 0 auto;
+  padding: 1.15rem 1.3rem;
+}
+
+.welcome-head {
+  padding-bottom: 0.35rem;
+}
+
+.welcome-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 1.3rem 0.4rem;
+}
+
+.welcome-foot {
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
 }
 
 .welcome-card h2 {
@@ -775,7 +802,7 @@ h3 {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  margin: 1.15rem 0 0.85rem;
+  margin: 0 0 0.75rem;
   color: var(--ink);
   cursor: pointer;
 }
