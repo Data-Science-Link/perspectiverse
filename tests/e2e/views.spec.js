@@ -160,7 +160,7 @@ test.describe('Perspectiverse views', () => {
     await page.goto('/?page=vision')
     await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Out of the chamber, into the argument' })).toBeVisible()
-    await expect(page.getByText('Public attention')).toBeVisible()
+    await expect(page.getByText('Public attention', { exact: true })).toBeVisible()
     await expect(page.getByText(/Truth can be nuanced/)).toBeVisible()
   })
 })
