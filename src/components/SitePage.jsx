@@ -3,6 +3,7 @@ import {
   AUTHOR_HANDLE,
   AUTHOR_NAME,
   FEEDBACK_URL,
+  LINKEDIN_URL,
   REPO_URL,
   SPONSORS_URL,
   neighborPages,
@@ -54,6 +55,10 @@ const FAQ_ITEMS = [
   {
     q: 'Do you keep the posts?',
     a: 'The published sky keeps a handful of example posts per face. The rest of the sample dies with the daily job. Nothing here is a firehose archive.',
+  },
+  {
+    q: 'How do I get in touch?',
+    a: 'The Connect page has GitHub, LinkedIn, and a link to open an issue. There is no project inbox in the browser.',
   },
 ]
 
@@ -228,7 +233,7 @@ function AboutPage({ data, onOpenPage }) {
   )
 }
 
-function AuthorPage() {
+function AuthorPage({ onOpenPage }) {
   return (
     <>
       <p className="lede">
@@ -270,6 +275,9 @@ function AuthorPage() {
             </a>
           </li>
         </ul>
+        <button type="button" className="text-link" onClick={() => onOpenPage('connect')}>
+          All the ways to connect
+        </button>
       </section>
     </>
   )
@@ -375,10 +383,82 @@ function DonatePage() {
   )
 }
 
+function GitHubIcon() {
+  return (
+    <svg className="connect-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.12-1.47-1.12-1.47-.92-.63.07-.62.07-.62 1 .07 1.54 1.04 1.54 1.04.9 1.54 2.36 1.1 2.94.84.09-.65.35-1.1.64-1.35-2.22-.25-4.56-1.11-4.56-4.95 0-1.1.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0 1 12 6.8c.85 0 1.7.11 2.5.32 1.9-1.3 2.74-1.02 2.74-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.86v2.76c0 .26.18.58.69.48A10 10 0 0 0 12 2Z" />
+    </svg>
+  )
+}
+
+function LinkedInIcon() {
+  return (
+    <svg className="connect-icon is-stroke" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M8 10v7M8 7.2v.1M12.5 17v-4.2a2.3 2.3 0 0 1 4.5.6V17" />
+    </svg>
+  )
+}
+
+function IssueIcon() {
+  return (
+    <svg className="connect-icon is-stroke" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="2.2" />
+    </svg>
+  )
+}
+
+function ConnectPage() {
+  return (
+    <>
+      <p className="lede">
+        Code, conversation, and the person behind the sky. These are the public ways
+        to reach this project — no inbox hiding in the page.
+      </p>
+      <nav className="connect-list" aria-label="Ways to connect">
+        <a className="connect-link" href={AUTHOR_GITHUB_URL} target="_blank" rel="noreferrer">
+          <GitHubIcon />
+          <span>
+            <strong>GitHub</strong>
+            <em>@{AUTHOR_HANDLE} — profile and other work</em>
+          </span>
+        </a>
+        <a className="connect-link" href={LINKEDIN_URL} target="_blank" rel="noreferrer">
+          <LinkedInIcon />
+          <span>
+            <strong>LinkedIn</strong>
+            <em>{AUTHOR_NAME} — work and writing</em>
+          </span>
+        </a>
+        <a className="connect-link" href={REPO_URL} target="_blank" rel="noreferrer">
+          <GitHubIcon />
+          <span>
+            <strong>This repository</strong>
+            <em>perspectiverse — star, fork, or open a pull request</em>
+          </span>
+        </a>
+        <a className="connect-link" href={FEEDBACK_URL} target="_blank" rel="noreferrer">
+          <IssueIcon />
+          <span>
+            <strong>Send feedback</strong>
+            <em>Open a GitHub issue about the sky</em>
+          </span>
+        </a>
+      </nav>
+      <p>
+        There is no project Twitter, Bluesky, or email form. If that changes, it will
+        show up here.
+      </p>
+    </>
+  )
+}
+
 const PAGE_BODY = {
   vision: VisionPage,
   about: AboutPage,
   author: AuthorPage,
+  connect: ConnectPage,
   methodology: MethodologyPage,
   faq: FaqPage,
   donate: DonatePage,

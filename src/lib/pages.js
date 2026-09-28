@@ -3,6 +3,7 @@ export const FEEDBACK_URL =
 export const REPO_URL = 'https://github.com/Data-Science-Link/perspectiverse'
 export const AUTHOR_GITHUB_URL = 'https://github.com/Data-Science-Link'
 export const SPONSORS_URL = 'https://github.com/sponsors/Data-Science-Link'
+export const LINKEDIN_URL = 'https://www.linkedin.com/in/data-science-link'
 export const AUTHOR_NAME = 'Michael Link'
 export const AUTHOR_HANDLE = 'Data-Science-Link'
 
@@ -30,6 +31,14 @@ export const SITE_PAGES = [
     subtitle: AUTHOR_NAME,
     eyebrow: 'Author',
     heading: AUTHOR_NAME,
+  },
+  {
+    id: 'connect',
+    title: 'Connect',
+    menuLabel: 'Connect',
+    subtitle: 'GitHub, LinkedIn, and feedback',
+    eyebrow: 'Connect',
+    heading: 'Say hello',
   },
   {
     id: 'methodology',

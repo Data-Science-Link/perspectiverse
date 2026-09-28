@@ -119,6 +119,7 @@ test.describe('Perspectiverse views', () => {
     await expect(menu.getByRole('button', { name: /Vision/ })).toBeVisible()
     await expect(menu.getByRole('button', { name: /About Perspectiverse/ })).toBeVisible()
     await expect(menu.getByRole('button', { name: /About the author/ })).toBeVisible()
+    await expect(menu.getByRole('button', { name: /Connect/ })).toBeVisible()
     await expect(menu.getByRole('button', { name: /Methodology/ })).toBeVisible()
     await expect(menu.getByRole('button', { name: /^FAQ/ })).toBeVisible()
     await expect(menu.getByRole('button', { name: /Donate/ })).toBeVisible()
@@ -162,5 +163,15 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('heading', { name: 'Out of the chamber, into the argument' })).toBeVisible()
     await expect(page.getByText('Public attention', { exact: true })).toBeVisible()
     await expect(page.getByText(/Truth can be nuanced/)).toBeVisible()
+
+    await page.goto('/?page=connect')
+    await expect(page.getByRole('heading', { name: 'Say hello' })).toBeVisible()
+    await expect(page.getByRole('link', { name: /GitHub/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /LinkedIn/ })).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/data-science-link',
+    )
+    await expect(page.getByRole('link', { name: /This repository/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Send feedback/ })).toBeVisible()
   })
 })

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   AUTHOR_NAME,
+  LINKEDIN_URL,
   SITE_PAGES,
   isSitePage,
   neighborPages,
@@ -9,9 +10,10 @@ import {
 import { selectionURL, readSelectionFromURL } from '../src/lib/navigation.js'
 
 assert.equal(AUTHOR_NAME, 'Michael Link')
+assert.equal(LINKEDIN_URL, 'https://www.linkedin.com/in/data-science-link')
 assert.deepEqual(
   SITE_PAGES.map((page) => page.id),
-  ['vision', 'about', 'author', 'methodology', 'faq', 'donate'],
+  ['vision', 'about', 'author', 'connect', 'methodology', 'faq', 'donate'],
 )
 
 for (const page of SITE_PAGES) {
@@ -29,6 +31,9 @@ assert.deepEqual(neighborPages('vision').prev, null)
 assert.equal(neighborPages('vision').next.id, 'about')
 assert.equal(neighborPages('about').prev.id, 'vision')
 assert.equal(neighborPages('about').next.id, 'author')
+assert.equal(neighborPages('author').next.id, 'connect')
+assert.equal(neighborPages('connect').prev.id, 'author')
+assert.equal(neighborPages('connect').next.id, 'methodology')
 assert.equal(neighborPages('donate').prev.id, 'faq')
 assert.equal(neighborPages('donate').next, null)
 
