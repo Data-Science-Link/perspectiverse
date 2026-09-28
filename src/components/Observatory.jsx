@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
-import { cameraOffsetForScale, topicScale } from '../lib/layout'
+import { cameraOffsetForScale, orbitElements, topicScale } from '../lib/layout'
 import { OrbitRing, default as Planet } from './Planet'
+import TwinklingStars from './TwinklingStars'
 
 const HOME_VIEW_DESKTOP = [0, 6.2, 14.8, 0, 0, 0]
-const HOME_VIEW_MOBILE = [0, 3.6, 10.6, 0, 0.15, 0]
+const HOME_VIEW_MOBILE = [0, 4.4, 12.2, 0, 0, 0]
 
 function homeView(isMobile) {
   return isMobile ? HOME_VIEW_MOBILE : HOME_VIEW_DESKTOP
@@ -80,10 +81,19 @@ function Universe({
       <pointLight position={[0, 0, 0]} intensity={2.4} distance={42} color="#ffe7a3" />
       <pointLight position={[12, 14, 8]} intensity={0.85} color="#9db7ff" />
       <directionalLight position={[-8, 10, 6]} intensity={0.55} color="#fff6d8" />
-      <Stars radius={80} depth={50} count={6000} factor={4.2} saturation={0} fade speed={0.4} />
-      {topics.slice(1).map((topic, index) => (
-        <OrbitRing key={`ring-${topic.id}`} index={index + 1} />
-      ))}
+      <Stars radius={80} depth={50} count={5200} factor={3.8} saturation={0} fade speed={0.18} />
+      <TwinklingStars />
+      {topics.slice(1).map((topic, index) => {
+        const orbit = orbitElements(index + 1, false, topic.id)
+        return (
+          <OrbitRing
+            key={`ring-${topic.id}`}
+            index={index + 1}
+            inclination={orbit.inclination}
+            node={orbit.node}
+          />
+        )
+      })}
       {topics.map((topic, index) => (
         <Planet
           key={topic.id}
@@ -157,7 +167,7 @@ export default function Observatory({
       <Canvas
         key={`${epoch}-${isMobile ? 'm' : 'd'}`}
         camera={{
-          position: isMobile ? [0, 3.6, 10.6] : [0, 6.2, 14.8],
+          position: isMobile ? [0, 4.4, 12.2] : [0, 6.2, 14.8],
           fov: isMobile ? 48 : 42,
           near: 0.1,
           far: 120,

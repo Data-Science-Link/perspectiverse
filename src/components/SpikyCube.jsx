@@ -148,7 +148,8 @@ export default function SpikyCube({
 
   const color = body?.color ?? coreColor
   const isSun = body?.key === 'sun'
-  const emissive = dimmed ? 0.02 : isSun ? 1.15 : 0.06
+  const emissive = dimmed ? 0.02 : isSun ? 1.15 : 0.035
+  const emissiveColor = dimmed ? '#6b7280' : isSun ? color : '#fff4dc'
 
   return (
     <group>
@@ -158,10 +159,10 @@ export default function SpikyCube({
           ref={sphereMat}
           map={texture}
           color={dimmed ? '#6b7280' : '#ffffff'}
-          emissive={color}
+          emissive={emissiveColor}
           emissiveIntensity={emissive}
-          roughness={isSun ? 0.28 : 0.62}
-          metalness={0.04}
+          roughness={isSun ? 0.28 : body?.key === 'mercury' ? 0.48 : 0.58}
+          metalness={isSun ? 0.02 : body?.key === 'mercury' ? 0.22 : 0.06}
           transparent
           opacity={dimmed ? 0.16 : 1}
         />

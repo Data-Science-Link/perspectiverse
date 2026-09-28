@@ -1,14 +1,14 @@
 export const SOLAR_BODIES = [
   { key: 'sun', name: 'Sun', color: '#f4c14e', emissive: 1.35, glow: true },
-  { key: 'mercury', name: 'Mercury', color: '#b5a394', emissive: 0.08 },
-  { key: 'venus', name: 'Venus', color: '#e6c27a', emissive: 0.12 },
-  { key: 'earth', name: 'Earth', color: '#3d8fd1', emissive: 0.1 },
-  { key: 'mars', name: 'Mars', color: '#c1440e', emissive: 0.1 },
-  { key: 'jupiter', name: 'Jupiter', color: '#d4a056', emissive: 0.08 },
-  { key: 'saturn', name: 'Saturn', color: '#e6d3a3', emissive: 0.1, rings: true },
-  { key: 'uranus', name: 'Uranus', color: '#7ec8c8', emissive: 0.12 },
-  { key: 'neptune', name: 'Neptune', color: '#3b6fd4', emissive: 0.12 },
-  { key: 'pluto', name: 'Pluto', color: '#c4a574', emissive: 0.06 },
+  { key: 'mercury', name: 'Mercury', color: '#c5c8ce', emissive: 0.08 },
+  { key: 'venus', name: 'Venus', color: '#f3d392', emissive: 0.14 },
+  { key: 'earth', name: 'Earth', color: '#4aa3e6', emissive: 0.12 },
+  { key: 'mars', name: 'Mars', color: '#e25a2b', emissive: 0.1 },
+  { key: 'jupiter', name: 'Jupiter', color: '#e8be7a', emissive: 0.08 },
+  { key: 'saturn', name: 'Saturn', color: '#f0ddb0', emissive: 0.1, rings: true },
+  { key: 'uranus', name: 'Uranus', color: '#7ee0d8', emissive: 0.14 },
+  { key: 'neptune', name: 'Neptune', color: '#4b86f0', emissive: 0.14 },
+  { key: 'pluto', name: 'Pluto', color: '#e0b48c', emissive: 0.08 },
 ]
 
 export function bodyForRank(rank) {

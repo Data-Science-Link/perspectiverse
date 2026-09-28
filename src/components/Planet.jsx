@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { Quaternion, Vector3 } from 'three'
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
-import { formatPercent, orbitInclination, orbitRadius, orbitSpeed, topicScale } from '../lib/layout'
+import { formatPercent, orbitElements, orbitRadius, setOrbitPosition, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
 
 const _world = new Vector3()
@@ -25,15 +25,16 @@ export default function Planet({
 }) {
   const group = useRef()
   const cube = useRef()
-  const angle = useRef(index * 0.62)
   const drag = useRef(null)
   const suppressClick = useRef(false)
   const [hovered, setHovered] = useState(false)
   const body = topic.body
   const isSun = body?.key === 'sun' || index === 0
-  const radius = orbitRadius(index, isSun)
-  const speed = orbitSpeed(index, isSun)
-  const inclination = orbitInclination(index, isSun)
+  const orbit = useMemo(
+    () => orbitElements(index, isSun, topic.id),
+    [index, isSun, topic.id],
+  )
+  const angle = useRef(orbit.phase)
   const scale = topicScale(topic.total_volume_percent)
   const color = topicColor(topic.id, body)
   const ranked = useMemo(
@@ -45,18 +46,19 @@ export default function Planet({
 
   useFrame((state, delta) => {
     if (!isSun && !selected) {
-      angle.current += delta * speed
+      angle.current += delta * orbit.speed
     }
 
     if (group.current) {
       if (isSun) {
         group.current.position.set(0, 0, 0)
       } else {
-        const t = angle.current
-        group.current.position.set(
-          Math.cos(t) * radius,
-          Math.sin(t) * inclination * radius,
-          Math.sin(t) * radius,
+        setOrbitPosition(
+          group.current.position,
+          orbit.radius,
+          angle.current,
+          orbit.inclination,
+          orbit.node,
         )
       }
       if (anchors?.current) {
@@ -162,23 +164,28 @@ export default function Planet({
           />
         </group>
       </group>
-      {!isMobile && (
-        <Html position={[0, scale * 1.45, 0]} center distanceFactor={18} zIndexRange={[10, 0]}>
-          <button
-            type="button"
-            className={`planet-label ${dimmed ? 'is-dimmed' : ''}`}
-            style={{
-              borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
-            }}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelectTopic(topic.id)
-            }}
-          >
-            {topic.name}
-          </button>
-        </Html>
-      )}
+      <Html
+        position={[0, scale * (isMobile ? 1.32 : 1.45), 0]}
+        center
+        distanceFactor={isMobile ? 16 : 18}
+        zIndexRange={[10, 0]}
+        style={{ pointerEvents: 'none' }}
+      >
+        <button
+          type="button"
+          className={`planet-label ${dimmed ? 'is-dimmed' : ''} ${isMobile ? 'is-mobile' : ''}`}
+          style={{
+            borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
+            pointerEvents: 'auto',
+          }}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelectTopic(topic.id)
+          }}
+        >
+          {topic.name}
+        </button>
+      </Html>
       {!isMobile && hovered && (
         <Html position={[0, scale * 1.95, 0]} center distanceFactor={20} zIndexRange={[12, 0]}>
           <div className="planet-hover">
@@ -190,12 +197,14 @@ export default function Planet({
   )
 }
 
-export function OrbitRing({ index }) {
+export function OrbitRing({ index, inclination = 0, node = 0 }) {
   const radius = orbitRadius(index, false)
   return (
-    <mesh rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
-      <ringGeometry args={[radius - 0.014, radius + 0.014, 160]} />
-      <meshBasicMaterial color="#d7def5" transparent opacity={0.28} />
-    </mesh>
+    <group rotation={[0, node, 0]}>
+      <mesh rotation={[Math.PI / 2 + inclination, 0, 0]} raycast={() => null}>
+        <ringGeometry args={[radius - 0.012, radius + 0.012, 160]} />
+        <meshBasicMaterial color="#d7def5" transparent opacity={0.2} />
+      </mesh>
+    </group>
   )
 }
