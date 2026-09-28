@@ -1,6 +1,6 @@
 export const SITE_TITLE = 'Perspectiverse'
 export const SITE_TAGLINE = 'See every perspective — and where yours stands.'
-export const SOLAR_SYSTEM_LABEL = 'Solar System'
+export const SOLAR_SYSTEM_LABEL = 'Filter topics'
 export const WELCOME_STORAGE_KEY = 'perspectiverse.hide-welcome'
 
 export function isWelcomeHidden() {

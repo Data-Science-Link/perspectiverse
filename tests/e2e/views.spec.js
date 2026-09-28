@@ -41,7 +41,8 @@ test.describe('Perspectiverse views', () => {
     await expect(welcome).toBeVisible()
     await expect(welcome).toContainText('echo chamber')
     await expect(welcome).toContainText('Planet size')
-    await expect(welcome).toContainText('crystal')
+    await expect(welcome).toContainText('majority')
+    await expect(welcome.locator('svg')).toHaveCount(2)
     await expect(page.getByLabel("Don't show this again")).toBeVisible()
     await page.getByLabel("Don't show this again").check()
     await page.getByRole('button', { name: 'Enter the solar system' }).click()
@@ -53,7 +54,7 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByText('Test your take')).toHaveCount(0)
     await expect(page.getByText('Anti-echo')).toHaveCount(0)
     await expect(page.locator('.pv-graphic')).toHaveCount(0)
-    await expect(page.getByText('Solar System', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('Filter topics', { exact: true }).first()).toBeVisible()
 
     await expect.poll(async () => {
       const stats = await observatoryStats(page)
@@ -65,10 +66,10 @@ test.describe('Perspectiverse views', () => {
 
     if (testInfo.project.name === 'mobile') {
       await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
-      await expect(page.getByText(/Drag the solar system to see every side/)).toBeVisible()
+      await expect(page.getByText(/Drag the sky to look around/)).toBeVisible()
     } else {
       await expect(page.getByRole('heading', { name: 'Perspectiverse' })).toBeVisible()
-      await expect(page.getByText(/do not live in an echo chamber/)).toBeVisible()
+      await expect(page.getByText(/Bigger planets got more/)).toBeVisible()
     }
   })
 
@@ -82,5 +83,27 @@ test.describe('Perspectiverse views', () => {
     await page.getByRole('button', { name: 'Open menu' }).click()
     await page.getByRole('button', { name: 'Show the welcome tour' }).click()
     await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toBeVisible()
+  })
+
+  test('topic and face panels stay plain-language', async ({ page }, testInfo) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('perspectiverse.hide-welcome', '1')
+    })
+    await page.goto('/')
+    await enterSolarSystem(page)
+
+    await page.getByRole('button', { name: /AI Futures/ }).first().click()
+    await expect(page.getByRole('heading', { name: 'AI Futures' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Opinions' })).toBeVisible()
+    await expect(page.getByLabel('View colors, loudest first')).toContainText('Gold')
+    await expect(page.getByRole('button', { name: /Back to the sky|All topics/ })).toBeVisible()
+
+    if (testInfo.project.name === 'mobile') {
+      await expect(page.getByRole('banner').getByText('Back', { exact: true })).toBeVisible()
+    }
+
+    await page.getByRole('button', { name: /Job Displacement/ }).click()
+    await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
+    await expect(page.locator('.caveat')).toContainText('smooths over disagreement')
   })
 })

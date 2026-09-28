@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
-import { cameraOffsetForScale, homeLookAt, homeMaxDistance, orbitElements, topicScale } from '../lib/layout'
+import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutSky, orbitElements, topicScale } from '../lib/layout'
 import { skySettings } from '../lib/skySettings'
 import { OrbitRing, default as Planet } from './Planet'
 import TwinklingStars from './TwinklingStars'
 
-function homeView(isMobile, planetCount = 10) {
-  return homeLookAt(isMobile, planetCount)
+function homeView(isMobile, planetCount = 10, layoutExtent = null) {
+  return homeLookAt(isMobile, planetCount, layoutExtent)
 }
 // camera-controls ACTION bits: ROTATE 1, TRUCK 2, DOLLY 16, TOUCH_ROTATE 64,
 // TOUCH_TRUCK 128, TOUCH_DOLLY 1024, TOUCH_DOLLY_TRUCK 4096. NONE is 0.
@@ -17,18 +17,26 @@ const INSPECT_MOUSE = { left: 0, middle: 0, right: 0, wheel: 16 }
 const ORBIT_TOUCH = { one: 64, two: 4096, three: 128 }
 const INSPECT_TOUCH = { one: 0, two: 1024, three: 0 }
 
-function FocusCamera({ controlsRef, anchors, selectedTopic, isMobile, planetCount = 10, volumeMax = 100 }) {
+function FocusCamera({
+  controlsRef,
+  anchors,
+  selectedTopic,
+  isMobile,
+  planetCount = 10,
+  volumeMax = 100,
+  layoutExtent = null,
+}) {
   const lastId = useRef(null)
   const booted = useRef(false)
 
   useEffect(() => {
     booted.current = false
-  }, [isMobile, planetCount])
+  }, [isMobile, planetCount, layoutExtent])
 
   useFrame(() => {
     const controls = controlsRef.current
     if (!controls) return
-    const home = homeView(isMobile, planetCount)
+    const home = homeView(isMobile, planetCount, layoutExtent)
 
     if (!selectedTopic) {
       if (!booted.current || lastId.current !== null) {
@@ -69,13 +77,14 @@ function Universe({
   onSelectPerspective,
   showOrbits = false,
   volumeMax = 100,
+  layout = { radii: [], extent: null },
   settings,
 }) {
   const controlsRef = useRef()
   const anchors = useRef({})
   const selectedTopic = topics.find((topic) => topic.id === selectedTopicId) ?? null
   const inspecting = Boolean(selectedTopic)
-  const maxDistance = homeMaxDistance(isMobile, topics.length)
+  const maxDistance = homeMaxDistance(isMobile, topics.length, layout.extent)
 
   useEffect(() => {
     return () => {
@@ -104,11 +113,11 @@ function Universe({
       )}
       <TwinklingStars count={settings.twinkleStars} radius={110} />
       {showOrbits && topics.slice(1).map((topic, index) => {
-        const orbit = orbitElements(index + 1, false, topic.id)
+        const orbit = orbitElements(index + 1, false, topic.id, layout.radii[index + 1])
         return (
           <OrbitRing
             key={`ring-${topic.id}`}
-            index={index + 1}
+            radius={layout.radii[index + 1]}
             inclination={orbit.inclination}
             node={orbit.node}
             segments={settings.ringSegments}
@@ -128,6 +137,7 @@ function Universe({
           onSelectPerspective={onSelectPerspective}
           isMobile={isMobile}
           volumeMax={volumeMax}
+          orbitRadius={layout.radii[index]}
           quality={settings.textureQuality}
           sphereDetail={settings.sphereDetail}
           haloDetail={settings.haloDetail}
@@ -150,6 +160,7 @@ function Universe({
         isMobile={isMobile}
         planetCount={topics.length}
         volumeMax={volumeMax}
+        layoutExtent={layout.extent}
       />
       {settings.bloom && (
         <EffectComposer disableNormalPass>
@@ -175,7 +186,11 @@ export default function Observatory({
   const [showOrbits, setShowOrbits] = useState(false)
   const remounts = useRef(0)
   const settings = useMemo(() => skySettings(isMobile), [isMobile])
-  const home = useMemo(() => homeLookAt(isMobile, topics.length), [isMobile, topics.length])
+  const layout = useMemo(() => layoutSky(topics, volumeMax), [topics, volumeMax])
+  const home = useMemo(
+    () => homeLookAt(isMobile, topics.length, layout.extent),
+    [isMobile, topics.length, layout.extent],
+  )
   const onCreated = useCallback(({ gl }) => {
     const canvas = gl.domElement
     const onLost = (event) => {
@@ -188,8 +203,8 @@ export default function Observatory({
   }, [])
 
   const hint = selectedTopicId
-    ? 'The crystal is the conversation · Drag to turn · Tap a face to inspect it'
-    : 'Drag to orbit · Pinch or scroll to zoom · Tap a planet to dissolve it into geometry'
+    ? 'Drag to turn this planet · Scroll to zoom · Tap a face to read its posts'
+    : 'Drag to look around · Pinch or scroll to zoom · Tap a planet to open its views'
 
   return (
     <section className="observatory">
@@ -221,6 +236,7 @@ export default function Observatory({
           onSelectPerspective={onSelectPerspective}
           showOrbits={showOrbits}
           volumeMax={volumeMax}
+          layout={layout}
           settings={settings}
         />
       </Canvas>

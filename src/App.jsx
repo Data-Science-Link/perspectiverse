@@ -126,8 +126,9 @@ export default function App() {
   if (error) {
     return (
       <div className="boot-screen">
-        <p>The observatory could not load its solar system.</p>
+        <p>Could not load this week&apos;s map.</p>
         <p className="boot-detail">{error}</p>
+        <p className="boot-detail">Try refreshing the page.</p>
       </div>
     )
   }
@@ -135,7 +136,7 @@ export default function App() {
   if (!data) {
     return (
       <div className="boot-screen">
-        <p>Charting this week&apos;s discourse…</p>
+        <p>Loading this week&apos;s map…</p>
       </div>
     )
   }

@@ -28,7 +28,7 @@ export default function SiteChrome({
       {drilled ? (
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn chrome-back"
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -37,6 +37,7 @@ export default function SiteChrome({
           aria-label={backLabel}
         >
           <BackIcon />
+          <span className="chrome-back-text">Back</span>
         </button>
       ) : (
         <button type="button" className="icon-btn" onClick={onOpenMenu} aria-label="Open menu">

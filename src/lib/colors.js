@@ -16,6 +16,8 @@ export const PERSPECTIVE_COLORS = [
 
 export const SPIKE_COLORS = PERSPECTIVE_COLORS
 
+export const PERSPECTIVE_COLOR_NAMES = ['Gold', 'Ember', 'Sky', 'Violet', 'Jade', 'Rose']
+
 export function topicColor(topicId, body) {
   if (body?.color) return body.color
   return TOPIC_COLORS[topicId] ?? '#9aa3b5'

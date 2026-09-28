@@ -1,6 +1,50 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SITE_TAGLINE, setWelcomeHidden } from '../lib/copy'
 
+function SizeGraphic() {
+  return (
+    <figure className="welcome-graphic">
+      <h3>Planet size</h3>
+      <svg viewBox="0 0 320 118" role="img" aria-labelledby="size-graphic-title">
+        <title id="size-graphic-title">A large planet means more public attention than a small one</title>
+        <circle cx="160" cy="58" r="52" fill="none" stroke="rgba(215,222,245,0.12)" />
+        <circle cx="160" cy="58" r="34" fill="none" stroke="rgba(215,222,245,0.08)" />
+        <circle cx="78" cy="60" r="38" fill="#f4c14e" />
+        <circle cx="78" cy="48" r="14" fill="rgba(255,255,255,0.18)" />
+        <text x="78" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">More talk</text>
+        <circle cx="236" cy="74" r="16" fill="#4aa3e6" />
+        <circle cx="230" cy="68" r="5" fill="rgba(255,255,255,0.22)" />
+        <text x="236" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Niche</text>
+      </svg>
+      <figcaption>Bigger planets got more public attention this week. Small is still real — just not the main story.</figcaption>
+    </figure>
+  )
+}
+
+function CrystalGraphic() {
+  return (
+    <figure className="welcome-graphic">
+      <h3>The views inside</h3>
+      <svg viewBox="0 0 320 118" role="img" aria-labelledby="crystal-graphic-title">
+        <title id="crystal-graphic-title">A planet opens into faces. The long gold face is the majority view</title>
+        <circle cx="58" cy="56" r="26" fill="#7ee0d8" />
+        <circle cx="48" cy="46" r="9" fill="rgba(255,255,255,0.2)" />
+        <text x="58" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Planet</text>
+        <path d="M96 56 H132" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
+        <path d="M124 50 L134 56 L124 62" fill="none" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
+        <polygon points="210,18 226,56 210,94 164,78 164,34" fill="#1c2230" stroke="rgba(232,230,245,0.35)" />
+        <polygon points="210,18 248,8 226,56" fill="#f4c14e" />
+        <polygon points="226,56 248,8 258,56 226,56" fill="#ff7a3d" />
+        <polygon points="226,56 258,56 236,92" fill="#6ea8ff" />
+        <polygon points="210,94 226,56 236,92" fill="#c77dff" />
+        <text x="210" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Opinions</text>
+        <text x="268" y="22" fill="#f4c14e" fontSize="11">Majority</text>
+      </svg>
+      <figcaption>Tap a planet and it opens into two to six faces. The long gold face is the majority — loudest, not truest.</figcaption>
+    </figure>
+  )
+}
+
 export default function WelcomeModal({ open, onClose }) {
   const cardRef = useRef(null)
   const [dontShow, setDontShow] = useState(false)
@@ -46,40 +90,23 @@ export default function WelcomeModal({ open, onClose }) {
         </header>
         <div className="welcome-body">
           <p>
-            This is a map of a week of public conversation — not your feed. Tilt the
-            solar system so you can see <strong>every</strong> perspective, then check where
-            yours stacks up. The point is to step out of an echo chamber: is the topic
-            you care about actually of interest to the general public, and are you the
-            majority or a minority opinion?
+            A week of public conversation as a solar system — not your feed. Step out of an
+            echo chamber: is this topic widely discussed, and are you the majority or a minority?
           </p>
 
           <section>
             <h3>What to do</h3>
             <ol>
-              <li>Drag, pinch, or tilt to orbit. Every planet keeps turning on its own axis so all sides come into view.</li>
-              <li>Tap a planet. The sphere dissolves into geometry — that is the conversation, split into real views.</li>
-              <li>Tap a face to read the posts behind it. Gold is the loudest view, not the truest one.</li>
+              <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
+              <li>Tap a planet to open its opinions, then tap a face to read posts.</li>
+              <li>Use <strong>Filter topics</strong> for Politics, Sports, and the rest — same sky, fewer planets.</li>
             </ol>
           </section>
 
-          <section>
-            <h3>Planet size</h3>
-            <p>
-              Size is share of attention that week. A large planet means many people
-              were talking about it. A small one means your interest may be a niche —
-              still real, just not the public&apos;s main object.
-            </p>
-          </section>
-
-          <section>
-            <h3>The crystal</h3>
-            <p>
-              Clicking in opens two to six faces. Face length is how much of that
-              topic sits in that view. The long gold face is the majority. Shorter
-              faces are minority opinions. Turn it until you see whether your take is
-              the sun, a spike, or missing from this solar system.
-            </p>
-          </section>
+          <div className="welcome-graphics">
+            <SizeGraphic />
+            <CrystalGraphic />
+          </div>
         </div>
         <footer className="welcome-foot">
           <label className="welcome-dont">

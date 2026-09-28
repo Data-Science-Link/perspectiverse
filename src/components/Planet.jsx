@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { Quaternion, Vector3 } from 'three'
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
-import { formatPercent, orbitElements, orbitRadius, setOrbitPosition, topicScale } from '../lib/layout'
+import { formatPercent, orbitElements, setOrbitPosition, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
 
 const _world = new Vector3()
@@ -23,6 +23,7 @@ export default function Planet({
   onSelectPerspective,
   isMobile = false,
   volumeMax = 100,
+  orbitRadius: orbitDistance = null,
   quality = 'high',
   sphereDetail = [48, 36],
   haloDetail = [32, 32],
@@ -35,8 +36,8 @@ export default function Planet({
   const body = topic.body
   const isSun = body?.key === 'sun' || index === 0
   const orbit = useMemo(
-    () => orbitElements(index, isSun, topic.id),
-    [index, isSun, topic.id],
+    () => orbitElements(index, isSun, topic.id, orbitDistance),
+    [index, isSun, topic.id, orbitDistance],
   )
   const angle = useRef(orbit.phase)
   const scale = topicScale(topic.total_volume_percent, volumeMax)
@@ -203,8 +204,8 @@ export default function Planet({
   )
 }
 
-export function OrbitRing({ index, inclination = 0, node = 0, segments = 128 }) {
-  const radius = orbitRadius(index, false)
+export function OrbitRing({ radius, inclination = 0, node = 0, segments = 128 }) {
+  if (!radius) return null
   return (
     <group rotation={[0, node, 0]}>
       <mesh rotation={[Math.PI / 2 + inclination, 0, 0]} raycast={() => null}>
