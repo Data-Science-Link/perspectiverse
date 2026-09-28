@@ -69,10 +69,11 @@ To maintain analytical integrity, the project must acknowledge the following bli
 
 Stages 1–4 below were the Cursor MVP. They are largely shipped: Bluesky extract, lexical clustering (BERTopic optional), 10 planets with 2–6 faces, daily Actions job, static React Three Fiber observatory. The live sample is still small (200 default; 10k is the production target). Face textures and Reddit ingestion are not in the current code.
 
-The living roadmap — including planet-level debate, an LLM clerk, retaining posts, custom brand universes, a Google plugin, and what those cost to keep alive — is **[ROADMAP.md](../ROADMAP.md)**. Architecture for the two new surfaces:
+The living roadmap — including planet-level debate, an LLM clerk, retaining posts, custom brand universes, a Google plugin, historical skies, and what those cost to keep alive — is **[ROADMAP.md](../ROADMAP.md)**. Architecture for the newer surfaces:
 
 * [Planet Engagement Architecture](Planet%20Engagement%20Architecture.md) — talk to a planet or a face without breaking the daily/static split
 * [Custom Universe and Archive Architecture](Custom%20Universe%20and%20Archive%20Architecture.md) — retain more than twelve posts; generate a sky from a brand or a highlighted sentence
+* [Historical Skies and Topic Continuity](Historical%20Skies%20and%20Topic%20Continuity.md) — rewind a day, trend a topic, and align names that drift across independent cluster runs
 
 MVP stages (historical):
 
@@ -89,6 +90,7 @@ The 7-day window and the once-a-day job exist so the public sky stays under a do
 | --- | --- | --- |
 | **Today** | `data.json` + ephemeral runner SQLite | **$0–$1** |
 | **Thicker snapshot** | More representative posts, terms, briefing cards | still **~$0–$1** |
+| **Dated skies + matcher** | Keep each day's JSON; align topics after the fact | still **~$0–$1** if files stay static |
 | **Planet LLM clerk** | Quote packs + a gated model | **$5–$20** box, then **tokens** ($0 if Ollama; hundreds if public and ungated) |
 | **Custom universes / plugin** | Query drains or a short firehose window + on-demand cluster | **$20–$80** lean; more if we chat on every sky |
 | **Unbounded firehose** | Years of raw posts | storage on the order of **$20–$50 per retained year** plus ingest and legal review |

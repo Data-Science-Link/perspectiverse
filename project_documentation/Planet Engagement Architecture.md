@@ -166,4 +166,4 @@ Intelligent enough is **not** "wins a debate." It is:
 
 A small model with retrieval does that. A large model without retrieval does not.
 
-See [ROADMAP.md](../ROADMAP.md) for sequence and the cost table.
+See [ROADMAP.md](../ROADMAP.md) for sequence and the cost table. Rewinding the sky to another day is a storage-and-matching problem, not a clerk problem: [Historical Skies and Topic Continuity](Historical%20Skies%20and%20Topic%20Continuity.md).

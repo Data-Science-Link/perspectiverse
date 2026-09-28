@@ -25,6 +25,7 @@ The observatory runs on a schema-compatible **demo** `public/data.json` (10 topi
 | Daily refresh | `.github/workflows/pipeline.yml` |
 | Conversational LLM on a planet | Roadmap only (Horizon A) |
 | Custom sky from `--query` | Ready for operators; not a public form |
+| Historical skies / topic tracking | Roadmap only (Horizon C) |
 
 ## Quick start
 
@@ -123,8 +124,8 @@ Pytest runs in `.github/workflows/pytest.yml` without downloading the embedding 
 - `src/` — React Three Fiber observatory and sidebar
 - `public/data.json` — snapshot the frontend loads
 - `pipeline/` — demo writer and live ingestion
-- `project_documentation/` — architecture, UI canvases, engagement/archive designs, and how this differs from neighboring products
-- `ROADMAP.md` — what ships, what would change the architecture, and what it costs to keep
+- `project_documentation/` — architecture, UI canvases, engagement/archive/history designs, and how this differs from neighboring products
+- `ROADMAP.md` — what ships, what would change the architecture, and what it costs to keep (Horizons A–C)
 - `.github/workflows/` — security audit, tests, frontend CI, daily pipeline, GitHub Pages
 
 See [FILES.md](FILES.md), [pipeline/README.md](pipeline/README.md), and [ROADMAP.md](ROADMAP.md).

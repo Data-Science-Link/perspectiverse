@@ -2,7 +2,7 @@
 
 **Core Philosophy:** Lightweight, local-first data processing, outputting to a static, serverless frontend.
 
-The public sky stays in that shape. Conversational LLM engagement and on-demand brand universes are designed in [Planet Engagement Architecture](Planet%20Engagement%20Architecture.md) and [Custom Universe and Archive Architecture](Custom%20Universe%20and%20Archive%20Architecture.md). They need extra storage and a clerk or queue; they are not required to render today's observatory. The living sequence and maintain-cost table is [ROADMAP.md](../ROADMAP.md).
+The public sky stays in that shape. Conversational LLM engagement, on-demand brand universes, and historical / trending skies are designed in [Planet Engagement Architecture](Planet%20Engagement%20Architecture.md), [Custom Universe and Archive Architecture](Custom%20Universe%20and%20Archive%20Architecture.md), and [Historical Skies and Topic Continuity](Historical%20Skies%20and%20Topic%20Continuity.md). They need extra storage, a matcher, or a clerk; they are not required to render today's observatory. The living sequence and maintain-cost table is [ROADMAP.md](../ROADMAP.md).
 
 ## **1\. Environment & Architecture**
 

@@ -49,7 +49,7 @@ The lexical pass asks for 11 clusters. Anything smaller than `min_cluster_size` 
 
 `min_cluster_size` starts at **2** so a 200-post sample can still publish 10 planets. Use **8** when the posts separate cleanly, and **15–25** once `sample_size` is near 10000 so tiny clumps do not become planets.
 
-Planet ids are 1–10 in descending volume for that snapshot. They are stable inside the file and recomputed on the next run.
+Planet ids are 1–10 in descending volume for that snapshot. They are stable inside the file and recomputed on the next run. Names are the day's top terms, not a durable key. Rewinding days, trending a neighborhood, and aligning paraphrased labels are [Historical Skies and Topic Continuity](../project_documentation/Historical%20Skies%20and%20Topic%20Continuity.md), not this job.
 
 ## Faces
 
