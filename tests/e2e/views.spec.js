@@ -83,7 +83,7 @@ test.describe('Perspectiverse views', () => {
         }
         return { r: r / samples, g: g / samples, b: b / samples }
       })
-      return sun.r > 140 && sun.g > 90 && sun.r > sun.b + 20
+      return sun.r > 150 && sun.g > 120 && sun.r + sun.g > 280
     }, { timeout: 20_000 }).toBeTruthy()
 
     await page.getByRole('button', { name: 'Show orbit lines' }).click()
