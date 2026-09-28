@@ -874,6 +874,41 @@ h3 {
   text-decoration: none;
 }
 
+.text-links {
+  display: grid;
+  gap: 0.1rem;
+  margin-top: 0.2rem;
+}
+
+.text-links .text-link {
+  margin-top: 0;
+}
+
+.vision-points {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.35rem 0 0.4rem;
+}
+
+.vision-point {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.vision-point strong {
+  display: block;
+  margin-bottom: 0.28rem;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.vision-point p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .method-figure {
   margin: 0.85rem 0 0;
 }

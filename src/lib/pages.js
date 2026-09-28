@@ -8,6 +8,14 @@ export const AUTHOR_HANDLE = 'Data-Science-Link'
 
 export const SITE_PAGES = [
   {
+    id: 'vision',
+    title: 'Vision',
+    menuLabel: 'Vision',
+    subtitle: 'Why this observatory exists',
+    eyebrow: 'Vision',
+    heading: 'Out of the chamber, into the argument',
+  },
+  {
     id: 'about',
     title: 'About',
     menuLabel: 'About Perspectiverse',

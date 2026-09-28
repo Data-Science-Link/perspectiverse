@@ -12,6 +12,10 @@ import { OverviewGraphic, SystemsGraphic, TechnicalMapGraphic } from './Methodol
 
 const FAQ_ITEMS = [
   {
+    q: 'What is this for?',
+    a: 'To see what the public is paying attention to, what the opinions actually are, and that there are several of them — so you can leave an echo chamber and show up to debate prepared, not scandalized by a caricature. The Vision page spells it out.',
+  },
+  {
     q: 'Is this a poll of everyone?',
     a: 'No. It is a sample of public English posts — usually Bluesky — from the last week. That is internet talk, not humanity. Younger, Western, and tech-heavy voices are over-represented.',
   },
@@ -86,6 +90,83 @@ function PagePager({ pageId, onOpenPage }) {
   )
 }
 
+function VisionPage({ onOpenPage }) {
+  return (
+    <>
+      <p className="lede">
+        Be well informed about current public attention, public opinion, and the several
+        perspectives that form it. Then walk into debate ready to listen — not already
+        scandalized by a caricature.
+      </p>
+
+      <div className="vision-points">
+        <article className="vision-point">
+          <strong>Public attention</strong>
+          <p>What people were actually talking about this week — not what a feed ranked because it would keep you scrolling.</p>
+        </article>
+        <article className="vision-point">
+          <strong>Public opinion</strong>
+          <p>The views that showed up, loud and quiet. Gold is the majority. It is not a verdict on who is right.</p>
+        </article>
+        <article className="vision-point">
+          <strong>Multiple perspectives</strong>
+          <p>Most topics are not two-sided. A planet holds two to six real takes. Yours might be the long face, a short one, or missing.</p>
+        </article>
+      </div>
+
+      <section>
+        <h2>Leave the echo chamber</h2>
+        <p>
+          Feeds reward what is sticky: outrage, tribe, the take that already agrees with
+          you. That is a poor map of the public and a worse way to prepare for talking to
+          someone you do not already like.
+        </p>
+        <p>
+          The sky is supposed to do the opposite. Tilt until every side comes into view.
+          Check whether you are the majority, a minority, or not on the planet at all.
+          Then you can walk into a conversation without plugging your ears.
+        </p>
+      </section>
+
+      <section>
+        <h2>Earnest debate, not a tribe</h2>
+        <p>
+          Meaningful public debate is not winning a thread. It is understanding the other
+          view well enough to meet it, and being willing to change your mind when the
+          facts are better than your side.
+        </p>
+        <p>
+          We should not refuse to talk because we are scandalized by someone&apos;s opinion
+          — or by what we imagine they think. That is how people stop being neighbors and
+          start being avatars. Cohesive relationships come from seeing the argument as it
+          is, not as it was packaged to keep us spinning.
+        </p>
+      </section>
+
+      <section>
+        <h2>Truth is real, and it is worth acting on</h2>
+        <p>
+          Truth can be nuanced. It still exists. People can hold different perspectives
+          and still be aiming at the same thing: what is so, and what to do about it.
+        </p>
+        <p>
+          Knowing the truth, and acting on it, is how you get better outcomes for
+          humanity. Staying in tribes with our ears plugged — reinforcing bias, reinforcing
+          whatever stuck in the feed — is how we alienate each other and never get there.
+        </p>
+        <p>
+          Perspectiverse cannot hand you the truth. It can show you the shape of the
+          public argument so you have a fairer chance of finding it, and of taking action
+          accordingly.
+        </p>
+        <button type="button" className="text-link" onClick={() => onOpenPage('about')}>
+          How to read the sky
+        </button>
+      </section>
+    </>
+  )
+}
+
 function sourceLine(data) {
   if (!data) return 'the snapshot bundled with this page'
   if (data.mode === 'demo' || data.source === 'synthetic') {
@@ -134,9 +215,14 @@ function AboutPage({ data, onOpenPage }) {
           <li>Bigger planet = more talk this week, not more importance.</li>
           <li>Tap a planet, then a face. Gold is the majority — loudest, not truest.</li>
         </ol>
-        <button type="button" className="text-link" onClick={() => onOpenPage('methodology')}>
-          See how the sky is made
-        </button>
+        <div className="text-links">
+          <button type="button" className="text-link" onClick={() => onOpenPage('vision')}>
+            Read the vision
+          </button>
+          <button type="button" className="text-link" onClick={() => onOpenPage('methodology')}>
+            See how the sky is made
+          </button>
+        </div>
       </section>
     </>
   )
@@ -290,6 +376,7 @@ function DonatePage() {
 }
 
 const PAGE_BODY = {
+  vision: VisionPage,
   about: AboutPage,
   author: AuthorPage,
   methodology: MethodologyPage,

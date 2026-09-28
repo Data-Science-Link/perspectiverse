@@ -58,7 +58,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `src/components/SkySelect.jsx` | Compact Solar System category dropdown |
 | `src/components/SiteChrome.jsx` | Sticky header, tagline, back arrow, hamburger |
 | `src/components/SiteMenu.jsx` | Pages, how to read, filters, feedback |
-| `src/components/SitePage.jsx` | About, author, methodology, FAQ, and donate views |
+| `src/components/SitePage.jsx` | Vision, about, author, methodology, FAQ, and donate views |
 | `src/components/MethodologyGraphics.jsx` | High-level connection graphic and technical systems map |
 | `src/lib/copy.js` | Title, tagline, Solar System label, welcome storage |
 | `src/lib/pages.js` | Site page ids, labels, and neighbor links |

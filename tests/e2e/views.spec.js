@@ -116,6 +116,7 @@ test.describe('Perspectiverse views', () => {
 
     await page.getByRole('button', { name: 'Open menu' }).click()
     const menu = page.getByRole('dialog', { name: 'Perspectiverse' })
+    await expect(menu.getByRole('button', { name: /Vision/ })).toBeVisible()
     await expect(menu.getByRole('button', { name: /About Perspectiverse/ })).toBeVisible()
     await expect(menu.getByRole('button', { name: /About the author/ })).toBeVisible()
     await expect(menu.getByRole('button', { name: /Methodology/ })).toBeVisible()
@@ -155,5 +156,11 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Michael Link' })).toBeVisible()
     await expect(page.getByRole('link', { name: /Data-Science-Link/ })).toBeVisible()
+
+    await page.goto('/?page=vision')
+    await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Out of the chamber, into the argument' })).toBeVisible()
+    await expect(page.getByText('Public attention')).toBeVisible()
+    await expect(page.getByText(/Truth can be nuanced/)).toBeVisible()
   })
 })

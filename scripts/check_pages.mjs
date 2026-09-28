@@ -11,7 +11,7 @@ import { selectionURL, readSelectionFromURL } from '../src/lib/navigation.js'
 assert.equal(AUTHOR_NAME, 'Michael Link')
 assert.deepEqual(
   SITE_PAGES.map((page) => page.id),
-  ['about', 'author', 'methodology', 'faq', 'donate'],
+  ['vision', 'about', 'author', 'methodology', 'faq', 'donate'],
 )
 
 for (const page of SITE_PAGES) {
@@ -25,7 +25,9 @@ assert.equal(isSitePage('nope'), false)
 assert.equal(isSitePage(''), false)
 assert.equal(pageById('nope'), null)
 
-assert.deepEqual(neighborPages('about').prev, null)
+assert.deepEqual(neighborPages('vision').prev, null)
+assert.equal(neighborPages('vision').next.id, 'about')
+assert.equal(neighborPages('about').prev.id, 'vision')
 assert.equal(neighborPages('about').next.id, 'author')
 assert.equal(neighborPages('donate').prev.id, 'faq')
 assert.equal(neighborPages('donate').next, null)
