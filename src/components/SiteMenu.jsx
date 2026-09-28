@@ -65,25 +65,23 @@ export default function SiteMenu({
         <section className="menu-section">
           <h3>About the project</h3>
           <p>
-            A week of public conversation, mapped as a solar system so you do not live
-            in an echo chamber. Tilt the solar system to see every perspective, then check where
-            yours stacks up: is the topic you care about of interest to the general
-            public, and are you the majority or a minority opinion?
+            A week of public conversation as a solar system, so you can step out of an
+            echo chamber. Bigger planets got more attention. Open one to see the main
+            opinions, then check whether yours is the majority, a minority, or missing.
           </p>
           <p>
-            The largest topic sits at the center as the sun. The next nine orbit by
-            volume and wear Mercury through Pluto in that order. Size is share of
-            attention. Open a planet and the sphere dissolves into a crystal of two to
-            six faces. Gold is the loudest perspective, then ember, sky, violet, jade,
-            and rose.
+            The largest topic sits in the center as the sun. The next nine orbit around
+            it as Mercury through Pluto. Size is share of attention, not importance.
+            Gold is the loudest opinion, then ember, sky, violet, jade, and rose.
           </p>
           <p>
             Source: {data.mode === 'demo' || data.source === 'synthetic'
-              ? 'a synthetic demo solar system, not a live feed'
+              ? 'demo data (made-up example posts, not a live feed)'
               : data.source === 'bluesky'
                 ? 'public English posts on Bluesky'
                 : 'the snapshot bundled with this page'}.
-            Window: the last {data.window_hours ?? 168} hours. Snapshot {data.last_updated}.
+            Window: the last {data.window_hours ?? 168} hours. Updated {data.last_updated}.
+            Only the ten largest topics are shown.
           </p>
           {onShowWelcome && (
             <button type="button" className="menu-feedback" onClick={onShowWelcome}>
@@ -95,24 +93,24 @@ export default function SiteMenu({
         <section className="menu-section">
           <h3>How to read this</h3>
           <ul>
-            <li>Drag, pinch, or tilt to orbit. Planets keep turning so every side comes into view.</li>
-            <li>Planet size is public attention that week — whether the general public was talking about it.</li>
-            <li>Tap a planet. The sphere becomes geometry: each face is a real perspective, length is its share, gold is the majority.</li>
-            <li>That is where your view stacks up — majority, minority, or missing from this solar system.</li>
+            <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
+            <li>Bigger planet = more people were talking about that topic this week.</li>
+            <li>Tap a planet to open its opinions. Tap a face to read example posts. Gold is the majority.</li>
+            <li>After you open a planet, drag the shape to turn it. Scroll or pinch to zoom.</li>
           </ul>
         </section>
 
         <section className="menu-section">
           <h3>What this is not</h3>
           <ul>
-            <li>Internet discourse, not a poll of humanity. Bluesky is not everyone.</li>
-            <li>A face summary collapses dissent inside that cluster.</li>
+            <li>Not a poll of everyone — a sample of public posts (often Bluesky), not humanity.</li>
+            <li>A face summary smooths over disagreement inside that view.</li>
             <li>Posts that fit no planet are left out of the percentages.</li>
           </ul>
         </section>
 
         <section className="menu-section">
-          <h3>Filter the solar system</h3>
+          <h3>Filter topics</h3>
           <SkySelect
             id="menu-sky-select"
             categories={categories}
@@ -152,8 +150,8 @@ export default function SiteMenu({
         <section className="menu-section">
           <h3>Feedback</h3>
           <p>
-            Something confusing, a planet that feels wrong, a face that flattened you? This is
-            a research prototype and we want the seams.
+            Something confusing, a planet that feels wrong, or a view that flattened
+            your take? This is a research prototype — tell us.
           </p>
           <a className="menu-feedback" href={FEEDBACK_URL} target="_blank" rel="noreferrer">
             Open a GitHub issue

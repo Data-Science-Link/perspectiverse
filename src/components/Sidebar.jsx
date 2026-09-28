@@ -1,8 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
-import { shapeName } from '../lib/faces'
 import { categoryCounts } from '../lib/categories'
 import { SITE_TAGLINE } from '../lib/copy'
-import { hexToRgba, rankPerspectives, spikeColor, topicColor } from '../lib/colors'
+import { PERSPECTIVE_COLOR_NAMES, hexToRgba, rankPerspectives, spikeColor, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import MiniCube from './MiniCube'
 import SkySelect from './SkySelect'
@@ -18,6 +17,20 @@ function VolumeBar({ value, color, active = false }) {
       </span>
       <span className="volume-bar-value">{formatPercent(value)}</span>
     </div>
+  )
+}
+
+function ColorLegend({ count = 6 }) {
+  const items = PERSPECTIVE_COLOR_NAMES.slice(0, Math.max(2, count))
+  return (
+    <p className="color-legend" aria-label="View colors, loudest first">
+      {items.map((name, index) => (
+        <span key={name}>
+          <span className="swatch" style={{ background: spikeColor(index) }} />
+          {name}
+        </span>
+      ))}
+    </p>
   )
 }
 
@@ -56,7 +69,7 @@ function WelcomePanel({
           onCategory={onCategory}
         />
         <p className="mobile-prompt">
-          Drag the solar system to see every side. Bigger planets are what more people talked
+          Drag the sky to look around. Bigger planets are what more people talked
           about this week. Tap one to open its opinions — gold is the majority view.
         </p>
         <div className="planet-rail" aria-label="Today's planets">
@@ -81,20 +94,18 @@ function WelcomePanel({
 
   return (
     <div className="panel">
-      <p className="eyebrow">Discourse Universe</p>
+      <p className="eyebrow">This week&apos;s map</p>
       <h1>Perspectiverse</h1>
       <p className="tagline">{SITE_TAGLINE}</p>
       {data.mode === 'demo' && (
         <p className="demo-banner">
-          Synthetic demo solar system. These posts were written as a fixture, not pulled from a live feed.
+          Demo data. These posts are a made-up example, not a live feed.
         </p>
       )}
       <p className="lede">
-        A week of public conversation, mapped as a solar system so you do not live in an
-        echo chamber. Tilt the solar system to see every perspective. Planet size is how much of
-        the public was talking about that topic. Open a planet and the sphere dissolves
-        into a crystal of two to six faces — gold is the majority view, shorter faces
-        are minority opinions. That is where yours stacks up.
+        A week of public conversation as a solar system. Bigger planets got more
+        attention. Open one to see the main opinions — gold is the majority view,
+        shorter faces are minority views. That is where yours stacks up.
       </p>
       <div className="stat-grid">
         <div>
@@ -107,7 +118,7 @@ function WelcomePanel({
         </div>
         <div>
           <strong>{data.last_updated}</strong>
-          <span>snapshot</span>
+          <span>updated</span>
         </div>
       </div>
       <div className="topic-list">
@@ -125,8 +136,7 @@ function WelcomePanel({
                 {topic.body?.name ?? (index === 0 ? 'Sun' : `Orbit ${index}`)} · {topic.name}
               </span>
               <span className="topic-row-meta">
-                {topic.category} · {shapeName(topic.perspectives.length)} ·{' '}
-                {topic.perspectives.length} perspectives
+                {topic.category} · {topic.perspectives.length} views
               </span>
             </span>
             <VolumeBar value={topic.total_volume_percent} color={topicColor(topic.id, topic.body)} />
@@ -143,8 +153,8 @@ function EmptyCategory({ category, onShowAll }) {
       <p className="eyebrow">Empty solar system</p>
       <h1>Nothing in {category}</h1>
       <p className="lede">
-        This snapshot has no planets tagged {category}. The canvas stays up so the view is empty
-        on purpose, not broken.
+        This snapshot has no {category} topics. The sky is empty on purpose.
+        Choose another filter, or show everything.
       </p>
       <button type="button" className="back-link" onClick={onShowAll}>
         Show all topics
@@ -164,20 +174,17 @@ function TopicPanel({
   const ranked = rankPerspectives(topic.perspectives)
   return (
     <div className="panel is-topic">
-      {!isMobile && (
-        <button type="button" className="back-link" onClick={onBack}>
-          ← All topics
-        </button>
-      )}
+      <button type="button" className="back-link" onClick={onBack}>
+        {isMobile ? '← Back to the sky' : '← All topics'}
+      </button>
       <p className="eyebrow" style={{ color }}>
-        {topic.body?.name} · {shapeName(topic.perspectives.length)} · {topic.category}
+        {topic.body?.name} · {topic.category} · {topic.perspectives.length} views
       </p>
       <h1>{topic.name}</h1>
       <p className="lede">
-        This planet is {formatPercent(topic.total_volume_percent)} of the week&apos;s kept
-        conversation — that is public interest, not virtue. The crystal below is the
-        argument: each face is a real perspective, length is how many posts sat there,
-        gold is the majority.
+        This planet is {formatPercent(topic.total_volume_percent)} of this week&apos;s
+        public conversation — that is attention, not importance. Each face below is a
+        real opinion. Length is how many posts sat there. Gold is the majority.
       </p>
       <MiniCube
         topic={topic}
@@ -185,10 +192,8 @@ function TopicPanel({
         onSelectPerspective={onSelectPerspective}
       />
       <div className="perspective-list">
-        <h2>Perspectives</h2>
-        <p className="topic-row-meta">
-          Gold is the loudest view, then ember, sky, violet, jade, rose.
-        </p>
+        <h2>Opinions</h2>
+        <ColorLegend count={ranked.length} />
         {ranked.map((perspective, index) => (
           <button
             key={perspective.id}
@@ -219,7 +224,6 @@ function TopicPanel({
 function PerspectivePanel({
   topic,
   perspective,
-  isMobile,
   onBack,
 }) {
   const color = spikeColor(rankPerspectives(topic.perspectives).findIndex((item) => item.id === perspective.id))
@@ -227,18 +231,16 @@ function PerspectivePanel({
 
   return (
     <div className="panel is-face">
-      {!isMobile && (
-        <button type="button" className="back-link" onClick={onBack}>
-          ← Back to {topic.name}
-        </button>
-      )}
+      <button type="button" className="back-link" onClick={onBack}>
+        ← Back to {topic.name}
+      </button>
       <p className="eyebrow" style={{ color }}>
         {topic.body?.name} · {topic.name}
       </p>
       <h1>{perspective.title}</h1>
       <p className="lede">{perspective.summary}</p>
       <MiniCube topic={topic} selectedPerspectiveId={perspective.id} />
-      <p className="caveat">This sentence flattens disagreement inside the cluster.</p>
+      <p className="caveat">This one-line summary smooths over disagreement inside this view.</p>
       <div
         className="perspective-stat"
         style={{ borderColor: hexToRgba(color, 0.4), background: hexToRgba(color, 0.08) }}
@@ -247,7 +249,8 @@ function PerspectivePanel({
         <span>of this planet&apos;s conversation — majority if gold, minority if shorter</span>
       </div>
       <div className="post-feed">
-        <h2>Representative posts</h2>
+        <h2>Example posts</h2>
+        <p className="topic-row-meta">A sample of posts from this view, sorted by likes.</p>
         {posts.map((post) => (
           <article key={`${post.author}-${post.likes}-${post.text.slice(0, 24)}`} className="post-card">
             <header>
