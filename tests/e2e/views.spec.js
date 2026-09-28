@@ -166,7 +166,7 @@ test.describe('Perspectiverse views', () => {
 
     await page.goto('/?page=connect')
     await expect(page.getByRole('heading', { name: 'Say hello' })).toBeVisible()
-    await expect(page.getByRole('link', { name: /GitHub/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /^GitHub/ })).toBeVisible()
     await expect(page.getByRole('link', { name: /LinkedIn/ })).toHaveAttribute(
       'href',
       'https://www.linkedin.com/in/data-science-link',
