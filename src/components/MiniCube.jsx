@@ -38,6 +38,8 @@ function Preview({ topic, selectedPerspectiveId, onSelectPerspective }) {
         coreColor={topicColor(topic.id, topic.body)}
         selectedPerspectiveId={selectedPerspectiveId}
         showSpikes
+        quality="medium"
+        sphereDetail={[32, 24]}
         onSelectPerspective={onSelectPerspective}
       />
     </group>
@@ -47,7 +49,11 @@ function Preview({ topic, selectedPerspectiveId, onSelectPerspective }) {
 export default function MiniCube({ topic, selectedPerspectiveId, onSelectPerspective }) {
   return (
     <div className="mini-cube">
-      <Canvas camera={{ position: [3.4, 2.0, 3.4], fov: 38 }} dpr={[1, 1.5]}>
+      <Canvas
+        camera={{ position: [3.4, 2.0, 3.4], fov: 38 }}
+        dpr={1}
+        gl={{ antialias: false, powerPreference: 'low-power', stencil: false }}
+      >
         <ambientLight intensity={0.7} />
         <pointLight position={[2, 3, 2]} intensity={1.6} color="#fff1c2" />
         <directionalLight position={[-2, 2, 3]} intensity={0.6} />

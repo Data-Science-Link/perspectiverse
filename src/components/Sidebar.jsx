@@ -1,11 +1,10 @@
 import { useLayoutEffect, useRef } from 'react'
 import { shapeName } from '../lib/faces'
 import { categoryCounts } from '../lib/categories'
+import { SITE_TAGLINE } from '../lib/copy'
 import { hexToRgba, rankPerspectives, spikeColor, topicColor } from '../lib/colors'
-import { formatNumber, formatPercent, sortPosts, topicScale } from '../lib/layout'
+import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import MiniCube from './MiniCube'
-import PerspectiverseGraphic from './PerspectiverseGraphic'
-import EngagementPanel from './EngagementPanel'
 import SkySelect from './SkySelect'
 
 function VolumeBar({ value, color, active = false }) {
@@ -41,9 +40,6 @@ function WelcomePanel({
   topics,
   isMobile,
   onSelectTopic,
-  onSelectLocation,
-  engagementQuery,
-  onEngagementQuery,
   categories,
   category,
   counts,
@@ -59,8 +55,10 @@ function WelcomePanel({
           counts={counts}
           onCategory={onCategory}
         />
-        <PerspectiverseGraphic compact />
-        <p className="mobile-prompt">Tap a cube to open its topic.</p>
+        <p className="mobile-prompt">
+          Drag the sky to see every side. Bigger planets are what more people talked
+          about this week. Tap one to open its opinions — gold is the majority view.
+        </p>
         <div className="planet-rail" aria-label="Today's planets">
           {topics.map((topic) => (
             <button
@@ -77,18 +75,6 @@ function WelcomePanel({
             </button>
           ))}
         </div>
-        <EngagementPanel
-          topics={topics}
-          query={engagementQuery}
-          onQueryChange={onEngagementQuery}
-          onSelectTopic={onSelectTopic}
-          onSelectPerspective={(faceId) => {
-            const host = topics.find((item) => item.perspectives.some((face) => face.id === faceId))
-            if (host) onSelectLocation({ topicId: host.id, perspectiveId: faceId })
-          }}
-          onSelectLocation={onSelectLocation}
-          compact
-        />
       </div>
     )
   }
@@ -97,16 +83,18 @@ function WelcomePanel({
     <div className="panel">
       <p className="eyebrow">Discourse Universe</p>
       <h1>Perspectiverse</h1>
+      <p className="tagline">{SITE_TAGLINE}</p>
       {data.mode === 'demo' && (
         <p className="demo-banner">
           Synthetic demo sky. These posts were written as a fixture, not pulled from a live feed.
         </p>
       )}
       <p className="lede">
-        A gravitational map of a week of public conversation. The largest topic is the sun.
-        The rest orbit by volume and wear Mercury through Pluto in that order. Open a planet
-        and the sphere dissolves into a crystal of two to six faces — one per real
-        perspective, never more than a cube. Gold is always the loudest view.
+        A week of public conversation, mapped as a solar system so you do not live in an
+        echo chamber. Tilt the sky to see every perspective. Planet size is how much of
+        the public was talking about that topic. Open a planet and the sphere dissolves
+        into a crystal of two to six faces — gold is the majority view, shorter faces
+        are minority opinions. That is where yours stacks up.
       </p>
       <div className="stat-grid">
         <div>
@@ -145,17 +133,6 @@ function WelcomePanel({
           </button>
         ))}
       </div>
-      <EngagementPanel
-        topics={topics}
-        query={engagementQuery}
-        onQueryChange={onEngagementQuery}
-        onSelectTopic={onSelectTopic}
-        onSelectPerspective={(faceId) => {
-          const host = topics.find((item) => item.perspectives.some((face) => face.id === faceId))
-          if (host) onSelectLocation({ topicId: host.id, perspectiveId: faceId })
-        }}
-        onSelectLocation={onSelectLocation}
-      />
     </div>
   )
 }
@@ -178,15 +155,10 @@ function EmptyCategory({ category, onShowAll }) {
 
 function TopicPanel({
   topic,
-  topics,
   selectedPerspectiveId,
   isMobile,
   onSelectPerspective,
   onBack,
-  engagementQuery,
-  onEngagementQuery,
-  onSelectTopic,
-  volumeMax = 100,
 }) {
   const color = topicColor(topic.id, topic.body)
   const ranked = rankPerspectives(topic.perspectives)
@@ -202,8 +174,10 @@ function TopicPanel({
       </p>
       <h1>{topic.name}</h1>
       <p className="lede">
-        {formatPercent(topic.total_volume_percent)} of the kept conversation. Scale in the sky
-        is {topicScale(topic.total_volume_percent, volumeMax).toFixed(2)}× — volume, not virtue.
+        This planet is {formatPercent(topic.total_volume_percent)} of the week&apos;s kept
+        conversation — that is public interest, not virtue. The crystal below is the
+        argument: each face is a real perspective, length is how many posts sat there,
+        gold is the majority.
       </p>
       <MiniCube
         topic={topic}
@@ -238,28 +212,15 @@ function TopicPanel({
           </button>
         ))}
       </div>
-      <EngagementPanel
-        topics={topics}
-        topic={topic}
-        query={engagementQuery}
-        onQueryChange={onEngagementQuery}
-        onSelectTopic={onSelectTopic}
-        onSelectPerspective={onSelectPerspective}
-      />
     </div>
   )
 }
 
 function PerspectivePanel({
   topic,
-  topics,
   perspective,
   isMobile,
   onBack,
-  engagementQuery,
-  onEngagementQuery,
-  onSelectTopic,
-  onSelectPerspective,
 }) {
   const color = spikeColor(rankPerspectives(topic.perspectives).findIndex((item) => item.id === perspective.id))
   const posts = sortPosts(perspective.representative_posts)
@@ -283,7 +244,7 @@ function PerspectivePanel({
         style={{ borderColor: hexToRgba(color, 0.4), background: hexToRgba(color, 0.08) }}
       >
         <strong>{formatPercent(perspective.volume_percent)}</strong>
-        <span>of this planet&apos;s conversation</span>
+        <span>of this planet&apos;s conversation — majority if gold, minority if shorter</span>
       </div>
       <div className="post-feed">
         <h2>Representative posts</h2>
@@ -297,15 +258,6 @@ function PerspectivePanel({
           </article>
         ))}
       </div>
-      <EngagementPanel
-        topics={topics}
-        topic={topic}
-        perspective={perspective}
-        query={engagementQuery}
-        onQueryChange={onEngagementQuery}
-        onSelectTopic={onSelectTopic}
-        onSelectPerspective={onSelectPerspective}
-      />
     </div>
   )
 }
@@ -320,12 +272,8 @@ export default function Sidebar({
   isMobile,
   onSelectTopic,
   onSelectPerspective,
-  onSelectLocation,
   onClearSelection,
   onCategory,
-  engagementQuery,
-  onEngagementQuery,
-  volumeMax = 100,
 }) {
   const counts = categoryCounts(data.topics)
   const empty = topics.length === 0
@@ -358,9 +306,6 @@ export default function Sidebar({
           topics={topics}
           isMobile={isMobile}
           onSelectTopic={onSelectTopic}
-          onSelectLocation={onSelectLocation}
-          engagementQuery={engagementQuery}
-          onEngagementQuery={onEngagementQuery}
           categories={categories}
           category={category}
           counts={counts}
@@ -370,28 +315,18 @@ export default function Sidebar({
       {!empty && selectedTopic && !selectedPerspective && (
         <TopicPanel
           topic={selectedTopic}
-          topics={topics}
           selectedPerspectiveId={null}
           isMobile={isMobile}
           onSelectPerspective={onSelectPerspective}
-          onSelectTopic={onSelectTopic}
           onBack={onClearSelection}
-          engagementQuery={engagementQuery}
-          onEngagementQuery={onEngagementQuery}
-          volumeMax={volumeMax}
         />
       )}
       {!empty && selectedTopic && selectedPerspective && (
         <PerspectivePanel
           topic={selectedTopic}
-          topics={topics}
           perspective={selectedPerspective}
           isMobile={isMobile}
           onBack={() => onSelectPerspective(null)}
-          engagementQuery={engagementQuery}
-          onEngagementQuery={onEngagementQuery}
-          onSelectTopic={onSelectTopic}
-          onSelectPerspective={onSelectPerspective}
         />
       )}
     </aside>

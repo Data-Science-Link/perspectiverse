@@ -23,6 +23,9 @@ export default function Planet({
   onSelectPerspective,
   isMobile = false,
   volumeMax = 100,
+  quality = 'high',
+  sphereDetail = [48, 36],
+  haloDetail = [32, 32],
 }) {
   const group = useRef()
   const cube = useRef()
@@ -142,7 +145,7 @@ export default function Planet({
         </mesh>
         {isSun && !selected && (
           <mesh raycast={() => null}>
-            <sphereGeometry args={[1.08, 32, 32]} />
+            <sphereGeometry args={[1.08, haloDetail[0], haloDetail[1]]} />
             <meshBasicMaterial color={color} transparent opacity={0.16} />
           </mesh>
         )}
@@ -154,6 +157,8 @@ export default function Planet({
             selectedPerspectiveId={selectedPerspectiveId}
             dimmed={dimmed}
             showSpikes={selected}
+            quality={quality}
+            sphereDetail={sphereDetail}
             onSelectPerspective={(perspectiveId) => {
               if (suppressClick.current) {
                 suppressClick.current = false
@@ -198,12 +203,12 @@ export default function Planet({
   )
 }
 
-export function OrbitRing({ index, inclination = 0, node = 0 }) {
+export function OrbitRing({ index, inclination = 0, node = 0, segments = 128 }) {
   const radius = orbitRadius(index, false)
   return (
     <group rotation={[0, node, 0]}>
       <mesh rotation={[Math.PI / 2 + inclination, 0, 0]} raycast={() => null}>
-        <ringGeometry args={[radius - 0.016, radius + 0.016, 160]} />
+        <ringGeometry args={[radius - 0.016, radius + 0.016, segments]} />
         <meshBasicMaterial color="#d7def5" transparent opacity={0.34} />
       </mesh>
     </group>

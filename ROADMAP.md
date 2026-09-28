@@ -11,7 +11,7 @@ Related design notes:
 
 ## Audience
 
-The civic surface is for people who already think they know the argument — self-confident readers, debaters, operators, and anyone who treats their feed as a census. The product motion is **anti-echo chamber**: you type the take you believe is the week's story, and the sky answers with other people's words. Sometimes you are the sun. Sometimes you are a minority spike. Sometimes the thing you care about is not a planet at all.
+The civic surface is for people who already think they know the argument — self-confident readers, debaters, operators, and anyone who treats their feed as a census. The product motion is **anti-echo chamber**, but the public sky does that with **geometry**, not a chatbot: tilt to see every perspective, read planet size as public interest, and see whether your view is the gold majority face or a shorter minority one. Sometimes the thing you care about is not a planet at all.
 
 That last case is the feature. Query-shaped tools cannot deliver it, because they only search inside the noun you already named.
 
@@ -44,12 +44,10 @@ These stay inside today's architecture. No new vendor, no GPU, no chat API.
 | --- | --- | --- |
 | 10-planet observatory, 2–6 faces, solar skins, mobile drill-down | Shipped | $0 |
 | Daily lexical pipeline + optional Ollama/OpenAI labels | Shipped | $0–$1 / month |
-| **Test your take** — extractive debate on the loaded snapshot | Shipped in this pass | $0 |
-| **`--query` live extract** — operator can pull a brand-shaped sample and write a sky | Shipped in this pass | $0 (your laptop / Actions minutes) |
+| Welcome tour + tagline (how to read size, tilt, and the crystal) | Shipped | $0 |
+| **`--query` live extract** — operator can pull a brand-shaped sample and write a sky | Shipped | $0 (your laptop / Actions minutes) |
 
-**Test your take** is the free anti-echo chamber. The client tokenizes a claim, a question, or a brand the same way the pipeline does, ranks representative posts by overlap, and says whether those words are the loud face, a minority spike, split across faces, or absent from the sky. Follow-up chips re-ask ("why do people on the gold face think that?", "what am I missing?"). Answers are quotes, not a model.
-
-That is good enough to feel the product. It is not a conversational LLM. It cannot see posts that never made the representative cap. Those limits are printed on the panel on purpose.
+The extractive **Test your take** panel was pulled from the public site. Token-overlap verdicts were not intelligent or insightful enough; they made the observatory feel like a toy matcher. Conversational LLM reading of a planet or face stays on **Horizon A** — it needs a briefing store and a clerk, not a static Pages bundle.
 
 **`--query`** is the free operator path toward custom universes:
 
@@ -66,9 +64,8 @@ It still uses public Bluesky search and the same 10-planet job. It does not reta
 Do these before buying a database.
 
 1. **Raise the live `sample_size` toward 10,000** once Labels and clustering look stable. Cost: Actions minutes, still ~$0 if the job stays under the free budget. Risk: a 10k BERTopic embed on a GitHub runner is the thing that *does* start to cost (time, not dollars). Stay lexical on CI.
-2. **Ship more evidence per face** (20–50 posts, plus top terms) so extractive debate has enough words. `data.json` grows from tens of KB to a few hundred KB. Pages will not notice. Quality of "why do they think that?" will.
-3. **Precompute an engagement pack at snapshot time** — for each face, a term vector, three "why" quotes, and the loudest sibling face. Still 60 cheap label calls, still static. Cost: $0, or +$0.20 / month if the labeler is a mini model.
-4. **Optional local LLM in the sidebar** for people who run [Ollama](https://ollama.com/) — same allow-list the pipeline already uses. The site stays static; the browser talks to `localhost`. Cost: $0. Quality: good on a laptop, useless on a phone.
+2. **Ship more evidence per face** (20–50 posts, plus top terms) so a future LLM clerk has enough words. `data.json` grows from tens of KB to a few hundred KB. Pages will not notice.
+3. **Optional local LLM in the sidebar** for people who run [Ollama](https://ollama.com/) — same allow-list the pipeline already uses. The site stays static; the browser talks to `localhost`. Cost: $0. Quality: good on a laptop, useless on a phone. This is the first honest LLM on the public sky — not a keyword overlap panel.
 
 Stop here if the goal is a public civic sky that stays free.
 
@@ -182,6 +179,6 @@ The public site stays the unsupervised week. Custom skies are a **second product
 
 ## Suggested sequence
 
-1. Use **Test your take** on the demo and on live snapshots. If the discomfort lands, thicken the snapshot (more posts, terms, briefing cards).
+1. Use the public sky: tilt, open a planet, see whether you are the gold face. If the discomfort lands, thicken the snapshot (more posts, terms, briefing cards).
 2. Run **`--query`** locally for a few brands. If those skies are readable, that is the premium prototype — still $0.
 3. Only then add a clerk API (Horizon A) or a retained index (Horizon B). Buy the first billable thing when a human is hitting a wall the snapshot cannot answer, not before.

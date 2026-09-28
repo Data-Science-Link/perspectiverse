@@ -26,10 +26,10 @@
   * The sidebar drills down further.  
   * It displays the specific perspective details.  
   * Below that: A scrollable feed of the actual representative Bluesky posts that formed this cluster, sorted by like count descending.
-* **Test your take (sky, planet, or face):**  
-  * A claim, question, or brand is scored against representative posts already in `data.json`.  
-  * The panel states majority / minority / split / absent, then quotes.  
-  * Follow-up chips re-ask or open another face. No network call. This is the static-site anti-echo chamber; a real LLM clerk is a later architecture (see the engagement note and [ROADMAP.md](../ROADMAP.md)).
+* **Welcome tour (first visit):**  
+  * Explains tilt (see every perspective), planet size (public attention), and the crystal (majority vs minority faces).  
+  * Includes a don't-show-again option; the menu can reopen it.  
+  * Conversational LLM reading of a planet is a later architecture (see [ROADMAP.md](../ROADMAP.md) Horizon A).
 
 ## **2\. Technical Stack Implications**
 

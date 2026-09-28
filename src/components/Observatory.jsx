@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { cameraOffsetForScale, orbitElements, topicScale } from '../lib/layout'
+import { skySettings } from '../lib/skySettings'
 import { OrbitRing, default as Planet } from './Planet'
 import TwinklingStars from './TwinklingStars'
 
@@ -63,6 +64,7 @@ function Universe({
   onSelectPerspective,
   showOrbits = false,
   volumeMax = 100,
+  settings,
 }) {
   const controlsRef = useRef()
   const anchors = useRef({})
@@ -83,8 +85,18 @@ function Universe({
       <pointLight position={[0, 0, 0]} intensity={2.8} distance={42} color="#ffe7a3" />
       <pointLight position={[12, 14, 8]} intensity={0.7} color="#9db7ff" />
       <directionalLight position={[-8, 10, 6]} intensity={1.15} color="#fff6d8" />
-      <Stars radius={80} depth={50} count={5200} factor={3.8} saturation={0} fade speed={0.18} />
-      <TwinklingStars />
+      {settings.dreiStars > 0 && (
+        <Stars
+          radius={80}
+          depth={50}
+          count={settings.dreiStars}
+          factor={3.8}
+          saturation={0}
+          fade
+          speed={0.18}
+        />
+      )}
+      <TwinklingStars count={settings.twinkleStars} />
       {showOrbits && topics.slice(1).map((topic, index) => {
         const orbit = orbitElements(index + 1, false, topic.id)
         return (
@@ -93,6 +105,7 @@ function Universe({
             index={index + 1}
             inclination={orbit.inclination}
             node={orbit.node}
+            segments={settings.ringSegments}
           />
         )
       })}
@@ -109,6 +122,9 @@ function Universe({
           onSelectPerspective={onSelectPerspective}
           isMobile={isMobile}
           volumeMax={volumeMax}
+          quality={settings.textureQuality}
+          sphereDetail={settings.sphereDetail}
+          haloDetail={settings.haloDetail}
         />
       ))}
       <CameraControls
@@ -128,9 +144,11 @@ function Universe({
         isMobile={isMobile}
         volumeMax={volumeMax}
       />
-      <EffectComposer disableNormalPass>
-        <Bloom intensity={0.32} luminanceThreshold={0.42} luminanceSmoothing={0.45} mipmapBlur />
-      </EffectComposer>
+      {settings.bloom && (
+        <EffectComposer disableNormalPass>
+          <Bloom intensity={0.32} luminanceThreshold={0.42} luminanceSmoothing={0.45} mipmapBlur />
+        </EffectComposer>
+      )}
     </>
   )
 }
@@ -148,20 +166,17 @@ export default function Observatory({
 }) {
   const [epoch, setEpoch] = useState(0)
   const [showOrbits, setShowOrbits] = useState(false)
+  const remounts = useRef(0)
+  const settings = useMemo(() => skySettings(isMobile), [isMobile])
   const onCreated = useCallback(({ gl }) => {
     const canvas = gl.domElement
-    let remounted = false
-    const remount = () => {
-      if (remounted) return
-      remounted = true
-      setEpoch((value) => value + 1)
-    }
     const onLost = (event) => {
       event.preventDefault()
-      remount()
+      if (remounts.current >= 1) return
+      remounts.current += 1
+      setEpoch((value) => value + 1)
     }
     canvas.addEventListener('webglcontextlost', onLost)
-    canvas.addEventListener('webglcontextrestored', remount)
   }, [])
 
   const hint = selectedTopicId
@@ -178,8 +193,14 @@ export default function Observatory({
           near: 0.1,
           far: 120,
         }}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false }}
+        dpr={settings.dpr}
+        gl={{
+          antialias: settings.antialias,
+          powerPreference: settings.powerPreference,
+          failIfMajorPerformanceCaveat: false,
+          preserveDrawingBuffer: true,
+          stencil: false,
+        }}
         onPointerMissed={onClearSelection}
         onCreated={onCreated}
       >
@@ -192,6 +213,7 @@ export default function Observatory({
           onSelectPerspective={onSelectPerspective}
           showOrbits={showOrbits}
           volumeMax={volumeMax}
+          settings={settings}
         />
       </Canvas>
       {topics.length === 0 && (

@@ -48,28 +48,30 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | File/Directory | Description |
 | --- | --- |
 | `src/App.jsx` | Loads `data.json`, category filter, URL-backed selection |
-| `src/components/Observatory.jsx` | Canvas, camera, bloom, WebGL remount |
+| `src/components/Observatory.jsx` | Canvas, camera, bloom (desktop), lighter mobile sky |
 | `src/components/Planet.jsx` | Orbits, inspect drag, hover stats |
 | `src/components/SpikyCube.jsx` | Planet-skinned cores, spikes, Saturn rings |
 | `src/components/MiniCube.jsx` | Sidebar preview |
 | `src/components/Sidebar.jsx` | Welcome, topic, and face panels |
-| `src/components/EngagementPanel.jsx` | Test-your-take anti-echo chamber |
-| `src/lib/tokenize.js` | Pipeline-compatible tokenizer |
-| `src/lib/engagement.js` | Extractive scoring and verdicts |
-| `src/components/SiteChrome.jsx` | Sticky header, back arrow, hamburger |
-| `src/components/SiteMenu.jsx` | About, graphic, filters, feedback |
-| `src/components/PerspectiverseGraphic.jsx` | SVG explainer of the solar-system metaphor |
+| `src/components/WelcomeModal.jsx` | First-visit tour with don't-show-again |
+| `src/components/TwinklingStars.jsx` | Shader-based star twinkle |
+| `src/components/SkySelect.jsx` | Compact sky/category dropdown |
+| `src/components/SiteChrome.jsx` | Sticky header, tagline, back arrow, hamburger |
+| `src/components/SiteMenu.jsx` | About, how to read, filters, feedback |
+| `src/lib/copy.js` | Title, tagline, welcome storage |
+| `src/lib/skySettings.js` | Desktop vs mobile render budget |
 | `src/lib/categories.js` | Category list and filter helper |
 | `src/lib/colors.js` | Planet and spike palette |
 | `src/lib/faces.js` | 2–6 spike layouts and shape names |
 | `src/lib/polyhedra.js` | Cube, tetrahedron, pyramid, prism, diamond solids |
 | `src/lib/planets.js` | Solar-system order and body metadata |
-| `src/lib/planetTextures.js` | Canvas skins for Sun through Pluto |
+| `src/lib/planetTextures.js` | Cached canvas skins for Sun through Pluto |
 | `src/lib/navigation.js` | Query-string selection and scroll reset |
 | `src/lib/useMediaQuery.js` | Mobile breakpoint hook |
 | `src/lib/layout.js` | Orbit radii, planet scale, formatting |
 | `public/data.json` | Snapshot the observatory loads |
 | `public/vite.svg` | Favicon |
+| `tests/e2e/views.spec.js` | Playwright desktop and mobile view checks |
 
 ## Documentation (`project_documentation/`)
 
@@ -89,7 +91,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `scripts/security_check.sh` | Local Bandit and pip-audit |
 | `scripts/check_categories.mjs` | Category filter helper check |
 | `scripts/check_planets.mjs` | Solar-system order and selection URLs |
-| `scripts/check_engagement.mjs` | Tokenizer + extractive verdicts |
+| `scripts/check_sky.mjs` | Mobile/desktop render budget and tagline |
 | `scripts/check_data_contract.mjs` | Asserts the built `dist/data.json` contract |
 | `.github/workflows/security-audit.yml` | Bandit + pip-audit on every push/PR, plus `workflow_dispatch` |
 | `.github/workflows/pytest.yml` | Pytest without a model download |

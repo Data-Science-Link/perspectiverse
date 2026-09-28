@@ -3,7 +3,9 @@ import Observatory from './components/Observatory'
 import Sidebar from './components/Sidebar'
 import SiteChrome from './components/SiteChrome'
 import SiteMenu from './components/SiteMenu'
+import WelcomeModal from './components/WelcomeModal'
 import { CATEGORIES, categoryCounts, skyMaxVolume, skyTopics } from './lib/categories'
+import { SITE_TAGLINE, isWelcomeHidden } from './lib/copy'
 import { readSelectionFromURL, resetScroll, writeSelectionToURL } from './lib/navigation'
 import { useIsMobile } from './lib/useMediaQuery'
 
@@ -19,7 +21,7 @@ export default function App() {
   const [selectedTopicId, setSelectedTopicId] = useState(boot.topicId)
   const [selectedPerspectiveId, setSelectedPerspectiveId] = useState(boot.perspectiveId)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [engagementQuery, setEngagementQuery] = useState('')
+  const [welcomeOpen, setWelcomeOpen] = useState(false)
   const isMobile = useIsMobile()
   const shellRef = useRef(null)
 
@@ -37,6 +39,7 @@ export default function App() {
           (a, b) => b.total_volume_percent - a.total_volume_percent,
         )
         setData({ ...payload, topics })
+        if (!isWelcomeHidden()) setWelcomeOpen(true)
       })
       .catch((err) => setError(err.message))
   }, [])
@@ -69,10 +72,6 @@ export default function App() {
 
   const selectPerspective = (perspectiveId) => {
     commitSelection({ category, topicId: selectedTopicId, perspectiveId })
-  }
-
-  const selectLocation = ({ topicId = null, perspectiveId = null } = {}) => {
-    commitSelection({ category, topicId, perspectiveId })
   }
 
   const stepBack = () => {
@@ -113,7 +112,7 @@ export default function App() {
 
   useLayoutEffect(() => {
     resetScroll(shellRef.current)
-  }, [selectedTopicId, selectedPerspectiveId, menuOpen])
+  }, [selectedTopicId, selectedPerspectiveId, menuOpen, welcomeOpen])
 
   useEffect(() => {
     if (!data) return
@@ -142,6 +141,7 @@ export default function App() {
   }
 
   const drilled = Boolean(selectedTopic)
+  const showSky = !(isMobile && drilled)
   const chromeTitle = selectedPerspective?.title
     ?? selectedTopic?.name
     ?? 'Perspectiverse'
@@ -149,9 +149,7 @@ export default function App() {
     ? selectedTopic.name
     : selectedTopic
       ? `${selectedTopic.body?.name} · ${selectedTopic.category}`
-      : isMobile
-        ? 'Tap a cube to begin'
-        : 'Discourse Universe'
+      : SITE_TAGLINE
 
   return (
     <div
@@ -161,22 +159,25 @@ export default function App() {
       <SiteChrome
         drilled={drilled}
         title={chromeTitle}
-        subtitle={isMobile && !drilled ? 'Tap a cube to begin' : chromeSubtitle}
+        subtitle={chromeSubtitle}
+        tagline={!drilled}
         backLabel={selectedPerspective ? `Back to ${selectedTopic.name}` : 'Back to the sky'}
         onBack={stepBack}
         onOpenMenu={() => setMenuOpen(true)}
       />
-      <Observatory
-        topics={visibleTopics}
-        selectedTopicId={selectedTopicId}
-        selectedPerspectiveId={selectedPerspectiveId}
-        category={category}
-        isMobile={isMobile}
-        volumeMax={volumeMax}
-        onSelectTopic={selectTopic}
-        onSelectPerspective={selectPerspective}
-        onClearSelection={clearSelection}
-      />
+      {showSky && (
+        <Observatory
+          topics={visibleTopics}
+          selectedTopicId={selectedTopicId}
+          selectedPerspectiveId={selectedPerspectiveId}
+          category={category}
+          isMobile={isMobile}
+          volumeMax={volumeMax}
+          onSelectTopic={selectTopic}
+          onSelectPerspective={selectPerspective}
+          onClearSelection={clearSelection}
+        />
+      )}
       <Sidebar
         data={data}
         topics={visibleTopics}
@@ -185,14 +186,10 @@ export default function App() {
         selectedTopic={selectedTopic}
         selectedPerspective={selectedPerspective}
         isMobile={isMobile}
-        volumeMax={volumeMax}
         onSelectTopic={selectTopic}
         onSelectPerspective={selectPerspective}
-        onSelectLocation={selectLocation}
         onClearSelection={clearSelection}
         onCategory={changeCategory}
-        engagementQuery={engagementQuery}
-        onEngagementQuery={setEngagementQuery}
       />
       <SiteMenu
         open={menuOpen}
@@ -204,7 +201,12 @@ export default function App() {
         onClose={() => setMenuOpen(false)}
         onCategory={changeCategory}
         onSelectTopic={selectTopic}
+        onShowWelcome={() => {
+          setMenuOpen(false)
+          setWelcomeOpen(true)
+        }}
       />
+      <WelcomeModal open={welcomeOpen} onClose={() => setWelcomeOpen(false)} />
     </div>
   )
 }

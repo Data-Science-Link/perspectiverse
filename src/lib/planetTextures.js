@@ -278,13 +278,34 @@ const SHADERS = {
   pluto: plutoShade,
 }
 
-export function createBodyTexture(key) {
-  const shade = SHADERS[key] ?? mercuryShade
-  return paintTexture(1024, 512, shade)
+export const TEXTURE_QUALITY = {
+  high: { body: [512, 256], ring: 384 },
+  medium: { body: [384, 192], ring: 256 },
+  low: { body: [256, 128], ring: 192 },
 }
 
-export function createRingTexture() {
-  const size = 512
+const bodyCache = new Map()
+const ringCache = new Map()
+
+export function textureSize(quality = 'high') {
+  return TEXTURE_QUALITY[quality]?.body ?? TEXTURE_QUALITY.high.body
+}
+
+export function createBodyTexture(key, quality = 'high') {
+  const shade = SHADERS[key] ?? mercuryShade
+  const cacheKey = `${key}:${quality}`
+  const hit = bodyCache.get(cacheKey)
+  if (hit) return hit
+  const [width, height] = textureSize(quality)
+  const texture = paintTexture(width, height, shade)
+  bodyCache.set(cacheKey, texture)
+  return texture
+}
+
+export function createRingTexture(quality = 'high') {
+  const hit = ringCache.get(quality)
+  if (hit) return hit
+  const size = TEXTURE_QUALITY[quality]?.ring ?? TEXTURE_QUALITY.high.ring
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
@@ -319,5 +340,6 @@ export function createRingTexture() {
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
   texture.needsUpdate = true
+  ringCache.set(quality, texture)
   return texture
 }

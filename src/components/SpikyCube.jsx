@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { BufferAttribute, BufferGeometry, DoubleSide } from 'three'
 import { rankPerspectives, spikeColor } from '../lib/colors'
@@ -6,9 +6,9 @@ import { CORE_RADIUS } from '../lib/faces'
 import { createBodyTexture, createRingTexture } from '../lib/planetTextures'
 import { faceHeight, polyhedron } from '../lib/polyhedra'
 
-function SaturnRings({ meshRef }) {
-  const texture = useMemo(() => createRingTexture(), [])
-  useEffect(() => () => texture.dispose(), [texture])
+function SaturnRings({ meshRef, quality = 'high' }) {
+  const texture = useMemo(() => createRingTexture(quality), [quality])
+  // Cached globally — do not dispose on unmount.
 
   return (
     <mesh ref={meshRef} rotation={[Math.PI / 2.15, 0.18, 0]} raycast={() => null}>
@@ -97,6 +97,8 @@ export default function SpikyCube({
   showSpikes = true,
   onSelectPerspective,
   interactive = true,
+  quality = 'high',
+  sphereDetail = [48, 36],
 }) {
   const reveal = useRef(showSpikes ? 1 : 0)
   const sphereMat = useRef()
@@ -104,21 +106,29 @@ export default function SpikyCube({
   const crystal = useRef()
   const ringMat = useRef()
   const ringMesh = useRef()
+  const [crystalReady, setCrystalReady] = useState(showSpikes)
 
   const texture = useMemo(
-    () => createBodyTexture(body?.key ?? 'mercury'),
-    [body?.key],
+    () => createBodyTexture(body?.key ?? 'mercury', quality),
+    [body?.key, quality],
   )
-  const crystalGeo = useMemo(() => buildCrystal(perspectives), [perspectives])
+  const crystalGeo = useMemo(
+    () => (crystalReady ? buildCrystal(perspectives) : null),
+    [crystalReady, perspectives],
+  )
+
+  useEffect(() => {
+    if (showSpikes) setCrystalReady(true)
+  }, [showSpikes])
 
   useEffect(() => () => {
-    texture.dispose()
+    if (!crystalGeo) return
     crystalGeo.core.dispose()
     for (const face of crystalGeo.faces) {
       face.extrusion.dispose()
       face.pick.dispose()
     }
-  }, [texture, crystalGeo])
+  }, [crystalGeo])
 
   useFrame((_, delta) => {
     const target = showSpikes && !dimmed ? 1 : 0
@@ -154,7 +164,7 @@ export default function SpikyCube({
   return (
     <group>
       <mesh ref={sphereMesh}>
-        <sphereGeometry args={[CORE_RADIUS, 64, 48]} />
+        <sphereGeometry args={[CORE_RADIUS, sphereDetail[0], sphereDetail[1]]} />
         <meshStandardMaterial
           ref={sphereMat}
           map={texture}
@@ -169,64 +179,67 @@ export default function SpikyCube({
       </mesh>
       {body?.rings && (
         <SaturnRings
+          quality={quality}
           meshRef={(node) => {
             ringMesh.current = node
             ringMat.current = node?.material ?? null
           }}
         />
       )}
-      <group ref={crystal}>
-        <mesh geometry={crystalGeo.core} raycast={() => null}>
-          <meshStandardMaterial
-            color="#161822"
-            emissive="#f4c14e"
-            emissiveIntensity={0.08}
-            roughness={0.42}
-            metalness={0.22}
-            flatShading
-          />
-        </mesh>
-        {crystalGeo.faces.map((face) => {
-          const selected = selectedPerspectiveId === face.id
-          return (
-            <group key={face.id} scale={selected ? 1.06 : 1}>
-              {interactive && (
-                <mesh
-                  geometry={face.pick}
-                  onClick={
-                    onSelectPerspective
-                      ? (event) => {
-                          event.stopPropagation()
-                          onSelectPerspective(face.id)
-                        }
-                      : undefined
-                  }
-                  onPointerOver={(event) => {
-                    event.stopPropagation()
-                    document.body.style.cursor = 'pointer'
-                  }}
-                  onPointerOut={() => {
-                    document.body.style.cursor = 'auto'
-                  }}
-                >
-                  <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      {crystalGeo && (
+        <group ref={crystal}>
+          <mesh geometry={crystalGeo.core} raycast={() => null}>
+            <meshStandardMaterial
+              color="#161822"
+              emissive="#f4c14e"
+              emissiveIntensity={0.08}
+              roughness={0.42}
+              metalness={0.22}
+              flatShading
+            />
+          </mesh>
+          {crystalGeo.faces.map((face) => {
+            const selected = selectedPerspectiveId === face.id
+            return (
+              <group key={face.id} scale={selected ? 1.06 : 1}>
+                {interactive && (
+                  <mesh
+                    geometry={face.pick}
+                    onClick={
+                      onSelectPerspective
+                        ? (event) => {
+                            event.stopPropagation()
+                            onSelectPerspective(face.id)
+                          }
+                        : undefined
+                    }
+                    onPointerOver={(event) => {
+                      event.stopPropagation()
+                      document.body.style.cursor = 'pointer'
+                    }}
+                    onPointerOut={() => {
+                      document.body.style.cursor = 'auto'
+                    }}
+                  >
+                    <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+                  </mesh>
+                )}
+                <mesh geometry={face.extrusion} raycast={() => null}>
+                  <meshStandardMaterial
+                    color={face.color}
+                    emissive={face.color}
+                    emissiveIntensity={selected ? 1.55 : 0.38}
+                    roughness={0.26}
+                    metalness={0.14}
+                    flatShading
+                    toneMapped={false}
+                  />
                 </mesh>
-              )}
-              <mesh geometry={face.extrusion} raycast={() => null}>
-                <meshStandardMaterial
-                  color={face.color}
-                  emissive={face.color}
-                  emissiveIntensity={selected ? 1.55 : 0.38}
-                  roughness={0.26}
-                  metalness={0.14}
-                  flatShading
-                  toneMapped={false}
-                />
-              </mesh>
-            </group>
-          )
-        })}
-      </group>
+              </group>
+            )
+          })}
+        </group>
+      )}
     </group>
   )
 }
