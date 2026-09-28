@@ -38,6 +38,11 @@ for (const topic of payload.topics) {
   let faceVolume = 0
   for (const face of topic.perspectives) {
     if (!face.title || !face.summary) fail(`Face ${face.id} missing title or summary`)
+    if (payload.mode === 'demo') {
+      if (!Array.isArray(face.arguments) || face.arguments.length < 2) {
+        fail(`Demo face ${face.id} missing core arguments`)
+      }
+    }
     if (!face.representative_posts?.length) fail(`Face ${face.id} missing posts`)
     for (const post of face.representative_posts) {
       if (typeof post.likes !== 'number') fail(`Face ${face.id} post missing likes`)

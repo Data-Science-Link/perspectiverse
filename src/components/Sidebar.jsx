@@ -225,6 +225,7 @@ function PerspectivePanel({
     faceOpacity(perspective.volume_percent, ranked[0]?.volume_percent),
   )
   const posts = sortPosts(perspective.representative_posts)
+  const argumentsList = (perspective.arguments ?? []).filter((item) => String(item).trim())
 
   return (
     <div className="panel is-face">
@@ -237,7 +238,19 @@ function PerspectivePanel({
       <h1>{perspective.title}</h1>
       <p className="lede">{perspective.summary}</p>
       <MiniCube topic={topic} selectedPerspectiveId={perspective.id} />
-      <p className="caveat">This one-line summary smooths over disagreement inside this view.</p>
+      {argumentsList.length > 0 && (
+        <section className="argument-card">
+          <h2>Core arguments</h2>
+          <p className="topic-row-meta">
+            A steelman of this view — the strongest version of what these posts are saying.
+          </p>
+          <ul>
+            {argumentsList.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div
         className="perspective-stat"
         style={{ borderColor: hexToRgba(planetColor, 0.4), background: hexToRgba(planetColor, 0.08) }}
@@ -247,7 +260,7 @@ function PerspectivePanel({
       </div>
       <div className="post-feed">
         <h2>Example posts</h2>
-        <p className="topic-row-meta">A sample of posts from this view, sorted by likes.</p>
+        <p className="topic-row-meta">Posts from this view, sorted by likes — the raw talk behind the steelman.</p>
         {posts.map((post) => (
           <article key={`${post.author}-${post.likes}-${post.text.slice(0, 24)}`} className="post-card">
             <header>

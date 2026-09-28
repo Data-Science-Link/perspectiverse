@@ -134,8 +134,20 @@ test.describe('Perspectiverse views', () => {
     }
 
     await page.getByRole('button', { name: /Job Displacement/ }).click()
+    await expect(page.getByRole('heading', { name: 'Core arguments' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
-    await expect(page.locator('.caveat')).toContainText('smooths over disagreement')
+    await expect(page.locator('.argument-card')).toContainText('payroll')
+    await expect(page.locator('.caveat')).toHaveCount(0)
+
+    await page.getByRole('button', { name: /Back to AI Futures/ }).click()
+    await page.getByRole('button', { name: /All topics|Back to the solar system/ }).click()
+    await page.getByLabel('Choose which topics fill the solar system').first().selectOption('Education')
+    await page.getByRole('button', { name: /School Safety/ }).first().click()
+    await expect(page.getByRole('heading', { name: 'School Safety' })).toBeVisible()
+    await page.getByRole('button', { name: /Drills/ }).click()
+    await expect(page.locator('.argument-card')).toContainText('lockdown')
+    await expect(page.getByText(/shorter name/)).toHaveCount(0)
+    await expect(page.getByText(/third reply/)).toHaveCount(0)
   })
 
   test('hamburger opens site pages with methodology graphics', async ({ page }) => {

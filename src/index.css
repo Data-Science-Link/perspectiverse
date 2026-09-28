@@ -727,7 +727,8 @@ h3 {
 }
 
 .demo-banner,
-.caveat {
+.caveat,
+.argument-card {
   margin: 0 0 1rem;
   padding: 0.75rem 0.85rem;
   border: 1px solid rgba(244, 193, 78, 0.45);
@@ -736,6 +737,26 @@ h3 {
   color: #f4e2b0;
   font-size: 0.92rem;
   line-height: 1.45;
+}
+
+.argument-card h2 {
+  margin: 0 0 0.35rem;
+  color: #f4e2b0;
+  font-size: 1rem;
+}
+
+.argument-card .topic-row-meta {
+  margin: 0 0 0.7rem;
+  color: rgba(244, 226, 176, 0.72);
+}
+
+.argument-card ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.argument-card li + li {
+  margin-top: 0.45rem;
 }
 
 .sr-only {

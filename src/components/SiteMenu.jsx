@@ -115,7 +115,7 @@ export default function SiteMenu({
           <ul>
             <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
             <li>Bigger planet = more people were talking about that topic this week.</li>
-            <li>Tap a planet to open its opinions. Tap a face to read example posts. The longest, most solid spike is the majority.</li>
+            <li>Tap a planet to open its opinions. Tap a face to read its core arguments and the posts behind them. The longest, most solid spike is the majority.</li>
             <li>After you open a planet, drag the shape to turn it. Scroll or pinch to zoom.</li>
           </ul>
         </section>
