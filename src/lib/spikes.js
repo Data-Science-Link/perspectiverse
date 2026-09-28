@@ -9,19 +9,21 @@ const _mixed = new Vector3()
 const _apex = new Vector3()
 
 export function spikeDetail(quality = 'high') {
-  if (quality === 'low') return { rings: 6, segsPerEdge: 4 }
-  if (quality === 'medium') return { rings: 8, segsPerEdge: 5 }
-  return { rings: 10, segsPerEdge: 6 }
+  if (quality === 'low') return { rings: 7, segsPerEdge: 5 }
+  if (quality === 'medium') return { rings: 9, segsPerEdge: 6 }
+  return { rings: 12, segsPerEdge: 8 }
 }
 
 export function spikeProfile(t) {
-  const clamped = Math.min(1, Math.max(0, t))
-  return Math.cos((clamped * Math.PI) / 2)
+  const x = Math.min(1, Math.max(0, t))
+  // Mostly linear, like a pencil point, with a little extra inset so the
+  // join with the cube is not a hard crease.
+  return 1 - 1.08 * x + 0.08 * x * x
 }
 
 export function spikeRounding(t) {
-  const clamped = Math.min(1, Math.max(0, t))
-  return 0.04 + 0.78 * clamped * clamped
+  const x = Math.min(1, Math.max(0, t))
+  return Math.min(0.88, 0.05 + 1.35 * x * x)
 }
 
 function faceCentroid(vertices) {
@@ -71,14 +73,6 @@ function pushTriangle(target, a, b, c) {
   target.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)
 }
 
-function triangulate(vertices, loop) {
-  const triangles = []
-  for (let index = 1; index < loop.length - 1; index += 1) {
-    triangles.push([vertices[loop[0]], vertices[loop[index]], vertices[loop[index + 1]]])
-  }
-  return triangles
-}
-
 function geometryFromTriangles(triangles) {
   const positions = []
   for (const [a, b, c] of triangles) pushTriangle(positions, a, b, c)
@@ -96,7 +90,8 @@ export function buildPencilSpike(verts, centroid, normal, height, { rings, segsP
 
   for (let r = 0; r < ringCount; r += 1) {
     const t = r / rings
-    const ring = sampleFaceRing(verts, centroid, segsPerEdge, spikeProfile(t), spikeRounding(t))
+    const radiusScale = Math.max(spikeProfile(t), 0.018)
+    const ring = sampleFaceRing(verts, centroid, segsPerEdge, radiusScale, spikeRounding(t))
     const along = height * t
     for (const point of ring) {
       point.addScaledVector(normal, along)
@@ -131,7 +126,6 @@ export function buildPencilSpike(verts, centroid, normal, height, { rings, segsP
 export function buildCrystal(perspectives, quality = 'high') {
   const ranked = rankPerspectives(perspectives)
   const solid = polyhedron(ranked.length)
-  const coreTriangles = []
   const detail = spikeDetail(quality)
   const faces = ranked.map((perspective, index) => {
     const loop = solid.faces[index]
@@ -140,7 +134,6 @@ export function buildCrystal(perspectives, quality = 'high') {
     const centroid = faceCentroid(verts)
     const height = faceHeight(perspective.volume_percent)
     const pickApex = centroid.clone().addScaledVector(normal, height * 1.25)
-    coreTriangles.push(...triangulate(solid.vertices, loop))
     const pick = []
     for (let edge = 0; edge < verts.length; edge += 1) {
       const a = verts[edge]
@@ -158,8 +151,5 @@ export function buildCrystal(perspectives, quality = 'high') {
     }
   })
 
-  return {
-    core: geometryFromTriangles(coreTriangles),
-    faces,
-  }
+  return { faces }
 }

@@ -10,10 +10,11 @@ import {
 } from '../src/lib/spikes.js'
 
 assert.equal(spikeProfile(0), 1)
-assert.ok(spikeProfile(1) < 1e-10)
-assert.ok(spikeProfile(0.5) > 0.6)
+assert.ok(Math.abs(spikeProfile(1)) < 1e-10)
+assert.ok(spikeProfile(0.5) > 0.35 && spikeProfile(0.5) < 0.55)
+assert.ok(spikeProfile(0.25) > spikeProfile(0.75))
 assert.ok(spikeRounding(1) > spikeRounding(0))
-assert.equal(spikeDetail('low').rings, 6)
+assert.equal(spikeDetail('low').rings, 7)
 assert.ok(spikeDetail('high').segsPerEdge > spikeDetail('low').segsPerEdge)
 
 const cube = polyhedron(6)
@@ -71,16 +72,14 @@ const tetra = buildCrystal(
 assert.equal(tetra.faces.length, 4)
 assert.ok(tetra.faces.every((face) => face.sides === 3))
 
-crystal.core.dispose()
-for (const face of crystal.faces) {
+crystal.faces.forEach((face) => {
   face.extrusion.dispose()
   face.pick.dispose()
-}
-tetra.core.dispose()
-for (const face of tetra.faces) {
+})
+tetra.faces.forEach((face) => {
   face.extrusion.dispose()
   face.pick.dispose()
-}
+})
 spike.dispose()
 
 console.log('pencil spikes cover every cube side and taper to a point')

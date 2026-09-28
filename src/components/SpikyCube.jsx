@@ -92,7 +92,6 @@ export default function SpikyCube({
 
   useEffect(() => () => {
     if (!crystalGeo) return
-    crystalGeo.core.dispose()
     for (const face of crystalGeo.faces) {
       face.extrusion.dispose()
       face.pick.dispose()
@@ -170,15 +169,6 @@ export default function SpikyCube({
       )}
       {crystalGeo && (
         <group ref={crystal}>
-          <mesh geometry={crystalGeo.core} raycast={() => null}>
-            <meshStandardMaterial
-              color="#161822"
-              emissive="#f4c14e"
-              emissiveIntensity={0.08}
-              roughness={0.42}
-              metalness={0.22}
-            />
-          </mesh>
           {crystalGeo.faces.map((face) => {
             const selected = selectedPerspectiveId === face.id
             return (
@@ -210,8 +200,9 @@ export default function SpikyCube({
                     color={face.color}
                     emissive={face.color}
                     emissiveIntensity={selected ? 1.55 : 0.38}
-                    roughness={0.22}
-                    metalness={0.08}
+                    roughness={0.34}
+                    metalness={0.06}
+                    side={DoubleSide}
                     toneMapped={false}
                     polygonOffset
                     polygonOffsetFactor={-1}
