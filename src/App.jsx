@@ -3,10 +3,12 @@ import Observatory from './components/Observatory'
 import Sidebar from './components/Sidebar'
 import SiteChrome from './components/SiteChrome'
 import SiteMenu from './components/SiteMenu'
+import SitePage from './components/SitePage'
 import WelcomeModal from './components/WelcomeModal'
 import { CATEGORIES, categoryCounts, skyMaxVolume, skyTopics } from './lib/categories'
 import { SITE_TAGLINE, isWelcomeHidden } from './lib/copy'
 import { readSelectionFromURL, resetScroll, writeSelectionToURL } from './lib/navigation'
+import { pageById } from './lib/pages'
 import { useIsMobile } from './lib/useMediaQuery'
 
 function initialSelection() {
@@ -20,6 +22,7 @@ export default function App() {
   const [category, setCategory] = useState(boot.category)
   const [selectedTopicId, setSelectedTopicId] = useState(boot.topicId)
   const [selectedPerspectiveId, setSelectedPerspectiveId] = useState(boot.perspectiveId)
+  const [page, setPage] = useState(boot.page)
   const [menuOpen, setMenuOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(false)
   const isMobile = useIsMobile()
@@ -39,10 +42,10 @@ export default function App() {
           (a, b) => b.total_volume_percent - a.total_volume_percent,
         )
         setData({ ...payload, topics })
-        if (!isWelcomeHidden()) setWelcomeOpen(true)
+        if (!isWelcomeHidden() && !boot.page) setWelcomeOpen(true)
       })
       .catch((err) => setError(err.message))
-  }, [])
+  }, [boot.page])
 
   const visibleTopics = useMemo(
     () => (data ? skyTopics(data.topics, category) : []),
@@ -63,31 +66,41 @@ export default function App() {
     setCategory(next.category)
     setSelectedTopicId(next.topicId)
     setSelectedPerspectiveId(next.perspectiveId)
-    writeSelectionToURL(next, mode)
+    setPage(next.page ?? null)
+    writeSelectionToURL({ ...next, page: next.page ?? null }, mode)
   }
 
   const selectTopic = (topicId) => {
-    commitSelection({ category, topicId, perspectiveId: null })
+    commitSelection({ category, topicId, perspectiveId: null, page: null })
   }
 
   const selectPerspective = (perspectiveId) => {
-    commitSelection({ category, topicId: selectedTopicId, perspectiveId })
+    commitSelection({ category, topicId: selectedTopicId, perspectiveId, page: null })
+  }
+
+  const openPage = (pageId) => {
+    commitSelection({ category, topicId: null, perspectiveId: null, page: pageId })
+    setMenuOpen(false)
   }
 
   const stepBack = () => {
-    if (selectedPerspectiveId) {
-      commitSelection({ category, topicId: selectedTopicId, perspectiveId: null })
+    if (page) {
+      commitSelection({ category, topicId: null, perspectiveId: null, page: null })
       return
     }
-    commitSelection({ category, topicId: null, perspectiveId: null })
+    if (selectedPerspectiveId) {
+      commitSelection({ category, topicId: selectedTopicId, perspectiveId: null, page: null })
+      return
+    }
+    commitSelection({ category, topicId: null, perspectiveId: null, page: null })
   }
 
   const clearSelection = () => {
-    commitSelection({ category, topicId: null, perspectiveId: null })
+    commitSelection({ category, topicId: null, perspectiveId: null, page: null })
   }
 
   const changeCategory = (next) => {
-    commitSelection({ category: next, topicId: null, perspectiveId: null })
+    commitSelection({ category: next, topicId: null, perspectiveId: null, page: null })
   }
 
   useEffect(() => {
@@ -100,6 +113,7 @@ export default function App() {
       setCategory(snap.category)
       setSelectedTopicId(snap.topicId)
       setSelectedPerspectiveId(snap.perspectiveId)
+      setPage(snap.page)
     }
     window.addEventListener('popstate', onPop)
     return () => {
@@ -112,16 +126,26 @@ export default function App() {
 
   useLayoutEffect(() => {
     resetScroll(shellRef.current)
-  }, [selectedTopicId, selectedPerspectiveId, menuOpen, welcomeOpen])
+  }, [selectedTopicId, selectedPerspectiveId, page, menuOpen, welcomeOpen])
 
   useEffect(() => {
     if (!data) return
     if (!selectedTopicId) return
     if (selectedTopic) return
-    writeSelectionToURL({ category, topicId: null, perspectiveId: null }, 'replace')
+    writeSelectionToURL({ category, topicId: null, perspectiveId: null, page }, 'replace')
     setSelectedTopicId(null)
     setSelectedPerspectiveId(null)
-  }, [data, selectedTopic, selectedTopicId, category])
+  }, [data, selectedTopic, selectedTopicId, category, page])
+
+  useEffect(() => {
+    const meta = pageById(page)
+    document.title = meta
+      ? `${meta.title} | Perspectiverse`
+      : 'Perspectiverse | Discourse Universe'
+    return () => {
+      document.title = 'Perspectiverse | Discourse Universe'
+    }
+  }, [page])
 
   if (error) {
     return (
@@ -141,31 +165,43 @@ export default function App() {
     )
   }
 
-  const drilled = Boolean(selectedTopic)
-  const showSky = !(isMobile && drilled)
-  const chromeTitle = selectedPerspective?.title
+  const sitePage = pageById(page)
+  const drilled = Boolean(selectedTopic) || Boolean(sitePage)
+  const showSky = !sitePage && !(isMobile && selectedTopic)
+  const chromeTitle = sitePage?.title
+    ?? selectedPerspective?.title
     ?? selectedTopic?.name
     ?? 'Perspectiverse'
-  const chromeSubtitle = selectedPerspective
-    ? selectedTopic.name
-    : selectedTopic
-      ? `${selectedTopic.body?.name} · ${selectedTopic.category}`
-      : SITE_TAGLINE
+  const chromeSubtitle = sitePage
+    ? sitePage.subtitle
+    : selectedPerspective
+      ? selectedTopic.name
+      : selectedTopic
+        ? `${selectedTopic.body?.name} · ${selectedTopic.category}`
+        : SITE_TAGLINE
+  const backLabel = sitePage
+    ? 'Back to the solar system'
+    : selectedPerspective
+      ? `Back to ${selectedTopic.name}`
+      : 'Back to the solar system'
 
   return (
     <div
       ref={shellRef}
-      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${drilled ? 'is-drilled' : ''}`}
+      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
     >
       <SiteChrome
         drilled={drilled}
         title={chromeTitle}
         subtitle={chromeSubtitle}
-        tagline={!drilled}
-        backLabel={selectedPerspective ? `Back to ${selectedTopic.name}` : 'Back to the solar system'}
+        tagline={!selectedTopic}
+        backLabel={backLabel}
         onBack={stepBack}
         onOpenMenu={() => setMenuOpen(true)}
       />
+      {sitePage && (
+        <SitePage pageId={sitePage.id} data={data} onOpenPage={openPage} />
+      )}
       {showSky && (
         <Observatory
           topics={visibleTopics}
@@ -179,29 +215,32 @@ export default function App() {
           onClearSelection={clearSelection}
         />
       )}
-      <Sidebar
-        data={data}
-        topics={visibleTopics}
-        categories={CATEGORIES}
-        category={category}
-        selectedTopic={selectedTopic}
-        selectedPerspective={selectedPerspective}
-        isMobile={isMobile}
-        onSelectTopic={selectTopic}
-        onSelectPerspective={selectPerspective}
-        onClearSelection={clearSelection}
-        onCategory={changeCategory}
-      />
+      {!sitePage && (
+        <Sidebar
+          data={data}
+          topics={visibleTopics}
+          categories={CATEGORIES}
+          category={category}
+          selectedTopic={selectedTopic}
+          selectedPerspective={selectedPerspective}
+          isMobile={isMobile}
+          onSelectTopic={selectTopic}
+          onSelectPerspective={selectPerspective}
+          onClearSelection={clearSelection}
+          onCategory={changeCategory}
+        />
+      )}
       <SiteMenu
         open={menuOpen}
-        data={data}
         topics={visibleTopics}
         categories={CATEGORIES}
         category={category}
         counts={categoryCounts(data.topics)}
+        currentPage={page}
         onClose={() => setMenuOpen(false)}
         onCategory={changeCategory}
         onSelectTopic={selectTopic}
+        onOpenPage={openPage}
         onShowWelcome={() => {
           setMenuOpen(false)
           setWelcomeOpen(true)

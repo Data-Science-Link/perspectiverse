@@ -8,7 +8,7 @@ The analytical sidebar reacts to the solar system. Filter by category with the *
 
 This is not social listening, brand monitoring, or a poll. Those tools start from a query, a named entity, or a survey instrument. Perspectiverse starts from a week of public posts and keeps the ten largest topics, each cut into two to six perspectives. [Similar Products and Differentiation](project_documentation/Similar%20Products%20and%20Differentiation.md) maps the neighboring categories — monitoring, listening, civic deliberation, news-literacy, researcher topic maps — and says what this observatory adds.
 
-On a phone the solar system stays up front: tagline, a short prompt, and a rail of planets. Opening a planet jumps to a tight topic page (summary + its perspectives). Opening a perspective turns that face toward you and shows representative posts, always from the top, with a back arrow and the browser back button wired to the same stack. The hamburger holds project info, filters, and feedback.
+On a phone the solar system stays up front: tagline, a short prompt, and a rail of planets. Opening a planet jumps to a tight topic page (summary + its perspectives). Opening a perspective turns that face toward you and shows representative posts, always from the top, with a back arrow and the browser back button wired to the same stack. The hamburger opens About, the author, methodology (with connection diagrams), FAQ, and donate, plus filters and feedback.
 
 Bodies keep solar-system skins in volume order: the largest topic is the Sun, then Mercury through Pluto.
 

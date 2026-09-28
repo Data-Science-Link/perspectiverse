@@ -1,11 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { SITE_TAGLINE } from '../lib/copy'
+import { FEEDBACK_URL, SITE_PAGES } from '../lib/pages'
 import { hexToRgba } from '../lib/colors'
 import { formatPercent } from '../lib/layout'
 import SkySelect from './SkySelect'
-
-const FEEDBACK_URL =
-  'https://github.com/Data-Science-Link/perspectiverse/issues/new?title=Feedback'
 
 function CloseIcon() {
   return (
@@ -15,16 +13,25 @@ function CloseIcon() {
   )
 }
 
+function ChevronIcon() {
+  return (
+    <svg className="menu-page-chevron" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  )
+}
+
 export default function SiteMenu({
   open,
-  data,
   topics,
   categories,
   category,
   counts,
+  currentPage = null,
   onClose,
   onCategory,
   onSelectTopic,
+  onOpenPage,
   onShowWelcome,
 }) {
   const closeRef = useRef(null)
@@ -63,25 +70,32 @@ export default function SiteMenu({
         </div>
 
         <section className="menu-section">
+          <h3>Pages</h3>
+          <nav className="menu-pages" aria-label="Site pages">
+            {SITE_PAGES.map((page) => (
+              <button
+                key={page.id}
+                type="button"
+                className={`menu-page ${currentPage === page.id ? 'is-current' : ''}`}
+                aria-current={currentPage === page.id ? 'page' : undefined}
+                onClick={() => onOpenPage(page.id)}
+              >
+                <span>
+                  <strong>{page.menuLabel}</strong>
+                  <em>{page.subtitle}</em>
+                </span>
+                <ChevronIcon />
+              </button>
+            ))}
+          </nav>
+        </section>
+
+        <section className="menu-section">
           <h3>About the project</h3>
           <p>
             A week of public conversation as a solar system, so you can step out of an
             echo chamber. Bigger planets got more attention. Open one to see the main
             opinions, then check whether yours is the majority, a minority, or missing.
-          </p>
-          <p>
-            The largest topic sits in the center as the sun. The next nine orbit around
-            it as Mercury through Pluto. Size is share of attention, not importance.
-            Gold is the loudest opinion, then ember, sky, violet, jade, and rose.
-          </p>
-          <p>
-            Source: {data.mode === 'demo' || data.source === 'synthetic'
-              ? 'demo data (made-up example posts, not a live feed)'
-              : data.source === 'bluesky'
-                ? 'public English posts on Bluesky'
-                : 'the snapshot bundled with this page'}.
-            Window: the last {data.window_hours ?? 168} hours. Updated {data.last_updated}.
-            Only the ten largest topics are shown.
           </p>
           {onShowWelcome && (
             <button type="button" className="menu-feedback" onClick={onShowWelcome}>
@@ -97,15 +111,6 @@ export default function SiteMenu({
             <li>Bigger planet = more people were talking about that topic this week.</li>
             <li>Tap a planet to open its opinions. Tap a face to read example posts. Gold is the majority.</li>
             <li>After you open a planet, drag the shape to turn it. Scroll or pinch to zoom.</li>
-          </ul>
-        </section>
-
-        <section className="menu-section">
-          <h3>What this is not</h3>
-          <ul>
-            <li>Not a poll of everyone — a sample of public posts (often Bluesky), not humanity.</li>
-            <li>A face summary smooths over disagreement inside that view.</li>
-            <li>Posts that fit no planet are left out of the percentages.</li>
           </ul>
         </section>
 
