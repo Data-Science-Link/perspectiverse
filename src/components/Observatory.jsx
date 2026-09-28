@@ -203,7 +203,7 @@ export default function Observatory({
   }, [])
 
   const hint = selectedTopicId
-    ? 'Drag to turn this planet · Scroll to zoom · Tap a face to read its posts'
+    ? 'Drag to turn this planet · Scroll to zoom · Tap a face to read its arguments'
     : 'Drag to look around · Pinch or scroll to zoom · Tap a planet to open its views'
 
   return (
