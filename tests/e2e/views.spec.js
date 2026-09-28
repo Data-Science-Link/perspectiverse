@@ -31,7 +31,7 @@ async function observatoryStats(page) {
 }
 
 test.describe('Perspectiverse views', () => {
-  test('loads a living sky with onboarding, tagline, and orbit toggle', async ({ page }, testInfo) => {
+  test('loads a living solar system with onboarding, tagline, and orbit toggle', async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       window.localStorage.removeItem('perspectiverse.hide-welcome')
     })
@@ -91,7 +91,7 @@ test.describe('Perspectiverse views', () => {
 
     if (testInfo.project.name === 'mobile') {
       await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
-      await expect(page.getByText(/Drag the sky to look around/)).toBeVisible()
+      await expect(page.getByText(/Drag the solar system to look around/)).toBeVisible()
       const rail = page.getByLabel("Today's planets")
       await expect(rail).toBeVisible()
       await expect(rail.getByRole('button').first()).toContainText('AI Futures')
@@ -126,10 +126,11 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('heading', { name: 'AI Futures' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Opinions' })).toBeVisible()
     await expect(page.getByLabel('View colors, loudest first')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /Back to the sky|All topics/ })).toBeVisible()
-
     if (testInfo.project.name === 'mobile') {
+      await expect(page.getByRole('button', { name: '← Back to the solar system' })).toBeVisible()
       await expect(page.getByRole('banner').getByText('Back', { exact: true })).toBeVisible()
+    } else {
+      await expect(page.getByRole('button', { name: '← All topics' })).toBeVisible()
     }
 
     await page.getByRole('button', { name: /Job Displacement/ }).click()
@@ -156,8 +157,8 @@ test.describe('Perspectiverse views', () => {
 
     await menu.getByRole('button', { name: /Methodology/ }).click()
     await expect(page).toHaveURL(/page=methodology/)
-    await expect(page.getByRole('heading', { name: 'How the sky is made' })).toBeVisible()
-    await expect(page.getByRole('img', { name: /public talk to a sky/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'How the solar system is made' })).toBeVisible()
+    await expect(page.getByRole('img', { name: /public talk to a solar system/i })).toBeVisible()
     await expect(page.getByRole('img', { name: /Bluesky through the daily job/i })).toBeVisible()
     await expect(page.getByText('Bluesky public search')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Sample a week of talk' })).toBeVisible()

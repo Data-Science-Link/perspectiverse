@@ -4,8 +4,8 @@ export const SATURN_RING_RADIUS = 1.72
 export const ORBIT_CLEARANCE = 0.34
 const LABEL_PAD = 1.35
 
-export function topicScale(volumePercent, skyMaxPercent = 100) {
-  const relative = Math.max(0, Number(volumePercent) || 0) / Math.max(Number(skyMaxPercent) || 0, 0.01)
+export function topicScale(volumePercent, systemMaxPercent = 100) {
+  const relative = Math.max(0, Number(volumePercent) || 0) / Math.max(Number(systemMaxPercent) || 0, 0.01)
   return 0.38 + Math.min(relative, 1) * 1.05
 }
 
@@ -25,7 +25,7 @@ export function orbitRadius(index, isSun) {
   return fallbackOrbitRadius(index)
 }
 
-export function layoutSky(topics = [], volumeMax = 100) {
+export function layoutSolarSystem(topics = [], volumeMax = 100) {
   const items = topics.map((topic, index) => {
     const scale = topicScale(topic.total_volume_percent, volumeMax)
     const sun = index === 0 || topic.body?.key === 'sun'

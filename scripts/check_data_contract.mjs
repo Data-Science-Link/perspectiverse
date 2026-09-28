@@ -7,7 +7,7 @@ function fail(message) {
   process.exit(1)
 }
 
-const SKY_SIZE = 10
+const SYSTEM_SIZE = 10
 const categories = new Set([
   'Politics',
   'Sports',
@@ -21,8 +21,8 @@ const categories = new Set([
   'Religion',
 ])
 
-if (!Array.isArray(payload.topics) || payload.topics.length < SKY_SIZE) {
-  fail(`Expected at least ${SKY_SIZE} topics, found ${payload.topics?.length}`)
+if (!Array.isArray(payload.topics) || payload.topics.length < SYSTEM_SIZE) {
+  fail(`Expected at least ${SYSTEM_SIZE} topics, found ${payload.topics?.length}`)
 }
 
 const categoryCounts = Object.fromEntries([...categories].map((name) => [name, 0]))
@@ -50,7 +50,7 @@ for (const topic of payload.topics) {
 if (Math.abs(topicVolume - 100) > 0.15) fail(`Topics sum to ${topicVolume}`)
 if (payload.mode !== 'demo' && payload.mode !== 'live') fail('mode missing')
 if (payload.mode === 'demo') {
-  const short = [...categories].filter((name) => categoryCounts[name] < SKY_SIZE)
-  if (short.length) fail(`Demo catalog missing a full sky for: ${short.join(', ')}`)
+  const short = [...categories].filter((name) => categoryCounts[name] < SYSTEM_SIZE)
+  if (short.length) fail(`Demo catalog missing a full solar system for: ${short.join(', ')}`)
 }
 console.log('dist/data.json matches the observatory contract')

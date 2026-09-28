@@ -55,14 +55,14 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `src/components/Sidebar.jsx` | Welcome, topic, and face panels |
 | `src/components/WelcomeModal.jsx` | First-visit tour with don't-show-again |
 | `src/components/TwinklingStars.jsx` | Shader-based star twinkle |
-| `src/components/SkySelect.jsx` | Compact Solar System category dropdown |
+| `src/components/TopicFilter.jsx` | Compact Solar System category dropdown |
 | `src/components/SiteChrome.jsx` | Sticky header, tagline, back arrow, hamburger |
 | `src/components/SiteMenu.jsx` | Pages, how to read, filters, feedback |
 | `src/components/SitePage.jsx` | Vision, about, author, connect, methodology, FAQ, and donate views |
 | `src/components/MethodologyGraphics.jsx` | High-level connection graphic and technical systems map |
 | `src/lib/copy.js` | Title, tagline, Solar System label, welcome storage |
 | `src/lib/pages.js` | Site page ids, labels, and neighbor links |
-| `src/lib/skySettings.js` | Desktop vs mobile render budget |
+| `src/lib/solarSettings.js` | Desktop vs mobile render budget |
 | `src/lib/categories.js` | Category list and filter helper |
 | `src/lib/colors.js` | Planet and spike palette |
 | `src/lib/faces.js` | 2–6 spike layouts and shape names |
@@ -85,8 +85,8 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `UI & 3D Implementation Canvas_ Perspectiverse.md` | Frontend design and 3D visualization details |
 | `Similar Products and Differentiation.md` | Neighboring product categories and how this observatory differs |
 | `Planet Engagement Architecture.md` | Debate / LLM clerk design on the daily-static split |
-| `Custom Universe and Archive Architecture.md` | Retain posts, on-demand skies, Google plugin |
-| `Historical Skies and Topic Continuity.md` | Dated skies, trending vs stock, matching topic names across days |
+| `Custom Universe and Archive Architecture.md` | Retain posts, on-demand solar systems, Google plugin |
+| `Historical Solar Systems and Topic Continuity.md` | Dated solar systems, trending vs stock, matching topic names across days |
 
 ## Scripts & CI/CD
 
@@ -95,7 +95,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `scripts/security_check.sh` | Local Bandit and pip-audit |
 | `scripts/check_categories.mjs` | Category filter helper check |
 | `scripts/check_planets.mjs` | Solar-system order and selection URLs |
-| `scripts/check_sky.mjs` | Mobile/desktop render budget and tagline |
+| `scripts/check_solar.mjs` | Mobile/desktop render budget and tagline |
 | `scripts/check_pages.mjs` | Site page ids and `?page=` URLs |
 | `scripts/check_data_contract.mjs` | Asserts the built `dist/data.json` contract |
 | `.github/workflows/security-audit.yml` | Bandit + pip-audit on every push/PR, plus `workflow_dispatch` |

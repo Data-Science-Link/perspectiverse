@@ -3,13 +3,13 @@
 `lexical` is the default: TF-IDF and k-means, no model download.
 `bertopic` uses all-MiniLM-L6-v2 when that extra stack is installed.
 Topic -1 (below min_cluster_size, or beyond the catalog) is excluded from the
-denominator. The observatory always displays SKY_SIZE planets; catalog_size
-can be larger so category skies have enough topics to fill.
+denominator. The observatory always displays SYSTEM_SIZE planets; catalog_size
+can be larger so category solar systems have enough topics to fill.
 """
 
 from __future__ import annotations
 
-from pipeline.schema import SKY_SIZE
+from pipeline.schema import SYSTEM_SIZE
 from pipeline.cluster_math import cluster_kmeans, grow_clusters_to_min, salient_terms, vectorize
 
 
@@ -20,7 +20,7 @@ def cluster_texts(
     cluster_backend: str = "lexical",
     embedding_model: str = "all-MiniLM-L6-v2",
     seed: int = 0,
-    catalog_size: int = SKY_SIZE,
+    catalog_size: int = SYSTEM_SIZE,
 ) -> dict:
     """Return kept topics and per-post assignments (-1 is noise)."""
     if cluster_backend == "bertopic":
@@ -75,7 +75,7 @@ def _keep_top(
     raw_labels: list[int],
     term_lookup: dict[int, list[str]],
     min_cluster_size: int,
-    keep: int = SKY_SIZE,
+    keep: int = SYSTEM_SIZE,
 ) -> dict:
     labels = [int(label) for label in raw_labels]
     if len(texts) < keep * min_cluster_size:

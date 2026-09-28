@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { SITE_TAGLINE, SITE_TITLE, SOLAR_SYSTEM_LABEL, WELCOME_STORAGE_KEY } from '../src/lib/copy.js'
-import { skySettings } from '../src/lib/skySettings.js'
+import { solarSettings } from '../src/lib/solarSettings.js'
 import { TEXTURE_QUALITY, textureSize } from '../src/lib/planetTextures.js'
 import {
   bodyExtent,
   homeLookAt,
-  layoutSky,
+  layoutSolarSystem,
   orbitElements,
   orbitRadius,
   orbitsClear,
@@ -19,8 +19,8 @@ assert.match(SITE_TAGLINE, /perspective/i)
 assert.equal(SOLAR_SYSTEM_LABEL, 'Filter topics')
 assert.equal(WELCOME_STORAGE_KEY, 'perspectiverse.hide-welcome')
 
-const mobile = skySettings(true)
-const desktop = skySettings(false)
+const mobile = solarSettings(true)
+const desktop = solarSettings(false)
 
 assert.equal(mobile.bloom, false)
 assert.equal(mobile.dreiStars, 0)
@@ -48,13 +48,13 @@ const topics = decorateTopics(volumes.map((total_volume_percent, index) => ({
   total_volume_percent,
 })))
 const volumeMax = Math.max(...volumes)
-const layout = layoutSky(topics, volumeMax)
+const layout = layoutSolarSystem(topics, volumeMax)
 assert.equal(layout.radii[0], 0)
 assert.ok(orbitsClear(layout), 'equal-rank planets must keep a gap between surfaces')
 assert.ok(topicScale(volumeMax, volumeMax) < 1.6)
 assert.ok(bodyExtent(2.1, { rings: true }) > bodyExtent(2.1, {}))
 
-const crowded = layoutSky(
+const crowded = layoutSolarSystem(
   decorateTopics(Array.from({ length: 10 }, (_, index) => ({ id: index, total_volume_percent: 8 }))),
   8,
 )
@@ -77,4 +77,4 @@ const tilts = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => orbitElements(index, fa
 assert.ok(Math.max(...tilts) - Math.min(...tilts) > 0.8, 'orbital planes should not all hug the equator')
 assert.ok(tilts.some((tilt) => Math.abs(tilt - Math.PI / 2) < 0.65), 'at least one orbit should sit near a right angle')
 
-console.log('sky settings, tagline, and texture quality ok')
+console.log('solar system settings, tagline, and texture quality ok')

@@ -98,7 +98,7 @@ export default function WelcomeModal({ open, onClose }) {
             <ol>
               <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
               <li>Tap a planet to open its opinions, then tap a face to read posts.</li>
-              <li>Use <strong>Filter topics</strong> for Politics, Sports, and the rest — same sky, fewer planets.</li>
+              <li>Use <strong>Filter topics</strong> for Politics, Sports, and the rest — same solar system, fewer planets.</li>
             </ol>
           </section>
 

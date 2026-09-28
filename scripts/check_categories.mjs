@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { CATEGORIES, categoryCounts, filterTopics, skyTopics } from '../src/lib/categories.js'
+import { CATEGORIES, categoryCounts, filterTopics, solarTopics } from '../src/lib/categories.js'
 import { allocatePercents } from '../src/lib/layout.js'
 
 const topics = [
@@ -16,18 +16,18 @@ assert.equal(categoryCounts(topics).Politics, 0)
 assert.ok(CATEGORIES.includes('Entertainment'))
 assert.ok(CATEGORIES.includes('Religion'))
 
-const sportsSky = skyTopics(topics, 'Sports')
-assert.equal(sportsSky.length, 2)
-assert.equal(sportsSky[0].name, 'C')
-assert.equal(sportsSky[0].body.key, 'sun')
-assert.equal(sportsSky[1].body.key, 'mercury')
+const sportsSystem = solarTopics(topics, 'Sports')
+assert.equal(sportsSystem.length, 2)
+assert.equal(sportsSystem[0].name, 'C')
+assert.equal(sportsSystem[0].body.key, 'sun')
+assert.equal(sportsSystem[1].body.key, 'mercury')
 assert.equal(
-  Math.round(sportsSky.reduce((sum, topic) => sum + topic.total_volume_percent, 0) * 10),
+  Math.round(sportsSystem.reduce((sum, topic) => sum + topic.total_volume_percent, 0) * 10),
   1000,
 )
-assert.equal(sportsSky[0].total_volume_percent + sportsSky[1].total_volume_percent, 100)
+assert.equal(sportsSystem[0].total_volume_percent + sportsSystem[1].total_volume_percent, 100)
 
-const politicsLike = skyTopics(
+const politicsLike = solarTopics(
   [
     { id: 1, category: 'Politics', name: 'Border Policy', total_volume_percent: 3.7 },
     { id: 2, category: 'Politics', name: 'Voting Access', total_volume_percent: 2.3 },

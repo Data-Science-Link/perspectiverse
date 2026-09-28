@@ -671,21 +671,21 @@ h3 {
   padding: 1rem 1.5rem 0;
 }
 
-.sky-select {
+.topic-filter {
   display: flex;
   flex-direction: column;
   gap: 0.28rem;
   min-width: min(100%, 220px);
 }
 
-.sky-select span {
+.topic-filter span {
   color: var(--muted);
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.sky-select select {
+.topic-filter select {
   min-height: 40px;
   width: 100%;
   border: 1px solid var(--line);
@@ -697,7 +697,7 @@ h3 {
   font-size: 0.88rem;
 }
 
-.panel.is-mobile-home .sky-select {
+.panel.is-mobile-home .topic-filter {
   margin-bottom: 0.7rem;
 }
 

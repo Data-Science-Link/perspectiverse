@@ -1,14 +1,14 @@
 import { SOLAR_SYSTEM_LABEL } from '../lib/copy'
 
-export default function SkySelect({
+export default function TopicFilter({
   categories,
   category,
   counts,
   onCategory,
-  id = 'sky-select',
+  id = 'topic-filter',
 }) {
   return (
-    <label className="sky-select" htmlFor={id}>
+    <label className="topic-filter" htmlFor={id}>
       <span>{SOLAR_SYSTEM_LABEL}</span>
       <select
         id={id}

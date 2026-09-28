@@ -3,7 +3,7 @@ import { SITE_TAGLINE } from '../lib/copy'
 import { FEEDBACK_URL, SITE_PAGES } from '../lib/pages'
 import { hexToRgba } from '../lib/colors'
 import { formatPercent } from '../lib/layout'
-import SkySelect from './SkySelect'
+import TopicFilter from './TopicFilter'
 
 function CloseIcon() {
   return (
@@ -122,8 +122,8 @@ export default function SiteMenu({
 
         <section className="menu-section">
           <h3>Filter topics</h3>
-          <SkySelect
-            id="menu-sky-select"
+          <TopicFilter
+            id="menu-topic-filter"
             categories={categories}
             category={category}
             counts={counts}

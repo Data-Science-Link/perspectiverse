@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
-import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutSky, orbitElements, topicScale } from '../lib/layout'
-import { skySettings } from '../lib/skySettings'
+import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutSolarSystem, orbitElements, topicScale } from '../lib/layout'
+import { solarSettings } from '../lib/solarSettings'
 import { OrbitRing, default as Planet } from './Planet'
 import TwinklingStars from './TwinklingStars'
 
@@ -185,8 +185,8 @@ export default function Observatory({
   const [epoch, setEpoch] = useState(0)
   const [showOrbits, setShowOrbits] = useState(false)
   const remounts = useRef(0)
-  const settings = useMemo(() => skySettings(isMobile), [isMobile])
-  const layout = useMemo(() => layoutSky(topics, volumeMax), [topics, volumeMax])
+  const settings = useMemo(() => solarSettings(isMobile), [isMobile])
+  const layout = useMemo(() => layoutSolarSystem(topics, volumeMax), [topics, volumeMax])
   const home = useMemo(
     () => homeLookAt(isMobile, topics.length, layout.extent),
     [isMobile, topics.length, layout.extent],

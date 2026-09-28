@@ -15,10 +15,10 @@ export function OverviewGraphic() {
         role="img"
         aria-labelledby="overview-graphic-title overview-graphic-desc"
       >
-        <title id="overview-graphic-title">How Perspectiverse connects public talk to a sky you can look around</title>
+        <title id="overview-graphic-title">How Perspectiverse connects public talk to a solar system you can look around</title>
         <desc id="overview-graphic-desc">
           Public posts from a week of conversation are clustered once a day into ten topics.
-          Each topic splits into two to six opinions. You open the sky and check where you stand.
+          Each topic splits into two to six opinions. You open the solar system and check where you stand.
         </desc>
         <rect x="12" y="10" width="296" height="78" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
         <circle cx="46" cy="40" r="7" fill="#6ea8ff" />
@@ -59,7 +59,7 @@ export function OverviewGraphic() {
       </svg>
       <figcaption>
         Public posts become ten planets. Each planet opens into a few opinions.
-        You look around the sky — not a feed ranked for you.
+        You look around the solar system — not a feed ranked for you.
       </figcaption>
     </figure>
   )
@@ -118,7 +118,7 @@ const STAGES = [
     nodes: [
       {
         name: 'data.json',
-        detail: 'One snapshot: topics, faces, a few example posts. This is the whole public sky.',
+        detail: 'One snapshot: topics, faces, a few example posts. This is the whole public solar system.',
       },
       {
         name: 'GitHub Pages',

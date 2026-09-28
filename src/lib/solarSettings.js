@@ -1,4 +1,4 @@
-export function skySettings(isMobile) {
+export function solarSettings(isMobile) {
   if (isMobile) {
     return {
       dpr: 1,

@@ -31,8 +31,11 @@ jobs:
       - name: Planet order helper
         run: node scripts/check_planets.mjs
 
-      - name: Sky and onboarding helpers
-        run: node scripts/check_sky.mjs
+      - name: Pencil spike helper
+        run: node scripts/check_spikes.mjs
+
+      - name: Solar system and onboarding helpers
+        run: node scripts/check_solar.mjs
 
       - name: Site page helpers
         run: node scripts/check_pages.mjs
