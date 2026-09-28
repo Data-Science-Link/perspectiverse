@@ -1,6 +1,6 @@
 import { BufferAttribute, BufferGeometry, Vector3 } from 'three'
-import { rankPerspectives, spikeColor } from './colors.js'
-import { faceHeight, polyhedron } from './polyhedra.js'
+import { faceOpacity, rankPerspectives } from './colors.js'
+import { cubeSpikeFaces, faceHeight, polyhedron } from './polyhedra.js'
 
 const _from = new Vector3()
 const _poly = new Vector3()
@@ -73,6 +73,14 @@ function pushTriangle(target, a, b, c) {
   target.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)
 }
 
+function triangulate(vertices, loop) {
+  const triangles = []
+  for (let index = 1; index < loop.length - 1; index += 1) {
+    triangles.push([vertices[loop[0]], vertices[loop[index]], vertices[loop[index + 1]]])
+  }
+  return triangles
+}
+
 function geometryFromTriangles(triangles) {
   const positions = []
   for (const [a, b, c] of triangles) pushTriangle(positions, a, b, c)
@@ -123,33 +131,47 @@ export function buildPencilSpike(verts, centroid, normal, height, { rings, segsP
   return geometryFromIndexed(positions, indices)
 }
 
-export function buildCrystal(perspectives, quality = 'high') {
+export function buildCrystal(perspectives, { quality = 'high', pigment = '#f4c14e' } = {}) {
   const ranked = rankPerspectives(perspectives)
-  const solid = polyhedron(ranked.length)
+  const loudest = ranked[0]?.volume_percent ?? 0
+  const solid = polyhedron(6)
+  const spikeFaces = cubeSpikeFaces(ranked.length)
   const detail = spikeDetail(quality)
+  const coreTriangles = []
+  for (const loop of solid.faces) {
+    coreTriangles.push(...triangulate(solid.vertices, loop))
+  }
+
   const faces = ranked.map((perspective, index) => {
-    const loop = solid.faces[index]
+    const faceIndex = spikeFaces[index]
+    const loop = solid.faces[faceIndex]
     const verts = loop.map((vertexIndex) => solid.vertices[vertexIndex].clone())
-    const normal = solid.normals[index].clone()
+    const normal = solid.normals[faceIndex].clone()
     const centroid = faceCentroid(verts)
     const height = faceHeight(perspective.volume_percent)
-    const pickApex = centroid.clone().addScaledVector(normal, height * 1.25)
+    const lifted = verts.map((vertex) => vertex.clone().addScaledVector(normal, 0.018))
+    const liftedCentroid = centroid.clone().addScaledVector(normal, 0.018)
+    const pickApex = liftedCentroid.clone().addScaledVector(normal, height * 1.18)
     const pick = []
-    for (let edge = 0; edge < verts.length; edge += 1) {
-      const a = verts[edge]
-      const b = verts[(edge + 1) % verts.length]
+    for (let edge = 0; edge < lifted.length; edge += 1) {
+      const a = lifted[edge]
+      const b = lifted[(edge + 1) % lifted.length]
       pick.push([a, b, pickApex])
     }
     return {
       ...perspective,
       index,
-      sides: verts.length,
-      color: spikeColor(index),
+      sides: lifted.length,
+      color: pigment,
+      opacity: faceOpacity(perspective.volume_percent, loudest),
       direction: [normal.x, normal.y, normal.z],
-      extrusion: buildPencilSpike(verts, centroid, normal, height, detail),
+      extrusion: buildPencilSpike(lifted, liftedCentroid, normal, height, detail),
       pick: geometryFromTriangles(pick),
     }
   })
 
-  return { faces }
+  return {
+    core: geometryFromTriangles(coreTriangles),
+    faces,
+  }
 }

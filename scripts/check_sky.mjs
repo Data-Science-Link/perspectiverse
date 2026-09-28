@@ -6,6 +6,7 @@ import {
   bodyExtent,
   homeLookAt,
   layoutSky,
+  orbitElements,
   orbitRadius,
   orbitsClear,
   systemExtent,
@@ -50,7 +51,7 @@ const volumeMax = Math.max(...volumes)
 const layout = layoutSky(topics, volumeMax)
 assert.equal(layout.radii[0], 0)
 assert.ok(orbitsClear(layout), 'equal-rank planets must keep a gap between surfaces')
-assert.ok(topicScale(volumeMax, volumeMax) < 2.4)
+assert.ok(topicScale(volumeMax, volumeMax) < 1.6)
 assert.ok(bodyExtent(2.1, { rings: true }) > bodyExtent(2.1, {}))
 
 const crowded = layoutSky(
@@ -62,12 +63,18 @@ assert.ok(orbitsClear(crowded), 'same-size planets still get their own lane')
 const outer = orbitRadius(9, false)
 const extent = systemExtent(10, layout.extent)
 assert.ok(extent > layout.radii[9])
+assert.ok(layout.radii[9] < 24, `orbits still too wide: ${layout.radii[9]}`)
 for (const isMobile of [false, true]) {
   const home = homeLookAt(isMobile, 10, layout.extent)
   const distance = Math.hypot(home[0], home[1], home[2])
   assert.ok(distance > extent, `home camera too close on ${isMobile ? 'mobile' : 'desktop'}: ${distance}`)
-  assert.ok(home[1] > 8)
+  assert.ok(distance < extent * 3.1, `home camera too far on ${isMobile ? 'mobile' : 'desktop'}: ${distance}`)
+  assert.ok(home[1] > 3)
   assert.ok(home[2] > outer * 0.4)
 }
+
+const tilts = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => orbitElements(index, false, `topic-${index}`).inclination)
+assert.ok(Math.max(...tilts) - Math.min(...tilts) > 0.8, 'orbital planes should not all hug the equator')
+assert.ok(tilts.some((tilt) => Math.abs(tilt - Math.PI / 2) < 0.65), 'at least one orbit should sit near a right angle')
 
 console.log('sky settings, tagline, and texture quality ok')

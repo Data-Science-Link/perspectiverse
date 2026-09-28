@@ -1,12 +1,12 @@
 export const PLANET_MESH_RADIUS = 0.95
 export const SUN_HALO_RADIUS = 1.28
 export const SATURN_RING_RADIUS = 1.72
-export const ORBIT_CLEARANCE = 0.72
-const LABEL_PAD = 2.6
+export const ORBIT_CLEARANCE = 0.34
+const LABEL_PAD = 1.35
 
 export function topicScale(volumePercent, skyMaxPercent = 100) {
   const relative = Math.max(0, Number(volumePercent) || 0) / Math.max(Number(skyMaxPercent) || 0, 0.01)
-  return 0.4 + Math.min(relative, 1) * 1.7
+  return 0.38 + Math.min(relative, 1) * 1.05
 }
 
 export function bodyExtent(scale, { sun = false, rings = false } = {}) {
@@ -17,7 +17,7 @@ export function bodyExtent(scale, { sun = false, rings = false } = {}) {
 }
 
 function fallbackOrbitRadius(index) {
-  return 4.4 + index * 2.6
+  return 3.1 + index * 1.85
 }
 
 export function orbitRadius(index, isSun) {
@@ -82,15 +82,15 @@ export function homeLookAt(isMobile = false, planetCount = 10, layoutExtent = nu
   const extent = systemExtent(planetCount, layoutExtent)
   const fov = isMobile ? 48 : 42
   const half = (fov * Math.PI) / 360
-  const distance = (extent / Math.sin(half)) * (isMobile ? 1.16 : 1.08)
-  const y = distance * (isMobile ? 0.38 : 0.44)
+  const distance = (extent / Math.sin(half)) * (isMobile ? 1.04 : 1.0)
+  const y = distance * (isMobile ? 0.26 : 0.32)
   const z = Math.sqrt(Math.max(distance * distance - y * y, 1))
   return [0, y, z, 0, 0, 0]
 }
 
 export function homeMaxDistance(isMobile = false, planetCount = 10, layoutExtent = null) {
   const [x, y, z] = homeLookAt(isMobile, planetCount, layoutExtent)
-  return Math.hypot(x, y, z) * 1.4
+  return Math.hypot(x, y, z) * 1.35
 }
 
 function unitHash(seed) {
@@ -108,6 +108,13 @@ function seedFrom(id, index) {
   return (hash >>> 0) + index * 97
 }
 
+function randomUnit(seedA, seedB) {
+  const z = unitHash(seedA) * 2 - 1
+  const theta = unitHash(seedB) * Math.PI * 2
+  const radial = Math.sqrt(Math.max(1 - z * z, 0))
+  return [radial * Math.cos(theta), z, radial * Math.sin(theta)]
+}
+
 export function orbitElements(index, isSun, id, radius = null) {
   if (isSun) {
     return { radius: 0, speed: 0, inclination: 0, node: 0, phase: 0 }
@@ -117,10 +124,10 @@ export function orbitElements(index, isSun, id, radius = null) {
   const kepler = 0.105 / Math.sqrt(index + 1.55)
   const speedScale = 0.58 + unitHash(seed + 11) * 1.05
   const direction = unitHash(seed + 23) >= 0.5 ? 1 : -1
-  const tiltSign = unitHash(seed + 37) >= 0.5 ? 1 : -1
-  const inclination = tiltSign * (0.08 + unitHash(seed + 41) * 0.14)
-  const node = (index * 2.399963229) + unitHash(seed + 53) * 0.4
-  const phase = (index * 2.399963229) + unitHash(seed + 67) * 0.5
+  // Uniform random orbital plane: some sit near the equator, some near a right angle.
+  const inclination = Math.acos(Math.min(1, Math.max(-1, 2 * unitHash(seed + 41) - 1)))
+  const node = unitHash(seed + 53) * Math.PI * 2
+  const phase = (index * 2.399963229) + unitHash(seed + 67) * 0.7
 
   return {
     radius: radius ?? orbitRadius(index, false),
@@ -128,6 +135,15 @@ export function orbitElements(index, isSun, id, radius = null) {
     inclination,
     node,
     phase,
+  }
+}
+
+export function bodySpin(id, index = 0) {
+  const seed = seedFrom(id, index)
+  const speed = 0.28 + unitHash(seed + 97) * 0.22
+  return {
+    axis: randomUnit(seed + 71, seed + 83),
+    speed,
   }
 }
 
@@ -156,6 +172,54 @@ export function formatNumber(value) {
 
 export function formatPercent(value) {
   return `${Number(value).toFixed(1)}%`
+}
+
+export function allocatePercents(weights = [], decimals = 1) {
+  const count = weights.length
+  if (count === 0) return []
+  const scale = 10 ** decimals
+  const target = 100 * scale
+  const numeric = weights.map((value) => Math.max(0, Number(value) || 0))
+  const total = numeric.reduce((sum, value) => sum + value, 0)
+  if (total <= 0) {
+    const even = Math.floor(target / count)
+    const parts = Array.from({ length: count }, () => even)
+    let leftover = target - even * count
+    for (let index = 0; leftover > 0; index += 1, leftover -= 1) {
+      parts[index % count] += 1
+    }
+    return parts.map((value) => value / scale)
+  }
+
+  const raw = numeric.map((value) => (value / total) * target)
+  const floors = raw.map((value) => Math.floor(value + 1e-9))
+  let remainder = target - floors.reduce((sum, value) => sum + value, 0)
+  const order = raw
+    .map((value, index) => ({ index, frac: value - floors[index] }))
+    .sort((a, b) => b.frac - a.frac || a.index - b.index)
+  const parts = floors.slice()
+  for (let index = 0; index < remainder; index += 1) {
+    parts[order[index % count].index] += 1
+  }
+  return parts.map((value) => value / scale)
+}
+
+export function withSharePercents(topics = []) {
+  const shares = allocatePercents(topics.map((topic) => topic.total_volume_percent))
+  return topics.map((topic, index) => {
+    const perspectives = topic.perspectives ?? []
+    const faceShares = perspectives.length
+      ? allocatePercents(perspectives.map((face) => face.volume_percent))
+      : []
+    return {
+      ...topic,
+      total_volume_percent: shares[index],
+      perspectives: perspectives.map((face, faceIndex) => ({
+        ...face,
+        volume_percent: faceShares[faceIndex],
+      })),
+    }
+  })
 }
 
 export function sortPosts(posts = []) {

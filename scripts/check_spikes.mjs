@@ -51,32 +51,37 @@ const crystal = buildCrystal(
     { id: 'e', volume_percent: 8 },
     { id: 'f', volume_percent: 6 },
   ],
-  'high',
+  { quality: 'high', pigment: '#f4c14e' },
 )
 assert.equal(crystal.faces.length, 6)
-assert.deepEqual(crystal.faces.map((face) => face.sides), [4, 4, 4, 4, 4, 4])
+assert.ok(crystal.core)
+assert.ok(crystal.faces.every((face) => face.sides === 4))
+assert.ok(crystal.faces.every((face) => face.color === '#f4c14e'))
+assert.ok(crystal.faces[0].opacity > crystal.faces[5].opacity)
 for (const face of crystal.faces) {
   assert.ok(face.extrusion.getAttribute('position').count > 16)
   assert.ok(face.extrusion.getIndex().count > 24)
 }
 
-const tetra = buildCrystal(
+const four = buildCrystal(
   [
     { id: 'a', volume_percent: 40 },
     { id: 'b', volume_percent: 30 },
     { id: 'c', volume_percent: 20 },
     { id: 'd', volume_percent: 10 },
   ],
-  'low',
+  { quality: 'low', pigment: '#4aa3e6' },
 )
-assert.equal(tetra.faces.length, 4)
-assert.ok(tetra.faces.every((face) => face.sides === 3))
+assert.equal(four.faces.length, 4)
+assert.ok(four.faces.every((face) => face.sides === 4))
 
+crystal.core.dispose()
 crystal.faces.forEach((face) => {
   face.extrusion.dispose()
   face.pick.dispose()
 })
-tetra.faces.forEach((face) => {
+four.core.dispose()
+four.faces.forEach((face) => {
   face.extrusion.dispose()
   face.pick.dispose()
 })

@@ -46,7 +46,7 @@ export function OverviewGraphic() {
         <circle cx="88" cy="278" r="9" fill="#4aa3e6" />
         <text x="112" y="258" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">Ten planets</text>
         <text x="112" y="280" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Size is share of attention</text>
-        <text x="112" y="298" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Gold face = majority view</text>
+        <text x="112" y="298" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Longest spike = majority view</text>
 
         <path d="M160 312 v22" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
         <path d="M154 328 l6 10 6-10" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />

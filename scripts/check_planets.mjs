@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
-import { PERSPECTIVE_COLORS, rankPerspectives, spikeColor } from '../src/lib/colors.js'
+import { PERSPECTIVE_COLORS, faceOpacity, rankPerspectives, shadeHex, spikeColor } from '../src/lib/colors.js'
 import { clampFaceCount, faceLayout, shapeName } from '../src/lib/faces.js'
 import { SOLAR_BODIES, bodyForRank, decorateTopics } from '../src/lib/planets.js'
-import { polyhedron } from '../src/lib/polyhedra.js'
+import { cubeSpikeFaces, polyhedron } from '../src/lib/polyhedra.js'
 import { selectionURL } from '../src/lib/navigation.js'
 
 assert.equal(SOLAR_BODIES.length, 10)
@@ -45,8 +45,14 @@ assert.equal(faceLayout(4).length, 4)
 assert.equal(faceLayout(6).length, 6)
 assert.equal(polyhedron(5).faces.length, 5)
 assert.equal(polyhedron(6).faces.length, 6)
+assert.deepEqual(cubeSpikeFaces(2), [0, 1])
+assert.equal(cubeSpikeFaces(6).length, 6)
+assert.equal(new Set(cubeSpikeFaces(3)).size, 3)
 assert.equal(spikeColor(0), PERSPECTIVE_COLORS[0])
 assert.equal(spikeColor(0), '#f4c14e')
+assert.equal(faceOpacity(40, 40), 1)
+assert.ok(faceOpacity(10, 40) < faceOpacity(20, 40))
+assert.equal(shadeHex('#ffffff', 0.5), '#808080')
 assert.deepEqual(
   rankPerspectives([
     { id: 'quiet', volume_percent: 12 },

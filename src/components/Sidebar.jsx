@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { categoryCounts } from '../lib/categories'
 import { SITE_TAGLINE } from '../lib/copy'
-import { PERSPECTIVE_COLOR_NAMES, hexToRgba, rankPerspectives, spikeColor, topicColor } from '../lib/colors'
+import { faceOpacity, hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import MiniCube from './MiniCube'
 import SkySelect from './SkySelect'
@@ -17,20 +17,6 @@ function VolumeBar({ value, color, active = false }) {
       </span>
       <span className="volume-bar-value">{formatPercent(value)}</span>
     </div>
-  )
-}
-
-function ColorLegend({ count = 6 }) {
-  const items = PERSPECTIVE_COLOR_NAMES.slice(0, Math.max(2, count))
-  return (
-    <p className="color-legend" aria-label="View colors, loudest first">
-      {items.map((name, index) => (
-        <span key={name}>
-          <span className="swatch" style={{ background: spikeColor(index) }} />
-          {name}
-        </span>
-      ))}
-    </p>
   )
 }
 
@@ -70,7 +56,8 @@ function WelcomePanel({
         />
         <p className="mobile-prompt">
           Drag the sky to look around. Bigger planets are what more people talked
-          about this week. Tap one to open its opinions — gold is the majority view.
+          about this week. Tap one to open its opinions — the longest, most solid
+          spike is the majority view.
         </p>
         <div className="planet-rail" aria-label="Today's planets">
           {topics.map((topic) => (
@@ -82,8 +69,8 @@ function WelcomePanel({
             >
               <span className="swatch" style={{ background: topicColor(topic.id, topic.body) }} />
               <span>
-                {topic.body?.name}
-                <small>{topic.name}</small>
+                {topic.name}
+                <small>{formatPercent(topic.total_volume_percent)} of attention</small>
               </span>
             </button>
           ))}
@@ -104,8 +91,9 @@ function WelcomePanel({
       )}
       <p className="lede">
         A week of public conversation as a solar system. Bigger planets got more
-        attention. Open one to see the main opinions — gold is the majority view,
-        shorter faces are minority views. That is where yours stacks up.
+        attention. Open one to see the main opinions — the longest, most solid
+        spike is the majority view, shorter faces are minority views. That is
+        where yours stacks up.
       </p>
       <div className="stat-grid">
         <div>
@@ -182,9 +170,11 @@ function TopicPanel({
       </p>
       <h1>{topic.name}</h1>
       <p className="lede">
-        This planet is {formatPercent(topic.total_volume_percent)} of this week&apos;s
-        public conversation — that is attention, not importance. Each face below is a
-        real opinion. Length is how many posts sat there. Gold is the majority.
+        This planet is {formatPercent(topic.total_volume_percent)} of the attention
+        among the planets in view — those shares always add up to 100%. That is
+        attention, not importance. Each spike below is a real opinion. Length and
+        solidity show how many posts sat there. The longest, most solid spike is
+        the majority.
       </p>
       <MiniCube
         topic={topic}
@@ -193,29 +183,31 @@ function TopicPanel({
       />
       <div className="perspective-list">
         <h2>Opinions</h2>
-        <ColorLegend count={ranked.length} />
-        {ranked.map((perspective, index) => (
-          <button
-            key={perspective.id}
-            type="button"
-            className={`perspective-card ${selectedPerspectiveId === perspective.id ? 'is-active' : ''}`}
-            onClick={() => onSelectPerspective(perspective.id)}
-          >
-            <div className="perspective-card-head">
-              <span className="swatch" style={{ background: spikeColor(index) }} />
-              <div>
-                <h3>{perspective.title}</h3>
-                <p>{perspective.summary}</p>
+        {ranked.map((perspective) => {
+          const tint = hexToRgba(color, faceOpacity(perspective.volume_percent, ranked[0]?.volume_percent))
+          return (
+            <button
+              key={perspective.id}
+              type="button"
+              className={`perspective-card ${selectedPerspectiveId === perspective.id ? 'is-active' : ''}`}
+              onClick={() => onSelectPerspective(perspective.id)}
+            >
+              <div className="perspective-card-head">
+                <span className="swatch" style={{ background: tint, boxShadow: `0 0 12px ${tint}` }} />
+                <div>
+                  <h3>{perspective.title}</h3>
+                  <p>{perspective.summary}</p>
+                </div>
               </div>
-            </div>
-            <VolumeBar
-              value={perspective.volume_percent}
-              color={spikeColor(index)}
-              active={selectedPerspectiveId === perspective.id}
-            />
-            <span className="card-chevron" aria-hidden="true">›</span>
-          </button>
-        ))}
+              <VolumeBar
+                value={perspective.volume_percent}
+                color={tint}
+                active={selectedPerspectiveId === perspective.id}
+              />
+              <span className="card-chevron" aria-hidden="true">›</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -226,7 +218,12 @@ function PerspectivePanel({
   perspective,
   onBack,
 }) {
-  const color = spikeColor(rankPerspectives(topic.perspectives).findIndex((item) => item.id === perspective.id))
+  const planetColor = topicColor(topic.id, topic.body)
+  const ranked = rankPerspectives(topic.perspectives)
+  const color = hexToRgba(
+    planetColor,
+    faceOpacity(perspective.volume_percent, ranked[0]?.volume_percent),
+  )
   const posts = sortPosts(perspective.representative_posts)
 
   return (
@@ -243,10 +240,10 @@ function PerspectivePanel({
       <p className="caveat">This one-line summary smooths over disagreement inside this view.</p>
       <div
         className="perspective-stat"
-        style={{ borderColor: hexToRgba(color, 0.4), background: hexToRgba(color, 0.08) }}
+        style={{ borderColor: hexToRgba(planetColor, 0.4), background: hexToRgba(planetColor, 0.08) }}
       >
         <strong>{formatPercent(perspective.volume_percent)}</strong>
-        <span>of this planet&apos;s conversation — majority if gold, minority if shorter</span>
+        <span>of this planet&apos;s conversation — majority if this is the longest, most solid spike, minority if shorter</span>
       </div>
       <div className="post-feed">
         <h2>Example posts</h2>

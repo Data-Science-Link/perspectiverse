@@ -97,6 +97,12 @@ export default function SiteMenu({
             echo chamber. Bigger planets got more attention. Open one to see the main
             opinions, then check whether yours is the majority, a minority, or missing.
           </p>
+          <p>
+            The largest topic sits in the center as the sun. The next nine orbit around
+            it as Mercury through Pluto. Size is share of attention, not importance.
+            When you open a planet, the longest, most solid spike is the loudest
+            opinion — it keeps that planet&apos;s color, and quieter views fade.
+          </p>
           {onShowWelcome && (
             <button type="button" className="menu-feedback" onClick={onShowWelcome}>
               Show the welcome tour
@@ -109,7 +115,7 @@ export default function SiteMenu({
           <ul>
             <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
             <li>Bigger planet = more people were talking about that topic this week.</li>
-            <li>Tap a planet to open its opinions. Tap a face to read example posts. Gold is the majority.</li>
+            <li>Tap a planet to open its opinions. Tap a face to read example posts. The longest, most solid spike is the majority.</li>
             <li>After you open a planet, drag the shape to turn it. Scroll or pinch to zoom.</li>
           </ul>
         </section>

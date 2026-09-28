@@ -3,6 +3,7 @@ import { useMemo, useRef } from 'react'
 import { Quaternion, Vector3 } from 'three'
 import { rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
+import { bodySpin } from '../lib/layout'
 import SpikyCube from './SpikyCube'
 
 const CAMERA = new Vector3(3.4, 2.0, 3.4).normalize()
@@ -16,6 +17,8 @@ function Preview({ topic, selectedPerspectiveId, onSelectPerspective }) {
     [topic.perspectives],
   )
   const layout = useMemo(() => faceLayout(ranked.length), [ranked.length])
+  const spin = useMemo(() => bodySpin(topic.id, 0), [topic.id])
+  const spinAxis = useMemo(() => new Vector3(...spin.axis), [spin])
   const focusIndex = ranked.findIndex((face) => face.id === selectedPerspectiveId)
 
   useFrame((_, delta) => {
@@ -26,8 +29,7 @@ function Preview({ topic, selectedPerspectiveId, onSelectPerspective }) {
       group.current.quaternion.slerp(_target, 1 - Math.exp(-delta * 6))
       return
     }
-    group.current.rotation.y += delta * 0.7
-    group.current.rotation.x += delta * 0.18
+    group.current.rotateOnAxis(spinAxis, delta * spin.speed)
   })
 
   return (

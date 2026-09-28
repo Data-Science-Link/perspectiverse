@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, DoubleSide } from 'three'
+import { shadeHex } from '../lib/colors'
 import { CORE_RADIUS } from '../lib/faces'
 import { createBodyTexture, createRingTexture } from '../lib/planetTextures'
 import { buildCrystal } from '../lib/spikes'
@@ -72,8 +73,9 @@ export default function SpikyCube({
   const ringMesh = useRef()
   const corona = useRef()
   const [crystalReady, setCrystalReady] = useState(showSpikes)
+  const pigment = body?.color ?? coreColor
   const isSun = body?.key === 'sun'
-  const color = body?.color ?? coreColor
+  const color = pigment
   const emissive = dimmed ? 0.02 : isSun ? 1.8 : 0.035
   const emissiveColor = dimmed ? '#6b7280' : isSun ? '#fff3c2' : '#fff4dc'
 
@@ -82,8 +84,8 @@ export default function SpikyCube({
     [body?.key, quality],
   )
   const crystalGeo = useMemo(
-    () => (crystalReady ? buildCrystal(perspectives, quality) : null),
-    [crystalReady, perspectives, quality],
+    () => (crystalReady ? buildCrystal(perspectives, { quality, pigment }) : null),
+    [crystalReady, perspectives, quality, pigment],
   )
 
   useEffect(() => {
@@ -92,6 +94,7 @@ export default function SpikyCube({
 
   useEffect(() => () => {
     if (!crystalGeo) return
+    crystalGeo.core.dispose()
     for (const face of crystalGeo.faces) {
       face.extrusion.dispose()
       face.pick.dispose()
@@ -100,7 +103,7 @@ export default function SpikyCube({
 
   useFrame((_, delta) => {
     const target = showSpikes && !dimmed ? 1 : 0
-    reveal.current += (target - reveal.current) * Math.min(1, delta * 7)
+    reveal.current += (target - reveal.current) * Math.min(1, delta * 5.2)
     const amount = reveal.current
     if (sphereMat.current) {
       const opacity = dimmed ? 0.16 : 1 - amount
@@ -109,13 +112,12 @@ export default function SpikyCube({
       sphereMat.current.depthWrite = opacity > 0.4
     }
     if (sphereMesh.current) {
-      const swell = 1 + amount * 0.18
-      sphereMesh.current.scale.setScalar(swell)
+      sphereMesh.current.scale.setScalar(1 - amount * 0.05)
       sphereMesh.current.visible = amount < 0.97
     }
     if (crystal.current) {
-      crystal.current.visible = amount > 0.03
-      crystal.current.scale.setScalar(0.72 + amount * 0.28)
+      crystal.current.visible = amount > 0.02
+      crystal.current.scale.setScalar(0.9 + amount * 0.1)
     }
     if (ringMat.current) {
       ringMat.current.opacity = (1 - amount) * 0.92
@@ -127,6 +129,10 @@ export default function SpikyCube({
       corona.current.visible = isSun && !dimmed && amount < 0.85
     }
   })
+
+  const faces = crystalGeo
+    ? [...crystalGeo.faces].sort((a, b) => b.opacity - a.opacity)
+    : []
 
   return (
     <group>
@@ -169,10 +175,20 @@ export default function SpikyCube({
       )}
       {crystalGeo && (
         <group ref={crystal}>
-          {crystalGeo.faces.map((face) => {
+          <mesh geometry={crystalGeo.core} raycast={() => null}>
+            <meshStandardMaterial
+              color={shadeHex(pigment, 0.42)}
+              emissive={pigment}
+              emissiveIntensity={0.18}
+              roughness={0.4}
+              metalness={0.16}
+            />
+          </mesh>
+          {faces.map((face) => {
             const selected = selectedPerspectiveId === face.id
+            const transparent = face.opacity < 0.98
             return (
-              <group key={face.id} scale={selected ? 1.06 : 1}>
+              <group key={face.id} scale={selected ? 1.05 : 1}>
                 {interactive && (
                   <mesh
                     geometry={face.pick}
@@ -199,11 +215,14 @@ export default function SpikyCube({
                   <meshStandardMaterial
                     color={face.color}
                     emissive={face.color}
-                    emissiveIntensity={selected ? 1.55 : 0.38}
+                    emissiveIntensity={selected ? 1.15 : 0.16 + face.opacity * 0.28}
                     roughness={0.34}
                     metalness={0.06}
                     side={DoubleSide}
                     toneMapped={false}
+                    transparent={transparent}
+                    opacity={face.opacity}
+                    depthWrite={!transparent}
                     polygonOffset
                     polygonOffsetFactor={-1}
                     polygonOffsetUnits={-1}
