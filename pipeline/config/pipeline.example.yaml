@@ -27,6 +27,12 @@ representative_posts: 12
 language: en
 seed: 0
 
+# How many topics to keep in the saved batch. The observatory always *shows*
+# 10 planets (SKY_SIZE). A larger catalog lets each category fill its own sky
+# when the sample can support it. 10 matches the 200-post plumbing fixture.
+# Raise toward 100 (10 planets × 10 categories) once sample_size is large.
+catalog_size: 10
+
 # Rotated so a small public search is not one keyword.
 queries:
   - the

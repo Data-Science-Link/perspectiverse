@@ -6,6 +6,7 @@ import { formatNumber, formatPercent, sortPosts, topicScale } from '../lib/layou
 import MiniCube from './MiniCube'
 import PerspectiverseGraphic from './PerspectiverseGraphic'
 import EngagementPanel from './EngagementPanel'
+import SkySelect from './SkySelect'
 
 function VolumeBar({ value, color, active = false }) {
   return (
@@ -23,25 +24,14 @@ function VolumeBar({ value, color, active = false }) {
 
 function FilterStrip({ categories, category, counts, onCategory }) {
   return (
-    <div className="filter-strip" role="tablist" aria-label="Category">
-      <button
-        type="button"
-        className={`filter-chip ${category === 'all' ? 'is-active' : ''}`}
-        onClick={() => onCategory('all')}
-      >
-        All
-      </button>
-      {categories.map((name) => (
-        <button
-          key={name}
-          type="button"
-          className={`filter-chip ${category === name ? 'is-active' : ''}`}
-          onClick={() => onCategory(name)}
-        >
-          {name}
-          <span className="filter-count">{counts[name] ?? 0}</span>
-        </button>
-      ))}
+    <div className="filter-strip">
+      <SkySelect
+        id="sidebar-sky-select"
+        categories={categories}
+        category={category}
+        counts={counts}
+        onCategory={onCategory}
+      />
     </div>
   )
 }
@@ -54,10 +44,21 @@ function WelcomePanel({
   onSelectLocation,
   engagementQuery,
   onEngagementQuery,
+  categories,
+  category,
+  counts,
+  onCategory,
 }) {
   if (isMobile) {
     return (
       <div className="panel is-mobile-home">
+        <SkySelect
+          id="mobile-sky-select"
+          categories={categories}
+          category={category}
+          counts={counts}
+          onCategory={onCategory}
+        />
         <PerspectiverseGraphic compact />
         <p className="mobile-prompt">Tap a cube to open its topic.</p>
         <div className="planet-rail" aria-label="Today's planets">
@@ -185,6 +186,7 @@ function TopicPanel({
   engagementQuery,
   onEngagementQuery,
   onSelectTopic,
+  volumeMax = 100,
 }) {
   const color = topicColor(topic.id, topic.body)
   const ranked = rankPerspectives(topic.perspectives)
@@ -201,7 +203,7 @@ function TopicPanel({
       <h1>{topic.name}</h1>
       <p className="lede">
         {formatPercent(topic.total_volume_percent)} of the kept conversation. Scale in the sky
-        is {topicScale(topic.total_volume_percent).toFixed(2)}× — volume, not virtue.
+        is {topicScale(topic.total_volume_percent, volumeMax).toFixed(2)}× — volume, not virtue.
       </p>
       <MiniCube
         topic={topic}
@@ -323,6 +325,7 @@ export default function Sidebar({
   onCategory,
   engagementQuery,
   onEngagementQuery,
+  volumeMax = 100,
 }) {
   const counts = categoryCounts(data.topics)
   const empty = topics.length === 0
@@ -358,6 +361,10 @@ export default function Sidebar({
           onSelectLocation={onSelectLocation}
           engagementQuery={engagementQuery}
           onEngagementQuery={onEngagementQuery}
+          categories={categories}
+          category={category}
+          counts={counts}
+          onCategory={onCategory}
         />
       )}
       {!empty && selectedTopic && !selectedPerspective && (
@@ -371,6 +378,7 @@ export default function Sidebar({
           onBack={onClearSelection}
           engagementQuery={engagementQuery}
           onEngagementQuery={onEngagementQuery}
+          volumeMax={volumeMax}
         />
       )}
       {!empty && selectedTopic && selectedPerspective && (

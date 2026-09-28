@@ -13,38 +13,14 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from pipeline.schema import NOISE_POLICY, to_percents, validate_payload
-
-# Demo sky shows the 2–6 face range: cube, tetrahedron, triad, poles, etc.
-DEMO_FACE_COUNTS = {
-    1: 6,
-    2: 4,
-    3: 3,
-    4: 5,
-    5: 4,
-    6: 2,
-    7: 6,
-    8: 3,
-    9: 4,
-    10: 2,
-}
+from pipeline.demo_catalog import CATEGORY_ROSTERS, CATEGORY_WEIGHTS, FACE_TITLES, TOPIC_CURVE
+from pipeline.schema import CATEGORIES, NOISE_POLICY, SKY_SIZE, to_percents, validate_payload
 
 DEMO_TOTAL_POSTS = 100_000
 DEMO_LAST_UPDATED = date(2026, 9, 26).isoformat()
-DEMO_CATEGORIES = {
-    1: "Technology",
-    2: "Economy",
-    3: "Environment",
-    4: "Health",
-    5: "Economy",
-    6: "Politics",
-    7: "Technology",
-    8: "Education",
-    9: "Sports",
-    10: "Media",
-}
 
-# Topics are ordered by volume. Topic 1 is the sun at the origin.
+# Featured topics keep their hand-written faces. Extra category planets are
+# synthesized so each roster can fill a 10-planet sky.
 DEMO_TOPICS: list[dict[str, Any]] = [
     {
         "id": 1,
@@ -779,6 +755,20 @@ DEMO_TOPICS: list[dict[str, Any]] = [
 ]
 
 
+DEMO_FACE_COUNTS_BY_NAME = {
+    "AI Futures": 6,
+    "Housing Costs": 4,
+    "Climate Policy": 3,
+    "Public Health": 5,
+    "Labor Markets": 4,
+    "Border Policy": 2,
+    "Digital Privacy": 6,
+    "Education Reform": 3,
+    "Sports Culture": 4,
+    "Media Trust": 2,
+}
+
+
 def _with_face_count(topic: dict[str, Any], count: int) -> dict[str, Any]:
     faces = list(topic["perspectives"][:count])
     weights = [max(1, int(round(float(face["volume_percent"]) * 10))) for face in faces]
@@ -792,15 +782,108 @@ def _with_face_count(topic: dict[str, Any], count: int) -> dict[str, Any]:
     }
 
 
+def _reindex_topic(topic: dict[str, Any], topic_id: int) -> dict[str, Any]:
+    letters = "ABCDEF"
+    return {
+        **topic,
+        "id": topic_id,
+        "perspectives": [
+            {**face, "id": f"{topic_id}{letters[index]}"}
+            for index, face in enumerate(topic["perspectives"])
+        ],
+    }
+
+
+def _face_count_for(name: str, salt: int) -> int:
+    if name in DEMO_FACE_COUNTS_BY_NAME:
+        return DEMO_FACE_COUNTS_BY_NAME[name]
+    return 2 + (salt * 7 + len(name)) % 5
+
+
+def _synthetic_posts(topic: str, face: str, salt: int) -> list[dict[str, Any]]:
+    stems = (
+        "maya", "grid", "leasehold", "nightshift", "citybus", "holdmusic",
+        "sideline", "quadnoon", "inkstudy", "slowtake", "room204", "firststair",
+    )
+    lines = (
+        f"The {topic} fight is really a {face} fight. The rest is branding.",
+        f"I do not need another panel on {topic}. I need someone to answer {face}.",
+        f"Every thread about {topic} becomes a {face} thread by the third reply.",
+        f"{face} is the {topic} argument people actually live inside this week.",
+        f"We keep renaming {topic}. The {face} cluster did not get the memo.",
+        f"If your {topic} plan cannot survive a {face} question, it is a press release.",
+    )
+    posts = []
+    for index, text in enumerate(lines[:3]):
+        author = f"{stems[(salt + index) % len(stems)]}.{16 + (salt + index) % 80}"
+        likes = 180 + ((salt * 37 + index * 91 + len(face)) % 1900)
+        posts.append({"author": author, "text": text, "likes": likes})
+    return posts
+
+
+def _synthesize_topic(name: str, category: str, salt: int) -> dict[str, Any]:
+    titles = list(FACE_TITLES[name])
+    count = min(max(_face_count_for(name, salt), 2), len(titles) if len(titles) >= 2 else 2)
+    if len(titles) < 2:
+        titles = [name, f"{name} Dissent"]
+    faces = titles[:count]
+    weights = [max(3, 18 - index * 3) for index in range(len(faces))]
+    percents = to_percents(weights)
+    perspectives = []
+    for index, (title, percent) in enumerate(zip(faces, percents)):
+        perspectives.append(
+            {
+                "id": f"tmp{index}",
+                "title": title,
+                "summary": (
+                    f"{title} is how this cluster argues about {name} this week — "
+                    f"a {category.lower()} fight with a shorter name."
+                ),
+                "volume_percent": percent,
+                "representative_posts": _synthetic_posts(name, title, salt * 11 + index * 3),
+            }
+        )
+    return {
+        "id": 0,
+        "name": name,
+        "category": category,
+        "total_volume_percent": 0,
+        "perspectives": perspectives,
+    }
+
+
 def build_demo_payload(last_updated: str = DEMO_LAST_UPDATED, total_posts: int = DEMO_TOTAL_POSTS) -> dict[str, Any]:
     """Return a data.json document that matches the UI canvas schema."""
+    featured = {topic["name"]: topic for topic in DEMO_TOPICS}
+    pieces: list[tuple[int, dict[str, Any]]] = []
+    salt = 0
+    for category in CATEGORIES:
+        roster = CATEGORY_ROSTERS[category]
+        if len(roster) != SKY_SIZE:
+            raise ValueError(f"{category} roster must have {SKY_SIZE} topics")
+        cat_weight = CATEGORY_WEIGHTS[category]
+        for rank, name in enumerate(roster):
+            weight = cat_weight * TOPIC_CURVE[rank]
+            if name in featured:
+                source = featured[name]
+                topic = _with_face_count(
+                    {**source, "category": category},
+                    _face_count_for(name, salt),
+                )
+            else:
+                if name not in FACE_TITLES:
+                    raise ValueError(f"Missing face titles for extra topic {name!r}")
+                topic = _synthesize_topic(name, category, salt)
+            pieces.append((weight, topic))
+            salt += 1
+
+    percents = to_percents([max(1, int(round(weight))) for weight, _topic in pieces])
     topics = [
-        _with_face_count(
-            {**topic, "category": DEMO_CATEGORIES[topic["id"]]},
-            DEMO_FACE_COUNTS[topic["id"]],
-        )
-        for topic in DEMO_TOPICS
+        {**topic, "total_volume_percent": percent, "category": topic["category"]}
+        for percent, (_weight, topic) in zip(percents, pieces)
     ]
+    topics.sort(key=lambda topic: (-topic["total_volume_percent"], topic["name"]))
+    topics = [_reindex_topic(topic, index + 1) for index, topic in enumerate(topics)]
     payload = {
         "last_updated": last_updated,
         "total_posts": total_posts,

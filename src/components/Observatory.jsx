@@ -19,7 +19,7 @@ const INSPECT_MOUSE = { left: 0, middle: 0, right: 0, wheel: 16 }
 const ORBIT_TOUCH = { one: 64, two: 4096, three: 128 }
 const INSPECT_TOUCH = { one: 0, two: 1024, three: 0 }
 
-function FocusCamera({ controlsRef, anchors, selectedTopic, isMobile }) {
+function FocusCamera({ controlsRef, anchors, selectedTopic, isMobile, volumeMax = 100 }) {
   const lastId = useRef(null)
 
   useFrame(() => {
@@ -38,7 +38,7 @@ function FocusCamera({ controlsRef, anchors, selectedTopic, isMobile }) {
     const position = anchors.current[selectedTopic.id]
     if (!position) return
 
-    const distance = cameraOffsetForScale(topicScale(selectedTopic.total_volume_percent))
+    const distance = cameraOffsetForScale(topicScale(selectedTopic.total_volume_percent, volumeMax))
     controls.setLookAt(
       position.x + distance,
       position.y + 1.35,
@@ -61,6 +61,8 @@ function Universe({
   isMobile,
   onSelectTopic,
   onSelectPerspective,
+  showOrbits = false,
+  volumeMax = 100,
 }) {
   const controlsRef = useRef()
   const anchors = useRef({})
@@ -83,7 +85,7 @@ function Universe({
       <directionalLight position={[-8, 10, 6]} intensity={1.15} color="#fff6d8" />
       <Stars radius={80} depth={50} count={5200} factor={3.8} saturation={0} fade speed={0.18} />
       <TwinklingStars />
-      {topics.slice(1).map((topic, index) => {
+      {showOrbits && topics.slice(1).map((topic, index) => {
         const orbit = orbitElements(index + 1, false, topic.id)
         return (
           <OrbitRing
@@ -106,6 +108,7 @@ function Universe({
           onSelectTopic={onSelectTopic}
           onSelectPerspective={onSelectPerspective}
           isMobile={isMobile}
+          volumeMax={volumeMax}
         />
       ))}
       <CameraControls
@@ -123,6 +126,7 @@ function Universe({
         anchors={anchors}
         selectedTopic={selectedTopic}
         isMobile={isMobile}
+        volumeMax={volumeMax}
       />
       <EffectComposer disableNormalPass>
         <Bloom intensity={0.32} luminanceThreshold={0.42} luminanceSmoothing={0.45} mipmapBlur />
@@ -137,11 +141,13 @@ export default function Observatory({
   selectedPerspectiveId,
   category,
   isMobile = false,
+  volumeMax = 100,
   onSelectTopic,
   onSelectPerspective,
   onClearSelection,
 }) {
   const [epoch, setEpoch] = useState(0)
+  const [showOrbits, setShowOrbits] = useState(false)
   const onCreated = useCallback(({ gl }) => {
     const canvas = gl.domElement
     let remounted = false
@@ -184,6 +190,8 @@ export default function Observatory({
           isMobile={isMobile}
           onSelectTopic={onSelectTopic}
           onSelectPerspective={onSelectPerspective}
+          showOrbits={showOrbits}
+          volumeMax={volumeMax}
         />
       </Canvas>
       {topics.length === 0 && (
@@ -193,6 +201,16 @@ export default function Observatory({
       )}
       <div className="observatory-chrome">
         <p>{hint}</p>
+        {!selectedTopicId && (
+          <button
+            type="button"
+            className={`orbit-toggle ${showOrbits ? 'is-on' : ''}`}
+            aria-pressed={showOrbits}
+            onClick={() => setShowOrbits((value) => !value)}
+          >
+            {showOrbits ? 'Hide orbit lines' : 'Show orbit lines'}
+          </button>
+        )}
       </div>
     </section>
   )

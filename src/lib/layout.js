@@ -1,5 +1,6 @@
-export function topicScale(volumePercent) {
-  return 0.42 + (volumePercent / 100) * 3.35
+export function topicScale(volumePercent, skyMaxPercent = 100) {
+  const relative = Math.max(0, Number(volumePercent) || 0) / Math.max(Number(skyMaxPercent) || 0, 0.01)
+  return 0.42 + Math.min(relative, 1) * 3.35
 }
 
 function unitHash(seed) {

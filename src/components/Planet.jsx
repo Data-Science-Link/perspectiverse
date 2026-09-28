@@ -22,6 +22,7 @@ export default function Planet({
   onSelectTopic,
   onSelectPerspective,
   isMobile = false,
+  volumeMax = 100,
 }) {
   const group = useRef()
   const cube = useRef()
@@ -35,7 +36,7 @@ export default function Planet({
     [index, isSun, topic.id],
   )
   const angle = useRef(orbit.phase)
-  const scale = topicScale(topic.total_volume_percent)
+  const scale = topicScale(topic.total_volume_percent, volumeMax)
   const color = topicColor(topic.id, body)
   const ranked = useMemo(
     () => rankPerspectives(topic.perspectives),

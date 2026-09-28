@@ -1,14 +1,15 @@
-"""Group posts into 10 planets.
+"""Group posts into a saved topic catalog.
 
 `lexical` is the default: TF-IDF and k-means, no model download.
 `bertopic` uses all-MiniLM-L6-v2 when that extra stack is installed.
-Topic -1 (below min_cluster_size, or rank 11+) is excluded from the denominator.
-When k-means leaves fewer than 10 planets above the size floor, leftover and
-surplus posts are reassigned so a live sample still publishes 10 cubes.
+Topic -1 (below min_cluster_size, or beyond the catalog) is excluded from the
+denominator. The observatory always displays SKY_SIZE planets; catalog_size
+can be larger so category skies have enough topics to fill.
 """
 
 from __future__ import annotations
 
+from pipeline.schema import SKY_SIZE
 from pipeline.cluster_math import cluster_kmeans, grow_clusters_to_min, salient_terms, vectorize
 
 
@@ -19,8 +20,9 @@ def cluster_texts(
     cluster_backend: str = "lexical",
     embedding_model: str = "all-MiniLM-L6-v2",
     seed: int = 0,
+    catalog_size: int = SKY_SIZE,
 ) -> dict:
-    """Return 10 kept topics and per-post assignments (-1 is noise)."""
+    """Return kept topics and per-post assignments (-1 is noise)."""
     if cluster_backend == "bertopic":
         raw_labels, term_lookup = _bertopic_labels(texts, min_cluster_size, embedding_model)
     elif cluster_backend == "lexical":
@@ -28,7 +30,7 @@ def cluster_texts(
     else:
         raise ValueError(f"Unknown cluster_backend {cluster_backend}")
     # Keep enough posts that a planet can still grow two to six faces.
-    return _keep_top(texts, raw_labels, term_lookup, max(min_cluster_size, 6))
+    return _keep_top(texts, raw_labels, term_lookup, max(min_cluster_size, 6), keep=catalog_size)
 
 
 def _lexical_labels(texts: list[str], min_cluster_size: int, seed: int) -> tuple[list[int], dict[int, list[str]]]:
@@ -73,7 +75,7 @@ def _keep_top(
     raw_labels: list[int],
     term_lookup: dict[int, list[str]],
     min_cluster_size: int,
-    keep: int = 10,
+    keep: int = SKY_SIZE,
 ) -> dict:
     labels = [int(label) for label in raw_labels]
     if len(texts) < keep * min_cluster_size:

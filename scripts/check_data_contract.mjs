@@ -7,10 +7,7 @@ function fail(message) {
   process.exit(1)
 }
 
-if (!Array.isArray(payload.topics) || payload.topics.length !== 10) {
-  fail(`Expected 10 topics, found ${payload.topics?.length}`)
-}
-
+const SKY_SIZE = 10
 const categories = new Set([
   'Politics',
   'Sports',
@@ -20,11 +17,19 @@ const categories = new Set([
   'Health',
   'Education',
   'Media',
+  'Entertainment',
+  'Religion',
 ])
 
+if (!Array.isArray(payload.topics) || payload.topics.length < SKY_SIZE) {
+  fail(`Expected at least ${SKY_SIZE} topics, found ${payload.topics?.length}`)
+}
+
+const categoryCounts = Object.fromEntries([...categories].map((name) => [name, 0]))
 let topicVolume = 0
 for (const topic of payload.topics) {
   if (!categories.has(topic.category)) fail(`Bad category on topic ${topic.id}`)
+  categoryCounts[topic.category] += 1
   const faceCount = topic.perspectives?.length
   if (!Array.isArray(topic.perspectives) || faceCount < 2 || faceCount > 6) {
     fail(`Topic ${topic.id} should have 2-6 faces, found ${faceCount}`)
@@ -44,4 +49,8 @@ for (const topic of payload.topics) {
 
 if (Math.abs(topicVolume - 100) > 0.15) fail(`Topics sum to ${topicVolume}`)
 if (payload.mode !== 'demo' && payload.mode !== 'live') fail('mode missing')
+if (payload.mode === 'demo') {
+  const short = [...categories].filter((name) => categoryCounts[name] < SKY_SIZE)
+  if (short.length) fail(`Demo catalog missing a full sky for: ${short.join(', ')}`)
+}
 console.log('dist/data.json matches the observatory contract')
