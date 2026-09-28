@@ -7,7 +7,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | File | Description |
 | --- | --- |
 | `README.md` | Project overview, current status, and local run instructions |
-| `ROADMAP.md` | Product roadmap, architecture forks, and maintain-cost tables |
+| `ROADMAP.md` | Product roadmap, architecture forks (Horizons A–C), and maintain-cost tables |
 | `FILES.md` | This file — complete file listing and organization guide |
 | `LICENSE` | Project license |
 | `pyproject.toml` | Python project configuration, dependencies, and build system |
@@ -83,6 +83,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `Similar Products and Differentiation.md` | Neighboring product categories and how this observatory differs |
 | `Planet Engagement Architecture.md` | Debate / LLM clerk design on the daily-static split |
 | `Custom Universe and Archive Architecture.md` | Retain posts, on-demand skies, Google plugin |
+| `Historical Skies and Topic Continuity.md` | Dated skies, trending vs stock, matching topic names across days |
 
 ## Scripts & CI/CD
 
