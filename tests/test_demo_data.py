@@ -1,4 +1,8 @@
+from collections import Counter
+
+from pipeline.demo_catalog import CATEGORY_ROSTERS
 from pipeline.generate_demo_data import build_demo_payload, validate_payload
+from pipeline.schema import CATEGORIES, SKY_SIZE
 
 
 def test_demo_payload_matches_ui_contract():
@@ -8,28 +12,30 @@ def test_demo_payload_matches_ui_contract():
     assert payload["mode"] == "demo"
     assert payload["source"] == "synthetic"
     assert payload["window_hours"] == 168
-    assert len(payload["topics"]) == 10
-    assert payload["topics"][0]["id"] == 1
-    assert payload["topics"][0]["category"]
+    assert len(payload["topics"]) == SKY_SIZE * len(CATEGORIES)
     assert payload["topics"][0]["total_volume_percent"] >= payload["topics"][-1]["total_volume_percent"]
-    assert {topic["category"] for topic in payload["topics"]} >= {
-        "Politics",
-        "Sports",
-        "Technology",
-        "Economy",
-        "Environment",
-        "Health",
-        "Education",
-        "Media",
-    }
+    assert set(payload["topics"][i]["category"] for i in range(len(payload["topics"]))) == set(CATEGORIES)
+
+
+def test_each_category_can_fill_a_sky():
+    payload = build_demo_payload()
+    counts = Counter(topic["category"] for topic in payload["topics"])
+    for category in CATEGORIES:
+        assert counts[category] == SKY_SIZE
+        assert len(CATEGORY_ROSTERS[category]) == SKY_SIZE
+    ranked = payload["topics"][:SKY_SIZE]
+    assert len({topic["category"] for topic in ranked}) >= 5
+    names = {topic["name"] for topic in ranked}
+    assert "AI Futures" in names
 
 
 def test_each_planet_has_two_to_six_faces_and_posts():
     payload = build_demo_payload()
+    by_name = {topic["name"]: topic for topic in payload["topics"]}
+    assert len(by_name["AI Futures"]["perspectives"]) == 6
+    assert len(by_name["Housing Costs"]["perspectives"]) == 4
+    assert len(by_name["Border Policy"]["perspectives"]) == 2
     counts = {topic["id"]: len(topic["perspectives"]) for topic in payload["topics"]}
-    assert counts[1] == 6
-    assert counts[2] == 4
-    assert counts[6] == 2
     assert min(counts.values()) >= 2
     assert max(counts.values()) <= 6
     assert len(set(counts.values())) > 1

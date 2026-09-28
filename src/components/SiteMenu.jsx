@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { hexToRgba } from '../lib/colors'
 import { formatPercent } from '../lib/layout'
 import PerspectiverseGraphic from './PerspectiverseGraphic'
+import SkySelect from './SkySelect'
 
 const FEEDBACK_URL =
   'https://github.com/Data-Science-Link/perspectiverse/issues/new?title=Feedback'
@@ -104,32 +105,16 @@ export default function SiteMenu({
 
         <section className="menu-section">
           <h3>Filter the sky</h3>
-          <div className="filter-strip is-menu" role="tablist" aria-label="Category">
-            <button
-              type="button"
-              className={`filter-chip ${category === 'all' ? 'is-active' : ''}`}
-              onClick={() => {
-                onCategory('all')
-                onClose()
-              }}
-            >
-              All
-            </button>
-            {categories.map((name) => (
-              <button
-                key={name}
-                type="button"
-                className={`filter-chip ${category === name ? 'is-active' : ''}`}
-                onClick={() => {
-                  onCategory(name)
-                  onClose()
-                }}
-              >
-                {name}
-                <span className="filter-count">{counts[name] ?? 0}</span>
-              </button>
-            ))}
-          </div>
+          <SkySelect
+            id="menu-sky-select"
+            categories={categories}
+            category={category}
+            counts={counts}
+            onCategory={(next) => {
+              onCategory(next)
+              onClose()
+            }}
+          />
         </section>
 
         <section className="menu-section">

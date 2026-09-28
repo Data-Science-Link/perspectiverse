@@ -24,6 +24,7 @@ DEFAULTS: dict[str, Any] = {
     "representative_posts": 12,
     "language": "en",
     "seed": 0,
+    "catalog_size": 10,
     "queries": ["the", "people", "today", "because", "work", "city", "game", "health", "school", "news"],
 }
 

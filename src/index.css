@@ -109,10 +109,36 @@ button {
   pointer-events: none;
   position: absolute;
   left: 1.25rem;
+  right: 1.25rem;
   bottom: 1rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
   color: rgba(239, 238, 247, 0.62);
   font-size: 0.75rem;
   letter-spacing: 0.04em;
+}
+
+.orbit-toggle {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0.28rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(11, 13, 20, 0.78);
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.orbit-toggle.is-on {
+  color: var(--ink);
+  border-color: rgba(244, 193, 78, 0.75);
+  background: rgba(244, 193, 78, 0.12);
 }
 
 .sidebar {
@@ -543,6 +569,15 @@ h3 {
   cursor: pointer;
 }
 
+.planet-label.is-mobile {
+  padding: 0.16rem 0.5rem;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  max-width: 46vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .planet-label.is-dimmed {
   opacity: 0.18;
 }
@@ -563,6 +598,36 @@ h3 {
   flex-wrap: wrap;
   gap: 0.4rem;
   padding: 1rem 1.5rem 0;
+}
+
+.sky-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: min(100%, 220px);
+}
+
+.sky-select span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sky-select select {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: rgba(11, 13, 20, 0.9);
+  color: var(--ink);
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.panel.is-mobile-home .sky-select {
+  margin-bottom: 0.7rem;
 }
 
 .filter-chip {

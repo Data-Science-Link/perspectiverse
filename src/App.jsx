@@ -3,8 +3,7 @@ import Observatory from './components/Observatory'
 import Sidebar from './components/Sidebar'
 import SiteChrome from './components/SiteChrome'
 import SiteMenu from './components/SiteMenu'
-import { CATEGORIES, categoryCounts, filterTopics } from './lib/categories'
-import { decorateVisibleTopics } from './lib/planets'
+import { CATEGORIES, categoryCounts, skyMaxVolume, skyTopics } from './lib/categories'
 import { readSelectionFromURL, resetScroll, writeSelectionToURL } from './lib/navigation'
 import { useIsMobile } from './lib/useMediaQuery'
 
@@ -43,9 +42,10 @@ export default function App() {
   }, [])
 
   const visibleTopics = useMemo(
-    () => (data ? decorateVisibleTopics(data.topics, filterTopics(data.topics, category)) : []),
+    () => (data ? skyTopics(data.topics, category) : []),
     [data, category],
   )
+  const volumeMax = useMemo(() => skyMaxVolume(visibleTopics), [visibleTopics])
 
   const selectedTopic = useMemo(
     () => visibleTopics.find((topic) => topic.id === selectedTopicId) ?? null,
@@ -172,6 +172,7 @@ export default function App() {
         selectedPerspectiveId={selectedPerspectiveId}
         category={category}
         isMobile={isMobile}
+        volumeMax={volumeMax}
         onSelectTopic={selectTopic}
         onSelectPerspective={selectPerspective}
         onClearSelection={clearSelection}
@@ -184,6 +185,7 @@ export default function App() {
         selectedTopic={selectedTopic}
         selectedPerspective={selectedPerspective}
         isMobile={isMobile}
+        volumeMax={volumeMax}
         onSelectTopic={selectTopic}
         onSelectPerspective={selectPerspective}
         onSelectLocation={selectLocation}
