@@ -106,4 +106,78 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
     await expect(page.locator('.caveat')).toContainText('smooths over disagreement')
   })
+
+  test('hamburger opens site pages with methodology graphics', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('perspectiverse.hide-welcome', '1')
+    })
+    await page.goto('/')
+    await enterSolarSystem(page)
+
+    await page.getByRole('button', { name: 'Open menu' }).click()
+    const menu = page.getByRole('dialog', { name: 'Perspectiverse' })
+    await expect(menu.getByRole('button', { name: /Vision/ })).toBeVisible()
+    await expect(menu.getByRole('button', { name: /About Perspectiverse/ })).toBeVisible()
+    await expect(menu.getByRole('button', { name: /About the author/ })).toBeVisible()
+    await expect(menu.getByRole('button', { name: /Connect/ })).toBeVisible()
+    await expect(menu.getByRole('button', { name: /Methodology/ })).toBeVisible()
+    await expect(menu.getByRole('button', { name: /^FAQ/ })).toBeVisible()
+    await expect(menu.getByRole('button', { name: /Donate/ })).toBeVisible()
+
+    await menu.getByRole('button', { name: /Methodology/ }).click()
+    await expect(page).toHaveURL(/page=methodology/)
+    await expect(page.getByRole('heading', { name: 'How the sky is made' })).toBeVisible()
+    await expect(page.getByRole('img', { name: /public talk to a sky/i })).toBeVisible()
+    await expect(page.getByRole('img', { name: /Bluesky through the daily job/i })).toBeVisible()
+    await expect(page.getByText('Bluesky public search')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sample a week of talk' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Find neighborhoods in the words' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Next: FAQ' }).click()
+    await expect(page).toHaveURL(/page=faq/)
+    await expect(page.getByRole('heading', { name: 'Questions people actually ask' })).toBeVisible()
+    await page.getByText('What does planet size mean?').click()
+    await expect(page.getByText(/Share of attention in this sample/)).toBeVisible()
+
+    await page.getByRole('button', { name: 'Open menu' }).click()
+    await page.getByRole('dialog', { name: 'Perspectiverse' }).getByRole('button', { name: /Donate/ }).click()
+    await expect(page.getByRole('link', { name: 'Sponsor on GitHub' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Star the repository' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Back to the solar system' }).click()
+    await expect(page).not.toHaveURL(/page=/)
+    await expect(page.locator('.observatory canvas')).toBeVisible()
+  })
+
+  test('site pages load from the URL without the welcome tour', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.removeItem('perspectiverse.hide-welcome')
+    })
+    await page.goto('/?page=author')
+    await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Michael Link' })).toBeVisible()
+    await expect(page.getByText(/analytics engineer in Austin/)).toBeVisible()
+    await expect(page.getByRole('link', { name: /Data-Science-Link/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Michael Link' })).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/data-science-link',
+    )
+
+    await page.goto('/?page=vision')
+    await expect(page.getByRole('dialog', { name: 'Perspectiverse' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Out of the chamber, into the argument' })).toBeVisible()
+    await expect(page.getByText('Public attention', { exact: true })).toBeVisible()
+    await expect(page.getByText(/Truth can be nuanced/)).toBeVisible()
+
+    await page.goto('/?page=connect')
+    await expect(page.getByRole('heading', { name: 'Say hello' })).toBeVisible()
+    await expect(page.getByText(/Michael Link is in Austin/)).toBeVisible()
+    await expect(page.getByRole('link', { name: /^GitHub/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /LinkedIn/ })).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/data-science-link',
+    )
+    await expect(page.getByRole('link', { name: /This repository/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Send feedback/ })).toBeVisible()
+  })
 })

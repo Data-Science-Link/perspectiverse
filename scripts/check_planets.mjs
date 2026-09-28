@@ -29,6 +29,10 @@ assert.equal(
   '/perspectiverse/?category=Technology&topic=3&face=3A',
 )
 assert.equal(selectionURL({ category: 'all', topicId: null, perspectiveId: null }), '/perspectiverse/')
+assert.equal(
+  selectionURL({ category: 'all', topicId: null, perspectiveId: null, page: 'about' }),
+  '/perspectiverse/?page=about',
+)
 
 assert.equal(clampFaceCount(1), 2)
 assert.equal(clampFaceCount(9), 6)
