@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { BufferAttribute, BufferGeometry, DoubleSide } from 'three'
-import { rankPerspectives, spikeColor } from '../lib/colors'
+import { faceOpacity, rankPerspectives, shadeHex } from '../lib/colors'
 import { CORE_RADIUS } from '../lib/faces'
 import { createBodyTexture, createRingTexture } from '../lib/planetTextures'
-import { faceHeight, polyhedron } from '../lib/polyhedra'
+import { cubeSpikeFaces, faceHeight, polyhedron } from '../lib/polyhedra'
 
 function SaturnRings({ meshRef, quality = 'high' }) {
   const texture = useMemo(() => createRingTexture(quality), [quality])
@@ -36,6 +36,14 @@ function triangulate(vertices, loop) {
   return triangles
 }
 
+function fan(vertices) {
+  const triangles = []
+  for (let index = 1; index < vertices.length - 1; index += 1) {
+    triangles.push([vertices[0], vertices[index], vertices[index + 1]])
+  }
+  return triangles
+}
+
 function geometryFromTriangles(triangles) {
   const positions = []
   for (const [a, b, c] of triangles) pushTriangle(positions, a, b, c)
@@ -51,31 +59,47 @@ function faceCentroid(vertices) {
   return centroid.divideScalar(vertices.length)
 }
 
-function buildCrystal(perspectives) {
+function insetVertices(vertices, keep = 0.34) {
+  const centroid = faceCentroid(vertices)
+  return vertices.map((vertex) => centroid.clone().lerp(vertex, keep))
+}
+
+function buildCrystal(perspectives, pigment) {
   const ranked = rankPerspectives(perspectives)
-  const solid = polyhedron(ranked.length)
+  const loudest = ranked[0]?.volume_percent ?? 0
+  const solid = polyhedron(6)
+  const spikeFaces = cubeSpikeFaces(ranked.length)
   const coreTriangles = []
+  for (const loop of solid.faces) {
+    coreTriangles.push(...triangulate(solid.vertices, loop))
+  }
   const faces = ranked.map((perspective, index) => {
-    const loop = solid.faces[index]
+    const loop = solid.faces[spikeFaces[index]]
     const verts = loop.map((vertexIndex) => solid.vertices[vertexIndex].clone())
-    const normal = solid.normals[index].clone()
+    const normal = solid.normals[spikeFaces[index]].clone()
     const centroid = faceCentroid(verts)
     const height = faceHeight(perspective.volume_percent)
+    const base = insetVertices(verts, 0.22).map((vertex) => vertex.addScaledVector(normal, 0.018))
+    const pickBase = insetVertices(verts, 0.42).map((vertex) => vertex.addScaledVector(normal, 0.018))
     const apex = centroid.clone().addScaledVector(normal, height)
-    const pickApex = centroid.clone().addScaledVector(normal, height * 1.25)
-    coreTriangles.push(...triangulate(solid.vertices, loop))
-    const extrusion = []
-    const pick = []
-    for (let edge = 0; edge < verts.length; edge += 1) {
-      const a = verts[edge]
-      const b = verts[(edge + 1) % verts.length]
+    const pickApex = centroid.clone().addScaledVector(normal, height * 1.18)
+    const extrusion = [...fan(base)]
+    const pick = [...fan(pickBase)]
+    for (let edge = 0; edge < base.length; edge += 1) {
+      const a = base[edge]
+      const b = base[(edge + 1) % base.length]
       extrusion.push([a, b, apex])
+    }
+    for (let edge = 0; edge < pickBase.length; edge += 1) {
+      const a = pickBase[edge]
+      const b = pickBase[(edge + 1) % pickBase.length]
       pick.push([a, b, pickApex])
     }
     return {
       ...perspective,
       index,
-      color: spikeColor(index),
+      color: pigment,
+      opacity: faceOpacity(perspective.volume_percent, loudest),
       direction: [normal.x, normal.y, normal.z],
       extrusion: geometryFromTriangles(extrusion),
       pick: geometryFromTriangles(pick),
@@ -107,14 +131,15 @@ export default function SpikyCube({
   const ringMat = useRef()
   const ringMesh = useRef()
   const [crystalReady, setCrystalReady] = useState(showSpikes)
+  const pigment = body?.color ?? coreColor
 
   const texture = useMemo(
     () => createBodyTexture(body?.key ?? 'mercury', quality),
     [body?.key, quality],
   )
   const crystalGeo = useMemo(
-    () => (crystalReady ? buildCrystal(perspectives) : null),
-    [crystalReady, perspectives],
+    () => (crystalReady ? buildCrystal(perspectives, pigment) : null),
+    [crystalReady, perspectives, pigment],
   )
 
   useEffect(() => {
@@ -132,21 +157,20 @@ export default function SpikyCube({
 
   useFrame((_, delta) => {
     const target = showSpikes && !dimmed ? 1 : 0
-    reveal.current += (target - reveal.current) * Math.min(1, delta * 7)
+    reveal.current += (target - reveal.current) * Math.min(1, delta * 5.2)
     const amount = reveal.current
     if (sphereMat.current) {
       sphereMat.current.opacity = dimmed ? 0.16 : 1 - amount
       sphereMat.current.transparent = true
-      sphereMat.current.depthWrite = amount < 0.65
+      sphereMat.current.depthWrite = amount < 0.55
     }
     if (sphereMesh.current) {
-      const swell = 1 + amount * 0.18
-      sphereMesh.current.scale.setScalar(swell)
+      sphereMesh.current.scale.setScalar(1 - amount * 0.05)
       sphereMesh.current.visible = amount < 0.97
     }
     if (crystal.current) {
-      crystal.current.visible = amount > 0.03
-      crystal.current.scale.setScalar(0.72 + amount * 0.28)
+      crystal.current.visible = amount > 0.02
+      crystal.current.scale.setScalar(0.9 + amount * 0.1)
     }
     if (ringMat.current) {
       ringMat.current.opacity = (1 - amount) * 0.92
@@ -156,10 +180,13 @@ export default function SpikyCube({
     }
   })
 
-  const color = body?.color ?? coreColor
+  const color = pigment
   const isSun = body?.key === 'sun'
   const emissive = dimmed ? 0.02 : isSun ? 1.15 : 0.035
   const emissiveColor = dimmed ? '#6b7280' : isSun ? color : '#fff4dc'
+  const faces = crystalGeo
+    ? [...crystalGeo.faces].sort((a, b) => b.opacity - a.opacity)
+    : []
 
   return (
     <group>
@@ -190,18 +217,19 @@ export default function SpikyCube({
         <group ref={crystal}>
           <mesh geometry={crystalGeo.core} raycast={() => null}>
             <meshStandardMaterial
-              color="#161822"
-              emissive="#f4c14e"
-              emissiveIntensity={0.08}
-              roughness={0.42}
-              metalness={0.22}
+              color={shadeHex(pigment, 0.42)}
+              emissive={pigment}
+              emissiveIntensity={0.18}
+              roughness={0.4}
+              metalness={0.16}
               flatShading
             />
           </mesh>
-          {crystalGeo.faces.map((face) => {
+          {faces.map((face) => {
             const selected = selectedPerspectiveId === face.id
+            const transparent = face.opacity < 0.98
             return (
-              <group key={face.id} scale={selected ? 1.06 : 1}>
+              <group key={face.id} scale={selected ? 1.05 : 1}>
                 {interactive && (
                   <mesh
                     geometry={face.pick}
@@ -228,11 +256,17 @@ export default function SpikyCube({
                   <meshStandardMaterial
                     color={face.color}
                     emissive={face.color}
-                    emissiveIntensity={selected ? 1.55 : 0.38}
-                    roughness={0.26}
-                    metalness={0.14}
+                    emissiveIntensity={selected ? 1.15 : 0.16 + face.opacity * 0.28}
+                    roughness={0.28}
+                    metalness={0.1}
                     flatShading
                     toneMapped={false}
+                    transparent={transparent}
+                    opacity={face.opacity}
+                    depthWrite={!transparent}
+                    polygonOffset
+                    polygonOffsetFactor={-1}
+                    polygonOffsetUnits={-1}
                   />
                 </mesh>
               </group>

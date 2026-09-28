@@ -142,10 +142,22 @@ const BUILDERS = {
   6: cube,
 }
 
+const CUBE_SPIKE_FACES = {
+  2: [0, 1],
+  3: [0, 2, 4],
+  4: [0, 1, 2, 3],
+  5: [0, 1, 2, 3, 4],
+  6: [0, 1, 2, 3, 4, 5],
+}
+
 export function polyhedron(count) {
   return BUILDERS[clampFaceCount(count)]()
 }
 
+export function cubeSpikeFaces(count) {
+  return CUBE_SPIKE_FACES[clampFaceCount(count)]
+}
+
 export function faceHeight(volumePercent) {
-  return 0.1 + (Number(volumePercent) / 100) * 1.55
+  return 0.22 + (Number(volumePercent) / 100) * 1.2
 }

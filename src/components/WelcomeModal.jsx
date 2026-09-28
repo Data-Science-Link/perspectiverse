@@ -26,21 +26,20 @@ function CrystalGraphic() {
     <figure className="welcome-graphic">
       <h3>The views inside</h3>
       <svg viewBox="0 0 320 118" role="img" aria-labelledby="crystal-graphic-title">
-        <title id="crystal-graphic-title">A planet opens into faces. The long gold face is the majority view</title>
+        <title id="crystal-graphic-title">A planet opens into a cube. The longest, most solid spike is the majority view</title>
         <circle cx="58" cy="56" r="26" fill="#7ee0d8" />
         <circle cx="48" cy="46" r="9" fill="rgba(255,255,255,0.2)" />
         <text x="58" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Planet</text>
         <path d="M96 56 H132" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
         <path d="M124 50 L134 56 L124 62" fill="none" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
-        <polygon points="210,18 226,56 210,94 164,78 164,34" fill="#1c2230" stroke="rgba(232,230,245,0.35)" />
-        <polygon points="210,18 248,8 226,56" fill="#f4c14e" />
-        <polygon points="226,56 248,8 258,56 226,56" fill="#ff7a3d" />
-        <polygon points="226,56 258,56 236,92" fill="#6ea8ff" />
-        <polygon points="210,94 226,56 236,92" fill="#c77dff" />
+        <polygon points="176,34 244,34 244,78 176,78" fill="#1a3d3c" stroke="rgba(126,224,216,0.7)" />
+        <polygon points="210,18 226,40 194,40" fill="#7ee0d8" />
+        <polygon points="244,40 262,56 244,72" fill="rgba(126,224,216,0.55)" />
+        <polygon points="194,78 226,78 210,96" fill="rgba(126,224,216,0.32)" />
         <text x="210" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Opinions</text>
-        <text x="268" y="22" fill="#f4c14e" fontSize="11">Majority</text>
+        <text x="268" y="22" fill="#7ee0d8" fontSize="11">Majority</text>
       </svg>
-      <figcaption>Tap a planet and it opens into two to six faces. The long gold face is the majority — loudest, not truest.</figcaption>
+      <figcaption>Tap a planet and it opens into a cube with two to six spikes. The longest, most solid spike is the majority — loudest, not truest.</figcaption>
     </figure>
   )
 }

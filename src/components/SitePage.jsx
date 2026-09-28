@@ -26,8 +26,8 @@ const FAQ_ITEMS = [
     a: 'Share of attention in this sample. Bigger means more people were talking about that topic this week. Size is not importance, truth, or how much you should care.',
   },
   {
-    q: 'What does the gold face mean?',
-    a: 'The loudest opinion on that planet — the majority of the posts we kept for that topic. Loudest is not truest. Shorter faces are real minority views.',
+    q: 'What does the longest spike mean?',
+    a: 'The loudest opinion on that planet — the majority of the posts we kept for that topic. The spike keeps the planet&apos;s color at full strength. Loudest is not truest. Shorter, more transparent spikes are real minority views.',
   },
   {
     q: 'Why only ten planets?',
@@ -112,7 +112,7 @@ function VisionPage({ onOpenPage }) {
         </article>
         <article className="vision-point">
           <strong>Public opinion</strong>
-          <p>The views that showed up, loud and quiet. Gold is the majority. It is not a verdict on who is right.</p>
+          <p>The views that showed up, loud and quiet. The longest, most solid spike is the majority. It is not a verdict on who is right.</p>
         </article>
         <article className="vision-point">
           <strong>Multiple perspectives</strong>
@@ -194,8 +194,9 @@ function AboutPage({ data, onOpenPage }) {
         <h2>What you are looking at</h2>
         <p>
           The largest topic sits in the center as the sun. The next nine orbit around it.
-          Open a planet and it becomes a crystal of two to six faces — one per real
-          perspective, never more than a cube. Gold is the loudest opinion on that topic.
+          Open a planet and it becomes a cube with two to six spikes — one per real
+          perspective. The longest, most solid spike is the loudest opinion, in that
+          planet&apos;s color. Quieter views fade.
         </p>
       </section>
       <section>
@@ -219,7 +220,7 @@ function AboutPage({ data, onOpenPage }) {
         <ol className="page-list is-numbered">
           <li>Drag, pinch, or tilt. Planets keep turning so every side comes into view.</li>
           <li>Bigger planet = more talk this week, not more importance.</li>
-          <li>Tap a planet, then a face. Gold is the majority — loudest, not truest.</li>
+          <li>Tap a planet, then a spike. The longest, most solid one is the majority — loudest, not truest.</li>
         </ol>
         <div className="text-links">
           <button type="button" className="text-link" onClick={() => onOpenPage('vision')}>

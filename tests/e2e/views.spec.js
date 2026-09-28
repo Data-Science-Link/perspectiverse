@@ -67,6 +67,11 @@ test.describe('Perspectiverse views', () => {
     if (testInfo.project.name === 'mobile') {
       await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
       await expect(page.getByText(/Drag the sky to look around/)).toBeVisible()
+      const rail = page.getByLabel("Today's planets")
+      await expect(rail).toBeVisible()
+      await expect(rail.getByRole('button').first()).toContainText('AI Futures')
+      await expect(rail.getByRole('button').first()).toContainText('of attention')
+      await expect(rail).not.toContainText('Mercury')
     } else {
       await expect(page.getByRole('heading', { name: 'Perspectiverse' })).toBeVisible()
       await expect(page.getByText(/Bigger planets got more/)).toBeVisible()
@@ -95,7 +100,7 @@ test.describe('Perspectiverse views', () => {
     await page.getByRole('button', { name: /AI Futures/ }).first().click()
     await expect(page.getByRole('heading', { name: 'AI Futures' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Opinions' })).toBeVisible()
-    await expect(page.getByLabel('View colors, loudest first')).toContainText('Gold')
+    await expect(page.getByLabel('View colors, loudest first')).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Back to the sky|All topics/ })).toBeVisible()
 
     if (testInfo.project.name === 'mobile') {

@@ -1,3 +1,4 @@
+import { withSharePercents } from './layout.js'
 import { decorateTopics, SOLAR_BODIES } from './planets.js'
 
 export const SKY_SIZE = SOLAR_BODIES.length
@@ -35,7 +36,7 @@ export function skyTopics(topics = [], category = 'all') {
     if (delta !== 0) return delta
     return String(a.name ?? '').localeCompare(String(b.name ?? ''))
   })
-  return decorateTopics(ranked.slice(0, SKY_SIZE))
+  return decorateTopics(withSharePercents(ranked.slice(0, SKY_SIZE)))
 }
 
 export function skyMaxVolume(topics = []) {

@@ -1,5 +1,5 @@
 import { Quaternion, Vector3 } from 'three'
-import { polyhedron } from './polyhedra.js'
+import { cubeSpikeFaces, polyhedron } from './polyhedra.js'
 
 export const MIN_FACES = 2
 export const MAX_FACES = 6
@@ -26,8 +26,9 @@ export function shapeName(count) {
 }
 
 export function faceLayout(count) {
-  const solid = polyhedron(count)
-  return solid.normals.map((normal) => {
+  const solid = polyhedron(6)
+  return cubeSpikeFaces(count).map((faceIndex) => {
+    const normal = solid.normals[faceIndex]
     const quaternion = new Quaternion().setFromUnitVectors(UP, normal)
     const position = normal.clone().multiplyScalar(CORE_RADIUS * 0.96)
     return {
