@@ -6,11 +6,11 @@ The public observatory today is three cheap moves:
 
 1. **Lightweight storage.** A JSON snapshot. The sample that produced it lives in an ephemeral SQLite file on the machine that ran the job.
 2. **Once-per-day computation.** Ingest, clean, cluster 10 topics, cut 2–6 faces, label, write `data.json`.
-3. **Cheap rendering.** GitHub Pages fetches that file. The GPU in the visitor's machine draws the sky. There is no application server.
+3. **Cheap rendering.** GitHub Pages fetches that file. The GPU in the visitor's machine draws the solar system. There is no application server.
 
 That design is why the bill is ~$0. It is also why "chat with the planet" is not a feature you bolt onto `App.jsx`.
 
-**Status on the public sky:** the extractive Path 0 panel ("Test your take") was removed. Token overlap was not insightful enough. Conversational LLM reading remains Horizon A. The live site teaches anti-echo with geometry: tilt, planet size, and majority vs minority faces.
+**Status on the public solar system:** the extractive Path 0 panel ("Test your take") was removed. Token overlap was not insightful enough. Conversational LLM reading remains Horizon A. The live site teaches anti-echo with geometry: tilt, planet size, and majority vs minority faces.
 
 ## The job
 
@@ -39,7 +39,7 @@ After a live run:
 | Raw Bluesky payloads, URIs in the UI | no | never stored in the snapshot |
 | Embeddings | no | computed in memory, discarded |
 
-A visitor who "talks to the planet" on the static site can only hear the **representatives**. On the demo sky that is 3 posts × 2–6 faces. On a full live cap that is 12 × 2–6. That is enough to *feel* a conversation. It is not the cluster.
+A visitor who "talks to the planet" on the static site can only hear the **representatives**. On the demo solar system that is 3 posts × 2–6 faces. On a full live cap that is 12 × 2–6. That is enough to *feel* a conversation. It is not the cluster.
 
 ## Two architectures
 
@@ -79,7 +79,7 @@ This is the first design that deserves the word LLM. It still must not become "t
            ┌───────────────┼────────────────┐
            ▼               ▼                ▼
       data.json      briefing.json     face_quotes.json
-      (sky)          (60 cards)        (members + reps)
+      (solar system)          (60 cards)        (members + reps)
                            │
                            ▼
                     GET /chat  { scope, history, question }
@@ -99,7 +99,7 @@ This is the first design that deserves the word LLM. It still must not become "t
 | --- | --- | --- |
 | Storage | snapshot only | snapshot + per-face quote pack (still small) |
 | Compute | once / day | once / day **plus** per-turn inference |
-| Render | static | static sky + one authenticated POST |
+| Render | static | static solar system + one authenticated POST |
 | Secrets | none in the browser | stay on the clerk |
 
 The application server is a **clerk**, not a second pipeline. It does not re-cluster. It does not see the firehose. It reads the briefing written this morning.
@@ -133,7 +133,7 @@ Yes, if you keep the split sacred:
 
 - **Batch** still owns truth: what the planets are, how big, which posts belong.
 - **Interactive** only *reads* that truth.
-- The 3D scene still fetches one JSON file. Chat is a side channel, not a second sky.
+- The 3D scene still fetches one JSON file. Chat is a side channel, not a second solar system.
 
 The split dies if chat is allowed to invent faces, re-rank volumes, or pull live posts the snapshot never saw. At that point you have built a listening tool and should call it one.
 
@@ -144,7 +144,7 @@ These belong in the UI, not in a slide.
 1. **Lead with placement, then with quotes.** Majority / minority / split / absent first. Prose second.
 2. **Absent is a success state.** "Your thing is not a planet this week" is the sentence query-shaped software cannot say.
 3. **Gold is not right.** The loud face is the loud face. Copy already in the sidebar must stay next to the model's answer.
-4. **One scope at a time.** Whole sky, one planet, or one face. A model that answers from the whole snapshot will smooth the geometry away.
+4. **One scope at a time.** Whole solar system, one planet, or one face. A model that answers from the whole snapshot will smooth the geometry away.
 5. **Show the cap.** "Answered from 12 representative posts on this face" prevents the god's-eye reading the metaphor invites.
 
 ## Implementation map
@@ -166,4 +166,4 @@ Intelligent enough is **not** "wins a debate." It is:
 
 A small model with retrieval does that. A large model without retrieval does not.
 
-See [ROADMAP.md](../ROADMAP.md) for sequence and the cost table. Rewinding the sky to another day is a storage-and-matching problem, not a clerk problem: [Historical Skies and Topic Continuity](Historical%20Skies%20and%20Topic%20Continuity.md).
+See [ROADMAP.md](../ROADMAP.md) for sequence and the cost table. Rewinding the solar system to another day is a storage-and-matching problem, not a clerk problem: [Historical Solar Systems and Topic Continuity](Historical%20Solar%20Systems%20and%20Topic%20Continuity.md).

@@ -5,7 +5,7 @@ import SiteChrome from './components/SiteChrome'
 import SiteMenu from './components/SiteMenu'
 import SitePage from './components/SitePage'
 import WelcomeModal from './components/WelcomeModal'
-import { CATEGORIES, categoryCounts, skyMaxVolume, skyTopics } from './lib/categories'
+import { CATEGORIES, categoryCounts, solarMaxVolume, solarTopics } from './lib/categories'
 import { SITE_TAGLINE, isWelcomeHidden } from './lib/copy'
 import { readSelectionFromURL, resetScroll, writeSelectionToURL } from './lib/navigation'
 import { pageById } from './lib/pages'
@@ -48,10 +48,10 @@ export default function App() {
   }, [boot.page])
 
   const visibleTopics = useMemo(
-    () => (data ? skyTopics(data.topics, category) : []),
+    () => (data ? solarTopics(data.topics, category) : []),
     [data, category],
   )
-  const volumeMax = useMemo(() => skyMaxVolume(visibleTopics), [visibleTopics])
+  const volumeMax = useMemo(() => solarMaxVolume(visibleTopics), [visibleTopics])
 
   const selectedTopic = useMemo(
     () => visibleTopics.find((topic) => topic.id === selectedTopicId) ?? null,
@@ -167,7 +167,7 @@ export default function App() {
 
   const sitePage = pageById(page)
   const drilled = Boolean(selectedTopic) || Boolean(sitePage)
-  const showSky = !sitePage && !(isMobile && selectedTopic)
+  const showObservatory = !sitePage && !(isMobile && selectedTopic)
   const chromeTitle = sitePage?.title
     ?? selectedPerspective?.title
     ?? selectedTopic?.name
@@ -202,7 +202,7 @@ export default function App() {
       {sitePage && (
         <SitePage pageId={sitePage.id} data={data} onOpenPage={openPage} />
       )}
-      {showSky && (
+      {showObservatory && (
         <Observatory
           topics={visibleTopics}
           selectedTopicId={selectedTopicId}

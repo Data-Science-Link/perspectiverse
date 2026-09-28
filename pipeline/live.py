@@ -11,7 +11,7 @@ from pipeline.cleaning import clean_posts
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.label import label_perspective
 from pipeline.perspectives import select_representatives, split_perspectives
-from pipeline.schema import infer_category, to_percents, SKY_SIZE
+from pipeline.schema import infer_category, to_percents, SYSTEM_SIZE
 from pipeline.settings import load_settings
 from pipeline.store import connect, replace_posts, write_clusters
 from pipeline.topics import cluster_texts
@@ -62,7 +62,7 @@ def run_live(
             cluster_backend=str(settings["cluster_backend"]),
             embedding_model=str(settings["embedding_model"]),
             seed=int(settings["seed"]),
-            catalog_size=int(settings.get("catalog_size") or SKY_SIZE),
+            catalog_size=int(settings.get("catalog_size") or SYSTEM_SIZE),
         )
         topics, membership, face_rows = _build_topics(cleaned, clustered, settings)
         write_clusters(connection, membership, face_rows)

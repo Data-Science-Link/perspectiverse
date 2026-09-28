@@ -4,7 +4,7 @@ import { SITE_TAGLINE } from '../lib/copy'
 import { faceOpacity, hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import MiniCube from './MiniCube'
-import SkySelect from './SkySelect'
+import TopicFilter from './TopicFilter'
 
 function VolumeBar({ value, color, active = false }) {
   return (
@@ -23,8 +23,8 @@ function VolumeBar({ value, color, active = false }) {
 function FilterStrip({ categories, category, counts, onCategory }) {
   return (
     <div className="filter-strip">
-      <SkySelect
-        id="sidebar-sky-select"
+      <TopicFilter
+        id="sidebar-topic-filter"
         categories={categories}
         category={category}
         counts={counts}
@@ -47,15 +47,15 @@ function WelcomePanel({
   if (isMobile) {
     return (
       <div className="panel is-mobile-home">
-        <SkySelect
-          id="mobile-sky-select"
+        <TopicFilter
+          id="mobile-topic-filter"
           categories={categories}
           category={category}
           counts={counts}
           onCategory={onCategory}
         />
         <p className="mobile-prompt">
-          Drag the sky to look around. Bigger planets are what more people talked
+          Drag the solar system to look around. Bigger planets are what more people talked
           about this week. Tap one to open its opinions — the longest, most solid
           spike is the majority view.
         </p>
@@ -141,7 +141,7 @@ function EmptyCategory({ category, onShowAll }) {
       <p className="eyebrow">Empty solar system</p>
       <h1>Nothing in {category}</h1>
       <p className="lede">
-        This snapshot has no {category} topics. The sky is empty on purpose.
+        This snapshot has no {category} topics. The solar system is empty on purpose.
         Choose another filter, or show everything.
       </p>
       <button type="button" className="back-link" onClick={onShowAll}>
@@ -163,7 +163,7 @@ function TopicPanel({
   return (
     <div className="panel is-topic">
       <button type="button" className="back-link" onClick={onBack}>
-        {isMobile ? '← Back to the sky' : '← All topics'}
+        {isMobile ? '← Back to the solar system' : '← All topics'}
       </button>
       <p className="eyebrow" style={{ color }}>
         {topic.body?.name} · {topic.category} · {topic.perspectives.length} views

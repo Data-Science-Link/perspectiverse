@@ -42,7 +42,7 @@ The current live source is Bluesky. The sidebar is explicit that this is interne
 | Search-attention tools | Measure curiosity, not argument | "Are people searching for this?" | Interest over time | Strategy, journalism |
 | Researcher topic maps | Explore a corpus you already have | "What clusters exist in *this* dataset?" | Embedding maps, word networks | Data scientists, CSS labs |
 | Polling and CX | Ask a designed question | "What % of adults support X?" | Crosstabs, NPS, Likert scores | Researchers, product, politics |
-| **Perspectiverse** | Read the week's public conversation as a sky | "What were people actually talking about, and from how many angles?" | Solar system of 10 topics × 6 perspectives, then the posts | Anyone who wants to see the week, not manage a brand |
+| **Perspectiverse** | Read the week's public conversation as a solar system | "What were people actually talking about, and from how many angles?" | Solar system of 10 topics × 6 perspectives, then the posts | Anyone who wants to see the week, not manage a brand |
 
 The rest of this document unpacks each family and the exact gap.
 
@@ -98,7 +98,7 @@ Listening is the category people reach for first, and it is the one this project
 
 **What they do.** These products sell *time*. They watch firehoses for breaking events, threats, deepfakes, and coordinated bursts, then page an analyst. The 2026 enterprise guides split the market into volume-led listening (Brandwatch, Meltwater), audience-led intelligence (Pulsar, Audiense), and risk-led alerting (Dataminr).
 
-**How Perspectiverse differs.** The pipeline runs once a day on a 7-day window and writes a static `data.json`. That is a feature. A daily gravitational map is meant to be semantically stable, cheap, and readable. It is a terrible paging system. If something is on fire at 2 a.m., this sky will not tell you until the next snapshot, and even then only if the cluster was large enough to become a planet.
+**How Perspectiverse differs.** The pipeline runs once a day on a 7-day window and writes a static `data.json`. That is a feature. A daily gravitational map is meant to be semantically stable, cheap, and readable. It is a terrible paging system. If something is on fire at 2 a.m., this solar system will not tell you until the next snapshot, and even then only if the cluster was large enough to become a planet.
 
 ## 6. Narrative intelligence and influence mapping
 
@@ -153,7 +153,7 @@ Perspectiverse is **inferred**, not authored. Nobody draws the six faces. k-mean
 
 ### Issue and controversy mapping
 
-Academic controversy-mapping (Issue Crawler, Govcom.org, and the "mapping controversies" tradition) traces actors, documents, and linkages around a public issue. Those maps are research instruments. Perspectiverse is a public sky with a fixed 10×6 schema. It will not replace a controversy map. It might tell you which controversy was large enough this week to deserve one.
+Academic controversy-mapping (Issue Crawler, Govcom.org, and the "mapping controversies" tradition) traces actors, documents, and linkages around a public issue. Those maps are research instruments. Perspectiverse is a public solar system with a fixed 10×6 schema. It will not replace a controversy map. It might tell you which controversy was large enough this week to deserve one.
 
 ## 9. Media-bias and news-literacy products
 
@@ -187,7 +187,7 @@ Academic controversy-mapping (Issue Crawler, Govcom.org, and the "mapping contro
 
 **How Perspectiverse differs.** Searching for a term and arguing about it are different behaviors. Trends will not give you six faces. Platform "trending" is also a poor picture of scale: it is whatever the ranking system chose to boost. The solar system is a counter-ranking. It is still a sample, still biased, but the ranking rule is "largest clusters in this extract," not "most engaging."
 
-A **time slider on this observatory** would still be cluster mass in the extract, not a search index. Day-over-day shares on a 7-day overlapping window are also a poor "what's hot" chart unless we store identity and a flow measure. That design is [Historical Skies and Topic Continuity](Historical%20Skies%20and%20Topic%20Continuity.md), not a scrape of Google Trends.
+A **time slider on this observatory** would still be cluster mass in the extract, not a search index. Day-over-day shares on a 7-day overlapping window are also a poor "what's hot" chart unless we store identity and a flow measure. That design is [Historical Solar Systems and Topic Continuity](Historical%20Solar%20Systems%20and%20Topic%20Continuity.md), not a scrape of Google Trends.
 
 ## 13. Researcher topic maps and text networks
 
@@ -197,7 +197,7 @@ A **time slider on this observatory** would still be cluster mass in the extract
 
 **How Perspectiverse differs.**
 
-- **Fixed civic schema vs open explorer.** 10 planets × 6 faces is a deliberate reduction. Atlas will happily show you 200 clusters at three depths. That is better for research. It is worse for a public that needs one sky they can finish.
+- **Fixed civic schema vs open explorer.** 10 planets × 6 faces is a deliberate reduction. Atlas will happily show you 200 clusters at three depths. That is better for research. It is worse for a public that needs one solar system they can finish.
 - **Metaphor with a thesis.** An embedding plot does not argue that scale is distorted or that binary sentiment is a lie. The solar system and the spiky cube *are* those arguments. Geometry is the editorial.
 - **Hosted observatory vs BYO corpus.** You do not upload a CSV to read Perspectiverse. The daily job *is* the corpus. That makes it a place, not a lab instrument.
 - **Drill-down to posts in public language.** The sidebar is a reading room: title, sentence, then the actual posts sorted by likes. Many research UIs stop at keywords or coordinates.
@@ -250,7 +250,7 @@ A face is not an oracle. It is a title, a sentence, and a stack of real posts. T
 
 ### 5. Stay cheap, inspectable, and slow on purpose
 
-Enterprise listening is a budget line. Pol.is is a process you have to run. Atlas is a platform you upload to. Perspectiverse is a static site plus a daily job that can run on GitHub Actions for cents of LLM calls (or free via Ollama). The 7-day window and the once-a-day refresh are how it avoids both semantic jitter and a cloud bill. "Live mapping" here means "the sky updates every morning," not "the graph twitches with every post."
+Enterprise listening is a budget line. Pol.is is a process you have to run. Atlas is a platform you upload to. Perspectiverse is a static site plus a daily job that can run on GitHub Actions for cents of LLM calls (or free via Ollama). The 7-day window and the once-a-day refresh are how it avoids both semantic jitter and a cloud bill. "Live mapping" here means "the solar system updates every morning," not "the graph twitches with every post."
 
 That cost model is part of the value. A public observatory that only a university or a holding company can afford is not public.
 
@@ -295,4 +295,4 @@ Product behavior described here matches this repo: 7-day window, 10 planets, 2�
 
 A premium path is on the roadmap: type a brand or a paragraph (or highlight text in a Chrome / Google plugin) and **generate a universe**. That product *does* start from a noun. It will look, to a buyer, like listening. It should be sold as listening with our metaphor — cache, quota, and a labeled `query` field — and it should never replace `/`.
 
-The public sky keeps the unsupervised starting question. Geometry on `/` is the civic anti-echo chamber: you do not get a new sky. You find out whether the thing you care about was already a planet, a majority face, a minority face, or absent. Building the plugin first, on the home URL, would collapse the table in this document.
+The public solar system keeps the unsupervised starting question. Geometry on `/` is the civic anti-echo chamber: you do not get a new solar system. You find out whether the thing you care about was already a planet, a majority face, a minority face, or absent. Building the plugin first, on the home URL, would collapse the table in this document.

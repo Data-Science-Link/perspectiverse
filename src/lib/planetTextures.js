@@ -119,11 +119,11 @@ function sunShade(nx, ny) {
   const cell = ridge(nx, ny, 8, 7, 8.4, 3)
   const spot = fbm(nx, ny, 5, 6, 11.4, 4)
   const flare = fbm(nx, ny, 3, 3.5, 21.6, 3)
-  const limb = clamp01(1 - d * 1.05)
-  let color = mix([255, 120, 24], [255, 228, 120], clamp01(granulation * 0.7 + cell * 0.45))
-  color = mix(color, [255, 248, 210], clamp01(flare * 0.45) * limb)
-  if (spot > 0.7) color = mix(color, [110, 42, 16], (spot - 0.7) * 2.2)
-  const dim = 0.55 + limb * 0.55
+  const limb = clamp01(1 - d * 0.92)
+  let color = mix([255, 168, 42], [255, 236, 148], clamp01(granulation * 0.7 + cell * 0.45))
+  color = mix(color, [255, 252, 232], clamp01(flare * 0.55) * limb)
+  if (spot > 0.8) color = mix(color, [168, 72, 22], (spot - 0.8) * 1.5)
+  const dim = 0.82 + limb * 0.22
   return color.map((c) => Math.round(c * dim))
 }
 

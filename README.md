@@ -2,7 +2,7 @@
 
 Live mapping the universe of human attention and perspectives.
 
-Perspectiverse turns a week of public conversation into a 3D solar system so you do not live in an echo chamber. Tilt the solar system to see **every** perspective, then check where yours stacks up. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Planet size is share of public attention — whether the general public was talking about that topic. Planets wear solar-system skins. Open one and the sphere dissolves into a **crystal of two to six faces** — one per real perspective, never more than a cube. Face length is that view's share of the conversation. Gold is the majority (loudest) view; shorter faces are minority opinions. Colors always run gold → ember → sky → violet → jade → rose, loudest first.
+Perspectiverse turns a week of public conversation into a 3D solar system so you do not live in an echo chamber. Tilt the solar system to see **every** perspective, then check where yours stacks up. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Planet size is share of public attention — whether the general public was talking about that topic. Planets wear solar-system skins. Open one and the sphere dissolves into a **crystal of two to six faces** — one per real perspective, never more than a cube. Face length is that view's share of the conversation. Gold is the majority (loudest) view; shorter faces are minority opinions. Colors always run gold → ember → azure → violet → jade → rose, loudest first.
 
 The analytical sidebar reacts to the solar system. Filter by category with the **Solar System** dropdown, select a planet to turn its cube, then select a face to read the representative posts. A first-visit welcome explains the metaphor; the menu can reopen it.
 
@@ -24,8 +24,8 @@ The observatory runs on a schema-compatible **demo** `public/data.json` (10 topi
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
 | Daily refresh | `.github/workflows/pipeline.yml` |
 | Conversational LLM on a planet | Roadmap only (Horizon A) |
-| Custom sky from `--query` | Ready for operators; not a public form |
-| Historical skies / topic tracking | Roadmap only (Horizon C) |
+| Custom solar system from `--query` | Ready for operators; not a public form |
+| Historical solar systems / topic tracking | Roadmap only (Horizon C) |
 
 ## Quick start
 
@@ -70,7 +70,7 @@ python -m pipeline.run_pipeline --live
 
 Copy `.env.example` to `.env` for secrets. The public Bluesky search works with `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` left blank. Set both to use an app password from Bluesky settings. Do not commit `.env`.
 
-To rehearse the live path without the network, point `--output` somewhere other than `public/data.json` unless you mean to replace the demo sky:
+To rehearse the live path without the network, point `--output` somewhere other than `public/data.json` unless you mean to replace the demo solar system:
 
 ```bash
 python -m pipeline.run_pipeline --live --fixture tests/fixtures/tiny_posts.json --output /tmp/perspectiverse-data.json
@@ -84,7 +84,7 @@ To pull a **brand-shaped or claim-shaped sample** instead of the default common-
 python -m pipeline.run_pipeline --live --query "acme" --query "acme shoes" --output /tmp/acme.json
 ```
 
-That is the free operator path toward custom universes. It does not retain history and it is not the public homepage. The civic sky stays unsupervised; see [ROADMAP.md](ROADMAP.md).
+That is the free operator path toward custom universes. It does not retain history and it is not the public homepage. The civic observatory stays unsupervised; see [ROADMAP.md](ROADMAP.md).
 
 ## Who can approve a PR to main
 

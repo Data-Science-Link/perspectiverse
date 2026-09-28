@@ -1,7 +1,7 @@
 import { withSharePercents } from './layout.js'
 import { decorateTopics, SOLAR_BODIES } from './planets.js'
 
-export const SKY_SIZE = SOLAR_BODIES.length
+export const SYSTEM_SIZE = SOLAR_BODIES.length
 
 export const CATEGORIES = [
   'Politics',
@@ -29,16 +29,16 @@ export function categoryCounts(topics) {
   return counts
 }
 
-export function skyTopics(topics = [], category = 'all') {
+export function solarTopics(topics = [], category = 'all') {
   const filtered = filterTopics(topics, category)
   const ranked = [...filtered].sort((a, b) => {
     const delta = (b.total_volume_percent ?? 0) - (a.total_volume_percent ?? 0)
     if (delta !== 0) return delta
     return String(a.name ?? '').localeCompare(String(b.name ?? ''))
   })
-  return decorateTopics(withSharePercents(ranked.slice(0, SKY_SIZE)))
+  return decorateTopics(withSharePercents(ranked.slice(0, SYSTEM_SIZE)))
 }
 
-export function skyMaxVolume(topics = []) {
+export function solarMaxVolume(topics = []) {
   return Math.max(0, ...topics.map((topic) => Number(topic.total_volume_percent) || 0))
 }

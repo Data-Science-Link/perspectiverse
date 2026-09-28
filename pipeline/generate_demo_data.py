@@ -14,13 +14,13 @@ from pathlib import Path
 from typing import Any
 
 from pipeline.demo_catalog import CATEGORY_ROSTERS, CATEGORY_WEIGHTS, FACE_TITLES, TOPIC_CURVE
-from pipeline.schema import CATEGORIES, NOISE_POLICY, SKY_SIZE, to_percents, validate_payload
+from pipeline.schema import CATEGORIES, NOISE_POLICY, SYSTEM_SIZE, to_percents, validate_payload
 
 DEMO_TOTAL_POSTS = 100_000
 DEMO_LAST_UPDATED = date(2026, 9, 26).isoformat()
 
 # Featured topics keep their hand-written faces. Extra category planets are
-# synthesized so each roster can fill a 10-planet sky.
+# synthesized so each roster can fill a 10-planet solar system.
 DEMO_TOPICS: list[dict[str, Any]] = [
     {
         "id": 1,
@@ -859,8 +859,8 @@ def build_demo_payload(last_updated: str = DEMO_LAST_UPDATED, total_posts: int =
     salt = 0
     for category in CATEGORIES:
         roster = CATEGORY_ROSTERS[category]
-        if len(roster) != SKY_SIZE:
-            raise ValueError(f"{category} roster must have {SKY_SIZE} topics")
+        if len(roster) != SYSTEM_SIZE:
+            raise ValueError(f"{category} roster must have {SYSTEM_SIZE} topics")
         cat_weight = CATEGORY_WEIGHTS[category]
         for rank, name in enumerate(roster):
             weight = cat_weight * TOPIC_CURVE[rank]

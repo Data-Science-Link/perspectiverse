@@ -1,4 +1,4 @@
-"""Compact extra topics so each category can fill a 10-planet sky.
+"""Compact extra topics so each category can fill a 10-planet solar system.
 
 Featured topics (the original hand-written ten) live in generate_demo_data.py
 and are looked up by name. Everything else is synthesized from this roster.
@@ -7,7 +7,7 @@ and are looked up by name. Everything else is synthesized from this roster.
 from __future__ import annotations
 
 # Ranked loudest → quietest inside each category. The first slots are heavy
-# enough that the default "All" sky is a mix, not one category's entire roster.
+# enough that the default "All" solar system is a mix, not one category's entire roster.
 CATEGORY_ROSTERS: dict[str, list[str]] = {
     "Technology": [
         "AI Futures",
@@ -132,7 +132,7 @@ CATEGORY_ROSTERS: dict[str, list[str]] = {
 }
 
 # Relative mass of each category in the week. Uneven on purpose so the default
-# sky can include several Politics planets and none from quieter categories.
+# solar system can include several Politics planets and none from quieter categories.
 CATEGORY_WEIGHTS: dict[str, int] = {
     "Technology": 18,
     "Economy": 16,

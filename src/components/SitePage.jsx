@@ -31,7 +31,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Why only ten planets?',
-    a: 'So the sky stays readable. The ten largest topics after noise is dropped. Posts that fit no planet are left out of the percentages.',
+    a: 'So the solar system stays readable. The ten largest topics after noise is dropped. Posts that fit no planet are left out of the percentages.',
   },
   {
     q: 'How often does it update?',
@@ -55,7 +55,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Do you keep the posts?',
-    a: 'The published sky keeps a handful of example posts per face. The rest of the sample dies with the daily job. Nothing here is a firehose archive.',
+    a: 'The published snapshot keeps a handful of example posts per face. The rest of the sample dies with the daily job. Nothing here is a firehose archive.',
   },
   {
     q: 'How do I get in touch?',
@@ -128,7 +128,7 @@ function VisionPage({ onOpenPage }) {
           someone you do not already like.
         </p>
         <p>
-          The sky is supposed to do the opposite. Tilt until every side comes into view.
+          The solar system is supposed to do the opposite. Tilt until every side comes into view.
           Check whether you are the majority, a minority, or not on the planet at all.
           Then you can walk into a conversation without plugging your ears.
         </p>
@@ -166,7 +166,7 @@ function VisionPage({ onOpenPage }) {
           accordingly.
         </p>
         <button type="button" className="text-link" onClick={() => onOpenPage('about')}>
-          How to read the sky
+          How to read the solar system
         </button>
       </section>
     </>
@@ -227,7 +227,7 @@ function AboutPage({ data, onOpenPage }) {
             Read the vision
           </button>
           <button type="button" className="text-link" onClick={() => onOpenPage('methodology')}>
-            See how the sky is made
+            See how the solar system is made
           </button>
         </div>
       </section>
@@ -250,7 +250,7 @@ function AuthorPage({ onOpenPage }) {
           State, then a master&apos;s at UT Austin — and now spends his days turning
           messy operational data into something a decision can stand on. The habit is
           the same here: take a noisy public record, make the structure visible, and
-          refuse to pretend a loud corner is the whole sky.
+          refuse to pretend a loud corner is the whole solar system.
         </p>
         <p>
           Perspectiverse is independent of his day job. MIT licensed, cheap on purpose,
@@ -261,7 +261,7 @@ function AuthorPage({ onOpenPage }) {
         <h2>Why this exists</h2>
         <p>
           Feeds flatten argument into a For/Against scroll, and they hide scale. A loud
-          fight can look like the whole sky. This project puts attention and disagreement
+          fight can look like the whole solar system. This project puts attention and disagreement
           in space: planet size for how widely something was discussed, faces for the
           actual views inside it.
         </p>
@@ -301,7 +301,7 @@ function MethodologyPage() {
     <>
       <p className="lede">
         One daily job reads a week of public posts, finds ten topics and a few opinions
-        each, and writes a file. The site is that file, drawn as a sky.
+        each, and writes a file. The site is that file, drawn as a solar system.
       </p>
 
       <section>
@@ -317,7 +317,7 @@ function MethodologyPage() {
         <h2>How the systems connect</h2>
         <p>
           Collect, sort, name, publish. Each stage is boring on purpose so the public
-          sky can stay free. The map is the whole path; the cards underneath spell out
+          solar system can stay free. The map is the whole path; the cards underneath spell out
           what each box actually does.
         </p>
         <TechnicalMapGraphic />
@@ -363,7 +363,7 @@ function DonatePage() {
   return (
     <>
       <p className="lede">
-        The public sky is built to cost almost nothing — about a dollar a month at most
+        The public solar system is built to cost almost nothing — about a dollar a month at most
         today. Donations keep it independent, not pay the hosting bill.
       </p>
       <section>
@@ -389,7 +389,7 @@ function DonatePage() {
           <a href={FEEDBACK_URL} target="_blank" rel="noreferrer">
             sending feedback
           </a>{' '}
-          is the most useful thing. There is no paywall on the sky.
+          is the most useful thing. There is no paywall on Perspectiverse.
         </p>
       </section>
     </>
@@ -426,7 +426,7 @@ function ConnectPage({ onOpenPage }) {
   return (
     <>
       <p className="lede">
-        {AUTHOR_NAME} is in {AUTHOR_LOCATION}. If you want to talk about the sky, the
+        {AUTHOR_NAME} is in {AUTHOR_LOCATION}. If you want to talk about Perspectiverse, the
         method, a missing perspective, or just say hello — these are the public doors.
         There is no inbox hiding in the page.
       </p>
@@ -456,7 +456,7 @@ function ConnectPage({ onOpenPage }) {
           <IssueIcon />
           <span>
             <strong>Send feedback</strong>
-            <em>Open a GitHub issue about the sky</em>
+            <em>Open a GitHub issue about Perspectiverse</em>
           </span>
         </a>
       </nav>

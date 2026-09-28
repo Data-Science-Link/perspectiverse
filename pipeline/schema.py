@@ -8,9 +8,9 @@ from typing import Any
 WINDOW_HOURS = 168
 MODES = frozenset({"demo", "live"})
 SOURCES = frozenset({"synthetic", "bluesky", "fixture"})
-# One sky is always this many planets. The saved catalog can be larger so each
-# category can fill its own sky when the user switches modes.
-SKY_SIZE = 10
+# One solar system is always this many planets. The saved catalog can be larger so each
+# category can fill its own solar system when the user switches modes.
+SYSTEM_SIZE = 10
 CATEGORIES = (
     "Politics",
     "Sports",
@@ -90,8 +90,8 @@ def validate_payload(payload: dict[str, Any]) -> None:
         raise ValueError("last_updated is required")
 
     topics = payload.get("topics") or []
-    if len(topics) < SKY_SIZE:
-        raise ValueError(f"Expected at least {SKY_SIZE} topics, found {len(topics)}")
+    if len(topics) < SYSTEM_SIZE:
+        raise ValueError(f"Expected at least {SYSTEM_SIZE} topics, found {len(topics)}")
 
     topic_volume = 0.0
     seen_topic_ids: set[int] = set()
@@ -133,11 +133,11 @@ def validate_payload(payload: dict[str, Any]) -> None:
     if abs(topic_volume - 100.0) > 0.15:
         raise ValueError(f"Topic volumes sum to {topic_volume}, not 100")
 
-    # Demo catalogs are a full sky per category so the dropdown never empties.
+    # Demo catalogs are a full solar system per category so the dropdown never empties.
     if payload.get("mode") == "demo":
         counts = Counter(topic["category"] for topic in topics)
-        missing = [category for category in CATEGORIES if counts.get(category, 0) < SKY_SIZE]
+        missing = [category for category in CATEGORIES if counts.get(category, 0) < SYSTEM_SIZE]
         if missing:
             raise ValueError(
-                f"Demo catalog needs {SKY_SIZE} topics in every category; short: {missing}"
+                f"Demo catalog needs {SYSTEM_SIZE} topics in every category; short: {missing}"
             )

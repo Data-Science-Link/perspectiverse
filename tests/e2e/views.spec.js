@@ -31,7 +31,7 @@ async function observatoryStats(page) {
 }
 
 test.describe('Perspectiverse views', () => {
-  test('loads a living sky with onboarding, tagline, and orbit toggle', async ({ page }, testInfo) => {
+  test('loads a living solar system with onboarding, tagline, and orbit toggle', async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       window.localStorage.removeItem('perspectiverse.hide-welcome')
     })
@@ -61,12 +61,37 @@ test.describe('Perspectiverse views', () => {
       return stats.width > 64 && stats.height > 64 && stats.lit > 8
     }, { timeout: 20_000 }).toBeTruthy()
 
+    await expect.poll(async () => {
+      const sun = await page.locator('.observatory canvas').evaluate((canvas) => {
+        const width = canvas.width
+        const height = canvas.height
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
+        if (!gl || width < 8 || height < 8) return { r: 0, g: 0, b: 0 }
+        const size = 10
+        const pixels = new Uint8Array(size * size * 4)
+        const x = Math.max(0, Math.floor(width / 2 - size / 2))
+        const y = Math.max(0, Math.floor(height / 2 - size / 2))
+        gl.readPixels(x, y, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+        let r = 0
+        let g = 0
+        let b = 0
+        const samples = size * size
+        for (let i = 0; i < pixels.length; i += 4) {
+          r += pixels[i]
+          g += pixels[i + 1]
+          b += pixels[i + 2]
+        }
+        return { r: r / samples, g: g / samples, b: b / samples }
+      })
+      return sun.r > 150 && sun.g > 120 && sun.r + sun.g > 280
+    }, { timeout: 20_000 }).toBeTruthy()
+
     await page.getByRole('button', { name: 'Show orbit lines' }).click()
     await expect(page.getByRole('button', { name: 'Hide orbit lines' })).toBeVisible()
 
     if (testInfo.project.name === 'mobile') {
       await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
-      await expect(page.getByText(/Drag the sky to look around/)).toBeVisible()
+      await expect(page.getByText(/Drag the solar system to look around/)).toBeVisible()
       const rail = page.getByLabel("Today's planets")
       await expect(rail).toBeVisible()
       await expect(rail.getByRole('button').first()).toContainText('AI Futures')
@@ -101,10 +126,11 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('heading', { name: 'AI Futures' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Opinions' })).toBeVisible()
     await expect(page.getByLabel('View colors, loudest first')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /Back to the sky|All topics/ })).toBeVisible()
-
     if (testInfo.project.name === 'mobile') {
+      await expect(page.getByRole('button', { name: '← Back to the solar system' })).toBeVisible()
       await expect(page.getByRole('banner').getByText('Back', { exact: true })).toBeVisible()
+    } else {
+      await expect(page.getByRole('button', { name: '← All topics' })).toBeVisible()
     }
 
     await page.getByRole('button', { name: /Job Displacement/ }).click()
@@ -131,8 +157,8 @@ test.describe('Perspectiverse views', () => {
 
     await menu.getByRole('button', { name: /Methodology/ }).click()
     await expect(page).toHaveURL(/page=methodology/)
-    await expect(page.getByRole('heading', { name: 'How the sky is made' })).toBeVisible()
-    await expect(page.getByRole('img', { name: /public talk to a sky/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'How the solar system is made' })).toBeVisible()
+    await expect(page.getByRole('img', { name: /public talk to a solar system/i })).toBeVisible()
     await expect(page.getByRole('img', { name: /Bluesky through the daily job/i })).toBeVisible()
     await expect(page.getByText('Bluesky public search')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Sample a week of talk' })).toBeVisible()
