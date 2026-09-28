@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { Quaternion, Vector3 } from 'three'
+import { CatmullRomCurve3, DoubleSide, Quaternion, TubeGeometry, Vector3 } from 'three'
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
 import { bodySpin, formatPercent, orbitElements, setOrbitPosition, topicScale } from '../lib/layout'
@@ -207,13 +207,30 @@ export default function Planet({
 }
 
 export function OrbitRing({ radius, inclination = 0, node = 0, segments = 128 }) {
-  if (!radius) return null
+  const geometry = useMemo(() => {
+    if (!radius) return null
+    const points = []
+    const point = new Vector3()
+    for (let index = 0; index < segments; index += 1) {
+      setOrbitPosition(point, radius, (index / segments) * Math.PI * 2, inclination, node)
+      points.push(point.clone())
+    }
+    const curve = new CatmullRomCurve3(points, true, 'chordal')
+    return new TubeGeometry(curve, segments, 0.022, 8, true)
+  }, [radius, inclination, node, segments])
+
+  useEffect(() => () => geometry?.dispose(), [geometry])
+
+  if (!geometry) return null
   return (
-    <group rotation={[0, node, 0]}>
-      <mesh rotation={[Math.PI / 2 + inclination, 0, 0]} raycast={() => null}>
-        <ringGeometry args={[radius - 0.016, radius + 0.016, segments]} />
-        <meshBasicMaterial color="#d7def5" transparent opacity={0.34} />
-      </mesh>
-    </group>
+    <mesh geometry={geometry} raycast={() => null} renderOrder={-1}>
+      <meshBasicMaterial
+        color="#d7def5"
+        transparent
+        opacity={0.55}
+        depthWrite={false}
+        side={DoubleSide}
+      />
+    </mesh>
   )
 }
