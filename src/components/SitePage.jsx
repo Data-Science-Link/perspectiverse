@@ -39,7 +39,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Why is my take missing?',
-    a: 'It may be rare in this sample, folded into a nearby face, or in the leftover posts that never became a planet. A face summary also smooths over disagreement inside that view.',
+    a: 'It may be rare in this sample, folded into a nearby face, or in the leftover posts that never became a planet. Opening a face shows a steelman of that view plus example posts — a synthesis, not every disagreement inside it.',
   },
   {
     q: 'Is this social listening or brand monitoring?',

@@ -120,6 +120,16 @@ def validate_payload(payload: dict[str, Any]) -> None:
             seen_faces.add(face_id)
             if not face.get("title") or not face.get("summary"):
                 raise ValueError(f"Perspective {face_id} needs a title and summary")
+            arguments = face.get("arguments")
+            if arguments is not None:
+                if not isinstance(arguments, list) or not 2 <= len(arguments) <= 6:
+                    raise ValueError(
+                        f"Perspective {face_id} arguments must be a list of 2-6 strings"
+                    )
+                if any(not isinstance(item, str) or not item.strip() for item in arguments):
+                    raise ValueError(f"Perspective {face_id} has an empty argument")
+            elif payload.get("mode") == "demo":
+                raise ValueError(f"Demo perspective {face_id} needs core arguments")
             posts = face.get("representative_posts") or []
             if not posts:
                 raise ValueError(f"Perspective {face_id} needs representative posts")

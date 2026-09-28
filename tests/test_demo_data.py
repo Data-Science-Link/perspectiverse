@@ -1,7 +1,8 @@
 from collections import Counter
 
+from pipeline.demo_briefs import FACE_BRIEFS, FEATURED_ARGUMENTS
 from pipeline.demo_catalog import CATEGORY_ROSTERS
-from pipeline.generate_demo_data import build_demo_payload, validate_payload
+from pipeline.generate_demo_data import DEMO_TOPICS, build_demo_payload, validate_payload
 from pipeline.schema import CATEGORIES, SYSTEM_SIZE
 
 
@@ -43,3 +44,64 @@ def test_each_planet_has_two_to_six_faces_and_posts():
         for face in topic["perspectives"]:
             assert len(face["representative_posts"]) >= 2
             assert all("likes" in post for post in face["representative_posts"])
+
+
+PLACEHOLDER_SNIPPETS = (
+    "shorter name",
+    "how this cluster argues",
+    "thread by the third reply",
+    "the rest is branding",
+    "i do not need another panel",
+)
+
+
+def test_every_extra_topic_has_unique_briefs():
+    featured = {topic["name"] for topic in DEMO_TOPICS}
+    extra = [
+        name
+        for roster in CATEGORY_ROSTERS.values()
+        for name in roster
+        if name not in featured
+    ]
+    assert set(FACE_BRIEFS) == set(extra)
+    for name, faces in FACE_BRIEFS.items():
+        assert 2 <= len(faces) <= 6
+        titles = [face["title"] for face in faces]
+        assert len(titles) == len(set(titles))
+        for face in faces:
+            blob = " ".join(
+                [face["summary"], *face["arguments"], *(post["text"] for post in face["posts"])]
+            ).lower()
+            for snippet in PLACEHOLDER_SNIPPETS:
+                assert snippet not in blob
+            assert 2 <= len(face["arguments"]) <= 6
+            assert len(face["posts"]) >= 2
+
+
+def test_featured_and_demo_faces_include_core_arguments():
+    for topic in DEMO_TOPICS:
+        by_title = FEATURED_ARGUMENTS[topic["name"]]
+        for face in topic["perspectives"]:
+            arguments = by_title[face["title"]]
+            assert 2 <= len(arguments) <= 6
+            assert face["summary"] not in arguments
+    payload = build_demo_payload()
+    drills = next(
+        face
+        for topic in payload["topics"]
+        if topic["name"] == "School Safety"
+        for face in topic["perspectives"]
+        if face["title"] == "Drills"
+    )
+    drills_blob = " ".join(
+        [drills["summary"], *drills["arguments"], *(post["text"] for post in drills["representative_posts"])]
+    ).lower()
+    assert "lockdown" in drills_blob
+    assert "alice" in drills_blob or "drill" in drills_blob
+    assert all("shorter name" not in post["text"] for post in drills["representative_posts"])
+    for topic in payload["topics"]:
+        for face in topic["perspectives"]:
+            assert 2 <= len(face["arguments"]) <= 6
+            for snippet in PLACEHOLDER_SNIPPETS:
+                assert snippet not in face["summary"].lower()
+

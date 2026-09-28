@@ -13,7 +13,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from pipeline.demo_catalog import CATEGORY_ROSTERS, CATEGORY_WEIGHTS, FACE_TITLES, TOPIC_CURVE
+from pipeline.demo_briefs import FACE_BRIEFS, FEATURED_ARGUMENTS
+from pipeline.demo_catalog import CATEGORY_ROSTERS, CATEGORY_WEIGHTS, TOPIC_CURVE
 from pipeline.schema import CATEGORIES, NOISE_POLICY, SYSTEM_SIZE, to_percents, validate_payload
 
 DEMO_TOTAL_POSTS = 100_000
@@ -800,47 +801,49 @@ def _face_count_for(name: str, salt: int) -> int:
     return 2 + (salt * 7 + len(name)) % 5
 
 
-def _synthetic_posts(topic: str, face: str, salt: int) -> list[dict[str, Any]]:
-    stems = (
-        "maya", "grid", "leasehold", "nightshift", "citybus", "holdmusic",
-        "sideline", "quadnoon", "inkstudy", "slowtake", "room204", "firststair",
-    )
-    lines = (
-        f"The {topic} fight is really a {face} fight. The rest is branding.",
-        f"I do not need another panel on {topic}. I need someone to answer {face}.",
-        f"Every thread about {topic} becomes a {face} thread by the third reply.",
-        f"{face} is the {topic} argument people actually live inside this week.",
-        f"We keep renaming {topic}. The {face} cluster did not get the memo.",
-        f"If your {topic} plan cannot survive a {face} question, it is a press release.",
-    )
-    posts = []
-    for index, text in enumerate(lines[:3]):
-        author = f"{stems[(salt + index) % len(stems)]}.{16 + (salt + index) % 80}"
-        likes = 180 + ((salt * 37 + index * 91 + len(face)) % 1900)
-        posts.append({"author": author, "text": text, "likes": likes})
-    return posts
+def _likes_for(text: str, salt: int, index: int) -> int:
+    return 180 + ((salt * 37 + index * 91 + len(text)) % 2100)
+
+
+def _attach_featured_arguments(topic: dict[str, Any]) -> dict[str, Any]:
+    by_title = FEATURED_ARGUMENTS.get(topic["name"])
+    if not by_title:
+        raise ValueError(f"Missing featured arguments for {topic['name']!r}")
+    perspectives = []
+    for face in topic["perspectives"]:
+        arguments = by_title.get(face["title"])
+        if not arguments:
+            raise ValueError(f"Missing arguments for {topic['name']!r} / {face['title']!r}")
+        perspectives.append({**face, "arguments": list(arguments)})
+    return {**topic, "perspectives": perspectives}
 
 
 def _synthesize_topic(name: str, category: str, salt: int) -> dict[str, Any]:
-    titles = list(FACE_TITLES[name])
-    count = min(max(_face_count_for(name, salt), 2), len(titles) if len(titles) >= 2 else 2)
-    if len(titles) < 2:
-        titles = [name, f"{name} Dissent"]
-    faces = titles[:count]
+    briefs = list(FACE_BRIEFS[name])
+    count = min(max(_face_count_for(name, salt), 2), len(briefs))
+    if count < 2:
+        raise ValueError(f"{name!r} needs at least two face briefs")
+    faces = briefs[:count]
     weights = [max(3, 18 - index * 3) for index in range(len(faces))]
     percents = to_percents(weights)
     perspectives = []
-    for index, (title, percent) in enumerate(zip(faces, percents)):
+    for index, (brief, percent) in enumerate(zip(faces, percents)):
+        posts = [
+            {
+                "author": post["author"],
+                "text": post["text"],
+                "likes": _likes_for(post["text"], salt * 11 + index * 3, post_index),
+            }
+            for post_index, post in enumerate(brief["posts"])
+        ]
         perspectives.append(
             {
                 "id": f"tmp{index}",
-                "title": title,
-                "summary": (
-                    f"{title} is how this cluster argues about {name} this week — "
-                    f"a {category.lower()} fight with a shorter name."
-                ),
+                "title": brief["title"],
+                "summary": brief["summary"],
+                "arguments": list(brief["arguments"]),
                 "volume_percent": percent,
-                "representative_posts": _synthetic_posts(name, title, salt * 11 + index * 3),
+                "representative_posts": posts,
             }
         )
     return {
@@ -866,13 +869,15 @@ def build_demo_payload(last_updated: str = DEMO_LAST_UPDATED, total_posts: int =
             weight = cat_weight * TOPIC_CURVE[rank]
             if name in featured:
                 source = featured[name]
-                topic = _with_face_count(
-                    {**source, "category": category},
-                    _face_count_for(name, salt),
+                topic = _attach_featured_arguments(
+                    _with_face_count(
+                        {**source, "category": category},
+                        _face_count_for(name, salt),
+                    )
                 )
             else:
-                if name not in FACE_TITLES:
-                    raise ValueError(f"Missing face titles for extra topic {name!r}")
+                if name not in FACE_BRIEFS:
+                    raise ValueError(f"Missing face briefs for extra topic {name!r}")
                 topic = _synthesize_topic(name, category, salt)
             pieces.append((weight, topic))
             salt += 1
