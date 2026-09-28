@@ -4,13 +4,15 @@ import { useFrame } from '@react-three/fiber'
 import { Quaternion, Vector3 } from 'three'
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
-import { formatPercent, orbitElements, setOrbitPosition, topicScale } from '../lib/layout'
+import { bodySpin, formatPercent, orbitElements, setOrbitPosition, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
 
 const _world = new Vector3()
 const _toCamera = new Vector3()
 const _look = new Vector3()
 const _target = new Quaternion()
+const _axisX = new Vector3(1, 0, 0)
+const _axisY = new Vector3(0, 1, 0)
 
 export default function Planet({
   topic,
@@ -39,6 +41,8 @@ export default function Planet({
     () => orbitElements(index, isSun, topic.id, orbitDistance),
     [index, isSun, topic.id, orbitDistance],
   )
+  const spin = useMemo(() => bodySpin(topic.id, index), [topic.id, index])
+  const spinAxis = useMemo(() => new Vector3(...spin.axis), [spin])
   const angle = useRef(orbit.phase)
   const scale = topicScale(topic.total_volume_percent, volumeMax)
   const color = topicColor(topic.id, body)
@@ -82,11 +86,9 @@ export default function Planet({
       return
     }
 
-    if (!selected) {
-      cube.current.rotation.x += delta * 0.22
-      cube.current.rotation.y += delta * 0.34
-      cube.current.rotation.z += delta * 0.08
-    }
+    if (drag.current) return
+    const rate = selected ? spin.speed * 0.32 : spin.speed
+    cube.current.rotateOnAxis(spinAxis, delta * rate)
   })
 
   const startDrag = (event) => {
@@ -104,8 +106,8 @@ export default function Planet({
     const dx = event.clientX - drag.current.x
     const dy = event.clientY - drag.current.y
     if (Math.abs(dx) + Math.abs(dy) > 3) drag.current.moved = true
-    cube.current.rotation.y += dx * 0.012
-    cube.current.rotation.x += dy * 0.012
+    cube.current.rotateOnWorldAxis(_axisY, dx * 0.012)
+    cube.current.rotateOnWorldAxis(_axisX, dy * 0.012)
     drag.current.x = event.clientX
     drag.current.y = event.clientY
   }

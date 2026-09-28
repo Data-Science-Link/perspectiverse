@@ -147,5 +147,5 @@ export function polyhedron(count) {
 }
 
 export function faceHeight(volumePercent) {
-  return 0.1 + (Number(volumePercent) / 100) * 1.55
+  return 0.18 + (Number(volumePercent) / 100) * 1.15
 }
