@@ -4,7 +4,7 @@ import { BufferAttribute, BufferGeometry, DoubleSide } from 'three'
 import { faceOpacity, rankPerspectives, shadeHex } from '../lib/colors'
 import { CORE_RADIUS } from '../lib/faces'
 import { createBodyTexture, createRingTexture } from '../lib/planetTextures'
-import { faceHeight, polyhedron } from '../lib/polyhedra'
+import { cubeSpikeFaces, faceHeight, polyhedron } from '../lib/polyhedra'
 
 function SaturnRings({ meshRef, quality = 'high' }) {
   const texture = useMemo(() => createRingTexture(quality), [quality])
@@ -67,19 +67,22 @@ function insetVertices(vertices, keep = 0.34) {
 function buildCrystal(perspectives, pigment) {
   const ranked = rankPerspectives(perspectives)
   const loudest = ranked[0]?.volume_percent ?? 0
-  const solid = polyhedron(ranked.length)
+  const solid = polyhedron(6)
+  const spikeFaces = cubeSpikeFaces(ranked.length)
   const coreTriangles = []
+  for (const loop of solid.faces) {
+    coreTriangles.push(...triangulate(solid.vertices, loop))
+  }
   const faces = ranked.map((perspective, index) => {
-    const loop = solid.faces[index]
+    const loop = solid.faces[spikeFaces[index]]
     const verts = loop.map((vertexIndex) => solid.vertices[vertexIndex].clone())
-    const normal = solid.normals[index].clone()
+    const normal = solid.normals[spikeFaces[index]].clone()
     const centroid = faceCentroid(verts)
     const height = faceHeight(perspective.volume_percent)
-    const base = insetVertices(verts, 0.34).map((vertex) => vertex.addScaledVector(normal, 0.02))
-    const pickBase = insetVertices(verts, 0.52).map((vertex) => vertex.addScaledVector(normal, 0.02))
+    const base = insetVertices(verts, 0.22).map((vertex) => vertex.addScaledVector(normal, 0.018))
+    const pickBase = insetVertices(verts, 0.42).map((vertex) => vertex.addScaledVector(normal, 0.018))
     const apex = centroid.clone().addScaledVector(normal, height)
     const pickApex = centroid.clone().addScaledVector(normal, height * 1.18)
-    coreTriangles.push(...triangulate(solid.vertices, loop))
     const extrusion = [...fan(base)]
     const pick = [...fan(pickBase)]
     for (let edge = 0; edge < base.length; edge += 1) {
