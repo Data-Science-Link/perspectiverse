@@ -30,8 +30,10 @@ def run_live(
     output: Path | None = None,
     config: Path | None = None,
     db_path: Path | None = None,
+    queries: list[str] | None = None,
 ) -> Path:
     settings = load_settings(config)
+    search_queries = [item for item in (queries or []) if item] or list(settings["queries"])
     if fixture:
         raw_posts = load_fixture(fixture)
         source = "fixture"
@@ -39,7 +41,7 @@ def run_live(
         raw_posts = extract_posts(
             sample_size=int(settings["sample_size"]),
             window_hours=int(settings["window_hours"]),
-            queries=list(settings["queries"]),
+            queries=search_queries,
             rng=random.Random(int(settings["seed"])),
         )
         source = "bluesky"

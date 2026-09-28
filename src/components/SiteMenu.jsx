@@ -89,6 +89,7 @@ export default function SiteMenu({
             <li>On a phone, tap a planet. The page jumps to that topic and the sphere becomes geometry.</li>
             <li>On a desktop, drag to orbit, then click a planet to dissolve it into its crystal.</li>
             <li>The longest face is louder because more posts clustered there, not because it is truer.</li>
+            <li>Test your take against the snapshot. A claim, a brand, or a question — you may be the sun, a minority spike, or not on the sky at all.</li>
           </ul>
         </section>
 

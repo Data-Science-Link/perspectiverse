@@ -5,6 +5,7 @@ import { hexToRgba, rankPerspectives, spikeColor, topicColor } from '../lib/colo
 import { formatNumber, formatPercent, sortPosts, topicScale } from '../lib/layout'
 import MiniCube from './MiniCube'
 import PerspectiverseGraphic from './PerspectiverseGraphic'
+import EngagementPanel from './EngagementPanel'
 
 function VolumeBar({ value, color, active = false }) {
   return (
@@ -45,7 +46,15 @@ function FilterStrip({ categories, category, counts, onCategory }) {
   )
 }
 
-function WelcomePanel({ data, topics, isMobile, onSelectTopic }) {
+function WelcomePanel({
+  data,
+  topics,
+  isMobile,
+  onSelectTopic,
+  onSelectLocation,
+  engagementQuery,
+  onEngagementQuery,
+}) {
   if (isMobile) {
     return (
       <div className="panel is-mobile-home">
@@ -67,6 +76,18 @@ function WelcomePanel({ data, topics, isMobile, onSelectTopic }) {
             </button>
           ))}
         </div>
+        <EngagementPanel
+          topics={topics}
+          query={engagementQuery}
+          onQueryChange={onEngagementQuery}
+          onSelectTopic={onSelectTopic}
+          onSelectPerspective={(faceId) => {
+            const host = topics.find((item) => item.perspectives.some((face) => face.id === faceId))
+            if (host) onSelectLocation({ topicId: host.id, perspectiveId: faceId })
+          }}
+          onSelectLocation={onSelectLocation}
+          compact
+        />
       </div>
     )
   }
@@ -123,6 +144,17 @@ function WelcomePanel({ data, topics, isMobile, onSelectTopic }) {
           </button>
         ))}
       </div>
+      <EngagementPanel
+        topics={topics}
+        query={engagementQuery}
+        onQueryChange={onEngagementQuery}
+        onSelectTopic={onSelectTopic}
+        onSelectPerspective={(faceId) => {
+          const host = topics.find((item) => item.perspectives.some((face) => face.id === faceId))
+          if (host) onSelectLocation({ topicId: host.id, perspectiveId: faceId })
+        }}
+        onSelectLocation={onSelectLocation}
+      />
     </div>
   )
 }
@@ -143,7 +175,17 @@ function EmptyCategory({ category, onShowAll }) {
   )
 }
 
-function TopicPanel({ topic, selectedPerspectiveId, isMobile, onSelectPerspective, onBack }) {
+function TopicPanel({
+  topic,
+  topics,
+  selectedPerspectiveId,
+  isMobile,
+  onSelectPerspective,
+  onBack,
+  engagementQuery,
+  onEngagementQuery,
+  onSelectTopic,
+}) {
   const color = topicColor(topic.id, topic.body)
   const ranked = rankPerspectives(topic.perspectives)
   return (
@@ -194,11 +236,29 @@ function TopicPanel({ topic, selectedPerspectiveId, isMobile, onSelectPerspectiv
           </button>
         ))}
       </div>
+      <EngagementPanel
+        topics={topics}
+        topic={topic}
+        query={engagementQuery}
+        onQueryChange={onEngagementQuery}
+        onSelectTopic={onSelectTopic}
+        onSelectPerspective={onSelectPerspective}
+      />
     </div>
   )
 }
 
-function PerspectivePanel({ topic, perspective, isMobile, onBack }) {
+function PerspectivePanel({
+  topic,
+  topics,
+  perspective,
+  isMobile,
+  onBack,
+  engagementQuery,
+  onEngagementQuery,
+  onSelectTopic,
+  onSelectPerspective,
+}) {
   const color = spikeColor(rankPerspectives(topic.perspectives).findIndex((item) => item.id === perspective.id))
   const posts = sortPosts(perspective.representative_posts)
 
@@ -235,6 +295,15 @@ function PerspectivePanel({ topic, perspective, isMobile, onBack }) {
           </article>
         ))}
       </div>
+      <EngagementPanel
+        topics={topics}
+        topic={topic}
+        perspective={perspective}
+        query={engagementQuery}
+        onQueryChange={onEngagementQuery}
+        onSelectTopic={onSelectTopic}
+        onSelectPerspective={onSelectPerspective}
+      />
     </div>
   )
 }
@@ -249,8 +318,11 @@ export default function Sidebar({
   isMobile,
   onSelectTopic,
   onSelectPerspective,
+  onSelectLocation,
   onClearSelection,
   onCategory,
+  engagementQuery,
+  onEngagementQuery,
 }) {
   const counts = categoryCounts(data.topics)
   const empty = topics.length === 0
@@ -283,23 +355,35 @@ export default function Sidebar({
           topics={topics}
           isMobile={isMobile}
           onSelectTopic={onSelectTopic}
+          onSelectLocation={onSelectLocation}
+          engagementQuery={engagementQuery}
+          onEngagementQuery={onEngagementQuery}
         />
       )}
       {!empty && selectedTopic && !selectedPerspective && (
         <TopicPanel
           topic={selectedTopic}
+          topics={topics}
           selectedPerspectiveId={null}
           isMobile={isMobile}
           onSelectPerspective={onSelectPerspective}
+          onSelectTopic={onSelectTopic}
           onBack={onClearSelection}
+          engagementQuery={engagementQuery}
+          onEngagementQuery={onEngagementQuery}
         />
       )}
       {!empty && selectedTopic && selectedPerspective && (
         <PerspectivePanel
           topic={selectedTopic}
+          topics={topics}
           perspective={selectedPerspective}
           isMobile={isMobile}
           onBack={() => onSelectPerspective(null)}
+          engagementQuery={engagementQuery}
+          onEngagementQuery={onEngagementQuery}
+          onSelectTopic={onSelectTopic}
+          onSelectPerspective={onSelectPerspective}
         />
       )}
     </aside>

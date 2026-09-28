@@ -8,10 +8,12 @@ Daily job: ingest a 7-day window of English posts, cluster 10 planets and 2–6 
 python -m pipeline.run_pipeline --demo
 python -m pipeline.run_pipeline --live
 python -m pipeline.run_pipeline --live --fixture tests/fixtures/tiny_posts.json
+python -m pipeline.run_pipeline --live --query "acme" --query "acme shoes" --output /tmp/acme.json
 ```
 
 `--demo` writes the synthetic universe (`mode: "demo"`, `source: "synthetic"`).
 `--live` hits Bluesky unless `--fixture` is set (`source: "fixture"` or `"bluesky"`, `mode: "live"`).
+`--query` (repeatable) overrides the config search terms so an operator can pull a brand- or claim-shaped sample and still run the same 10-planet job. It requires `--live` and is ignored when `--fixture` is set. This is not a retained archive and not the public homepage — see [ROADMAP.md](../ROADMAP.md) and [Custom Universe and Archive Architecture](../project_documentation/Custom%20Universe%20and%20Archive%20Architecture.md).
 No flag defaults to `--demo`.
 
 ## Auth

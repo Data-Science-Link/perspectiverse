@@ -20,6 +20,7 @@ export default function App() {
   const [selectedTopicId, setSelectedTopicId] = useState(boot.topicId)
   const [selectedPerspectiveId, setSelectedPerspectiveId] = useState(boot.perspectiveId)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [engagementQuery, setEngagementQuery] = useState('')
   const isMobile = useIsMobile()
   const shellRef = useRef(null)
 
@@ -68,6 +69,10 @@ export default function App() {
 
   const selectPerspective = (perspectiveId) => {
     commitSelection({ category, topicId: selectedTopicId, perspectiveId })
+  }
+
+  const selectLocation = ({ topicId = null, perspectiveId = null } = {}) => {
+    commitSelection({ category, topicId, perspectiveId })
   }
 
   const stepBack = () => {
@@ -181,8 +186,11 @@ export default function App() {
         isMobile={isMobile}
         onSelectTopic={selectTopic}
         onSelectPerspective={selectPerspective}
+        onSelectLocation={selectLocation}
         onClearSelection={clearSelection}
         onCategory={changeCategory}
+        engagementQuery={engagementQuery}
+        onEngagementQuery={setEngagementQuery}
       />
       <SiteMenu
         open={menuOpen}

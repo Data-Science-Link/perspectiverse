@@ -28,16 +28,31 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--output", type=Path, default=None, help="Destination data.json path")
     parser.add_argument("--config", type=Path, default=None, help="YAML settings file")
     parser.add_argument("--db", type=Path, default=None, help="SQLite path (default pipeline/data/posts.db)")
+    parser.add_argument(
+        "--query",
+        action="append",
+        dest="queries",
+        metavar="TEXT",
+        help="Override Bluesky search queries. Repeat to stack terms. Requires --live; ignored with --fixture.",
+    )
     args = parser.parse_args(argv)
 
     if args.fixture and not args.live:
         parser.error("--fixture requires --live")
+    if args.queries and not args.live:
+        parser.error("--query requires --live")
 
     if args.live:
         from pipeline.live import run_live
 
         print("Starting Perspectiverse pipeline (live mode)...")
-        run_live(fixture=args.fixture, output=args.output, config=args.config, db_path=args.db)
+        run_live(
+            fixture=args.fixture,
+            output=args.output,
+            config=args.config,
+            db_path=args.db,
+            queries=args.queries,
+        )
         print("Pipeline complete.")
         return
 

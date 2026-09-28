@@ -7,6 +7,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | File | Description |
 | --- | --- |
 | `README.md` | Project overview, current status, and local run instructions |
+| `ROADMAP.md` | Product roadmap, architecture forks, and maintain-cost tables |
 | `FILES.md` | This file — complete file listing and organization guide |
 | `LICENSE` | Project license |
 | `pyproject.toml` | Python project configuration, dependencies, and build system |
@@ -52,6 +53,9 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `src/components/SpikyCube.jsx` | Planet-skinned cores, spikes, Saturn rings |
 | `src/components/MiniCube.jsx` | Sidebar preview |
 | `src/components/Sidebar.jsx` | Welcome, topic, and face panels |
+| `src/components/EngagementPanel.jsx` | Test-your-take anti-echo chamber |
+| `src/lib/tokenize.js` | Pipeline-compatible tokenizer |
+| `src/lib/engagement.js` | Extractive scoring and verdicts |
 | `src/components/SiteChrome.jsx` | Sticky header, back arrow, hamburger |
 | `src/components/SiteMenu.jsx` | About, graphic, filters, feedback |
 | `src/components/PerspectiverseGraphic.jsx` | SVG explainer of the solar-system metaphor |
@@ -75,6 +79,8 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `Technical Implementation Canvas.md` | Technical details and implementation stages |
 | `UI & 3D Implementation Canvas_ Perspectiverse.md` | Frontend design and 3D visualization details |
 | `Similar Products and Differentiation.md` | Neighboring product categories and how this observatory differs |
+| `Planet Engagement Architecture.md` | Debate / LLM clerk design on the daily-static split |
+| `Custom Universe and Archive Architecture.md` | Retain posts, on-demand skies, Google plugin |
 
 ## Scripts & CI/CD
 
@@ -83,6 +89,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `scripts/security_check.sh` | Local Bandit and pip-audit |
 | `scripts/check_categories.mjs` | Category filter helper check |
 | `scripts/check_planets.mjs` | Solar-system order and selection URLs |
+| `scripts/check_engagement.mjs` | Tokenizer + extractive verdicts |
 | `scripts/check_data_contract.mjs` | Asserts the built `dist/data.json` contract |
 | `.github/workflows/security-audit.yml` | Bandit + pip-audit on every push/PR, plus `workflow_dispatch` |
 | `.github/workflows/pytest.yml` | Pytest without a model download |
