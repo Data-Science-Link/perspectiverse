@@ -77,10 +77,10 @@ function Universe({
     <>
       <color attach="background" args={['#05060b']} />
       <fog attach="fog" args={['#05060b', 26, 72]} />
-      <ambientLight intensity={0.46} />
-      <pointLight position={[0, 0, 0]} intensity={2.4} distance={42} color="#ffe7a3" />
-      <pointLight position={[12, 14, 8]} intensity={0.85} color="#9db7ff" />
-      <directionalLight position={[-8, 10, 6]} intensity={0.55} color="#fff6d8" />
+      <ambientLight intensity={0.28} />
+      <pointLight position={[0, 0, 0]} intensity={2.8} distance={42} color="#ffe7a3" />
+      <pointLight position={[12, 14, 8]} intensity={0.7} color="#9db7ff" />
+      <directionalLight position={[-8, 10, 6]} intensity={1.15} color="#fff6d8" />
       <Stars radius={80} depth={50} count={5200} factor={3.8} saturation={0} fade speed={0.18} />
       <TwinklingStars />
       {topics.slice(1).map((topic, index) => {

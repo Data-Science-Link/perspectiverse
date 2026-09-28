@@ -33,8 +33,8 @@ export function orbitElements(index, isSun, id) {
   const speedScale = 0.58 + unitHash(seed + 11) * 1.05
   const direction = unitHash(seed + 23) >= 0.5 ? 1 : -1
   const tiltSign = unitHash(seed + 37) >= 0.5 ? 1 : -1
-  const inclination = tiltSign * (0.18 + unitHash(seed + 41) * 0.36)
-  const node = unitHash(seed + 53) * Math.PI * 2
+  const inclination = tiltSign * (0.38 + unitHash(seed + 41) * 0.46)
+  const node = (index * 2.399963229) + unitHash(seed + 53) * 0.85
   const phase = unitHash(seed + 67) * Math.PI * 2
 
   return {

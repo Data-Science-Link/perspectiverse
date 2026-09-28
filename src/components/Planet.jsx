@@ -202,8 +202,8 @@ export function OrbitRing({ index, inclination = 0, node = 0 }) {
   return (
     <group rotation={[0, node, 0]}>
       <mesh rotation={[Math.PI / 2 + inclination, 0, 0]} raycast={() => null}>
-        <ringGeometry args={[radius - 0.012, radius + 0.012, 160]} />
-        <meshBasicMaterial color="#d7def5" transparent opacity={0.2} />
+        <ringGeometry args={[radius - 0.016, radius + 0.016, 160]} />
+        <meshBasicMaterial color="#d7def5" transparent opacity={0.34} />
       </mesh>
     </group>
   )

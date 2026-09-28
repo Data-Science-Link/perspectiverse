@@ -74,7 +74,7 @@ function craterField(nx, ny, seed, count = 22) {
   for (let i = 0; i < count; i += 1) {
     const cx = hash(i, 1, seed)
     const cy = 0.08 + hash(i, 2, seed) * 0.84
-    const radius = 0.018 + hash(i, 3, seed) * 0.07
+    const radius = 0.04 + hash(i, 3, seed) * 0.12
     const d = Math.hypot(wrapDelta(nx - cx), ny - cy) / radius
     if (d >= 1.15) continue
     const rim = Math.exp(-((d - 0.8) ** 2) * 48)
@@ -115,156 +115,153 @@ function paintTexture(width, height, shade) {
 
 function sunShade(nx, ny) {
   const d = Math.hypot(wrapDelta(nx - 0.5), ny - 0.5)
-  const granulation = fbm(nx, ny, 22, 18, 3.2, 6)
-  const cell = ridge(nx, ny, 16, 14, 8.4, 4)
-  const spot = fbm(nx, ny, 7, 8, 11.4, 4)
-  const flare = fbm(nx, ny, 4, 5, 21.6, 3)
-  const limb = clamp01(1 - d * 1.12)
-  let color = mix([255, 176, 58], [255, 236, 168], clamp01(granulation * 0.55 + cell * 0.35))
-  color = mix(color, [255, 98, 28], clamp01(spot * 0.35 + d * 0.28))
-  if (spot > 0.78) color = mix(color, [92, 38, 18], (spot - 0.78) * 2.4)
-  color = mix(color, [255, 248, 210], flare * 0.18 * limb)
-  const dim = 0.48 + limb * 0.62
+  const granulation = fbm(nx, ny, 10, 9, 3.2, 5)
+  const cell = ridge(nx, ny, 8, 7, 8.4, 3)
+  const spot = fbm(nx, ny, 5, 6, 11.4, 4)
+  const flare = fbm(nx, ny, 3, 3.5, 21.6, 3)
+  const limb = clamp01(1 - d * 1.05)
+  let color = mix([255, 120, 24], [255, 228, 120], clamp01(granulation * 0.7 + cell * 0.45))
+  color = mix(color, [255, 248, 210], clamp01(flare * 0.45) * limb)
+  if (spot > 0.7) color = mix(color, [110, 42, 16], (spot - 0.7) * 2.2)
+  const dim = 0.55 + limb * 0.55
   return color.map((c) => Math.round(c * dim))
 }
 
 function mercuryShade(nx, ny) {
-  const plains = fbm(nx, ny, 8, 9, 2.1, 6)
-  const grit = fbm(nx, ny, 28, 30, 8.8, 4)
-  const crater = craterField(nx, ny, 14.2, 26)
-  let color = mix([168, 172, 178], [92, 96, 104], plains)
-  color = mix(color, [210, 214, 220], grit * 0.22)
-  color = mix(color, [54, 56, 62], clamp01(-crater) * 0.85)
-  color = mix(color, [232, 234, 238], clamp01(crater) * 0.7)
-  if (ny < 0.08 || ny > 0.92) color = mix(color, [198, 200, 206], 0.25)
+  const plains = fbm(nx, ny, 5, 6, 2.1, 5)
+  const grit = fbm(nx, ny, 16, 18, 8.8, 4)
+  const crater = craterField(nx, ny, 14.2, 18)
+  let color = mix([196, 200, 208], [78, 82, 90], plains)
+  color = mix(color, [230, 232, 236], grit * 0.28)
+  color = mix(color, [40, 42, 48], clamp01(-crater))
+  color = mix(color, [236, 238, 242], clamp01(crater) * 0.85)
   return color
 }
 
 function venusShade(nx, ny) {
-  const warp = fbm(nx, ny, 3, 4, 4.6, 5)
-  const swirl = fbm(nx + warp * 0.18, ny + warp * 0.08, 5, 7, 9.1, 6)
-  const streak = 0.5 + 0.5 * Math.sin((ny + swirl * 0.22) * Math.PI * 7)
-  let color = mix([255, 214, 148], [240, 176, 96], clamp01(swirl * 0.55 + streak * 0.35))
-  color = mix(color, [255, 236, 196], clamp01((1 - swirl) * 0.28))
-  const dark = fbm(nx, ny, 2.4, 3.2, 18.4, 3)
-  if (dark > 0.72) color = mix(color, [196, 126, 72], (dark - 0.72) * 1.4)
+  const warp = fbm(nx, ny, 2.2, 3, 4.6, 4)
+  const swirl = fbm(nx + warp * 0.28, ny + warp * 0.1, 3.4, 5, 9.1, 5)
+  const streak = 0.5 + 0.5 * Math.sin((ny + swirl * 0.28) * Math.PI * 5)
+  let color = mix([255, 232, 168], [232, 148, 64], clamp01(swirl * 0.7 + streak * 0.45))
+  color = mix(color, [255, 248, 220], clamp01((1 - swirl) * 0.42))
+  if (streak > 0.72) color = mix(color, [255, 210, 120], (streak - 0.72) * 1.6)
   return color
 }
 
 function earthShade(nx, ny) {
-  const oceanDeep = [12, 62, 148]
-  const oceanShallow = [46, 148, 196]
-  const land = [46, 150, 78]
-  const forest = [22, 102, 52]
-  const desert = [214, 186, 104]
-  const ice = [236, 246, 255]
-  const depth = fbm(nx, ny, 6, 7, 2.2, 4)
-  const cloudWarp = fbm(nx, ny, 4, 5, 19, 4)
-  const cloud = fbm(nx + cloudWarp * 0.12, ny, 10, 8, 27, 5)
+  const oceanDeep = [8, 48, 132]
+  const oceanShallow = [42, 156, 206]
+  const land = [72, 168, 74]
+  const forest = [18, 96, 42]
+  const desert = [222, 188, 92]
+  const ice = [244, 250, 255]
+  const depth = fbm(nx, ny, 4, 5, 2.2, 3)
+  const cloudWarp = fbm(nx, ny, 3, 3.5, 19, 3)
+  const cloud = fbm(nx + cloudWarp * 0.16, ny, 6, 5, 27, 4)
 
   let landness = 0
   const blobs = [
-    [0.18, 0.34, 0.15, 0.18],
-    [0.28, 0.58, 0.1, 0.2],
-    [0.48, 0.46, 0.12, 0.22],
-    [0.54, 0.28, 0.08, 0.09],
-    [0.7, 0.36, 0.2, 0.15],
-    [0.84, 0.62, 0.09, 0.08],
-    [0.36, 0.14, 0.07, 0.05],
-    [0.12, 0.7, 0.07, 0.1],
-    [0.92, 0.32, 0.08, 0.1],
+    [0.2, 0.36, 0.2, 0.22],
+    [0.3, 0.58, 0.14, 0.24],
+    [0.5, 0.44, 0.16, 0.26],
+    [0.56, 0.26, 0.11, 0.12],
+    [0.72, 0.34, 0.24, 0.18],
+    [0.86, 0.62, 0.12, 0.1],
+    [0.14, 0.7, 0.1, 0.14],
+    [0.9, 0.3, 0.1, 0.12],
   ]
   for (const [cx, cy, rx, ry] of blobs) {
     landness = Math.max(landness, clamp01(1 - ellipse(nx, ny, cx, cy, rx, ry)))
   }
-  landness = clamp01(landness + (fbm(nx, ny, 14, 16, 5.5, 3) - 0.5) * 0.28)
+  landness = clamp01(landness + (fbm(nx, ny, 8, 9, 5.5, 3) - 0.5) * 0.22)
 
-  let color = mix(oceanDeep, oceanShallow, clamp01(depth * 0.65 + (1 - Math.abs(ny - 0.5)) * 0.2))
-  if (landness > 0.38) {
-    const arid = fbm(nx, ny, 7, 7, 5.5, 4)
-    const lush = mix(forest, land, fbm(nx, ny, 9, 8, 33, 3))
-    color = mix(lush, desert, clamp01(arid * 0.7 - 0.18))
+  let color = mix(oceanDeep, oceanShallow, clamp01(depth * 0.7 + (1 - Math.abs(ny - 0.5)) * 0.25))
+  if (landness > 0.32) {
+    const arid = fbm(nx, ny, 5, 5, 5.5, 3)
+    const lush = mix(forest, land, fbm(nx, ny, 6, 5, 33, 3))
+    color = mix(lush, desert, clamp01(arid * 0.75 - 0.15))
   }
-  if (ny < 0.11 || ny > 0.89) color = mix(color, ice, 0.92)
-  else if (ny < 0.16 || ny > 0.84) color = mix(color, ice, 0.35)
-  if (cloud > 0.62) color = mix(color, [248, 252, 255], clamp01((cloud - 0.62) * 2.1))
+  if (ny < 0.12 || ny > 0.88) color = ice
+  else if (ny < 0.18 || ny > 0.82) color = mix(color, ice, 0.55)
+  if (cloud > 0.58) color = mix(color, [255, 255, 255], clamp01((cloud - 0.58) * 2.4))
   return color
 }
 
 function marsShade(nx, ny) {
-  const n = fbm(nx, ny, 8, 9, 7.7, 6)
-  const canyon = ridge(nx, ny, 5, 11, 3.3, 4)
-  const dust = fbm(nx, ny, 18, 16, 15.2, 4)
-  const crater = craterField(nx, ny, 6.4, 16)
-  let color = mix([196, 72, 36], [236, 140, 78], n)
-  color = mix(color, [92, 32, 22], clamp01(canyon * 0.45))
-  color = mix(color, [240, 176, 112], dust * 0.18)
-  color = mix(color, [62, 24, 18], clamp01(-crater) * 0.55)
-  color = mix(color, [240, 196, 150], clamp01(crater) * 0.35)
-  if (ny < 0.09 || ny > 0.91) color = mix(color, [248, 244, 236], 0.88)
+  const n = fbm(nx, ny, 5, 6, 7.7, 5)
+  const canyon = ridge(nx, ny, 3.4, 8, 3.3, 3)
+  const dust = fbm(nx, ny, 10, 9, 15.2, 3)
+  const crater = craterField(nx, ny, 6.4, 12)
+  let color = mix([168, 40, 18], [244, 150, 72], n)
+  color = mix(color, [72, 22, 16], clamp01(canyon * 0.65))
+  color = mix(color, [246, 186, 110], dust * 0.28)
+  color = mix(color, [48, 18, 14], clamp01(-crater) * 0.75)
+  color = mix(color, [246, 206, 160], clamp01(crater) * 0.45)
+  if (ny < 0.11 || ny > 0.89) color = mix(color, [248, 244, 236], 0.92)
   return color
 }
 
 function jupiterShade(nx, ny) {
-  const warp = fbm(nx, ny, 3, 10, 12.2, 5)
-  const bands = 0.5 + 0.5 * Math.sin((ny + warp * 0.08) * Math.PI * 16)
-  const turbulence = fbm(nx + warp * 0.2, ny, 8, 22, 18.6, 5)
-  const cream = [248, 226, 186]
-  const amber = [226, 164, 82]
-  const rust = [188, 92, 48]
-  const white = [255, 244, 226]
-  let color = mix(cream, amber, clamp01(bands * 0.75 + turbulence * 0.28))
-  if (bands > 0.72) color = mix(color, white, (bands - 0.72) * 1.6)
-  if (bands < 0.28) color = mix(color, rust, (0.28 - bands) * 1.3)
-  const spot = ellipse(nx, ny, 0.7, 0.62, 0.09, 0.055)
-  if (spot < 1) color = mix(color, [214, 72, 52], clamp01(1 - spot) * 0.92)
+  const warp = fbm(nx, ny, 2, 6, 12.2, 4)
+  const y = ny + warp * 0.07
+  const bands = 0.5 + 0.5 * Math.sin(y * Math.PI * 8)
+  const turbulence = fbm(nx + warp * 0.25, ny, 5, 14, 18.6, 4)
+  const cream = [255, 232, 186]
+  const amber = [232, 148, 58]
+  const rust = [176, 70, 32]
+  const white = [255, 248, 230]
+  let color = mix(cream, amber, clamp01(bands * 0.85 + turbulence * 0.2))
+  if (bands > 0.62) color = mix(color, white, (bands - 0.62) * 2)
+  if (bands < 0.38) color = mix(color, rust, (0.38 - bands) * 1.8)
+  const spot = ellipse(nx, ny, 0.7, 0.62, 0.11, 0.07)
+  if (spot < 1) color = mix(color, [220, 56, 40], clamp01(1 - spot))
   return color
 }
 
 function saturnShade(nx, ny) {
-  const warp = fbm(nx, ny, 2.6, 8, 6.1, 4)
-  const bands = 0.5 + 0.5 * Math.sin((ny + warp * 0.05) * Math.PI * 12)
-  const n = fbm(nx, ny, 5, 14, 9.4, 4)
-  const ivory = [255, 236, 196]
-  const champagne = [236, 206, 142]
-  const caramel = [210, 168, 96]
-  let color = mix(ivory, champagne, clamp01(bands * 0.6 + n * 0.25))
-  if (bands < 0.32) color = mix(color, caramel, (0.32 - bands) * 1.1)
-  if (ny < 0.12 || ny > 0.88) color = mix(color, [244, 228, 186], 0.28)
+  const warp = fbm(nx, ny, 2, 6, 6.1, 3)
+  const bands = 0.5 + 0.5 * Math.sin((ny + warp * 0.05) * Math.PI * 9)
+  const n = fbm(nx, ny, 3.5, 10, 9.4, 3)
+  const ivory = [255, 242, 204]
+  const champagne = [236, 196, 118]
+  const caramel = [196, 142, 64]
+  let color = mix(ivory, champagne, clamp01(bands * 0.75 + n * 0.22))
+  if (bands < 0.36) color = mix(color, caramel, (0.36 - bands) * 1.5)
+  if (bands > 0.7) color = mix(color, [255, 250, 230], (bands - 0.7) * 1.6)
   return color
 }
 
 function uranusShade(nx, ny) {
-  const n = fbm(nx, ny, 4, 6, 2.8, 5)
-  const band = 0.5 + 0.5 * Math.sin(ny * Math.PI * 5 + n * 1.4)
-  const haze = fbm(nx, ny, 2, 3, 14.8, 3)
-  let color = mix([154, 232, 226], [86, 196, 198], clamp01(n * 0.45 + band * 0.2))
-  color = mix(color, [210, 250, 246], haze * 0.22)
-  if (ny < 0.1 || ny > 0.9) color = mix(color, [232, 252, 250], 0.35)
+  const n = fbm(nx, ny, 3, 4, 2.8, 4)
+  const band = 0.5 + 0.5 * Math.sin(ny * Math.PI * 4 + n * 1.6)
+  const haze = fbm(nx, ny, 2, 2.4, 14.8, 3)
+  let color = mix([120, 228, 220], [46, 168, 176], clamp01(n * 0.55 + band * 0.35))
+  color = mix(color, [220, 255, 250], haze * 0.32)
+  if (ny < 0.12 || ny > 0.88) color = mix(color, [236, 255, 252], 0.45)
   return color
 }
 
 function neptuneShade(nx, ny) {
-  const n = fbm(nx, ny, 5, 7, 9.4, 5)
-  const streak = fbm(nx, ny, 9, 3.2, 21.1, 4)
-  let color = mix([34, 78, 210], [18, 42, 132], n)
-  color = mix(color, [86, 168, 255], clamp01(streak * 0.35))
-  if (streak > 0.7) color = mix(color, [230, 242, 255], (streak - 0.7) * 1.5)
-  const spot = ellipse(nx, ny, 0.36, 0.4, 0.075, 0.05)
-  if (spot < 1) color = mix(color, [12, 24, 86], clamp01(1 - spot) * 0.85)
+  const n = fbm(nx, ny, 3.5, 5, 9.4, 4)
+  const streak = fbm(nx, ny, 6, 2.2, 21.1, 3)
+  let color = mix([18, 64, 220], [8, 24, 110], n)
+  color = mix(color, [96, 176, 255], clamp01(streak * 0.5))
+  if (streak > 0.62) color = mix(color, [236, 246, 255], (streak - 0.62) * 1.8)
+  const spot = ellipse(nx, ny, 0.36, 0.4, 0.09, 0.06)
+  if (spot < 1) color = mix(color, [6, 14, 72], clamp01(1 - spot))
   return color
 }
 
 function plutoShade(nx, ny) {
-  const n = fbm(nx, ny, 7, 8, 14.1, 5)
-  const grit = fbm(nx, ny, 18, 16, 4.8, 4)
-  let color = mix([92, 82, 86], [176, 148, 132], n)
-  color = mix(color, [214, 126, 82], clamp01(grit * 0.22))
-  const heart = ellipse(nx, ny, 0.58, 0.42, 0.13, 0.11)
-  if (heart < 1) color = mix(color, [255, 214, 198], clamp01(1 - heart) * 0.95)
-  const ice = ellipse(nx, ny, 0.22, 0.7, 0.1, 0.08)
-  if (ice < 1) color = mix(color, [226, 232, 236], clamp01(1 - ice) * 0.7)
-  if (ny < 0.08 || ny > 0.92) color = mix(color, [232, 228, 224], 0.4)
+  const n = fbm(nx, ny, 4.5, 5, 14.1, 4)
+  const grit = fbm(nx, ny, 10, 9, 4.8, 3)
+  let color = mix([64, 58, 66], [186, 150, 128], n)
+  color = mix(color, [220, 110, 64], clamp01(grit * 0.35))
+  const heart = ellipse(nx, ny, 0.58, 0.42, 0.16, 0.14)
+  if (heart < 1) color = mix(color, [255, 208, 188], clamp01(1 - heart))
+  const ice = ellipse(nx, ny, 0.22, 0.7, 0.12, 0.1)
+  if (ice < 1) color = mix(color, [230, 236, 240], clamp01(1 - ice) * 0.85)
+  if (ny < 0.1 || ny > 0.9) color = mix(color, [236, 232, 228], 0.5)
   return color
 }
 
