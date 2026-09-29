@@ -68,7 +68,7 @@ Unsupervised daily clustering *can* surface new topics. It cannot keep a stable 
 
 This environment could reach public Bluesky search without auth. GitHub Actions could not (403). There was no `OPENAI_API_KEY` and no Ollama on the runner.
 
-For **higher-quality** planet names, face titles, and perspective synthesis, set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) as a GitHub Actions secret and in `.env`. The pipeline’s `label_backend: auto` already uses it when present.
+For **higher-quality** planet names, face titles, and perspective synthesis, set `OPENAI_API_KEY`, `OPENAI_BASE_URL=https://api.deepinfra.com/v1/openai`, and `OPENAI_MODEL` (DeepInfra via the OpenAI-compatible client) as GitHub Actions secrets and in `.env`. Then `python -m pipeline.run_pipeline --live --relabel`.
 
 For a **reliable daily fetch from Actions IPs**, set `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD`. The conversion also tries `public.api.bsky.app`, retries, and will **rebuild from the retained corpus** if the day’s fetch fails so the job still publishes.
 

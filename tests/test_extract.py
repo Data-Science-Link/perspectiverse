@@ -76,3 +76,73 @@ def test_extract_follows_cursor_until_the_window_is_full():
     )
     assert {post["uri"] for post in posts} == {"at://page-1", "at://page-2"}
     assert calls == [("the", None, 100), ("the", "next", 100)]
+
+
+def test_authenticated_fetch_logs_in_once(monkeypatch):
+    import sys
+    import types
+
+    from pipeline.data_sources import extract_bluesky as bluesky
+
+    bluesky.reset_auth_state()
+    logins = {"n": 0}
+
+    class FakeResponse:
+        posts = []
+        cursor = None
+
+    class FakeFeed:
+        def search_posts(self, params):
+            assert params["q"] == "nfl"
+            return FakeResponse()
+
+    class FakeBsky:
+        feed = FakeFeed()
+
+    class FakeApp:
+        bsky = FakeBsky()
+
+    class FakeClient:
+        def __init__(self):
+            self.app = FakeApp()
+
+        def login(self, handle, password):
+            logins["n"] += 1
+            assert handle == "example.bsky.social"
+            assert password == "app-password-not-real"
+
+    monkeypatch.setenv("BLUESKY_HANDLE", "example.bsky.social")
+    monkeypatch.setenv("BLUESKY_APP_PASSWORD", "app-password-not-real")
+    monkeypatch.setitem(sys.modules, "atproto", types.SimpleNamespace(Client=FakeClient))
+
+    first = bluesky._fetch_authenticated("nfl", None, 10)
+    second = bluesky._fetch_authenticated("nfl", None, 10)
+    assert first["posts"] == []
+    assert second["posts"] == []
+    assert logins["n"] == 1
+    bluesky.reset_auth_state()
+
+
+def test_login_failure_does_not_echo_the_app_password(monkeypatch):
+    import sys
+    import types
+
+    import pytest
+
+    from pipeline.data_sources import extract_bluesky as bluesky
+
+    bluesky.reset_auth_state()
+    secret = "app-password-not-real"
+
+    class FakeClient:
+        def login(self, handle, password):
+            raise RuntimeError(f"Auth failed for {handle} using {password}")
+
+    monkeypatch.setenv("BLUESKY_HANDLE", "example.bsky.social")
+    monkeypatch.setenv("BLUESKY_APP_PASSWORD", secret)
+    monkeypatch.setitem(sys.modules, "atproto", types.SimpleNamespace(Client=FakeClient))
+
+    with pytest.raises(RuntimeError, match="Bluesky login failed") as caught:
+        bluesky._fetch_authenticated("nfl", None, 10)
+    assert secret not in str(caught.value)
+    bluesky.reset_auth_state()

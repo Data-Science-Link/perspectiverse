@@ -146,12 +146,16 @@ def _parse_time(value: str) -> datetime:
 
 
 def _default_fetch(query: str, cursor: str | None, limit: int) -> dict:
-    if os.getenv("BLUESKY_HANDLE") and os.getenv("BLUESKY_APP_PASSWORD"):
+    handle = (os.getenv("BLUESKY_HANDLE") or "").strip()
+    password = os.getenv("BLUESKY_APP_PASSWORD") or ""
+    if handle and password.strip():
         try:
             return _fetch_authenticated(query, cursor, limit)
-        except RuntimeError:
-            # Fall through to public search so a bad app password is not fatal.
-            pass
+        except RuntimeError as exc:
+            print(
+                f"Authenticated Bluesky search failed ({exc}). "
+                "Falling back to public AppView search."
+            )
     return _fetch_public(query, cursor, limit)
 
 
@@ -163,6 +167,7 @@ def _fetch_public(query: str, cursor: str | None, limit: int) -> dict:
     last_error: Exception | None = None
     for base in PUBLIC_SEARCH_URLS:
         url = f"{base}?{query_string}"
+        host = urllib.parse.urlparse(base).hostname or base
         try:
             return read_json(
                 url,
@@ -173,6 +178,7 @@ def _fetch_public(query: str, cursor: str | None, limit: int) -> dict:
             last_error = exc
             message = str(exc)
             if "HTTP 403" in message:
+                print(f"Public Bluesky search HTTP 403 from {host} (anonymous GET).")
                 time.sleep(1.0)
                 try:
                     return read_json(
@@ -198,19 +204,69 @@ def _fetch_public(query: str, cursor: str | None, limit: int) -> dict:
     raise RuntimeError(f"Bluesky public search failed: {last_error}") from last_error
 
 
-def _fetch_authenticated(query: str, cursor: str | None, limit: int) -> dict:
+_AUTH_CLIENT = None
+_AUTH_LOGIN_STATE = "untried"
+
+
+def reset_auth_state() -> None:
+    """Test seam so cached login does not leak across cases."""
+    global _AUTH_CLIENT, _AUTH_LOGIN_STATE
+    _AUTH_CLIENT = None
+    _AUTH_LOGIN_STATE = "untried"
+
+
+def _redact(text: str) -> str:
+    password = os.getenv("BLUESKY_APP_PASSWORD") or ""
+    if password and password in text:
+        text = text.replace(password, "***")
+    return text[:240]
+
+
+def _authenticated_client():
+    """Log in once per process. Never prints the app password."""
+    global _AUTH_CLIENT, _AUTH_LOGIN_STATE
+    if _AUTH_CLIENT is not None:
+        return _AUTH_CLIENT
+    if _AUTH_LOGIN_STATE.startswith("failed"):
+        raise RuntimeError(f"Bluesky login already failed ({_AUTH_LOGIN_STATE})")
     try:
         from atproto import Client
     except ImportError as exc:
+        _AUTH_LOGIN_STATE = "failed (atproto missing)"
         raise RuntimeError(
-            "BLUESKY_HANDLE is set but the atproto package is not installed. Run uv sync."
+            "BLUESKY_HANDLE is set but the atproto package is not installed. "
+            "The daily job must `uv pip install atproto` (see pipeline.yml)."
         ) from exc
+    handle = (os.getenv("BLUESKY_HANDLE") or "").strip()
+    password = os.getenv("BLUESKY_APP_PASSWORD") or ""
     client = Client()
-    client.login(os.environ["BLUESKY_HANDLE"], os.environ["BLUESKY_APP_PASSWORD"])
+    try:
+        client.login(handle, password)
+    except Exception as exc:  # noqa: BLE001 — atproto raises several types
+        _AUTH_LOGIN_STATE = f"failed ({type(exc).__name__})"
+        print(f"Bluesky login failed for {handle}: {type(exc).__name__}.")
+        raise RuntimeError(
+            f"Bluesky login failed for {handle}: {type(exc).__name__}: {_redact(str(exc))}"
+        ) from exc
+    _AUTH_CLIENT = client
+    _AUTH_LOGIN_STATE = "ok"
+    print(f"Bluesky authenticated search as {handle} (login ok)")
+    return client
+
+
+def _fetch_authenticated(query: str, cursor: str | None, limit: int) -> dict:
+    handle = (os.getenv("BLUESKY_HANDLE") or "").strip()
+    client = _authenticated_client()
     params = {"q": query, "limit": min(limit, 100), "sort": "latest", "lang": "en"}
     if cursor:
         params["cursor"] = cursor
-    response = client.app.bsky.feed.search_posts(params)
+    try:
+        response = client.app.bsky.feed.search_posts(params)
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(
+            f"Authenticated Bluesky search failed after login "
+            f"({_AUTH_LOGIN_STATE}) as {handle}: {type(exc).__name__}: {_redact(str(exc))}"
+        ) from exc
     posts = []
     for post in getattr(response, "posts", []) or []:
         record = getattr(post, "record", None)

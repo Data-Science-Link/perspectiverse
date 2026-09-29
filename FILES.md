@@ -25,7 +25,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 
 | File/Directory | Description |
 | --- | --- |
-| `pipeline/run_pipeline.py` | `--live` (default) or `--demo` entry point |
+| `pipeline/run_pipeline.py` | `--live` (default), `--relabel`, or `--demo` entry point |
 | `pipeline/generate_demo_data.py` | Synthetic 10×6 universe (not what the site ships) |
 | `pipeline/live.py` | Rotate corpus, cluster, label, write `data.json` |
 | `pipeline/schema.py` | Shared `data.json` contract |
@@ -35,10 +35,10 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/store.py` | SQLite posts and derived membership |
 | `pipeline/topics.py` | 10 planets (lexical or BERTopic) |
 | `pipeline/perspectives.py` | 2–6 faces and representative posts |
-| `pipeline/label.py` | Ollama, API, or fallback titles |
+| `pipeline/label.py` | Ollama, OpenAI-compatible (DeepInfra), or heuristic titles |
 | `pipeline/assemble.py` | Writes `public/data.json` |
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
-| `pipeline/http_json.py` | Allow-listed JSON HTTP |
+| `pipeline/http_json.py` | Allow-listed JSON HTTP (`api.bsky.app`, `api.openai.com`, `api.deepinfra.com`) |
 | `pipeline/config/pipeline.example.yaml` | Sample size, models, `min_cluster_size` |
 | `pipeline/data/live_corpus.db` | Retained ~1,000-post window (tracked) |
 | `pipeline/data_sources/extract_bluesky.py` | Bluesky 7-day sample |

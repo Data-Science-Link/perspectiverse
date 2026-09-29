@@ -11,8 +11,10 @@ import yaml
 from pipeline.corpus import GROUP_QUOTAS, TARGET_POSTS
 
 ROOT = Path(__file__).resolve().parent
+REPO_ROOT = ROOT.parent
 EXAMPLE_PATH = ROOT / "config" / "pipeline.example.yaml"
 LOCAL_PATH = ROOT / "config" / "pipeline.yaml"
+DEFAULT_DEEPINFRA_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
 DEFAULTS: dict[str, Any] = {
     "window_hours": 168,
@@ -62,8 +64,43 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
         settings["cluster_backend"] = os.environ["PERSPECTIVERSE_CLUSTER_BACKEND"]
     if os.getenv("PERSPECTIVERSE_LABEL_BACKEND"):
         settings["label_backend"] = os.environ["PERSPECTIVERSE_LABEL_BACKEND"]
-    if os.getenv("OLLAMA_MODEL"):
-        settings["ollama_model"] = os.environ["OLLAMA_MODEL"]
-    if os.getenv("OPENAI_MODEL"):
-        settings["openai_model"] = os.environ["OPENAI_MODEL"]
+    ollama_model = (os.getenv("OLLAMA_MODEL") or "").strip()
+    if ollama_model:
+        settings["ollama_model"] = ollama_model
+    openai_model = (os.getenv("OPENAI_MODEL") or "").strip()
+    openai_base = (os.getenv("OPENAI_BASE_URL") or "").strip()
+    if openai_model:
+        settings["openai_model"] = openai_model
+    elif "deepinfra.com" in openai_base:
+        settings["openai_model"] = DEFAULT_DEEPINFRA_MODEL
     return settings
+
+
+def load_dotenv(path: Path | None = None) -> Path | None:
+    """Load KEY=VALUE pairs from a gitignored .env without overriding a real env.
+
+    Non-empty process variables win. A local .env can fill names that are
+    missing or blank. Never logs values.
+    """
+    chosen = Path(path) if path else REPO_ROOT / ".env"
+    if not chosen.exists():
+        return None
+    for raw in chosen.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        if not key or not value:
+            continue
+        current = os.environ.get(key)
+        if current is None or not str(current).strip():
+            os.environ[key] = value
+    return chosen
