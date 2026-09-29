@@ -4,16 +4,9 @@ import { decorateTopics, SOLAR_BODIES } from './planets.js'
 export const SYSTEM_SIZE = SOLAR_BODIES.length
 
 export const CATEGORIES = [
-  'Politics',
   'Sports',
-  'Technology',
-  'Economy',
-  'Environment',
-  'Health',
-  'Education',
-  'Media',
-  'Entertainment',
-  'Religion',
+  'Geopolitics',
+  'AI',
 ]
 
 export function filterTopics(topics, category) {

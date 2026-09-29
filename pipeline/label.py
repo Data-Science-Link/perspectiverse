@@ -1,8 +1,8 @@
-"""Label each face with a short title and one sentence.
+"""Label planets and faces, and synthesize a short steelman per face.
 
 Default order: Ollama if it answers, else an OpenAI-compatible API when
-OPENAI_API_KEY is set, else a visible fallback. One retry, then the fallback.
-This module labels faces, not individual posts.
+OPENAI_API_KEY is set, else a heuristic built from top terms and posts.
+One retry, then the heuristic. This module labels clusters, not each post.
 """
 
 from __future__ import annotations
@@ -17,22 +17,46 @@ FALLBACK_TITLE = "Untitled cluster"
 
 
 def build_prompt(posts: list[dict]) -> str:
-    lines = []
-    for post in posts[:12]:
-        likes = int(post.get("likes") or 0)
-        text = str(post.get("text") or post.get("clean_text") or "")[:280]
-        lines.append(f"- ({likes} likes) {text}")
-    body = "\n".join(lines)
+    return build_perspective_prompt(posts)
+
+
+def build_perspective_prompt(posts: list[dict]) -> str:
+    body = _post_lines(posts)
     return (
         "Label one perspective cluster from public social posts.\n"
-        'Return JSON only, with no markdown: {"title": "2-3 words", "summary": "one sentence"}\n'
-        "The title is 2 to 3 words. The summary is one sentence.\n"
+        "Return JSON only, with no markdown: "
+        '{"title": "2-3 words", "summary": "one sentence", '
+        '"arguments": ["steelman 1", "steelman 2", "steelman 3"]}\n'
+        "The title is 2 to 3 words. The summary is one sentence. "
+        "Give 2 to 4 short steelman arguments in that view's own voice.\n"
         f"Posts:\n{body}\n"
     )
 
 
+def build_topic_prompt(posts: list[dict], terms: list[str]) -> str:
+    shown = ", ".join(terms[:6]) if terms else "unknown"
+    body = _post_lines(posts, limit=16)
+    return (
+        "Name one public-conversation topic clustered from social posts.\n"
+        "Return JSON only, with no markdown: "
+        '{"name": "2-4 words", "summary": "one sentence"}\n'
+        "The name should sound like a newsbeat or civic issue, not a keyword dump. "
+        f"Salient terms: {shown}.\n"
+        f"Posts:\n{body}\n"
+    )
+
+
+def _post_lines(posts: list[dict], limit: int = 12) -> str:
+    lines = []
+    for post in posts[:limit]:
+        likes = int(post.get("likes") or 0)
+        text = str(post.get("text") or post.get("clean_text") or "")[:280]
+        lines.append(f"- ({likes} likes) {text}")
+    return "\n".join(lines)
+
+
 def parse_label(text: str) -> dict | None:
-    """Pull the first JSON object that has both title and summary."""
+    """Pull the first JSON object that has a title/name and a summary."""
     if not text:
         return None
     start = text.find("{")
@@ -45,11 +69,24 @@ def parse_label(text: str) -> dict | None:
         return None
     if not isinstance(data, dict):
         return None
-    title = str(data.get("title") or "").strip()
+    title = str(data.get("title") or data.get("name") or "").strip()
     summary = str(data.get("summary") or "").strip()
     if not title or not summary:
         return None
-    return {"title": title[:48], "summary": summary[:280]}
+    parsed: dict = {"title": title[:48], "summary": summary[:280]}
+    if data.get("name"):
+        parsed["name"] = str(data["name"]).strip()[:48]
+    arguments = _clean_arguments(data.get("arguments"))
+    if arguments:
+        parsed["arguments"] = arguments
+    return parsed
+
+
+def _clean_arguments(raw) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    items = [str(item).strip() for item in raw if str(item).strip()]
+    return items[:6]
 
 
 def fallback_label(terms: list[str]) -> dict:
@@ -61,15 +98,56 @@ def fallback_label(terms: list[str]) -> dict:
     }
 
 
-def heuristic_label(terms: list[str]) -> dict:
+def heuristic_label(terms: list[str], posts: list[dict] | None = None) -> dict:
     words = [term.capitalize() for term in terms[:3]]
     title = " ".join(words) if words else FALLBACK_TITLE
     shown = ", ".join(terms[:5]) if terms else "these posts"
-    return {
-        "title": title,
-        "summary": f"Posts in this face concentrate on {shown}.",
+    summary = f"Posts in this face concentrate on {shown}."
+    labeled = {
+        "title": title[:48],
+        "summary": summary[:280],
         "label_source": "heuristic",
+        "arguments": heuristic_arguments(posts or [], terms),
     }
+    return labeled
+
+
+def heuristic_topic_label(terms: list[str], posts: list[dict] | None = None) -> dict:
+    words = [term.capitalize() for term in terms[:3]]
+    name = " ".join(words) if words else "Untitled topic"
+    shown = ", ".join(terms[:5]) if terms else "this cluster"
+    return {
+        "name": name[:48],
+        "title": name[:48],
+        "summary": f"A live cluster around {shown}.",
+        "label_source": "heuristic",
+        "arguments": heuristic_arguments(posts or [], terms),
+    }
+
+
+def heuristic_arguments(posts: list[dict], terms: list[str] | None = None) -> list[str]:
+    """Extractive steelman: the strongest distinct posts, trimmed."""
+    arguments: list[str] = []
+    seen: set[str] = set()
+    ranked = sorted(posts, key=lambda post: -int(post.get("likes") or 0))
+    for post in ranked:
+        text = str(post.get("text") or post.get("clean_text") or "").strip()
+        if len(text) < 32:
+            continue
+        key = text.lower()[:80]
+        if key in seen:
+            continue
+        seen.add(key)
+        if len(text) > 180:
+            text = text[:177].rsplit(" ", 1)[0] + "…"
+        arguments.append(text)
+        if len(arguments) >= 3:
+            break
+    if len(arguments) < 2 and terms:
+        shown = ", ".join(terms[:4])
+        arguments.append(f"The conversation keeps returning to {shown}.")
+        arguments.append(f"Readers are treating {shown} as the live issue this week.")
+    return arguments[:4]
 
 
 def label_perspective(
@@ -80,38 +158,83 @@ def label_perspective(
     generate: Callable[[str], str] | None = None,
     model: str | None = None,
 ) -> dict:
-    """Return title, summary, and label_source. `generate` is a test seam."""
+    """Return title, summary, arguments, and label_source."""
     if generate is not None:
-        return _from_generator(generate, posts, terms)
+        labeled = _from_generator(generate, build_perspective_prompt(posts), terms, posts)
+        if "arguments" not in labeled:
+            labeled["arguments"] = heuristic_arguments(posts, terms)
+        return labeled
 
-    chosen = backend
+    chosen = _resolve_backend(backend)
     if chosen == "heuristic":
-        return heuristic_label(terms)
-    if chosen == "auto":
-        if ollama_reachable():
-            chosen = "ollama"
-        elif os.getenv("OPENAI_API_KEY"):
-            chosen = "openai"
-        else:
-            return fallback_label(terms)
+        return heuristic_label(terms, posts)
+    return _via_model(chosen, build_perspective_prompt(posts), terms, posts, model)
 
+
+def label_topic(
+    posts: list[dict],
+    terms: list[str],
+    *,
+    backend: str = "auto",
+    generate: Callable[[str], str] | None = None,
+    model: str | None = None,
+) -> dict:
+    """Return a planet name and one-sentence summary."""
+    if generate is not None:
+        labeled = _from_generator(generate, build_topic_prompt(posts, terms), terms, posts)
+        if "name" not in labeled:
+            labeled["name"] = labeled.get("title") or heuristic_topic_label(terms, posts)["name"]
+        return labeled
+
+    chosen = _resolve_backend(backend)
+    if chosen == "heuristic":
+        return heuristic_topic_label(terms, posts)
+    labeled = _via_model(chosen, build_topic_prompt(posts, terms), terms, posts, model)
+    if "name" not in labeled:
+        labeled["name"] = labeled.get("title") or heuristic_topic_label(terms, posts)["name"]
+    return labeled
+
+
+def _resolve_backend(backend: str) -> str:
+    if backend == "heuristic":
+        return "heuristic"
+    if backend != "auto":
+        return backend
+    if ollama_reachable():
+        return "ollama"
+    if os.getenv("OPENAI_API_KEY"):
+        return "openai"
+    return "heuristic"
+
+
+def _via_model(chosen: str, prompt: str, terms: list[str], posts: list[dict], model: str | None) -> dict:
     if chosen == "ollama":
-        generator = lambda prompt: _ollama_generate(prompt, model or os.getenv("OLLAMA_MODEL", "llama3.2"))  # noqa: E731
-        labeled = _from_generator(generator, posts, terms)
+        generator = lambda text: _ollama_generate(text, model or os.getenv("OLLAMA_MODEL", "llama3.2"))  # noqa: E731
+        labeled = _from_generator(generator, prompt, terms, posts)
         if labeled["label_source"] != "fallback":
             labeled["label_source"] = "ollama"
+        if "arguments" not in labeled:
+            labeled["arguments"] = heuristic_arguments(posts, terms)
         return labeled
     if chosen == "openai":
-        generator = lambda prompt: _openai_generate(prompt, model or os.getenv("OPENAI_MODEL", "gpt-4o-mini"))  # noqa: E731
-        labeled = _from_generator(generator, posts, terms)
+        generator = lambda text: _openai_generate(text, model or os.getenv("OPENAI_MODEL", "gpt-4o-mini"))  # noqa: E731
+        labeled = _from_generator(generator, prompt, terms, posts)
         if labeled["label_source"] != "fallback":
             labeled["label_source"] = "openai"
+        if "arguments" not in labeled:
+            labeled["arguments"] = heuristic_arguments(posts, terms)
         return labeled
-    raise ValueError(f"Unknown label_backend {backend}")
+    if chosen == "heuristic":
+        return heuristic_label(terms, posts)
+    raise ValueError(f"Unknown label_backend {chosen}")
 
 
-def _from_generator(generate: Callable[[str], str], posts: list[dict], terms: list[str]) -> dict:
-    prompt = build_prompt(posts)
+def _from_generator(
+    generate: Callable[[str], str],
+    prompt: str,
+    terms: list[str],
+    posts: list[dict],
+) -> dict:
     for _attempt in range(2):
         try:
             raw = generate(prompt) or ""
@@ -120,16 +243,28 @@ def _from_generator(generate: Callable[[str], str], posts: list[dict], terms: li
         parsed = parse_label(raw)
         if parsed:
             parsed["label_source"] = "model"
+            if "arguments" not in parsed:
+                parsed["arguments"] = heuristic_arguments(posts, terms)
             return parsed
-    return fallback_label(terms)
+    failed = fallback_label(terms)
+    failed["arguments"] = heuristic_arguments(posts, terms)
+    return failed
+
+
+_OLLAMA_CACHE: bool | None = None
 
 
 def ollama_reachable(timeout: float = 0.4) -> bool:
+    global _OLLAMA_CACHE
+    if _OLLAMA_CACHE is not None:
+        return _OLLAMA_CACHE
     host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
     try:
         read_json(f"{host}/api/tags", timeout=timeout)
     except (RuntimeError, json.JSONDecodeError):
+        _OLLAMA_CACHE = False
         return False
+    _OLLAMA_CACHE = True
     return True
 
 

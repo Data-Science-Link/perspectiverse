@@ -4,17 +4,19 @@ import { allocatePercents } from '../src/lib/layout.js'
 
 const topics = [
   { id: 1, category: 'Sports', name: 'A', total_volume_percent: 12 },
-  { id: 2, category: 'Health', name: 'B', total_volume_percent: 8 },
+  { id: 2, category: 'AI', name: 'B', total_volume_percent: 8 },
   { id: 3, category: 'Sports', name: 'C', total_volume_percent: 20 },
 ]
 
 assert.equal(filterTopics(topics, 'all').length, 3)
 assert.equal(filterTopics(topics, 'Sports').length, 2)
-assert.equal(filterTopics(topics, 'Politics').length, 0)
+assert.equal(filterTopics(topics, 'Geopolitics').length, 0)
 assert.equal(categoryCounts(topics).Sports, 2)
-assert.equal(categoryCounts(topics).Politics, 0)
-assert.ok(CATEGORIES.includes('Entertainment'))
-assert.ok(CATEGORIES.includes('Religion'))
+assert.equal(categoryCounts(topics).Geopolitics, 0)
+assert.ok(CATEGORIES.includes('Sports'))
+assert.ok(CATEGORIES.includes('Geopolitics'))
+assert.ok(CATEGORIES.includes('AI'))
+assert.equal(CATEGORIES.length, 3)
 
 const sportsSystem = solarTopics(topics, 'Sports')
 assert.equal(sportsSystem.length, 2)
@@ -27,25 +29,25 @@ assert.equal(
 )
 assert.equal(sportsSystem[0].total_volume_percent + sportsSystem[1].total_volume_percent, 100)
 
-const politicsLike = solarTopics(
+const geoLike = solarTopics(
   [
-    { id: 1, category: 'Politics', name: 'Border Policy', total_volume_percent: 3.7 },
-    { id: 2, category: 'Politics', name: 'Voting Access', total_volume_percent: 2.3 },
-    { id: 3, category: 'Politics', name: 'Court Power', total_volume_percent: 1.7 },
-    { id: 4, category: 'Politics', name: 'Campaign Money', total_volume_percent: 1.3 },
-    { id: 5, category: 'Politics', name: 'Policing', total_volume_percent: 1 },
-    { id: 6, category: 'Politics', name: 'Foreign Wars', total_volume_percent: 0.9 },
-    { id: 7, category: 'Politics', name: 'Tax Fights', total_volume_percent: 0.8 },
-    { id: 8, category: 'Politics', name: 'Statehouses', total_volume_percent: 0.5 },
-    { id: 9, category: 'Politics', name: 'Executive Power', total_volume_percent: 0.4 },
-    { id: 10, category: 'Politics', name: 'Protest Rights', total_volume_percent: 0.4 },
-    { id: 11, category: 'Technology', name: 'AI Futures', total_volume_percent: 5.1 },
+    { id: 1, category: 'Geopolitics', name: 'Ukraine Aid', total_volume_percent: 3.7 },
+    { id: 2, category: 'Geopolitics', name: 'Gaza Ceasefire', total_volume_percent: 2.3 },
+    { id: 3, category: 'Geopolitics', name: 'China Tariffs', total_volume_percent: 1.7 },
+    { id: 4, category: 'Geopolitics', name: 'NATO Spend', total_volume_percent: 1.3 },
+    { id: 5, category: 'Geopolitics', name: 'Election Law', total_volume_percent: 1 },
+    { id: 6, category: 'Geopolitics', name: 'Iran Sanctions', total_volume_percent: 0.9 },
+    { id: 7, category: 'Geopolitics', name: 'Taiwan Strait', total_volume_percent: 0.8 },
+    { id: 8, category: 'Geopolitics', name: 'Border Policy', total_volume_percent: 0.5 },
+    { id: 9, category: 'Geopolitics', name: 'UN Vote', total_volume_percent: 0.4 },
+    { id: 10, category: 'Geopolitics', name: 'Oil Embargo', total_volume_percent: 0.4 },
+    { id: 11, category: 'AI', name: 'AI Futures', total_volume_percent: 5.1 },
   ],
-  'Politics',
+  'Geopolitics',
 )
-assert.equal(politicsLike.length, 10)
+assert.equal(geoLike.length, 10)
 assert.equal(
-  Number(politicsLike.reduce((sum, topic) => sum + topic.total_volume_percent, 0).toFixed(1)),
+  Number(geoLike.reduce((sum, topic) => sum + topic.total_volume_percent, 0).toFixed(1)),
   100,
 )
 

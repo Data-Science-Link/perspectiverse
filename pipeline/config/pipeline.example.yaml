@@ -1,24 +1,22 @@
 # Copy to pipeline/config/pipeline.yaml to override locally (gitignored).
-# sample_size 200 proves the plumbing. The production target is 10000.
+# First rendition: 1000 non-spam posts in a retained SQLite window.
 window_hours: 168
-sample_size: 200
-# sample_size: 10000
+refresh_hours: 24
+sample_size: 1000
+refresh_fraction: 0.1429
+min_group_posts: 10
 
-# Clusters smaller than this become Topic -1 and drop out of the volume
-# denominator. 2 matches the 200-post plumbing sample: the lexical pass asks
-# for 11 clusters and the smallest can be noise while 10 planets remain.
-# A live sample that leaves two short clusters still publishes: leftover
-# posts are folded into the next planet so 10 cubes remain.
-# Use 8 on a few hundred well-separated posts, and 15-25 once sample_size
-# is near 10000.
-min_cluster_size: 2
+# Clusters smaller than this become Topic -1. 8 is the floor for a 1000-post
+# window so tiny clumps do not become planets. The clusterer will split large
+# groups if it cannot mint 10 planets.
+min_cluster_size: 8
 
 # lexical: numpy TF-IDF, no model download. bertopic: all-MiniLM-L6-v2 via BERTopic.
 cluster_backend: lexical
 embedding_model: all-MiniLM-L6-v2
 
-# auto tries Ollama, then an OpenAI-compatible API, then a visible fallback title.
-# heuristic skips the network and names faces from top terms.
+# auto tries Ollama, then an OpenAI-compatible API, then a heuristic name.
+# heuristic skips the network and names faces from top terms + extractive posts.
 label_backend: auto
 ollama_model: llama3.2
 openai_model: gpt-4o-mini
@@ -26,22 +24,54 @@ openai_model: gpt-4o-mini
 representative_posts: 12
 language: en
 seed: 0
-
-# How many topics to keep in the saved batch. The observatory always *shows*
-# 10 planets (SYSTEM_SIZE). A larger catalog lets each category fill its own solar system
-# when the sample can support it. 10 matches the 200-post plumbing fixture.
-# Raise toward 100 (10 planets × 10 categories) once sample_size is large.
 catalog_size: 10
 
-# Rotated so a small public search is not one keyword.
+# Seeded so Sports / Geopolitics / AI each have at least 10 quality posts.
+# Remaining quota is a general English sample for the unsupervised top 10.
+group_quotas:
+  general: 400
+  sports: 200
+  geopolitics: 200
+  ai: 200
+
+query_groups:
+  general:
+    - news
+    - breaking
+    - reported
+    - according
+    - analysis
+  sports:
+    - nfl
+    - nba
+    - soccer
+    - premier league
+    - world series
+    - mlb
+    - tennis
+    - olympics
+  geopolitics:
+    - ukraine
+    - gaza
+    - election
+    - china
+    - nato
+    - israel
+    - taiwan
+    - iran
+  ai:
+    - chatgpt
+    - openai
+    - artificial intelligence
+    - llm
+    - machine learning
+    - anthropic
+    - copilot
+
+# Flat fallback if query_groups is removed.
 queries:
   - the
   - people
   - today
   - because
-  - work
-  - city
-  - game
-  - health
-  - school
   - news

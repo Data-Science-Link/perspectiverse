@@ -155,6 +155,8 @@ def _ensure_cluster_count(texts: list[str], labels: list[int], keep: int, min_cl
             return labels
         candidates = [(label, members) for label, members in ranked if len(members) >= 2 * min_cluster_size]
         if not candidates:
+            candidates = [(label, members) for label, members in ranked if len(members) >= 4]
+        if not candidates:
             return labels
         label, members = candidates[0]
         member_texts = [texts[index] for index in members]

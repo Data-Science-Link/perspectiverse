@@ -51,6 +51,8 @@ def test_live_fixture_writes_contract(tmp_path):
     connection.close()
     assert post_count == len(build_tiny_posts())
     assert topic_count == 10
+    assert all(len(topic["perspectives"][0].get("arguments") or []) >= 2 for topic in payload["topics"])
+    assert all(topic["name"] for topic in payload["topics"])
 
 
 def test_run_live_function_matches_cli(tmp_path):

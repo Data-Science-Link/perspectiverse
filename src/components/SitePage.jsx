@@ -51,11 +51,11 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Where does the data come from right now?',
-    a: 'The public site may still be on demo data — made-up example posts, clearly labeled. The live path reads public Bluesky search. Either way you are looking at a snapshot, not your personal feed.',
+    a: 'A retained sample of English Bluesky posts from the last week, cleaned of obvious spam. The daily job rotates about one seventh of that sample. You are looking at a snapshot, not your personal feed.',
   },
   {
     q: 'Do you keep the posts?',
-    a: 'The published snapshot keeps a handful of example posts per face. The rest of the sample dies with the daily job. Nothing here is a firehose archive.',
+    a: 'The published snapshot keeps a handful of example posts per face. About a thousand cleaned posts sit in a retained SQLite window so tomorrow’s job can drop the oldest seventh and add yesterday’s posts. That is not a firehose archive.',
   },
   {
     q: 'How do I get in touch?',

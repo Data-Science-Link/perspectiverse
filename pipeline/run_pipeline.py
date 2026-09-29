@@ -1,8 +1,8 @@
 """Perspectiverse pipeline entry point.
 
---demo writes the synthetic universe. --live extracts, clusters, labels, and
-writes public/data.json. With no flag, the command stays on --demo so the
-existing local workflow keeps working.
+--live rotates the retained Bluesky corpus, clusters, labels, and writes
+public/data.json. --demo still writes the synthetic universe. With no flag,
+the command stays on --live.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--fixture", type=Path, default=None, help="JSON posts used instead of Bluesky (requires --live)")
     parser.add_argument("--output", type=Path, default=None, help="Destination data.json path")
     parser.add_argument("--config", type=Path, default=None, help="YAML settings file")
-    parser.add_argument("--db", type=Path, default=None, help="SQLite path (default pipeline/data/posts.db)")
+    parser.add_argument("--db", type=Path, default=None, help="SQLite path (default pipeline/data/live_corpus.db)")
     parser.add_argument(
         "--query",
         action="append",
@@ -37,33 +37,33 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
 
-    if args.fixture and not args.live:
-        parser.error("--fixture requires --live")
-    if args.queries and not args.live:
-        parser.error("--query requires --live")
+    if args.fixture and args.demo:
+        parser.error("--fixture requires live mode")
+    if args.queries and args.demo:
+        parser.error("--query requires live mode")
 
-    if args.live:
-        from pipeline.live import run_live
+    if args.demo:
+        from pipeline.generate_demo_data import write_demo_data
 
-        print("Starting Perspectiverse pipeline (live mode)...")
-        run_live(
-            fixture=args.fixture,
-            output=args.output,
-            config=args.config,
-            db_path=args.db,
-            queries=args.queries,
-        )
-        print("Pipeline complete.")
+        print("Starting Perspectiverse pipeline (demo mode)...")
+        output = write_demo_data(args.output)
+        print(f"Wrote {output}")
+        print("Pipeline complete. public/data.json is ready for the observatory.")
         return
 
-    from pipeline.generate_demo_data import write_demo_data
+    from pipeline.live import run_live
 
-    if not args.demo:
-        print("No mode flag given; defaulting to --demo.")
-    print("Starting Perspectiverse pipeline (demo mode)...")
-    output = write_demo_data(args.output)
-    print(f"Wrote {output}")
-    print("Pipeline complete. public/data.json is ready for the observatory.")
+    if not args.live:
+        print("No mode flag given; defaulting to --live.")
+    print("Starting Perspectiverse pipeline (live mode)...")
+    run_live(
+        fixture=args.fixture,
+        output=args.output,
+        config=args.config,
+        db_path=args.db,
+        queries=args.queries,
+    )
+    print("Pipeline complete.")
 
 
 if __name__ == "__main__":

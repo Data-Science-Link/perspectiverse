@@ -1,4 +1,4 @@
-"""Live path: extract or load a fixture, cluster, label, write data.json."""
+"""Live path: rotate the retained corpus, cluster, label, write data.json."""
 
 from __future__ import annotations
 
@@ -7,13 +7,14 @@ import random
 from pathlib import Path
 
 from pipeline.assemble import assemble_payload, face_id, topic_name, write_payload
-from pipeline.cleaning import clean_posts
-from pipeline.data_sources.extract_bluesky import extract_posts
-from pipeline.label import label_perspective
+from pipeline.cleaning import clean_posts, drop_near_duplicates
+from pipeline.corpus import TARGET_POSTS, rotate_corpus, scale_quotas, select_quality
+from pipeline.data_sources.extract_bluesky import extract_grouped_posts, extract_posts
+from pipeline.label import label_perspective, label_topic
 from pipeline.perspectives import select_representatives, split_perspectives
-from pipeline.schema import infer_category, to_percents, SYSTEM_SIZE
+from pipeline.schema import SYSTEM_SIZE, infer_category, to_percents
 from pipeline.settings import load_settings
-from pipeline.store import connect, replace_posts, write_clusters
+from pipeline.store import LIVE_CORPUS_DB, connect, load_posts, replace_posts, write_clusters
 from pipeline.topics import cluster_texts
 
 
@@ -33,37 +34,36 @@ def run_live(
     queries: list[str] | None = None,
 ) -> Path:
     settings = load_settings(config)
-    search_queries = [item for item in (queries or []) if item] or list(settings["queries"])
-    if fixture:
-        raw_posts = load_fixture(fixture)
-        source = "fixture"
-    else:
-        raw_posts = extract_posts(
-            sample_size=int(settings["sample_size"]),
-            window_hours=int(settings["window_hours"]),
-            queries=search_queries,
-            rng=random.Random(int(settings["seed"])),
-        )
-        source = "bluesky"
-        if not raw_posts:
-            raise RuntimeError("Bluesky returned no posts inside the 7-day window")
-
-    cleaned = clean_posts(raw_posts)
-    if not cleaned:
-        raise RuntimeError("Every post was dropped by cleaning. Check the extract.")
-
-    connection = connect(db_path)
+    target = int(settings.get("sample_size") or TARGET_POSTS)
+    database = Path(db_path) if db_path else LIVE_CORPUS_DB
+    connection = connect(database)
     try:
+        existing = load_posts(connection)
+        cleaned, source = _collect_posts(existing, settings, fixture, queries, target)
+        if not cleaned:
+            raise RuntimeError("No quality posts in the retained corpus or the extract.")
+
         replace_posts(connection, cleaned)
         texts = [post["clean_text"] for post in cleaned]
-        clustered = cluster_texts(
-            texts,
-            min_cluster_size=int(settings["min_cluster_size"]),
-            cluster_backend=str(settings["cluster_backend"]),
-            embedding_model=str(settings["embedding_model"]),
-            seed=int(settings["seed"]),
-            catalog_size=int(settings.get("catalog_size") or SYSTEM_SIZE),
-        )
+        catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
+        try:
+            clustered = cluster_texts(
+                texts,
+                min_cluster_size=int(settings["min_cluster_size"]),
+                cluster_backend=str(settings["cluster_backend"]),
+                embedding_model=str(settings["embedding_model"]),
+                seed=int(settings["seed"]),
+                catalog_size=catalog_size,
+            )
+        except RuntimeError:
+            clustered = cluster_texts(
+                texts,
+                min_cluster_size=3,
+                cluster_backend="lexical",
+                embedding_model=str(settings["embedding_model"]),
+                seed=int(settings["seed"]),
+                catalog_size=catalog_size,
+            )
         topics, membership, face_rows = _build_topics(cleaned, clustered, settings)
         write_clusters(connection, membership, face_rows)
     finally:
@@ -77,10 +77,63 @@ def run_live(
     )
     destination = write_payload(payload, output)
     print(
-        f"Live snapshot: {len(cleaned)} cleaned posts, "
+        f"Live snapshot: {len(cleaned)} quality posts, "
         f"{clustered['noise_count']} excluded as noise, wrote {destination}"
     )
     return destination
+
+
+def _collect_posts(
+    existing: list[dict],
+    settings: dict,
+    fixture: Path | None,
+    queries: list[str] | None,
+    target: int,
+) -> tuple[list[dict], str]:
+    if fixture:
+        return clean_posts(load_fixture(fixture)), "fixture"
+
+    first_fill = len(existing) < max(int(target * 0.5), 80)
+    window_hours = int(settings["window_hours"] if first_fill else settings.get("refresh_hours") or 24)
+    fetch_size = target if first_fill else max(40, int(round(target * float(settings.get("refresh_fraction") or (1 / 7)))))
+    search_queries = [item for item in (queries or []) if item]
+    incoming: list[dict] = []
+    try:
+        if search_queries:
+            incoming = extract_posts(
+                sample_size=max(fetch_size, 80),
+                window_hours=window_hours,
+                queries=search_queries,
+                rng=random.Random(int(settings["seed"])),
+            )
+        else:
+            groups = dict(settings.get("query_groups") or {})
+            quotas = scale_quotas(max(fetch_size, 80), dict(settings.get("group_quotas") or {}))
+            incoming = extract_grouped_posts(
+                quotas=quotas,
+                query_groups=groups,
+                window_hours=window_hours,
+                rng=random.Random(int(settings["seed"])),
+            )
+    except RuntimeError as exc:
+        print(f"Bluesky extract failed ({exc}). Rebuilding from the retained corpus.")
+        incoming = []
+
+    fresh = drop_near_duplicates(clean_posts(incoming))
+    if len(existing) < target:
+        combined = drop_near_duplicates(existing + fresh)
+        cleaned = select_quality(combined, target)
+    else:
+        cleaned = rotate_corpus(
+            existing,
+            fresh,
+            target=target,
+            drop_fraction=float(settings.get("refresh_fraction") or (1 / 7)),
+        )
+    source = "bluesky" if (fresh or existing) else "bluesky"
+    if not cleaned and not existing:
+        raise RuntimeError("Bluesky returned no quality posts and no corpus is retained")
+    return drop_near_duplicates(cleaned or existing), source
 
 
 def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[list[dict], list[tuple], list[tuple]]:
@@ -99,7 +152,8 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
         face_volumes = to_percents([face["size"] for face in split["faces"]])
         topic_id = topic["id"] + 1
         terms = list(topic["terms"])
-        name = topic_name(terms)
+        planet = label_topic(members, terms, backend=backend)
+        name = str(planet.get("name") or topic_name(terms))
         perspectives = []
         ordered_faces = sorted(
             zip(split["faces"], face_volumes),
@@ -110,15 +164,17 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
             face_distances = [split["distances"][index] for index in face["member_indices"]]
             representatives = select_representatives(face_posts, face_distances, limit=limit)
             label = label_perspective(representatives, face["terms"] or terms, backend=backend)
-            perspectives.append(
-                {
-                    "id": face_id(topic_id, position),
-                    "title": label["title"],
-                    "summary": label["summary"],
-                    "volume_percent": face_volume,
-                    "representative_posts": representatives,
-                }
-            )
+            arguments = label.get("arguments") or []
+            perspective = {
+                "id": face_id(topic_id, position),
+                "title": label["title"],
+                "summary": label["summary"],
+                "volume_percent": face_volume,
+                "representative_posts": representatives,
+            }
+            if len(arguments) >= 2:
+                perspective["arguments"] = arguments[:6]
+            perspectives.append(perspective)
             for index in face["member_indices"]:
                 post = members[index]
                 face_rows.append((post["uri"], topic_id, position, float(split["distances"][index])))
@@ -128,7 +184,7 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
             {
                 "id": topic_id,
                 "name": name,
-                "category": infer_category(name, terms),
+                "category": infer_category(name, terms, member_texts),
                 "total_volume_percent": volume,
                 "perspectives": perspectives,
             }

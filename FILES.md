@@ -25,12 +25,13 @@ This document provides a complete listing of all files in the Perspectiverse rep
 
 | File/Directory | Description |
 | --- | --- |
-| `pipeline/run_pipeline.py` | `--demo` or `--live` entry point |
-| `pipeline/generate_demo_data.py` | Synthetic 10×6 universe |
-| `pipeline/live.py` | Extract, cluster, label, write `data.json` |
+| `pipeline/run_pipeline.py` | `--live` (default) or `--demo` entry point |
+| `pipeline/generate_demo_data.py` | Synthetic 10×6 universe (not what the site ships) |
+| `pipeline/live.py` | Rotate corpus, cluster, label, write `data.json` |
 | `pipeline/schema.py` | Shared `data.json` contract |
 | `pipeline/settings.py` | YAML config loader |
 | `pipeline/cleaning.py` | URL, handle, and spam cleaning |
+| `pipeline/corpus.py` | 1,000-post window and 1/7 daily rotate |
 | `pipeline/store.py` | SQLite posts and derived membership |
 | `pipeline/topics.py` | 10 planets (lexical or BERTopic) |
 | `pipeline/perspectives.py` | 2–6 faces and representative posts |
@@ -39,7 +40,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
 | `pipeline/http_json.py` | Allow-listed JSON HTTP |
 | `pipeline/config/pipeline.example.yaml` | Sample size, models, `min_cluster_size` |
-| `pipeline/data/` | Gitignored SQLite store (`posts.db`) |
+| `pipeline/data/live_corpus.db` | Retained ~1,000-post window (tracked) |
 | `pipeline/data_sources/extract_bluesky.py` | Bluesky 7-day sample |
 | `tests/` | Contract tests and the tiny live fixture |
 
@@ -87,6 +88,8 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `Planet Engagement Architecture.md` | Debate / LLM clerk design on the daily-static split |
 | `Custom Universe and Archive Architecture.md` | Retain posts, on-demand solar systems, Google plugin |
 | `Historical Solar Systems and Topic Continuity.md` | Dated solar systems, trending vs stock, matching topic names across days |
+| `Pipeline Audit 2026-09-28.md` | What was synthetic vs live, and why the daily job was failing |
+| `Handoff DeepInfra and Bluesky Auth.md` | Prompt for a follow-up agent: DeepInfra labels + Bluesky app password |
 
 ## Scripts & CI/CD
 
