@@ -47,8 +47,8 @@ assert.equal(
   '/perspectiverse/?page=methodology',
 )
 assert.equal(
-  selectionURL({ category: 'Politics', topicId: 3, perspectiveId: '3A', page: 'faq' }),
-  '/perspectiverse/?category=Politics&page=faq',
+  selectionURL({ category: 'Geopolitics', topicId: 3, perspectiveId: '3A', page: 'faq' }),
+  '/perspectiverse/?category=Geopolitics&page=faq',
 )
 assert.equal(
   selectionURL({ category: 'all', topicId: 3, perspectiveId: '3A', page: null }),

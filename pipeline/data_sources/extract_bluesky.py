@@ -1,20 +1,28 @@
-"""Fetch a small English Bluesky sample from the last 168 hours.
+"""Fetch an English Bluesky sample from a rolling window.
 
-With no app password this uses the public AppView search. Set BLUESKY_HANDLE
-and BLUESKY_APP_PASSWORD to search as that account instead. Callers can pass
-`fetch` so tests never touch the network.
+With no app password this uses the public AppView search. GitHub-hosted
+runners sometimes get 403 on one host and not the other, so we try
+``public.api.bsky.app`` then ``api.bsky.app`` with short retries.
+
+Set BLUESKY_HANDLE and BLUESKY_APP_PASSWORD to search as that account
+instead. Callers can pass ``fetch`` so tests never touch the network.
 """
 
 from __future__ import annotations
 
 import os
 import random
+import time
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 
 from pipeline.http_json import read_json
 
-PUBLIC_SEARCH = "https://api.bsky.app/xrpc/app.bsky.feed.searchPosts"
+PUBLIC_SEARCH_URLS = (
+    "https://api.bsky.app/xrpc/app.bsky.feed.searchPosts",
+    "https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
+)
+USER_AGENT = "perspectiverse-pipeline/0.2"
 
 
 def extract_posts(
@@ -25,9 +33,9 @@ def extract_posts(
     fetch=None,
     now: datetime | None = None,
     rng: random.Random | None = None,
-    per_query: int = 25,
+    per_query: int = 100,
 ) -> list[dict]:
-    """Return up to `sample_size` normalized posts inside the rolling window."""
+    """Return up to ``sample_size`` normalized posts inside the rolling window."""
     moment = now or datetime.now(timezone.utc)
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=timezone.utc)
@@ -40,7 +48,11 @@ def extract_posts(
     for query in queries:
         cursor = None
         for _page in range(8):
-            page = getter(query, cursor, per_query)
+            try:
+                page = getter(query, cursor, per_query)
+            except RuntimeError as exc:
+                print(f"Skipping Bluesky query {query!r}: {exc}")
+                break
             for raw in page.get("posts") or []:
                 post = normalize_post(raw)
                 if post is None or post["uri"] in seen:
@@ -53,11 +65,53 @@ def extract_posts(
             cursor = page.get("cursor")
             if not cursor or len(collected) >= sample_size * 2:
                 break
+            time.sleep(0.35)
         if len(collected) >= sample_size * 2:
             break
+        time.sleep(0.2)
 
     if len(collected) > sample_size:
         collected = chooser.sample(collected, sample_size)
+    return collected
+
+
+def extract_grouped_posts(
+    *,
+    quotas: dict[str, int],
+    query_groups: dict[str, list[str]],
+    window_hours: int,
+    fetch=None,
+    now: datetime | None = None,
+    rng: random.Random | None = None,
+    per_query: int = 100,
+) -> list[dict]:
+    """Pull a balanced sample so Sports / Geopolitics / AI are not empty."""
+    chooser = rng or random.Random()
+    collected: list[dict] = []
+    seen: set[str] = set()
+    for group, quota in quotas.items():
+        queries = [item for item in query_groups.get(group, []) if item]
+        if not queries or quota <= 0:
+            continue
+        try:
+            batch = extract_posts(
+                sample_size=max(quota, 10),
+                window_hours=window_hours,
+                queries=queries,
+                fetch=fetch,
+                now=now,
+                rng=chooser,
+                per_query=per_query,
+            )
+        except RuntimeError as exc:
+            print(f"Skipping Bluesky group {group!r}: {exc}")
+            continue
+        for post in batch:
+            if post["uri"] in seen:
+                continue
+            seen.add(post["uri"])
+            collected.append(post)
+        time.sleep(0.2)
     return collected
 
 
@@ -93,7 +147,11 @@ def _parse_time(value: str) -> datetime:
 
 def _default_fetch(query: str, cursor: str | None, limit: int) -> dict:
     if os.getenv("BLUESKY_HANDLE") and os.getenv("BLUESKY_APP_PASSWORD"):
-        return _fetch_authenticated(query, cursor, limit)
+        try:
+            return _fetch_authenticated(query, cursor, limit)
+        except RuntimeError:
+            # Fall through to public search so a bad app password is not fatal.
+            pass
     return _fetch_public(query, cursor, limit)
 
 
@@ -101,8 +159,43 @@ def _fetch_public(query: str, cursor: str | None, limit: int) -> dict:
     params = {"q": query, "limit": str(min(limit, 100)), "sort": "latest", "lang": "en"}
     if cursor:
         params["cursor"] = cursor
-    url = PUBLIC_SEARCH + "?" + urllib.parse.urlencode(params)
-    return read_json(url, timeout=20, headers={"Accept": "application/json", "User-Agent": "perspectiverse-pipeline/0.1"})
+    query_string = urllib.parse.urlencode(params)
+    last_error: Exception | None = None
+    for base in PUBLIC_SEARCH_URLS:
+        url = f"{base}?{query_string}"
+        try:
+            return read_json(
+                url,
+                timeout=20,
+                headers={"Accept": "application/json", "User-Agent": USER_AGENT},
+            )
+        except RuntimeError as exc:
+            last_error = exc
+            message = str(exc)
+            if "HTTP 403" in message:
+                time.sleep(1.0)
+                try:
+                    return read_json(
+                        url,
+                        timeout=20,
+                        headers={"Accept": "application/json", "User-Agent": USER_AGENT},
+                    )
+                except RuntimeError as retry_exc:
+                    last_error = retry_exc
+                    continue
+            if "HTTP 401" in message or "HTTP 404" in message:
+                continue
+            time.sleep(0.4)
+            try:
+                return read_json(
+                    url,
+                    timeout=20,
+                    headers={"Accept": "application/json", "User-Agent": USER_AGENT},
+                )
+            except RuntimeError as retry_exc:
+                last_error = retry_exc
+                continue
+    raise RuntimeError(f"Bluesky public search failed: {last_error}") from last_error
 
 
 def _fetch_authenticated(query: str, cursor: str | None, limit: int) -> dict:

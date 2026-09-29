@@ -1,7 +1,8 @@
 """SQLite store for raw posts and derived cluster membership.
 
-pipeline/data/ is gitignored. posts are the cleaned extract. topic_membership
-and perspectives are derived and can be rebuilt by re-running the pipeline.
+``pipeline/data/posts.db`` stays gitignored scratch. The retained live window
+is ``pipeline/data/live_corpus.db`` and is committed so the daily job can
+rotate it. topic_membership and perspectives are derived and rebuilt each run.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 DEFAULT_DB = DATA_DIR / "posts.db"
+LIVE_CORPUS_DB = DATA_DIR / "live_corpus.db"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS posts (
@@ -65,6 +67,24 @@ def replace_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
         ],
     )
     connection.commit()
+
+
+def load_posts(connection: sqlite3.Connection) -> list[dict]:
+    """Return cleaned posts currently in the store, oldest first."""
+    rows = connection.execute(
+        "SELECT uri, author, text, clean_text, likes, created_at FROM posts ORDER BY created_at ASC"
+    ).fetchall()
+    return [
+        {
+            "uri": row[0],
+            "author": row[1],
+            "text": row[2],
+            "clean_text": row[3],
+            "likes": int(row[4] or 0),
+            "created_at": row[5] or "",
+        }
+        for row in rows
+    ]
 
 
 def write_clusters(

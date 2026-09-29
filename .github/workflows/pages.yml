@@ -37,7 +37,7 @@ jobs:
             git checkout FETCH_HEAD -- public/data.json
             echo "Using public/data.json from data-snapshot"
           else
-            echo "No data-snapshot branch yet; using the committed demo data.json"
+            echo "No data-snapshot branch yet; using the committed live data.json"
           fi
 
       - name: Build

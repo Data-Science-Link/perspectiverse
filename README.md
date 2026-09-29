@@ -14,15 +14,17 @@ Bodies keep solar-system skins in volume order: the largest topic is the Sun, th
 
 ## Current status
 
-The observatory runs on a schema-compatible **demo** `public/data.json` (10 topics × 6 perspectives) until a live snapshot is published. The live path is implemented and can be run locally or on the daily Actions job. It defaults to a **small** Bluesky sample (200 posts) so the plumbing can be proved without a 10k embed. Raise `sample_size` in `pipeline/config/pipeline.example.yaml` toward 10000 for a fuller window.
+The observatory now ships a **live** `public/data.json` built from a retained window of **1,000 non-spam English Bluesky posts**. The daily job rotates about one seventh of that window (drop oldest, add yesterday). Planet names, face titles, and perspective steelmans are generated (LLM when a key is present, heuristic otherwise). The dropdown keeps three groupings: Sports, Geopolitics, and AI.
 
 | Layer | State |
 | --- | --- |
-| Demo universe (`public/data.json`, `mode: demo`) | Ready, labeled synthetic in the sidebar |
-| Live pipeline (`--live`) | Ready, lexical clustering by default |
-| React + R3F observatory | Ready, with category filters and inspect mode |
+| Live universe (`public/data.json`, `mode: live`) | First 1,000-post corpus |
+| Retained SQLite (`pipeline/data/live_corpus.db`) | Rotated daily (~1/7) |
+| Spam filter | Quality gate before the window |
+| Live pipeline (`--live`) | Default command; lexical clustering on CI |
+| React + R3F observatory | Ready, with Sports / Geopolitics / AI filters |
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
-| Daily refresh | `.github/workflows/pipeline.yml` |
+| Daily refresh | `.github/workflows/pipeline.yml` — publishes even if Bluesky 403s |
 | Conversational LLM on a planet | Roadmap only (Horizon A) |
 | Custom solar system from `--query` | Ready for operators; not a public form |
 | Historical solar systems / topic tracking | Roadmap only (Horizon C) |
@@ -62,21 +64,21 @@ npm run preview
 uv venv
 uv sync
 source .venv/bin/activate
-python -m pipeline.run_pipeline --demo
 python -m pipeline.run_pipeline --live
+python -m pipeline.run_pipeline --demo
 ```
 
-`--demo` rewrites the synthetic universe. `--live` extracts a 7-day English Bluesky sample, cleans it into `pipeline/data/posts.db`, clusters 10 planets and 6 faces, labels the faces, and overwrites `public/data.json`. With no flag, the command defaults to `--demo`.
+`--live` is the default. It refreshes `pipeline/data/live_corpus.db` (about 1,000 quality posts), clusters 10 planets, labels planets and faces, synthesizes core arguments, and overwrites `public/data.json`. `--demo` still writes the old synthetic 10-category universe.
 
-Copy `.env.example` to `.env` for secrets. The public Bluesky search works with `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` left blank. Set both to use an app password from Bluesky settings. Do not commit `.env`.
+Copy `.env.example` to `.env` for secrets. The public Bluesky search works with `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` left blank. Set both (and add them as Actions secrets) if GitHub-hosted runners get 403. Set `OPENAI_API_KEY` for better planet names and steelmans. Do not commit `.env`.
 
-To rehearse the live path without the network, point `--output` somewhere other than `public/data.json` unless you mean to replace the demo solar system:
+To rehearse the live path without the network:
 
 ```bash
 python -m pipeline.run_pipeline --live --fixture tests/fixtures/tiny_posts.json --output /tmp/perspectiverse-data.json
 ```
 
-The example config uses `label_backend: auto` (Ollama, then an API key, then the fallback title). Set `label_backend: heuristic` in a local `pipeline.yaml` to name faces from top terms instead.
+The example config uses `label_backend: auto` (Ollama, then an API key, then heuristic names from terms and posts).
 
 To pull a **brand-shaped or claim-shaped sample** instead of the default common-English queries (still a 7-day search, still the same 10-planet job):
 

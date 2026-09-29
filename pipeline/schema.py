@@ -11,7 +11,14 @@ SOURCES = frozenset({"synthetic", "bluesky", "fixture"})
 # One solar system is always this many planets. The saved catalog can be larger so each
 # category can fill its own solar system when the user switches modes.
 SYSTEM_SIZE = 10
+# Public live dropdown. Demo catalogs still use DEMO_CATEGORIES.
 CATEGORIES = (
+    "Sports",
+    "Geopolitics",
+    "AI",
+    "Other",
+)
+DEMO_CATEGORIES = (
     "Politics",
     "Sports",
     "Technology",
@@ -23,21 +30,66 @@ CATEGORIES = (
     "Entertainment",
     "Religion",
 )
+ALLOWED_CATEGORIES = frozenset(CATEGORIES) | frozenset(DEMO_CATEGORIES)
 NOISE_POLICY = "Topic -1 is dropped and excluded from the volume denominator."
 MIN_FACES = 2
 MAX_FACES = 6
 
 CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "Sports": ("sport", "football", "soccer", "league", "player", "game", "coach"),
-    "Health": ("health", "hospital", "vaccine", "clinic", "covid", "patient"),
-    "Education": ("school", "student", "teacher", "tuition", "campus", "education"),
-    "Environment": ("climate", "emission", "wildfire", "energy", "drought", "carbon"),
-    "Politics": ("election", "border", "senate", "vote", "congress", "policy", "immigration"),
-    "Technology": ("software", "privacy", "algorithm", "model", "ai", "app", "data"),
-    "Economy": ("housing", "rent", "wage", "labor", "market", "price", "job"),
-    "Media": ("headline", "news", "media", "journalist", "trust", "newspaper"),
-    "Entertainment": ("film", "movie", "music", "concert", "celebrity", "streaming", "actor", "album"),
-    "Religion": ("church", "faith", "god", "prayer", "mosque", "clergy", "religious", "secular"),
+    "Sports": (
+        "sport",
+        "football",
+        "soccer",
+        "nfl",
+        "nba",
+        "mlb",
+        "nhl",
+        "league",
+        "player",
+        "coach",
+        "match",
+        "tournament",
+        "olympic",
+        "worldcup",
+        "premier",
+    ),
+    "Geopolitics": (
+        "election",
+        "ukraine",
+        "gaza",
+        "israel",
+        "palestine",
+        "nato",
+        "china",
+        "russia",
+        "sanction",
+        "diplomat",
+        "border",
+        "senate",
+        "congress",
+        "vote",
+        "war",
+        "ceasefire",
+        "taiwan",
+        "iran",
+    ),
+    "AI": (
+        "ai",
+        "llm",
+        "gpt",
+        "chatgpt",
+        "openai",
+        "anthropic",
+        "claude",
+        "model",
+        "algorithm",
+        "artificial",
+        "intelligence",
+        "gpu",
+        "alignment",
+        "copilot",
+        "software",
+    ),
 }
 
 
@@ -63,16 +115,25 @@ def to_percents(counts: list[int]) -> list[float]:
     return [value / 10 for value in tenths]
 
 
-def infer_category(name: str, terms: list[str]) -> str:
-    """Map a topic label onto one precomputed sidebar category."""
-    blob = " ".join([name, *terms]).lower()
+CATEGORY_PHRASES: dict[str, tuple[str, ...]] = {
+    "Sports": ("world series", "premier league", "super bowl", "playoff"),
+    "Geopolitics": ("cease fire", "prime minister", "white house"),
+    "AI": ("artificial intelligence", "machine learning", "large language"),
+}
+
+
+def infer_category(name: str, terms: list[str], texts: list[str] | None = None) -> str:
+    """Map a topic label onto Sports, Geopolitics, AI, or Other."""
+    sample = " ".join((texts or [])[:40])
+    blob = " ".join([name, *terms, sample]).lower()
     scores = {
         category: sum(1 for word in words if word in blob)
+        + 2 * sum(1 for phrase in CATEGORY_PHRASES.get(category, ()) if phrase in blob)
         for category, words in CATEGORY_KEYWORDS.items()
     }
     best = max(scores, key=lambda category: (scores[category], category))
     if scores[best] == 0:
-        return "Media"
+        return "Other"
     return best
 
 
@@ -102,7 +163,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
         seen_topic_ids.add(topic_id)
         if not topic.get("name"):
             raise ValueError(f"Topic {topic_id} is missing a name")
-        if topic.get("category") not in CATEGORIES:
+        if topic.get("category") not in ALLOWED_CATEGORIES:
             raise ValueError(f"Topic {topic_id} has an unknown category")
         perspectives = topic.get("perspectives") or []
         if not MIN_FACES <= len(perspectives) <= MAX_FACES:
@@ -146,7 +207,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
     # Demo catalogs are a full solar system per category so the dropdown never empties.
     if payload.get("mode") == "demo":
         counts = Counter(topic["category"] for topic in topics)
-        missing = [category for category in CATEGORIES if counts.get(category, 0) < SYSTEM_SIZE]
+        missing = [category for category in DEMO_CATEGORIES if counts.get(category, 0) < SYSTEM_SIZE]
         if missing:
             raise ValueError(
                 f"Demo catalog needs {SYSTEM_SIZE} topics in every category; short: {missing}"

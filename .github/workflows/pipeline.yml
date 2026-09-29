@@ -18,6 +18,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Restore retained corpus
+        run: |
+          mkdir -p pipeline/data
+          if git ls-remote --exit-code --heads origin data-snapshot >/dev/null 2>&1; then
+            git fetch origin data-snapshot
+            git checkout origin/data-snapshot -- pipeline/data/live_corpus.db || true
+          fi
+          if [ ! -f pipeline/data/live_corpus.db ]; then
+            echo "No snapshot corpus yet; using the committed live_corpus.db if present"
+          fi
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
@@ -45,20 +56,24 @@ jobs:
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL }}
         run: |
           source .venv/bin/activate
-          python -m pipeline.run_pipeline --live
+          python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
 
       - name: Upload data.json
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: data-json
-          path: public/data.json
+          path: |
+            public/data.json
+            pipeline/data/live_corpus.db
           retention-days: 14
 
       - name: Publish data-snapshot branch
         if: success()
         run: |
-          cp public/data.json /tmp/perspectiverse-data.json
+          mkdir -p /tmp/perspectiverse-snapshot
+          cp public/data.json /tmp/perspectiverse-snapshot/data.json
+          cp pipeline/data/live_corpus.db /tmp/perspectiverse-snapshot/live_corpus.db
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git ls-remote --exit-code --heads origin data-snapshot >/dev/null 2>&1; then
@@ -67,8 +82,10 @@ jobs:
           else
             git checkout -B data-snapshot
           fi
-          cp /tmp/perspectiverse-data.json public/data.json
-          git add public/data.json
+          mkdir -p pipeline/data
+          cp /tmp/perspectiverse-snapshot/data.json public/data.json
+          cp /tmp/perspectiverse-snapshot/live_corpus.db pipeline/data/live_corpus.db
+          git add public/data.json pipeline/data/live_corpus.db
           if git diff --cached --quiet; then
             echo "Snapshot unchanged"
             exit 0

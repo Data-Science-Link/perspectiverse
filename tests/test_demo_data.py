@@ -3,7 +3,7 @@ from collections import Counter
 from pipeline.demo_briefs import FACE_BRIEFS, FEATURED_ARGUMENTS
 from pipeline.demo_catalog import CATEGORY_ROSTERS
 from pipeline.generate_demo_data import DEMO_TOPICS, build_demo_payload, validate_payload
-from pipeline.schema import CATEGORIES, SYSTEM_SIZE
+from pipeline.schema import DEMO_CATEGORIES, SYSTEM_SIZE
 
 
 def test_demo_payload_matches_ui_contract():
@@ -13,15 +13,15 @@ def test_demo_payload_matches_ui_contract():
     assert payload["mode"] == "demo"
     assert payload["source"] == "synthetic"
     assert payload["window_hours"] == 168
-    assert len(payload["topics"]) == SYSTEM_SIZE * len(CATEGORIES)
+    assert len(payload["topics"]) == SYSTEM_SIZE * len(DEMO_CATEGORIES)
     assert payload["topics"][0]["total_volume_percent"] >= payload["topics"][-1]["total_volume_percent"]
-    assert set(payload["topics"][i]["category"] for i in range(len(payload["topics"]))) == set(CATEGORIES)
+    assert set(payload["topics"][i]["category"] for i in range(len(payload["topics"]))) == set(DEMO_CATEGORIES)
 
 
 def test_each_category_can_fill_a_solar_system():
     payload = build_demo_payload()
     counts = Counter(topic["category"] for topic in payload["topics"])
-    for category in CATEGORIES:
+    for category in DEMO_CATEGORIES:
         assert counts[category] == SYSTEM_SIZE
         assert len(CATEGORY_ROSTERS[category]) == SYSTEM_SIZE
     ranked = payload["topics"][:SYSTEM_SIZE]

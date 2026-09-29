@@ -29,7 +29,7 @@ def test_extract_keeps_window_and_samples():
 
     def fetch(query, cursor, limit):
         assert cursor is None
-        assert limit == 25
+        assert limit == 100
         return pages[query]
 
     posts = extract_posts(
@@ -75,4 +75,4 @@ def test_extract_follows_cursor_until_the_window_is_full():
         rng=__import__("random").Random(0),
     )
     assert {post["uri"] for post in posts} == {"at://page-1", "at://page-2"}
-    assert calls == [("the", None, 25), ("the", "next", 25)]
+    assert calls == [("the", None, 100), ("the", "next", 100)]

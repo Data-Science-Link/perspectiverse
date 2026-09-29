@@ -61,9 +61,10 @@ ENV/
 # Node
 node_modules/
 
-# Pipeline working data (keep the folder, ignore raw extracts)
+# Pipeline working data (keep the folder, ignore scratch extracts)
 pipeline/data/*
 !pipeline/data/.gitkeep
+!pipeline/data/live_corpus.db
 
 # Local pipeline overrides. The example file stays tracked.
 pipeline/config/pipeline.yaml

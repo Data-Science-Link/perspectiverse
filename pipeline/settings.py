@@ -8,14 +8,17 @@ from typing import Any
 
 import yaml
 
+from pipeline.corpus import GROUP_QUOTAS, TARGET_POSTS
+
 ROOT = Path(__file__).resolve().parent
 EXAMPLE_PATH = ROOT / "config" / "pipeline.example.yaml"
 LOCAL_PATH = ROOT / "config" / "pipeline.yaml"
 
 DEFAULTS: dict[str, Any] = {
     "window_hours": 168,
-    "sample_size": 200,
-    "min_cluster_size": 2,
+    "refresh_hours": 24,
+    "sample_size": TARGET_POSTS,
+    "min_cluster_size": 8,
     "embedding_model": "all-MiniLM-L6-v2",
     "cluster_backend": "lexical",
     "label_backend": "auto",
@@ -25,7 +28,16 @@ DEFAULTS: dict[str, Any] = {
     "language": "en",
     "seed": 0,
     "catalog_size": 10,
-    "queries": ["the", "people", "today", "because", "work", "city", "game", "health", "school", "news"],
+    "refresh_fraction": 1.0 / 7.0,
+    "min_group_posts": 10,
+    "queries": ["the", "people", "today", "because", "work"],
+    "query_groups": {
+        "general": ["news", "breaking", "reported", "according", "analysis"],
+        "sports": ["nfl", "nba", "soccer", "premier league", "world series", "mlb", "tennis"],
+        "geopolitics": ["ukraine", "gaza", "election", "china", "nato", "israel", "taiwan"],
+        "ai": ["chatgpt", "openai", "artificial intelligence", "llm", "machine learning", "anthropic"],
+    },
+    "group_quotas": dict(GROUP_QUOTAS),
 }
 
 

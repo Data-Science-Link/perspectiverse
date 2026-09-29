@@ -1,8 +1,7 @@
-"""Generate the static Discourse Universe payload used by the frontend.
+"""Generate the synthetic Discourse Universe payload.
 
-Until the live Bluesky → BERTopic → LLM pipeline lands, this module writes a
-schema-compatible demo `public/data.json` so the visualization can be designed
-and shipped independently of the NLP work.
+The public observatory ships a live snapshot. This writer stays available for
+`--demo` and for contract tests of the 10-category catalog.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from typing import Any
 
 from pipeline.demo_briefs import FACE_BRIEFS, FEATURED_ARGUMENTS
 from pipeline.demo_catalog import CATEGORY_ROSTERS, CATEGORY_WEIGHTS, TOPIC_CURVE
-from pipeline.schema import CATEGORIES, NOISE_POLICY, SYSTEM_SIZE, to_percents, validate_payload
+from pipeline.schema import DEMO_CATEGORIES, NOISE_POLICY, SYSTEM_SIZE, to_percents, validate_payload
 
 DEMO_TOTAL_POSTS = 100_000
 DEMO_LAST_UPDATED = date(2026, 9, 26).isoformat()
@@ -860,7 +859,7 @@ def build_demo_payload(last_updated: str = DEMO_LAST_UPDATED, total_posts: int =
     featured = {topic["name"]: topic for topic in DEMO_TOPICS}
     pieces: list[tuple[int, dict[str, Any]]] = []
     salt = 0
-    for category in CATEGORIES:
+    for category in DEMO_CATEGORIES:
         roster = CATEGORY_ROSTERS[category]
         if len(roster) != SYSTEM_SIZE:
             raise ValueError(f"{category} roster must have {SYSTEM_SIZE} topics")
