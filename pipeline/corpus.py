@@ -64,8 +64,9 @@ def rotate_corpus(
     """Merge incoming posts into a ~target window.
 
     If ``incoming`` is empty, ``existing`` is returned unchanged so a 403
-    cannot erase yesterday's sample. First fill (no existing rows) keeps the
-    best ``target`` incoming posts.
+    cannot erase yesterday's sample. A full window also never shrinks: a
+    short fetch drops only as many posts as it can replace. First fill
+    (no existing rows) keeps the best ``target`` incoming posts.
     """
     if not incoming:
         return list(existing)
@@ -74,10 +75,14 @@ def rotate_corpus(
 
     drop_count = max(1, int(round(len(existing) * drop_fraction)))
     add_count = max(drop_count, int(round(target * drop_fraction)))
-    survivors = sorted(existing, key=lambda post: parse_created(post.get("created_at") or ""))[drop_count:]
-    seen = {post["uri"] for post in survivors}
+    # Count only posts that are not already retained. A 403 or a thin day
+    # must not drop more of the window than it can replace.
+    seen = {post["uri"] for post in existing if post.get("uri")}
     fresh = [post for post in incoming if post.get("uri") and post["uri"] not in seen]
     fresh = select_quality(fresh, add_count)
+    if len(existing) >= target:
+        drop_count = min(drop_count, len(fresh))
+    survivors = sorted(existing, key=lambda post: parse_created(post.get("created_at") or ""))[drop_count:]
     merged = survivors + fresh
     if len(merged) > target:
         merged = select_quality(merged, target)
