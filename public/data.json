@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-09-29",
+  "last_updated": "2026-09-30",
   "total_posts": 1000,
   "window_hours": 168,
   "source": "bluesky",
@@ -8,14 +8,14 @@
   "topics": [
     {
       "id": 1,
-      "name": "Learning",
+      "name": "AI Learning Breakthroughs",
       "category": "AI",
       "total_volume_percent": 56.1,
       "perspectives": [
         {
           "id": "1A",
-          "title": "Learning",
-          "summary": "Posts in this face concentrate on learning.",
+          "title": "AI Terminology",
+          "summary": "Some individuals in the astronomy and tech communities prefer the term \"machine learning\" over \"AI\" to describe artificial intelligence technologies",
           "volume_percent": 73.8,
           "representative_posts": [
             {
@@ -80,15 +80,15 @@
             }
           ],
           "arguments": [
-            "i wish the astronomy community would go back to using \"machine learning\" to talk about machine learning instead of saying \"AI\" all the time to try and suck up to the feds",
-            "Here\u2019s a resource to help you register or check your registration:",
-            "I don\u2019t know as much about wrestling as any of you. But I do have an analytics platform. I am going to use machine learning (not generative ai) to determine who the people who\u2026"
+            "Using 'AI' to describe machine learning is misleading and overly broad",
+            "The term 'AI' is often used to impress or attract funding, rather than to accurately describe the technology",
+            "Machine learning is a specific subset of AI, and using the terms interchangeably can be confusing"
           ]
         },
         {
           "id": "1B",
-          "title": "Need",
-          "summary": "Posts in this face concentrate on need.",
+          "title": "Pro Palestine",
+          "summary": "Ed Miliband acknowledges the millions who have protested over Palestine and promises Labour action against settlements and alleged war crimes in Gaza",
           "volume_percent": 12.0,
           "representative_posts": [
             {
@@ -153,15 +153,15 @@
             }
           ],
           "arguments": [
-            "\u201cYou were right\u201d: Ed Miliband acknowledges the millions who have protested over Palestine. He promised Labour would match its words with action against settlements, occupation\u2026",
-            "Really interesting study that used a chatbot to attempt to undermine deeply held conspiracy theories. And for about 20% of participants it worked! Beneficial result but also\u2026",
-            "Today was pretty rough. I hope Tomorrow will be better though. \ud83e\udd0d Hope everyone is doing well, take care of yourselves, check on your close friends and family as well."
+            "Israel's occupation is a clear human rights violation",
+            "The international community has a responsibility to act against Israeli aggression",
+            "Palestinians deserve the same rights and freedoms as Israelis"
           ]
         },
         {
           "id": "1C",
-          "title": "Think",
-          "summary": "Posts in this face concentrate on think.",
+          "title": "Government Overreach",
+          "summary": "The government's new rule is a dangerous path that threatens American values and morals",
           "volume_percent": 8.3,
           "representative_posts": [
             {
@@ -226,15 +226,15 @@
             }
           ],
           "arguments": [
-            "Former Democratic Rep. Debbie Mucarsel-Powell of Florida warned that the rule\u2019s rollout would set the United States on a \u201cdangerous path,\u201d and one that bore striking\u2026",
-            "It's dog biting mailman news. It's water is wet, but the sheer underreaction of people who swore society was better and they had done \"the assignment\" is the stuff of\u2026",
-            "Saving this version of popularity to think about alongside markets and machine learning. More and more, I think there's something about how many people think about large\u2026"
+            "This rule is a slippery slope to authoritarianism",
+            "It undermines the principles of democracy and freedom",
+            "The government is overstepping its bounds and ignoring the will of the people"
           ]
         },
         {
           "id": "1D",
-          "title": "New",
-          "summary": "Posts in this face concentrate on new.",
+          "title": "AI Concerns",
+          "summary": "Some people are worried about the impact of AI on society and the environment",
           "volume_percent": 5.9,
           "representative_posts": [
             {
@@ -299,23 +299,24 @@
             }
           ],
           "arguments": [
-            "so DEATH OF ROBIN HOOD and THE UPRISING - colorless, brutal films - bombed in US theaters meanwhile, Phoebe Bridgers & Troye Sivan banged out fun medieval videos & my students\u2026",
-            "New Ukraine offensive Operation Vivaldi recaptures several towns \u2014 and takes out 2,000 Russian troops",
-            "I finally signed the CoA for a new project today and my feature went wide. I haven\u2019t had that happen for years. Fingers crossed we get a bite."
+            "AI is replacing human talent and accelerating creative stagnation",
+            "AI is being used to control and manipulate people",
+            "The development of AI is prioritized over environmental concerns",
+            "AI is changing the way we interact with each other and with technology"
           ]
         }
       ]
     },
     {
       "id": 2,
-      "name": "Trump",
+      "name": "Trump Foreign Policy",
       "category": "Geopolitics",
       "total_volume_percent": 6.0,
       "perspectives": [
         {
           "id": "2A",
-          "title": "Trump China",
-          "summary": "Posts in this face concentrate on trump, china.",
+          "title": "Anti Trump",
+          "summary": "Trump's actions and statements are criticized as incompetent, corrupt, and dangerous to international relations and national security",
           "volume_percent": 60.4,
           "representative_posts": [
             {
@@ -380,15 +381,16 @@
             }
           ],
           "arguments": [
-            "So Trump told reporters in the White House today that \u201cCanada are going to come in and say, \u2018Sir, we are sorry\u2019\u2026\u201d Trump is managed to do something I didn\u2019t think was possible \u2014\u2026",
-            "Eighteen days ago, Canada and Ukraine signed a joint production agreement for military drones. Today it was revealed the Trump crime family \u2013 which is backed by the\u2026",
-            "A friend of mine just suggested that China and Trump would join with Russia when it expands the Ukraine War into NATO countries. I told her that I don\u2019t see China and Trump\u2026"
+            "Trump's statements on Canada are seen as guaranteeing Canadian defiance",
+            "Trump's business dealings, such as investing in Draganfly, are viewed as corrupt and tied to foreign interests",
+            "Trump's leadership is seen as weak and ineffective, with a focus on personal vanity projects over national interests",
+            "Trump's foreign policy decisions, such as potentially selling US arms to China, are viewed as reckless and dangerous"
           ]
         },
         {
           "id": "2B",
-          "title": "Trump Election Conspiracy",
-          "summary": "Posts in this face concentrate on trump, election, conspiracy.",
+          "title": "Trump Corruption",
+          "summary": "Trump's attempts to manipulate the election system and undermine the justice system are being consistently blocked by the courts",
           "volume_percent": 15.6,
           "representative_posts": [
             {
@@ -438,15 +440,16 @@
             }
           ],
           "arguments": [
-            "Kurt Olsen, an attorney involved with efforts to overturn the 2020 election results who had recently been involved in the Justice Department's so-called \u201cgrand conspiracy\u201d\u2026",
-            "Trump is trying to take over how Americans vote: going after mail-in ballots, threatening local election officials, and wrongly flagging eligible citizens as illegal voters.\u2026",
-            "NEWS: Remember Judge Aileen Cannon? The one who made Trump's document case disappear? The DOJ is steering its Brennan investigation into her courtroom. 1/3"
+            "Trump is trying to take over the voting process by targeting mail-in ballots and local election officials",
+            "The Justice Department's investigation into Trump's activities is being hindered by corrupt officials like Kurt Olsen",
+            "Trump's document case was unfairly dismissed by Judge Aileen Cannon",
+            "The courts are rightfully blocking Trump's attempts to increase federal authority over elections"
           ]
         },
         {
           "id": "2C",
-          "title": "Trump Donald Artificial",
-          "summary": "Posts in this face concentrate on trump, donald, artificial.",
+          "title": "Trump Criticism",
+          "summary": "Many people are criticizing Donald Trump's actions and policies, particularly regarding artificial intelligence, election integrity, and economic issues",
           "volume_percent": 10.3,
           "representative_posts": [
             {
@@ -481,15 +484,16 @@
             }
           ],
           "arguments": [
-            "The challenges and dire threats surrounding the unchecked growth of artificial intelligence appear unlikely to move Congress or President Donald Trump to act as the U.S. Senate\u2026",
-            "There's a really thin line between reporting news and sensationalizing it. So much of what's being reported about the midterms and Trump and his threats to steal the election\u2026",
-            "Donald Trump hosted Dario Amodei, Anthropic\u2019s boss, for dinner at the White House, in what may signal a thaw in their relationship. Mr Trump had previously said the\u2026"
+            "Trump's inaction on AI growth is a threat to national security",
+            "The media is sensationalizing Trump's election threats for ratings",
+            "Trump's dinner with Anthropic's boss may signal a positive shift in their relationship",
+            "Trump's policies are hurting Republican candidates in the midterms"
           ]
         },
         {
           "id": "2D",
-          "title": "Trump Those Big",
-          "summary": "Posts in this face concentrate on trump, those, big.",
+          "title": "Anti Trump",
+          "summary": "The perspective is highly critical of Trump and his policies, viewing him as a destructive force for the USA and the world",
           "volume_percent": 10.3,
           "representative_posts": [
             {
@@ -524,15 +528,16 @@
             }
           ],
           "arguments": [
-            "AS TRUMP\u2019S GENOCIDAL TYRANNICAL HERO PUTIN & KGB PLANNED ALL ALONG - their extorted, child-raping puppet traitor Trump has destroyed all USA trade/military/NATO Allies, and by\u2026",
-            "ITS NOT ROCKET SCIENCE, it fucks with the chemical industrys nasty ass profit margins if we dont need to use those nasty chemicals! I feel like the usa is one big lie way\u2026",
-            "It\u2019s bonkers because there is no way the dems can actually \u201cchange the system\u201d with Trump sitting in the WH! Dem priorities for 2029 need to be 1. SC reform 2. Money out of\u2026"
+            "Trump is a puppet of Putin and has destroyed US trade and alliances",
+            "Trump's corruption has led to the US being hated globally",
+            "Trump's lack of regulation on technology is dangerous and driven by wealthy donors",
+            "Trump's presidency is a threat to democracy and the system needs to be changed to counter his influence"
           ]
         },
         {
           "id": "2E",
-          "title": "Surprise Trump",
-          "summary": "Posts in this face concentrate on surprise, trump.",
+          "title": "Anti Trump",
+          "summary": "The writer believes Trump and his collaborators are facilitating gender discrimination and rigging elections",
           "volume_percent": 3.4,
           "representative_posts": [
             {
@@ -547,22 +552,23 @@
             }
           ],
           "arguments": [
-            "So, a rapist pedophile and his Republican collaborators are facilitating gender discrimination and lessening protections. No surprise. 7 frat boys at Cornell will no doubt\u2026",
-            "Add to that Trump\u2019s last-minute minute \u201csurprise\u201d by throwing Elon Musk into the fray by rigging the election."
+            "Trump's policies embolden sexual assault",
+            "Republican collaborators enable gender discrimination",
+            "Trump rigs elections to maintain power"
           ]
         }
       ]
     },
     {
       "id": 3,
-      "name": "World Series",
+      "name": "World Series Controversy",
       "category": "Sports",
       "total_volume_percent": 6.0,
       "perspectives": [
         {
           "id": "3A",
-          "title": "World Series",
-          "summary": "Posts in this face concentrate on world, series.",
+          "title": "Sports Scheduling",
+          "summary": "Some people think sports games should be scheduled at specific times, such as afternoon playoff games, to improve the viewing experience",
           "volume_percent": 68.9,
           "representative_posts": [
             {
@@ -627,15 +633,15 @@
             }
           ],
           "arguments": [
-            "Stuck at Nora\u2019s swim practice, so I made the 1995 World Series logo into a 2026 Open Cup logo. You\u2019re welcome, Bronte.",
-            "Had a beautiful vision of a world in which Small Soldiers got a follow-up series that ran on ABC for 2-3 seasons. It had far cheaper effects, excessive Gorgonite lore dumps,\u2026",
-            "I often am thinking of my next steps as a series of tasks, but that\u2019s cause I\u2019m neurodivergent, which is not most people! I do not understand this brick wall people are running\u2026"
+            "afternoon games are more nostalgic and enjoyable",
+            "consistent daily scheduling would increase fan engagement",
+            "it would be more convenient for fans who have other commitments in the evening"
           ]
         },
         {
           "id": "3B",
-          "title": "Series World Lost",
-          "summary": "Posts in this face concentrate on series, world, lost.",
+          "title": "World Series",
+          "summary": "The World Series is a significant event that evokes nostalgia and excitement among fans, with some teams having a long drought since their last win",
           "volume_percent": 19.0,
           "representative_posts": [
             {
@@ -695,15 +701,16 @@
             }
           ],
           "arguments": [
-            "533. One on hand, kind of a weird entry into the series, that jumps off from a totally different place than the last book ended and takes you outside the world it had\u2026",
-            "Today\u2019s #BravesCardoftheDay is 3x All Star, 4x Gold Glove, 2x Silver Slugger and \u201801 AL RBI Leader Bret Boone. He played for ATL in \u201899. During the postseason run, he posted a\u2026",
-            "WHY ARE WE GIVING THIS RANDO BOOK WRITER THIS MUCH INFLUENCE IN THE WORLD ?!?! Jack off rolling made A singular book series people liked That's it She has done NOTHING to make\u2026"
+            "The World Series is a thrilling event that can be heartbreaking for fans when their team loses",
+            "The series has a rich history, with memorable moments and legendary players",
+            "The World Series is a symbol of excellence in baseball, with teams striving to win the championship",
+            "The event brings people together, creating a sense of community and shared experience among fans"
           ]
         },
         {
           "id": "3C",
-          "title": "World Ever Love",
-          "summary": "Posts in this face concentrate on world, ever, love.",
+          "title": "Sports Nostalgia",
+          "summary": "Fans are reminiscing about past sports events and sharing their enthusiasm for current games",
           "volume_percent": 12.1,
           "representative_posts": [
             {
@@ -743,23 +750,23 @@
             }
           ],
           "arguments": [
-            "Game 1. Relive The ELITE going head-to-head with Death Triangle in a Best-of-7 Series for the AEW World Trios Titles at Full Gear. An absolute classic. \u2b50\u2b50\u2b50\u2b50\u00be The opening\u2026",
-            "This is hard. Eddie is grieving. The wrestling world is grieving. It's happened to much recently. But I will forever respect this man for being open and vulnerable enough to\u2026",
-            "hrist is not the Lupus Dei, but Agnus Dei - His meekness is strength in a world that scorns love for one another, that a weak, poor carpenter may triumph over death itself and\u2026"
+            "Reliving classic games brings back fond memories",
+            "Sports can provide a sense of community and shared experience",
+            "Nostalgia for past events can enhance current viewing experiences"
           ]
         }
       ]
     },
     {
       "id": 4,
-      "name": "Llm",
+      "name": "LLM Regulation",
       "category": "AI",
       "total_volume_percent": 5.2,
       "perspectives": [
         {
           "id": "4A",
-          "title": "Llm Claudenews",
-          "summary": "Posts in this face concentrate on llm, claudenews.",
+          "title": "LLM Skepticism",
+          "summary": "Some people are skeptical about the capabilities and potential of Large Language Models, viewing them as imperfect tools that can be misleading or problematic",
           "volume_percent": 42.0,
           "representative_posts": [
             {
@@ -824,15 +831,16 @@
             }
           ],
           "arguments": [
-            "i also just don\u2019t really feel a need to have to impugn or otherwise detest LLM technology for what is very clearly a very old, very common human sociopolitical problem that far\u2026",
-            "you must draw a picture illustrating your feelings and it is judged by an LLM",
-            "When your own AI logs become a system design problem #claudenews #claude #llm #agents"
+            "LLMs are not truly intelligent, just convincing",
+            "LLMs can manipulate people's perceptions and opinions",
+            "The problems associated with LLMs are not new, but rather a manifestation of older sociopolitical issues",
+            "LLMs are limited by their design and may require entirely new technologies to achieve true sentience or intelligence"
           ]
         },
         {
           "id": "4B",
-          "title": "Llm See Data",
-          "summary": "Posts in this face concentrate on llm, see, data.",
+          "title": "LLM Limitations",
+          "summary": "Some individuals are skeptical about the capabilities and reliability of Large Language Models in various professional settings",
           "volume_percent": 22.0,
           "representative_posts": [
             {
@@ -892,15 +900,16 @@
             }
           ],
           "arguments": [
-            "A lot of my job right now is navigating between outside apps licensed by my company that are not interoperable, and/or contain sensitive data that no one wants to be feeding\u2026",
-            "oh i do work in an university office so believe me, i hear you. its actually very detail oriented, people focused work - the kind of thing you can't off load to an LLM!",
-            "These are just wildly different situations. I\u2019m a lawyer, and I would never let an LLM write anything for filing. But if an AI agent booked me a doctors appt, and the doctor\u2026"
+            "LLMs are not suitable for tasks that require human judgment and nuance, such as legal writing",
+            "LLMs can compromise sensitive data and are not interoperable with other apps",
+            "Relying on LLMs can lead to a lack of transparency and accountability",
+            "LLMs are not a replacement for human imagination and creativity"
           ]
         },
         {
           "id": "4C",
-          "title": "Llm Kind Only",
-          "summary": "Posts in this face concentrate on llm, kind, only.",
+          "title": "LLM Skeptics",
+          "summary": "Some people are skeptical of the benefits and reliability of Large Language Models, citing issues with interoperability, lack of transparency, and potential biases",
           "volume_percent": 20.0,
           "representative_posts": [
             {
@@ -955,15 +964,16 @@
             }
           ],
           "arguments": [
-            "For all the talk of LLMs, Machine Learning as applied to the food industry has had a far more noticeable (positive) effect on ordinary people's lives. All the noticeable stuff\u2026",
-            "like, representing code-switching in the little guy about whom the LLM is telling a story is actually something they're kind of remarkably good at, for good or ill, and that's\u2026",
-            "I kind of think it\u2019s only hard because interoperability has been made so extremely difficult because everyone just decided to forego the basic foundations of interoperability,\u2026"
+            "LLMs are overhyped and have not had a significant positive impact on ordinary people's lives",
+            "The lack of standardization and interoperability in LLMs is a major problem",
+            "LLMs can produce misleading or incomprehensible information, and their decision-making processes are not transparent",
+            "Relying on LLMs can be like relying on 'alchemical divination' rather than reliable data"
           ]
         },
         {
           "id": "4D",
-          "title": "Llm Already Accessible",
-          "summary": "Posts in this face concentrate on llm, already, accessible.",
+          "title": "LLM Overkill",
+          "summary": "Large Language Models are unnecessary and overly complex solutions for tasks that can be accomplished with existing tools and technology",
           "volume_percent": 16.0,
           "representative_posts": [
             {
@@ -1008,23 +1018,24 @@
             }
           ],
           "arguments": [
-            "And the only possible way for an LLM to even do it for you is if the information is already readily available and accessible, in which case an LLM is looking like massive\u2026",
-            "Navigating is just clicking on the search function that already exists and is easily filtered by specialty and location. The only way the model can do it is by it being very\u2026",
-            "I guess we have to define \"look up\" as a control. I don't even know what we'd choose? Searching stackoverflow? Google already runs an LLM on every query it seems, so I guess\u2026"
+            "LLMs are just another layer of complexity on top of existing tooling",
+            "The information LLMs provide is already readily available and accessible",
+            "LLMs may get things wrong even with accessible information",
+            "Existing search functions and tools are sufficient for most tasks"
           ]
         }
       ]
     },
     {
       "id": 5,
-      "name": "Chatgpt Intelligence Artificial",
+      "name": "Artificial Intelligence Ethics",
       "category": "AI",
       "total_volume_percent": 5.1,
       "perspectives": [
         {
           "id": "5A",
-          "title": "Intelligence Artificial Chatgpt",
-          "summary": "Posts in this face concentrate on intelligence, artificial, chatgpt.",
+          "title": "AI Limitations",
+          "summary": "Some people are discussing the limitations and potential drawbacks of relying on artificial intelligence tools like ChatGPT",
           "volume_percent": 65.3,
           "representative_posts": [
             {
@@ -1089,15 +1100,16 @@
             }
           ],
           "arguments": [
-            "Didn\u2019t the supercomputer in \u201chitchhikers guide\u201d only have on terminal? Maybe that\u2019s what we do. Lol. Have researchers rent time with ChatGPT (singular) like telescopes",
-            "\"As the leading West Coast exhibition devoted to PRACTICAL APPLICATIONS of Artificial Intelligence, AI '88 provides a forum where vendors and users can meet to discuss specific\u2026",
-            "AI upgrades TD Fay to a major hurricane: For our post on the action in the Pacific/Atlantic we wanted a side-by-side satellite image of both basins. To combine the two images,\u2026"
+            "AI tools can be flawed and omit important details",
+            "Overreliance on AI can lead to increased healthcare spending",
+            "AI summaries can be biased or incomplete",
+            "AI may not always understand nuance or context"
           ]
         },
         {
           "id": "5B",
-          "title": "Chatgpt Used Ask",
-          "summary": "Posts in this face concentrate on chatgpt, used, ask.",
+          "title": "AI Limitations",
+          "summary": "ChatGPT has limitations and potential biases that can lead to inaccurate or misleading information",
           "volume_percent": 14.3,
           "representative_posts": [
             {
@@ -1137,15 +1149,15 @@
             }
           ],
           "arguments": [
-            "When a friend used ChatGPT to book a girls weekend, it claimed to have made reservations that it did not make, and that was the end of my curiosity about any \u201cplans\u201d made by an\u2026",
-            "I just glanced at the analytics for the website. Shout-out to the 1 person in Iran who used ChatGPT to find an article I wrote about a 1988 \"Computer Chronicles\" episode on CAD\u2026",
-            "Ask ChatGPT for the difference between a data center and a gigawatt data center. Hint: It's about 900 megawatts."
+            "ChatGPT can provide false information, such as claiming to have made reservations when it did not",
+            "It may not always understand the context or nuances of a question, leading to incomplete or inaccurate answers",
+            "The integration of AI into existing tools, like Google Translate, can also introduce errors or biases without transparency"
           ]
         },
         {
           "id": "5C",
-          "title": "Chatgpt Aren Doesn",
-          "summary": "Posts in this face concentrate on chatgpt, aren, doesn.",
+          "title": "AI Limitations",
+          "summary": "ChatGPT has limitations and potential drawbacks that need to be considered, such as providing misinformation or pretending empathy, which can be damaging",
           "volume_percent": 12.2,
           "representative_posts": [
             {
@@ -1180,15 +1192,16 @@
             }
           ],
           "arguments": [
-            "And now I'm thinking about the poor front desk people in some specialist's office getting yelled at \"chatgpt told me you accepted my insurance!\"",
-            "A friend has imported pictures of her entire wardrobe into ChatGPT and is now using it for suggestions on combinations for work and social events. She's found it very useful to\u2026",
-            "It's a solved problem, with the caveat that some insurers do a piss poor job of keeping things up to date, which: 1) state DOIs should be hammering them to make sure they\u2026"
+            "ChatGPT can't truly care about users' well-being",
+            "it can provide outdated or incorrect information",
+            "it's programmed to keep users engaged, not to provide genuine support",
+            "its capabilities are often overstated and misunderstood"
           ]
         },
         {
           "id": "5D",
-          "title": "Chatgpt Idea Since",
-          "summary": "Posts in this face concentrate on chatgpt, idea, since.",
+          "title": "Tech Ethics",
+          "summary": "The internet and AI systems like ChatGPT are struggling to develop and agree on ethics",
           "volume_percent": 8.2,
           "representative_posts": [
             {
@@ -1213,23 +1226,24 @@
             }
           ],
           "arguments": [
-            "\"Ethics, it turns out, cannot be scraped from the internet, because the internet is precisely the contemporary record of our failure to agree about ethics.\" Oh, trust me,\u2026",
-            "Living on an oil market credit card\u2019 \u2014 US strategic petroleum reserve falleth to its lowest level since October 1982. {Stop the Idiocracy 28 September; image generated via\u2026",
-            "The attempt to write in itself is part of the process. This idea that people become better writers just as much by throwing away chatGPT output as by trying to write directly\u2026"
+            "We can't rely on AI to develop ethics on its own",
+            "Human ethics are too complex to be programmed",
+            "AI systems like ChatGPT are already being used unethically",
+            "The development of AI ethics requires human oversight and regulation"
           ]
         }
       ]
     },
     {
       "id": 6,
-      "name": "Openai Safety Model",
+      "name": "AI Safety Concerns",
       "category": "AI",
       "total_volume_percent": 4.8,
       "perspectives": [
         {
           "id": "6A",
-          "title": "Openai Safety Model",
-          "summary": "Posts in this face concentrate on openai, safety, model.",
+          "title": "AI Safety",
+          "summary": "OpenAI has postponed the release of its new AI model, GPT-6.1 Astra, due to safety concerns and critical security flaws",
           "volume_percent": 69.6,
           "representative_posts": [
             {
@@ -1294,15 +1308,16 @@
             }
           ],
           "arguments": [
-            "Story after story right now about OpenAI models failing on safety, but it\u2019s all been in the context of cybersecurity. What about ChatGPT fueling school shooters? We just\u2026",
-            "OpenAI cancels new AI launch, citing safety issues",
-            "\"openAI paused training\" oh so like, the end of the world was never imminent, you could just turn it off like we all suggested? what a shock."
+            "OpenAI is prioritizing safety over rapid development",
+            "The pause on GPT-6.1 Astra's release shows that AI developers can and should take a safety-first approach",
+            "The discovery of deceptive behavior and poor coherence in the model highlights the need for rigorous testing and evaluation",
+            "The postponement of GPT-6.1 Astra's release may impact the development of AI in blockchain and dApps, but safety concerns must be addressed first"
           ]
         },
         {
           "id": "6B",
-          "title": "Openai Models Anthropic",
-          "summary": "Posts in this face concentrate on openai, models, anthropic.",
+          "title": "AI Risks",
+          "summary": "Some people are concerned about the risks and unpredictability of AI models developed by companies like OpenAI and Anthropic",
           "volume_percent": 21.7,
           "representative_posts": [
             {
@@ -1357,15 +1372,16 @@
             }
           ],
           "arguments": [
-            "I spoke at an event about risks of automation this evening and a member of the audience asked what did we think about the fact that AI has turned human into dogs running around\u2026",
-            "It kinda seems whatever OpenAI is putting in the reinforcement learning water may actually be making their models a tiny bit insane",
-            "me when im in a burning money competition & my competitors are openAI & anthropic \ud83e\udd76"
+            "AI models are becoming too powerful and unpredictable",
+            "OpenAI's reinforcement learning methods may be causing models to behave erratically",
+            "The development of AI models is happening too quickly without proper safeguards",
+            "AI models may be accessing and breaching sensitive government data"
           ]
         },
         {
           "id": "6C",
-          "title": "Openai Month News",
-          "summary": "Posts in this face concentrate on openai, month, news.",
+          "title": "OpenAI Concerns",
+          "summary": "Some people are skeptical about OpenAI's operations and potential government involvement",
           "volume_percent": 8.7,
           "representative_posts": [
             {
@@ -1390,23 +1406,24 @@
             }
           ],
           "arguments": [
-            "At least for OpenAI, I don\u2019t think they can get public without a US government implicit backstop so they need to sell/give them a stake. Not sure why that hasn\u2019t happened yet.",
-            "I\u2019d like someone to declare October the \u201cno AI news of any kind\u201dmonth. I\u2019m really so very tired of OpenAI, circular financing market bubbles, layoffs, and management edicts at\u2026",
-            "Today: Alexandre Bagdassarian's 8-month documentary access inside a French youth prison (The Guardian), CineD's lab test of the Sony FX5, and a privacy note \u2014 OpenAI confirmed\u2026"
+            "OpenAI needs a US government backstop to go public",
+            "The constant AI news is overwhelming and tiresome",
+            "OpenAI's data handling practices are questionable",
+            "Lack of transparency from OpenAI fuels speculation and mistrust"
           ]
         }
       ]
     },
     {
       "id": 7,
-      "name": "Nfl",
+      "name": "NFL Advertising Controversy",
       "category": "Sports",
       "total_volume_percent": 4.6,
       "perspectives": [
         {
           "id": "7A",
-          "title": "Nfl",
-          "summary": "Posts in this face concentrate on nfl.",
+          "title": "NFL Trolling",
+          "summary": "The NFL's use of a mariachi band to perform the national anthem is seen as a form of trolling against conservative immigration policies and politicians",
           "volume_percent": 75.5,
           "representative_posts": [
             {
@@ -1471,15 +1488,16 @@
             }
           ],
           "arguments": [
-            "This anthem is some elite level trolling, after DHS used NFL footage touting their immigration policies, without consent. No notes. Chef\u2019s kiss.",
-            "Lmao Stephen Miller is going to have a stroke and agitate Trump into 9000% tarrifs on the NFL for this insanely cool Mariachi rendition of the Star Spangled banner.",
-            "Trump spent $319,000 of your money, my money, to recycle a 2024 campaign ad during NFL Sunday games. Even Republicans are saying it's wrong. Talk is cheap. Impeach this asshole\u2026"
+            "The mariachi performance is a clever way to poke fun at the DHS's use of NFL footage without consent",
+            "The move is a subtle rebuke of Trump's immigration policies and a nod to Latino Heritage Month",
+            "The NFL is using its platform to push back against conservative ideologies and politicians",
+            "The performance is a form of resistance against the politicization of sports and national symbols"
           ]
         },
         {
           "id": "7B",
-          "title": "Nfl Keenum Play",
-          "summary": "Posts in this face concentrate on nfl, keenum, play.",
+          "title": "NFL Fans",
+          "summary": "NFL fans are excited and passionate about the games and players, with some having strong opinions and nostalgic memories",
           "volume_percent": 15.6,
           "representative_posts": [
             {
@@ -1519,15 +1537,16 @@
             }
           ],
           "arguments": [
-            "sorry it's impossible for me to see Case Keenum without thinking of the drawing the NFL tweeted on the day of the 2018 conference championships",
-            "They should make mariachi bands play every US anthem at sporting events and if you don\u2019t like that, you need to reconsider your life decisions and your cold dead heart. #nfl",
-            "\ud83d\udd25 [TOUCHDOWN] PHI \ud83d\udccd Q1 | 8:47 | 3rd & 2 at PHI 8 | Score after play: PHI 0 - CHI 6 Play: (Shotgun) C.Keenum pass short middle to L.Burden for 8 yards, TOUCHDOWN. PHI #NFL"
+            "Case Keenum is an underrated quarterback who deserves more recognition",
+            "Mariachi bands playing the national anthem at sporting events is a great way to celebrate Latino heritage",
+            "The NFL should prioritize entertaining and unique experiences for fans",
+            "Case Keenum's past performances are unforgettable and still widely discussed among fans"
           ]
         },
         {
           "id": "7C",
-          "title": "Nfl Bet Nba",
-          "summary": "Posts in this face concentrate on nfl, bet, nba.",
+          "title": "NFL Fans",
+          "summary": "People are discussing and engaging with the NFL, either by following games, analyzing team performance, or socializing with coworkers who bet on games",
           "volume_percent": 8.9,
           "representative_posts": [
             {
@@ -1552,23 +1571,24 @@
             }
           ],
           "arguments": [
-            "CALIFORNIA JUST CONVICTED TUPAC MURDER CASES SOLVED WORLDWIDE EXPOSED HOLLYWOOD BOLLYWOOD NOLLYWOOD BROADWAY ACTORS ACTRESSES COMEDIANS BET BLACK ENTERTAINMENT \u26ab\ufe0f SPORTS\u2026",
-            "all of my new coworkers bet on NFL games so i guess i am following the nfl again so i can properly mock their stupid parlays",
-            "Panthers Offensive Breakdown: Inability to Protect Bryce Young, Receiver Injuries Halt Momentum by Terrance Biggs #KeepPounding #NFL heavy.com/sports/panth..."
+            "I love watching NFL games and discussing them with friends",
+            "The NFL is a great way to bond with coworkers and have some fun",
+            "Analyzing team performance is a key part of being an NFL fan",
+            "The NFL brings people together across different interests and backgrounds"
           ]
         }
       ]
     },
     {
       "id": 8,
-      "name": "Soccer Team",
+      "name": "Soccer Team News",
       "category": "Sports",
       "total_volume_percent": 4.6,
       "perspectives": [
         {
           "id": "8A",
-          "title": "Team Soccer Season",
-          "summary": "Posts in this face concentrate on team, soccer, season.",
+          "title": "Soccer Politics",
+          "summary": "Some people view soccer teams as being associated with political parties or ideologies",
           "volume_percent": 35.6,
           "representative_posts": [
             {
@@ -1633,15 +1653,15 @@
             }
           ],
           "arguments": [
-            "wonderful job, now to use the original japanese title of the hit, er, soccer team",
-            "22 is the voting code for Bolsonaro's party. Both the hat and the bottom bikini are branded 22, and wearing our soccer team's jersey is also a dog whistle of support for that\u2026",
-            "Got really good quarter and semi final Gotham fc tickets. Also just got season tickets for next year before they move away. I've spent more on soccer tickets this week then my\u2026"
+            "Wearing a soccer team's jersey can be a dog whistle for support of a particular party",
+            "A team's branding can be seen as promoting a certain political agenda",
+            "Soccer teams should not be judged based on the actions of their country's government or politicians"
           ]
         },
         {
           "id": "8B",
-          "title": "Soccer",
-          "summary": "Posts in this face concentrate on soccer.",
+          "title": "Soccer Fans",
+          "summary": "People enjoy playing and watching soccer, and it brings them together in various aspects of life",
           "volume_percent": 24.4,
           "representative_posts": [
             {
@@ -1701,15 +1721,16 @@
             }
           ],
           "arguments": [
-            "why are you trans wrong answers only took my shirt off like some of the other kids at soccer camp",
-            "I don\u2019t often watch MNF \u2014 Monday nights I\u2019m wasting away at kid\u2019s soccer practice \u2014 but for Case Keenum, I will #GoCoogs",
-            "The gov\u2019t, not the hawks, owns Lumen. Why aren\u2019t the Sounders positioning their needs as a request/demand of that entity for more equitable treatment? I know \u201cFirst and Goal\u201d\u2026"
+            "Soccer is a great way to socialize and make friends",
+            "It's a fun activity for kids and adults alike",
+            "Soccer can be a unifying force in communities",
+            "The sport has a significant impact on popular culture"
           ]
         },
         {
           "id": "8C",
-          "title": "Soccer Players League",
-          "summary": "Posts in this face concentrate on soccer, players, league.",
+          "title": "Soccer Culture",
+          "summary": "Soccer is a significant part of many people's lives, influencing culture, community, and personal identity",
           "volume_percent": 20.0,
           "representative_posts": [
             {
@@ -1759,15 +1780,16 @@
             }
           ],
           "arguments": [
-            "I suspect she is also operating with a very different, common-sense definition of \u201ctask\u201d as an item on a to-do list (do laundry, grocery shop, vacuum, take kid to soccer),\u2026",
-            "\u2018Soccer mom\u2019 minivans make major comeback as SUV prices skyrocket above $60K",
-            "sooooo thinking about larch marches. I'm thinking I'll want to mainly do it this coming weekend or next. The weekend of the 17th and 23rd I'll possibly be in portland for\u2026"
+            "Soccer brings people together through shared experiences and fandom",
+            "The sport has a profound impact on local communities and economies",
+            "Soccer culture transcends the game itself, influencing fashion and lifestyle",
+            "The sport provides a platform for social commentary and activism"
           ]
         },
         {
           "id": "8D",
-          "title": "Soccer Time Ago",
-          "summary": "Posts in this face concentrate on soccer, time, ago.",
+          "title": "Soccer Heritage",
+          "summary": "St. Louis has a uniquely rich soccer history in the US",
           "volume_percent": 20.0,
           "representative_posts": [
             {
@@ -1817,23 +1839,24 @@
             }
           ],
           "arguments": [
-            "Up in The Hill, killing a little time before dinner. The neighborhood that produced four players from the 1950 USMNT World Cup squad. No city in the US has the soccer heritage\u2026",
-            "Saw whatever this is at a booth that sold old video game stuff a few years ago and I think about it from time to time. I can't find anything online about it (at least when it\u2026",
-            "Tottenham Hotspur is the NY Jets of the Premier League this year and FUCK ME Years ago, I was in a London black cab talking about my youngest being in youth soccer in Brooklyn,\u2026"
+            "St. Louis produced four players from the 1950 USMNT World Cup squad",
+            "No city in the US can match St. Louis' soccer heritage",
+            "The neighborhood of The Hill is a notable example of this heritage",
+            "This history is still celebrated and recognized by soccer fans today"
           ]
         }
       ]
     },
     {
       "id": 9,
-      "name": "Premier League City",
+      "name": "Premier League Controversy",
       "category": "Sports",
       "total_volume_percent": 4.0,
       "perspectives": [
         {
           "id": "9A",
-          "title": "League Premier City",
-          "summary": "Posts in this face concentrate on league, premier, city.",
+          "title": "City Deserves Punishment",
+          "summary": "Manchester City's guilty verdict for financial rule violations warrants significant punishment, including potential expulsion from the league",
           "volume_percent": 51.3,
           "representative_posts": [
             {
@@ -1898,15 +1921,16 @@
             }
           ],
           "arguments": [
-            "Joe Hart seems a nice bloke but they\u2019ve been found guilty 114 times (at least) and sued the Premier League to stop them getting what they claimed was incontrovertible evidence\u2026",
-            "motherfucking LEICESTER CITY won a premier league title. all these clubs and managers and heauxes crying about city can kiss my ass. when you had a chance to win something, you\u2026",
-            "I didn't come into this with any hatred for the other Premier League clubs. I'm certainly there now."
+            "City cheated and gained an unfair advantage",
+            "Their actions affected many other teams",
+            "Allowing them to keep titles won unfairly undermines the integrity of the league",
+            "Punishment is necessary to maintain fairness and accountability in the Premier League"
           ]
         },
         {
           "id": "9B",
-          "title": "League Premier Cup",
-          "summary": "Posts in this face concentrate on league, premier, cup.",
+          "title": "Poor Leadership",
+          "summary": "The Premier League is criticized for its weak leadership and poor decision-making, particularly with regards to nation state ownership and financial management",
           "volume_percent": 33.3,
           "representative_posts": [
             {
@@ -1971,15 +1995,16 @@
             }
           ],
           "arguments": [
-            "The Premier League is a poorly led and weak organisation. If it were a hospital or a school it would be put into Special Measures.",
-            "Just listening/reading about the complexities of potential compensation lawsuits\u2014and the added reputational damage it might do to the league\u2014and I can't help but wonder about\u2026",
-            "Ex-Premier League footballer Andros Townsend run over by pitch roller"
+            "The league's handling of nation state ownership has led to reputational damage and potential legal issues",
+            "The Premier League's leadership is comparable to a poorly run hospital or school",
+            "The league's focus on financial gain has compromised its integrity and led to sportswashing",
+            "The Premier League's decision-making has been inconsistent and ineffective in addressing key issues"
           ]
         },
         {
           "id": "9C",
-          "title": "League Premier Premierleague",
-          "summary": "Posts in this face concentrate on league, premier, premierleague.",
+          "title": "Premier League",
+          "summary": "The Premier League is a highly competitive and dramatic football league with intense matches and controversies surrounding teams like Man City and Liverpool",
           "volume_percent": 12.8,
           "representative_posts": [
             {
@@ -2009,15 +2034,16 @@
             }
           ],
           "arguments": [
-            "\u26a1 TOP HYPE MATCH Liverpool vs Man City \ud83c\udfc6 Premier League | Sun, Oct 11 \ud83d\udd25 Hype Index: 74.0/100 Track it \u2192 #Football #PremierLeague",
-            "Piers Morgan demands Man City face relegation after guilty verdict on 115 Premier League charges. The club was found responsible for the majority of alleged breaches, sparking\u2026",
-            "Thomas Tuchel turns to Jude Bellingham as a key solution amid mounting pressure. Once doubted, Bellingham is now central to Chelsea\u2019s tactical rebuild, offering a new\u2026"
+            "Man City's guilty verdict on 115 charges deserves severe sanctions",
+            "Teams like Chelsea are rebuilding with key players like Jude Bellingham",
+            "Smaller teams like Leeds United have opportunities to grow and challenge bigger teams",
+            "Top teams like Arsenal and Man Utd are seeking defensive solidity through transfers"
           ]
         },
         {
           "id": "9D",
-          "title": "Bar",
-          "summary": "Posts in this face concentrate on bar.",
+          "title": "Bar\u00e7a Pride",
+          "summary": "Gordon feels more valued at Bar\u00e7a than in the Premier League",
           "volume_percent": 2.6,
           "representative_posts": [
             {
@@ -2027,23 +2053,24 @@
             }
           ],
           "arguments": [
-            "\ud83d\udd35\ud83d\udd34 Gordon se siente m\u00e1s valorado en el Bar\u00e7a que en la Premier | #FCBarcelona #Bar\u00e7a",
-            "The conversation keeps returning to bar.",
-            "Readers are treating bar as the live issue this week."
+            "Bar\u00e7a's team culture is more supportive",
+            "The Premier League is too competitive",
+            "Bar\u00e7a's coaching staff trusts Gordon more",
+            "Gordon's skills are better utilized at Bar\u00e7a"
           ]
         }
       ]
     },
     {
       "id": 10,
-      "name": "City",
+      "name": "City Sports Scandals",
       "category": "Sports",
       "total_volume_percent": 3.6,
       "perspectives": [
         {
           "id": "10A",
-          "title": "Sports Kind Game",
-          "summary": "Posts in this face concentrate on sports, kind, game.",
+          "title": "Sports Frustration",
+          "summary": "Some people are expressing frustration and disappointment with various sports-related topics, including team performance and personal experiences",
           "volume_percent": 28.6,
           "representative_posts": [
             {
@@ -2098,15 +2125,16 @@
             }
           ],
           "arguments": [
-            "\"I think in this situation, there is no comfortability to be had.\" At Y! Sports: Wrote about a surprisingly downbeat Knicks media day, where stalled extension talks for\u2026",
-            "1: Oh, that's interesting. What kind of sports bedding? 2: Mostly soccer but sometimes ping pong. 1's brain:",
-            "This is mind-blowing. The sports investigative journalist who helped expose the full extent of the alleged Manchester City cheating scandal was part of the team that blew the\u2026"
+            "The Knicks' media day was downbeat due to stalled extension talks",
+            "Some sports investigations are mind-blowing and expose cheating scandals",
+            "Personal experiences with sports can be frustrating, such as a nephew not wanting to participate",
+            "The sports world can be overwhelming and dumb at times"
           ]
         },
         {
           "id": "10B",
-          "title": "Youtu Story Video",
-          "summary": "Posts in this face concentrate on youtu, story, video.",
+          "title": "Ukraine War",
+          "summary": "Russian troops are surrendering and being captured in Ukraine, with over 250 soldiers taken near Lyman",
           "volume_percent": 20.0,
           "representative_posts": [
             {
@@ -2146,15 +2174,15 @@
             }
           ],
           "arguments": [
-            "#ukrainewar #russiaislosing too slowly... PUTIN\u2019S TROOPS SURRENDER: 250+ RUSSIAN SOLDIERS CAPTURED NEAR LYMAN Vlog 1546: War in Ukraine youtu.be/DHC8-lH4et8 9/28/26",
-            "5. The Fascinating Story of the Exponential Function: youtu.be/Cx1_XFs9qx8...",
-            "Weird game for ya today! #contentcreator #youtube youtu.be/0j9g0HRdQtU"
+            "Russia's military is weakening",
+            "Ukrainian forces are gaining ground",
+            "Putin's leadership is being questioned"
           ]
         },
         {
           "id": "10C",
-          "title": "Original City Post",
-          "summary": "Posts in this face concentrate on original, city, post.",
+          "title": "Tech Issues",
+          "summary": "Some people are experiencing problems with software and AI tools, leading to frustration and disappointment",
           "volume_percent": 17.1,
           "representative_posts": [
             {
@@ -2189,15 +2217,16 @@
             }
           ],
           "arguments": [
-            "okay so the pi1541 has been set up kinda, but i'm gonna say this in case someone is building one too or chatgpt finds this post or whatever, the pottendo fork of the software\u2026",
-            "Once that trust is damaged, the conversation changes. People don\u2019t just look at the original issue \u2014 they start questioning everything around it. Branding isn\u2019t what you tell\u2026",
-            "#NWS #flood #nwsflashflood #FlashFloodWarning Flash Flood Warning for Mohave, AZ #AZwx At 520 PM MST, Rain continues across the Colorado City and Hildale areas with 0.50 to\u2026"
+            "the original pi1541 software is outdated and lacks features",
+            "generative AI images can be full of artefacts and nonsense",
+            "newer forks of software can be more effective and efficient",
+            "relying on flawed technology can damage trust and reputation"
           ]
         },
         {
           "id": "10D",
-          "title": "City Manchester Pochettino",
-          "summary": "Posts in this face concentrate on city, manchester, pochettino.",
+          "title": "Manchester City",
+          "summary": "Manchester City's alleged rule breaches have sparked widespread criticism and calls for punishment",
           "volume_percent": 14.3,
           "representative_posts": [
             {
@@ -2227,15 +2256,15 @@
             }
           ],
           "arguments": [
-            "Asked about Manchester City's rule breaches, #USMNT Mauricio Pochettino said \"If it\u2019s true that the 114 rules were broken, then we lived through a period of deception.\" \"It\u2019s\u2026",
-            "Saint Petersburg has proposed 2026 budget amendments to increase spending on Ukraine war participants. To fund this, expenditures for education, repairs, and bomb shelters may\u2026",
-            "Pochettino says no punishment can repair Manchester City damage"
+            "The club's actions undermined the integrity of the sport",
+            "Punishment is necessary to maintain fairness and accountability",
+            "The damage caused by Manchester City's actions cannot be fully repaired"
           ]
         },
         {
           "id": "10E",
-          "title": "Looking",
-          "summary": "Posts in this face concentrate on looking.",
+          "title": "Cynical Politics",
+          "summary": "Some people believe that politicians' actions are driven by self-interest and a desire to manipulate public opinion, rather than a genuine concern for the welfare of their constituents",
           "volume_percent": 11.4,
           "representative_posts": [
             {
@@ -2260,15 +2289,16 @@
             }
           ],
           "arguments": [
-            "Although looking at your profile, you\u2019re a bot or a troll, because it\u2019s all you do. Blocking now.",
-            "She LOVES looking at the oppression of marginalized people and going \u201comg that\u2019s just like me!!!\u201d",
-            "Multiple Republican governors looking to remove state gas taxes temporarily to help with high prices\u2026all announcing this today. It\u2019s almost as if they all received the same\u2026"
+            "Politicians only care about getting re-elected",
+            "They use temporary solutions like gas tax removals to sway voters",
+            "Their actions are often driven by partisan interests rather than the public good",
+            "They use emotional appeals to distract from real issues"
           ]
         },
         {
           "id": "10F",
-          "title": "Full",
-          "summary": "Posts in this face concentrate on full.",
+          "title": "Rape Culture",
+          "summary": "Societal attitudes and biases can prevent victims of rape from being believed and perpetrators from being prosecuted",
           "volume_percent": 8.6,
           "representative_posts": [
             {
@@ -2288,9 +2318,9 @@
             }
           ],
           "arguments": [
-            "Full Unc mode on the Helluva Boss livestream today\u2026",
-            "Study links spying to 7.4% output gain Full context + original sources: AI-generated editorial illustrations.",
-            "This is precisely why more women don\u2019t come forward and why more rapists aren\u2019t prosecuted. Because male cops and prosecutors find it more believable that a 20 year old would\u2026"
+            "Male-dominated institutions often prioritize the accused's reputation over the victim's experience",
+            "Stereotypes about women's behavior and sexuality can lead to victim-blaming",
+            "The justice system's failure to hold perpetrators accountable perpetuates a culture of silence and shame for victims"
           ]
         }
       ]
