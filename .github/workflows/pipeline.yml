@@ -43,8 +43,9 @@ jobs:
         run: |
           uv venv
           # Lexical clustering does not import BERTopic. Skip torch on the runner.
+          # atproto is required for BLUESKY_HANDLE / BLUESKY_APP_PASSWORD search.
           uv pip install -e . --no-deps
-          uv pip install pyyaml "numpy>=1.24,<2"
+          uv pip install pyyaml "numpy>=1.24,<2" atproto
 
       - name: Run live pipeline
         env:
@@ -52,6 +53,7 @@ jobs:
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
           OLLAMA_HOST: ${{ secrets.OLLAMA_HOST }}
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL }}
         run: |

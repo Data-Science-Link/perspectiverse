@@ -9,6 +9,11 @@ def test_query_rejected_in_demo():
         main(["--demo", "--query", "acme"])
 
 
+def test_relabel_rejected_with_fixture():
+    with pytest.raises(SystemExit):
+        main(["--live", "--relabel", "--fixture", "posts.json"])
+
+
 def test_run_live_passes_query_override(monkeypatch, tmp_path):
     captured = {}
 

@@ -25,6 +25,7 @@ The observatory now ships a **live** `public/data.json` built from a retained wi
 | React + R3F observatory | Ready, with Sports / Geopolitics / AI filters |
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
 | Daily refresh | `.github/workflows/pipeline.yml` — publishes even if Bluesky 403s |
+| DeepInfra / OpenAI-compatible labels | Wired (`OPENAI_API_KEY` + `OPENAI_BASE_URL`); heuristic until a token is set |
 | Conversational LLM on a planet | Roadmap only (Horizon A) |
 | Custom solar system from `--query` | Ready for operators; not a public form |
 | Historical solar systems / topic tracking | Roadmap only (Horizon C) |
@@ -70,7 +71,23 @@ python -m pipeline.run_pipeline --demo
 
 `--live` is the default. It refreshes `pipeline/data/live_corpus.db` (about 1,000 quality posts), clusters 10 planets, labels planets and faces, synthesizes core arguments, and overwrites `public/data.json`. `--demo` still writes the old synthetic 10-category universe.
 
-Copy `.env.example` to `.env` for secrets. The public Bluesky search works with `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` left blank. Set both (and add them as Actions secrets) if GitHub-hosted runners get 403. Set `OPENAI_API_KEY` for better planet names and steelmans. Do not commit `.env`.
+Copy `.env.example` to `.env` for secrets. Do not commit `.env`.
+
+**Bluesky (ingest).** Anonymous public search 403s from GitHub Actions. Create an [app password](https://bsky.app/settings/app-passwords) named `perspectiverse-pipeline`, then set `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` as [Actions secrets](https://github.com/Data-Science-Link/perspectiverse/settings/secrets/actions) and in `.env`. Use the app password, never the account password.
+
+**Labels (DeepInfra).** Heuristic names are term-bags (`Chatgpt Intelligence Artificial`). For planet names, face titles, and steelmans, reuse the OpenAI-compatible client with a [DeepInfra](https://deepinfra.com/dash) token:
+
+```
+OPENAI_API_KEY=<deepinfra token>
+OPENAI_BASE_URL=https://api.deepinfra.com/v1/openai
+OPENAI_MODEL=meta-llama/Llama-3.3-70B-Instruct-Turbo
+```
+
+Same three names as GitHub Actions secrets. About 50 short JSON calls per snapshot (~$0.01, cents/month on the daily job). Relabel the saved 1,000 without refetching Bluesky:
+
+```bash
+python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
+```
 
 To rehearse the live path without the network:
 
@@ -78,7 +95,7 @@ To rehearse the live path without the network:
 python -m pipeline.run_pipeline --live --fixture tests/fixtures/tiny_posts.json --output /tmp/perspectiverse-data.json
 ```
 
-The example config uses `label_backend: auto` (Ollama, then an API key, then heuristic names from terms and posts).
+The example config uses `label_backend: auto` (Ollama, then `OPENAI_API_KEY`, then heuristic names from terms and posts).
 
 To pull a **brand-shaped or claim-shaped sample** instead of the default common-English queries (still a 7-day search, still the same 10-planet job):
 

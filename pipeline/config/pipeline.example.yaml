@@ -16,6 +16,8 @@ cluster_backend: lexical
 embedding_model: all-MiniLM-L6-v2
 
 # auto tries Ollama, then an OpenAI-compatible API, then a heuristic name.
+# Set OPENAI_BASE_URL to https://api.deepinfra.com/v1/openai and OPENAI_API_KEY
+# to a DeepInfra token. OPENAI_MODEL then defaults to Llama 3.3 70B Turbo.
 # heuristic skips the network and names faces from top terms + extractive posts.
 label_backend: auto
 ollama_model: llama3.2

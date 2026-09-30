@@ -1,6 +1,15 @@
 import json
 
-from pipeline.label import FALLBACK_TITLE, build_prompt, label_perspective, label_topic, parse_label
+from pipeline.label import (
+    FALLBACK_TITLE,
+    build_prompt,
+    label_perspective,
+    label_topic,
+    parse_label,
+    resolve_openai_base_url,
+    resolve_openai_model,
+    _openai_generate,
+)
 
 
 def test_prompt_demands_json_only():
@@ -79,3 +88,48 @@ def test_auto_without_llm_uses_heuristic_names(monkeypatch):
     assert labeled["title"] == "Housing"
     assert labeled["label_source"] == "heuristic"
     assert len(labeled["arguments"]) >= 2
+
+
+def test_empty_openai_base_url_defaults_to_openai(monkeypatch):
+    monkeypatch.setenv("OPENAI_BASE_URL", "")
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    assert resolve_openai_base_url() == "https://api.openai.com/v1"
+    assert resolve_openai_model() == "gpt-4o-mini"
+
+
+def test_deepinfra_base_url_picks_llama_default(monkeypatch):
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.deepinfra.com/v1/openai")
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    assert resolve_openai_model() == "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+
+
+def test_mocked_openai_generate_posts_to_deepinfra(monkeypatch):
+    seen = {}
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        seen["url"] = url
+        seen["authorization"] = (headers or {}).get("Authorization", "")
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {"title": "Rent Burden", "summary": "People cannot pay rent."}
+                        )
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.deepinfra.com/v1/openai")
+    monkeypatch.setenv("OPENAI_MODEL", "meta-llama/Llama-3.3-70B-Instruct-Turbo")
+    raw = _openai_generate("hello", resolve_openai_model())
+    assert "Rent Burden" in raw
+    assert seen["url"] == "https://api.deepinfra.com/v1/openai/chat/completions"
+    assert seen["authorization"] == "Bearer test-not-a-real-key"
+    from pipeline.http_json import _allowed
+
+    assert _allowed(seen["url"])
+

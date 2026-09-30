@@ -14,6 +14,9 @@ from collections.abc import Callable
 from pipeline.http_json import read_json
 
 FALLBACK_TITLE = "Untitled cluster"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_DEEPINFRA_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
 def build_prompt(posts: list[dict]) -> str:
@@ -202,14 +205,14 @@ def _resolve_backend(backend: str) -> str:
         return backend
     if ollama_reachable():
         return "ollama"
-    if os.getenv("OPENAI_API_KEY"):
+    if (os.getenv("OPENAI_API_KEY") or "").strip():
         return "openai"
     return "heuristic"
 
 
 def _via_model(chosen: str, prompt: str, terms: list[str], posts: list[dict], model: str | None) -> dict:
     if chosen == "ollama":
-        generator = lambda text: _ollama_generate(text, model or os.getenv("OLLAMA_MODEL", "llama3.2"))  # noqa: E731
+        generator = lambda text: _ollama_generate(text, model or (os.getenv("OLLAMA_MODEL") or "llama3.2"))  # noqa: E731
         labeled = _from_generator(generator, prompt, terms, posts)
         if labeled["label_source"] != "fallback":
             labeled["label_source"] = "ollama"
@@ -217,7 +220,7 @@ def _via_model(chosen: str, prompt: str, terms: list[str], posts: list[dict], mo
             labeled["arguments"] = heuristic_arguments(posts, terms)
         return labeled
     if chosen == "openai":
-        generator = lambda text: _openai_generate(text, model or os.getenv("OPENAI_MODEL", "gpt-4o-mini"))  # noqa: E731
+        generator = lambda text: _openai_generate(text, resolve_openai_model(model))  # noqa: E731
         labeled = _from_generator(generator, prompt, terms, posts)
         if labeled["label_source"] != "fallback":
             labeled["label_source"] = "openai"
@@ -285,11 +288,28 @@ def _ollama_generate(prompt: str, model: str) -> str:
     return str(payload.get("message", {}).get("content") or "")
 
 
+def resolve_openai_base_url() -> str:
+    """OPENAI_BASE_URL, treating empty GitHub secret values as unset."""
+    return (os.getenv("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL).strip().rstrip("/")
+
+
+def resolve_openai_model(explicit: str | None = None) -> str:
+    """Prefer an explicit model, then OPENAI_MODEL, then a host-specific default."""
+    if explicit and str(explicit).strip():
+        return str(explicit).strip()
+    env = (os.getenv("OPENAI_MODEL") or "").strip()
+    if env:
+        return env
+    if "deepinfra.com" in resolve_openai_base_url():
+        return DEFAULT_DEEPINFRA_MODEL
+    return DEFAULT_OPENAI_MODEL
+
+
 def _openai_generate(prompt: str, model: str) -> str:
-    api_key = os.getenv("OPENAI_API_KEY", "")
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
-    base = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    base = resolve_openai_base_url()
     payload = read_json(
         f"{base}/chat/completions",
         timeout=60,

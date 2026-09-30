@@ -1,7 +1,7 @@
 """Small JSON HTTP helper with a host allow-list.
 
 Bandit flags urlopen (B310). Hosts are limited to Bluesky's public AppView,
-OpenAI, and the configured Ollama host.
+OpenAI, DeepInfra, and the configured Ollama host.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ _ALLOWED_HOSTS = frozenset(
         "api.bsky.app",
         "bsky.social",
         "api.openai.com",
+        "api.deepinfra.com",
     }
 )
 

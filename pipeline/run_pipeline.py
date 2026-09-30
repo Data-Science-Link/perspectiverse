@@ -1,8 +1,9 @@
 """Perspectiverse pipeline entry point.
 
 --live rotates the retained Bluesky corpus, clusters, labels, and writes
-public/data.json. --demo still writes the synthetic universe. With no flag,
-the command stays on --live.
+public/data.json. --relabel skips Bluesky and rebuilds names from the saved
+window. --demo still writes the synthetic universe. With no flag, the
+command stays on --live.
 """
 
 from __future__ import annotations
@@ -20,11 +21,19 @@ def _ensure_path() -> None:
 
 def main(argv: list[str] | None = None) -> None:
     _ensure_path()
+    from pipeline.settings import load_dotenv
+
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Run the Perspectiverse pipeline")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--demo", action="store_true", help="Write the synthetic demo universe")
     mode.add_argument("--live", action="store_true", help="Extract, cluster, label, and write a live snapshot")
     parser.add_argument("--fixture", type=Path, default=None, help="JSON posts used instead of Bluesky (requires --live)")
+    parser.add_argument(
+        "--relabel",
+        action="store_true",
+        help="Rebuild planet names and steelmans from the retained SQLite corpus without fetching Bluesky",
+    )
     parser.add_argument("--output", type=Path, default=None, help="Destination data.json path")
     parser.add_argument("--config", type=Path, default=None, help="YAML settings file")
     parser.add_argument("--db", type=Path, default=None, help="SQLite path (default pipeline/data/live_corpus.db)")
@@ -41,6 +50,12 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--fixture requires live mode")
     if args.queries and args.demo:
         parser.error("--query requires live mode")
+    if args.relabel and args.demo:
+        parser.error("--relabel requires live mode")
+    if args.relabel and args.fixture:
+        parser.error("--relabel cannot be combined with --fixture")
+    if args.relabel and args.queries:
+        parser.error("--relabel cannot be combined with --query")
 
     if args.demo:
         from pipeline.generate_demo_data import write_demo_data
@@ -62,6 +77,7 @@ def main(argv: list[str] | None = None) -> None:
         config=args.config,
         db_path=args.db,
         queries=args.queries,
+        relabel=args.relabel,
     )
     print("Pipeline complete.")
 

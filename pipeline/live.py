@@ -32,6 +32,7 @@ def run_live(
     config: Path | None = None,
     db_path: Path | None = None,
     queries: list[str] | None = None,
+    relabel: bool = False,
 ) -> Path:
     settings = load_settings(config)
     target = int(settings.get("sample_size") or TARGET_POSTS)
@@ -39,7 +40,7 @@ def run_live(
     connection = connect(database)
     try:
         existing = load_posts(connection)
-        cleaned, source = _collect_posts(existing, settings, fixture, queries, target)
+        cleaned, source = _collect_posts(existing, settings, fixture, queries, target, relabel=relabel)
         if not cleaned:
             raise RuntimeError("No quality posts in the retained corpus or the extract.")
 
@@ -89,9 +90,16 @@ def _collect_posts(
     fixture: Path | None,
     queries: list[str] | None,
     target: int,
+    *,
+    relabel: bool = False,
 ) -> tuple[list[dict], str]:
     if fixture:
         return clean_posts(load_fixture(fixture)), "fixture"
+    if relabel:
+        if not existing:
+            raise RuntimeError("Cannot relabel: the retained corpus is empty.")
+        print(f"Relabeling {len(existing)} retained posts without fetching Bluesky.")
+        return list(existing), "bluesky"
 
     first_fill = len(existing) < max(int(target * 0.5), 80)
     window_hours = int(settings["window_hours"] if first_fill else settings.get("refresh_hours") or 24)
@@ -120,6 +128,11 @@ def _collect_posts(
         incoming = []
 
     fresh = drop_near_duplicates(clean_posts(incoming))
+    if not fresh:
+        if not existing:
+            raise RuntimeError("Bluesky returned no quality posts and no corpus is retained")
+        print(f"No new quality posts; keeping {len(existing)} retained posts.")
+        return list(existing), "bluesky"
     if len(existing) < target:
         combined = drop_near_duplicates(existing + fresh)
         cleaned = select_quality(combined, target)
@@ -130,10 +143,9 @@ def _collect_posts(
             target=target,
             drop_fraction=float(settings.get("refresh_fraction") or (1 / 7)),
         )
-    source = "bluesky" if (fresh or existing) else "bluesky"
     if not cleaned and not existing:
         raise RuntimeError("Bluesky returned no quality posts and no corpus is retained")
-    return drop_near_duplicates(cleaned or existing), source
+    return drop_near_duplicates(cleaned or existing), "bluesky"
 
 
 def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[list[dict], list[tuple], list[tuple]]:
@@ -141,6 +153,7 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
     limit = int(settings["representative_posts"])
     backend = str(settings["label_backend"])
     seed = int(settings["seed"])
+    model = str(settings.get("openai_model") or "") or None
     built: list[dict] = []
     membership: list[tuple[str, int]] = []
     face_rows: list[tuple[str, int, int, float]] = []
@@ -152,7 +165,7 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
         face_volumes = to_percents([face["size"] for face in split["faces"]])
         topic_id = topic["id"] + 1
         terms = list(topic["terms"])
-        planet = label_topic(members, terms, backend=backend)
+        planet = label_topic(members, terms, backend=backend, model=model)
         name = str(planet.get("name") or topic_name(terms))
         perspectives = []
         ordered_faces = sorted(
@@ -163,7 +176,7 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
             face_posts = [members[index] for index in face["member_indices"]]
             face_distances = [split["distances"][index] for index in face["member_indices"]]
             representatives = select_representatives(face_posts, face_distances, limit=limit)
-            label = label_perspective(representatives, face["terms"] or terms, backend=backend)
+            label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
             arguments = label.get("arguments") or []
             perspective = {
                 "id": face_id(topic_id, position),
