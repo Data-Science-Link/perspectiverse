@@ -1,6 +1,9 @@
+import random
 from datetime import datetime, timedelta, timezone
 
-from pipeline.corpus import quality_score, rotate_corpus, scale_quotas, select_quality
+from pipeline.corpus import cap_sample, posts_on_utc_date, quality_score, retain_window, scale_quotas, select_quality
+
+NOW = datetime(2026, 9, 28, tzinfo=timezone.utc)
 
 
 def _post(uri: str, hours_ago: int, likes: int = 4, text: str = "A long enough public argument about the week."):
@@ -15,42 +18,42 @@ def _post(uri: str, hours_ago: int, likes: int = 4, text: str = "A long enough p
     }
 
 
-def test_first_fill_keeps_the_best_target():
+def test_cap_sample_does_not_prefer_likes():
     incoming = [_post(f"at://{index}", hours_ago=index, likes=index) for index in range(20)]
-    kept = rotate_corpus([], incoming, target=10)
+    kept = cap_sample(incoming, 10, random.Random(0))
     assert len(kept) == 10
-    assert max(post["likes"] for post in kept) == 19
+    assert {post["uri"] for post in kept} != {f"at://{index}" for index in range(10, 20)}
 
 
-def test_rotate_drops_oldest_seventh_and_adds_fresh():
-    existing = [_post(f"at://old-{index}", hours_ago=200 - index, likes=1) for index in range(7)]
-    incoming = [_post("at://new", hours_ago=1, likes=20)]
-    rotated = rotate_corpus(existing, incoming, target=7, drop_fraction=1 / 7)
-    assert "at://old-0" not in {post["uri"] for post in rotated}
-    assert "at://new" in {post["uri"] for post in rotated}
-    assert len(rotated) == 7
+def test_expiry_drops_the_eighth_day_when_today_arrives():
+    existing = [_post("at://old", hours_ago=200), _post("at://keep", hours_ago=10)]
+    incoming = [_post("at://new", hours_ago=1)]
+    kept = retain_window(existing, incoming, now=NOW, window_hours=168, target=10, rng=random.Random(0))
+    assert {post["uri"] for post in kept} == {"at://keep", "at://new"}
 
 
 def test_failed_fetch_does_not_shrink_the_window():
-    existing = [_post(f"at://keep-{index}", hours_ago=index) for index in range(10)]
-    assert rotate_corpus(existing, [], target=10) == existing
+    existing = [_post("at://old", hours_ago=200), _post("at://keep", hours_ago=10)]
+    assert retain_window(existing, [], now=NOW, window_hours=168, target=10, rng=random.Random(0)) == existing
 
 
-def test_short_fetch_does_not_shrink_a_full_window():
-    existing = [_post(f"at://old-{index}", hours_ago=300 - index) for index in range(14)]
-    incoming = [_post("at://new", hours_ago=1, likes=20)]
-    rotated = rotate_corpus(existing, incoming, target=14, drop_fraction=1 / 7)
-    uris = {post["uri"] for post in rotated}
-    assert len(rotated) == 14
-    assert "at://new" in uris
-    assert "at://old-0" not in uris
-    assert "at://old-1" in uris
+def test_full_window_does_not_swap_in_window_posts_for_likes():
+    existing = [_post(f"at://old-{index}", hours_ago=index + 1, likes=1) for index in range(7)]
+    incoming = [_post("at://new", hours_ago=1, likes=50)]
+    kept = retain_window(existing, incoming, now=NOW, window_hours=168, target=7, rng=random.Random(0))
+    assert {post["uri"] for post in kept} == {post["uri"] for post in existing}
 
 
 def test_duplicate_fetch_does_not_drop_posts():
     existing = [_post(f"at://old-{index}", hours_ago=20 - index) for index in range(7)]
-    rotated = rotate_corpus(existing, [dict(existing[0])], target=7, drop_fraction=1 / 7)
-    assert {post["uri"] for post in rotated} == {post["uri"] for post in existing}
+    kept = retain_window(existing, [dict(existing[0])], now=NOW, window_hours=168, target=7, rng=random.Random(0))
+    assert {post["uri"] for post in kept} == {post["uri"] for post in existing}
+
+
+def test_posts_on_utc_date_uses_the_calendar_day():
+    posts = [_post("at://today", hours_ago=1)]
+    assert posts_on_utc_date(posts, "2026-09-27")
+    assert not posts_on_utc_date(posts, "2026-09-28")
 
 
 def test_quality_prefers_liked_argumentative_posts():

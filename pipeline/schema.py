@@ -12,11 +12,23 @@ SOURCES = frozenset({"synthetic", "bluesky", "fixture"})
 # category can fill its own solar system when the user switches modes.
 SYSTEM_SIZE = 10
 # Public live dropdown. Demo catalogs still use DEMO_CATEGORIES.
+# Geopolitics and AI remain allowed so a snapshot from before the newspaper
+# sections still validates.
 CATEGORIES = (
+    "World",
+    "Politics",
+    "Business",
+    "Technology",
     "Sports",
+    "Culture",
+    "Health",
+    "Environment",
+    "Education",
+    "Other",
+)
+LEGACY_CATEGORIES = (
     "Geopolitics",
     "AI",
-    "Other",
 )
 DEMO_CATEGORIES = (
     "Politics",
@@ -30,12 +42,61 @@ DEMO_CATEGORIES = (
     "Entertainment",
     "Religion",
 )
-ALLOWED_CATEGORIES = frozenset(CATEGORIES) | frozenset(DEMO_CATEGORIES)
+ALLOWED_CATEGORIES = frozenset(CATEGORIES) | frozenset(DEMO_CATEGORIES) | frozenset(LEGACY_CATEGORIES)
 NOISE_POLICY = "Topic -1 is dropped and excluded from the volume denominator."
 MIN_FACES = 2
 MAX_FACES = 6
 
 CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "World": (
+        "ukraine",
+        "gaza",
+        "israel",
+        "palestine",
+        "nato",
+        "china",
+        "russia",
+        "sanction",
+        "diplomat",
+        "ceasefire",
+        "taiwan",
+        "iran",
+        "war",
+    ),
+    "Politics": (
+        "election",
+        "senate",
+        "congress",
+        "vote",
+        "ballot",
+        "parliament",
+        "president",
+        "legislation",
+    ),
+    "Business": (
+        "inflation",
+        "market",
+        "wage",
+        "housing",
+        "tariff",
+        "layoff",
+        "economy",
+        "rent",
+        "stocks",
+    ),
+    "Technology": (
+        "llm",
+        "gpt",
+        "chatgpt",
+        "openai",
+        "anthropic",
+        "claude",
+        "algorithm",
+        "gpu",
+        "alignment",
+        "copilot",
+        "software",
+    ),
     "Sports": (
         "sport",
         "football",
@@ -53,42 +114,39 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "worldcup",
         "premier",
     ),
-    "Geopolitics": (
-        "election",
-        "ukraine",
-        "gaza",
-        "israel",
-        "palestine",
-        "nato",
-        "china",
-        "russia",
-        "sanction",
-        "diplomat",
-        "border",
-        "senate",
-        "congress",
-        "vote",
-        "war",
-        "ceasefire",
-        "taiwan",
-        "iran",
+    "Culture": (
+        "movie",
+        "film",
+        "album",
+        "celebrity",
+        "concert",
+        "netflix",
+        "oscar",
     ),
-    "AI": (
-        "ai",
-        "llm",
-        "gpt",
-        "chatgpt",
-        "openai",
-        "anthropic",
-        "claude",
-        "model",
-        "algorithm",
-        "artificial",
-        "intelligence",
-        "gpu",
-        "alignment",
-        "copilot",
-        "software",
+    "Health": (
+        "hospital",
+        "vaccine",
+        "covid",
+        "doctor",
+        "cancer",
+        "medicaid",
+        "pandemic",
+    ),
+    "Environment": (
+        "climate",
+        "emission",
+        "wildfire",
+        "pollution",
+        "hurricane",
+        "carbon",
+    ),
+    "Education": (
+        "school",
+        "teacher",
+        "student",
+        "university",
+        "campus",
+        "classroom",
     ),
 }
 
@@ -116,14 +174,15 @@ def to_percents(counts: list[int]) -> list[float]:
 
 
 CATEGORY_PHRASES: dict[str, tuple[str, ...]] = {
+    "World": ("cease fire", "prime minister"),
+    "Politics": ("white house",),
+    "Technology": ("artificial intelligence", "machine learning", "large language"),
     "Sports": ("world series", "premier league", "super bowl", "playoff"),
-    "Geopolitics": ("cease fire", "prime minister", "white house"),
-    "AI": ("artificial intelligence", "machine learning", "large language"),
 }
 
 
 def infer_category(name: str, terms: list[str], texts: list[str] | None = None) -> str:
-    """Map a topic label onto Sports, Geopolitics, AI, or Other."""
+    """Map a topic label onto a newspaper section, or Other."""
     sample = " ".join((texts or [])[:40])
     blob = " ".join([name, *terms, sample]).lower()
     scores = {
@@ -133,6 +192,24 @@ def infer_category(name: str, terms: list[str], texts: list[str] | None = None) 
     }
     best = max(scores, key=lambda category: (scores[category], category))
     if scores[best] == 0:
+        return "Other"
+    return best
+
+
+def category_for_members(name: str, terms: list[str], texts: list[str] | None, members: list[dict]) -> str:
+    """Majority Jev section when posts are labeled. Otherwise the keyword map.
+
+    A tie, or a winner below 40% of labeled members, is Other.
+    """
+    labeled = [str(post.get("section")) for post in members if post.get("section") in CATEGORIES]
+    if not labeled:
+        return infer_category(name, terms, texts)
+    counts = Counter(labeled)
+    ranked = counts.most_common()
+    best, votes = ranked[0]
+    if len(ranked) > 1 and ranked[1][1] == votes:
+        return "Other"
+    if votes / len(labeled) < 0.4:
         return "Other"
     return best
 

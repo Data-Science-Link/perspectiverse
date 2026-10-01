@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from pipeline.corpus import GROUP_QUOTAS, TARGET_POSTS
+from pipeline.corpus import TARGET_POSTS
 
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parent
@@ -30,16 +30,7 @@ DEFAULTS: dict[str, Any] = {
     "language": "en",
     "seed": 0,
     "catalog_size": 10,
-    "refresh_fraction": 1.0 / 7.0,
-    "min_group_posts": 10,
-    "queries": ["the", "people", "today", "because", "work"],
-    "query_groups": {
-        "general": ["news", "breaking", "reported", "according", "analysis"],
-        "sports": ["nfl", "nba", "soccer", "premier league", "world series", "mlb", "tennis"],
-        "geopolitics": ["ukraine", "gaza", "election", "china", "nato", "israel", "taiwan"],
-        "ai": ["chatgpt", "openai", "artificial intelligence", "llm", "machine learning", "anthropic"],
-    },
-    "group_quotas": dict(GROUP_QUOTAS),
+    "neutral_queries": ["the", "and", "to", "of", "in", "for"],
 }
 
 

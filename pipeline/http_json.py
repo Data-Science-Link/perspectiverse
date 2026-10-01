@@ -1,7 +1,7 @@
 """Small JSON HTTP helper with a host allow-list.
 
 Bandit flags urlopen (B310). Hosts are limited to Bluesky's public AppView,
-OpenAI, DeepInfra, and the configured Ollama host.
+OpenAI, DeepInfra, TypeSafe (Jev), and the configured Ollama host.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ _ALLOWED_HOSTS = frozenset(
         "bsky.social",
         "api.openai.com",
         "api.deepinfra.com",
+        "api.typesafe.ai",
     }
 )
 
@@ -34,7 +35,7 @@ def _allowed(url: str) -> bool:
     return bool(host) and host == (ollama.hostname or "")
 
 
-def read_json(url: str, *, timeout: float, data: bytes | None = None, headers: dict[str, str] | None = None) -> dict:
+def read_json_value(url: str, *, timeout: float, data: bytes | None = None, headers: dict[str, str] | None = None):
     """GET or POST JSON. Raises RuntimeError on transport or HTTP errors."""
     if not _allowed(url):
         raise RuntimeError(f"Refusing to call a host outside the pipeline allow-list: {url}")
@@ -46,7 +47,12 @@ def read_json(url: str, *, timeout: float, data: bytes | None = None, headers: d
         raise RuntimeError(f"HTTP {exc.code} from {urllib.parse.urlparse(url).hostname}") from exc
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise RuntimeError(f"Request failed for {urllib.parse.urlparse(url).hostname}: {exc}") from exc
-    payload = json.loads(body)
+    return json.loads(body)
+
+
+def read_json(url: str, *, timeout: float, data: bytes | None = None, headers: dict[str, str] | None = None) -> dict:
+    """GET or POST a JSON object. Raises RuntimeError on transport or HTTP errors."""
+    payload = read_json_value(url, timeout=timeout, data=data, headers=headers)
     if not isinstance(payload, dict):
         raise RuntimeError("Expected a JSON object")
     return payload

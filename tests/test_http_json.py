@@ -6,6 +6,7 @@ def test_allow_list_accepts_deepinfra_and_openai():
     assert _allowed("https://api.openai.com/v1/chat/completions")
     assert _allowed("https://api.bsky.app/xrpc/app.bsky.feed.searchPosts")
     assert _allowed("https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts")
+    assert _allowed("https://api.typesafe.ai/v1/systemone")
 
 
 def test_allow_list_refuses_unknown_hosts():

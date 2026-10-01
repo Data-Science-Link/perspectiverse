@@ -56,6 +56,8 @@ jobs:
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
           OLLAMA_HOST: ${{ secrets.OLLAMA_HOST }}
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          JEV_MODEL: ${{ secrets.JEV_MODEL }}
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db

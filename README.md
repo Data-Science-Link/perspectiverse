@@ -14,15 +14,15 @@ Bodies keep solar-system skins in volume order: the largest topic is the Sun, th
 
 ## Current status
 
-The observatory now ships a **live** `public/data.json` built from a retained window of **1,000 non-spam English Bluesky posts**. The daily job rotates about one seventh of that window (drop oldest, add yesterday). Planet names, face titles, and perspective steelmans are generated (LLM when a key is present, heuristic otherwise). The dropdown keeps three groupings: Sports, Geopolitics, and AI.
+The observatory now ships a **live** `public/data.json` built from a retained window of **1,000 non-spam English Bluesky posts**. The public fetch is a neutral 7-day sample, not a sports or AI keyword quota. Each later day drops posts older than seven days and searches only today. Planet names, face titles, and perspective steelmans are generated (LLM when a key is present, heuristic otherwise). The dropdown is a newspaper: World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, and Other.
 
 | Layer | State |
 | --- | --- |
 | Live universe (`public/data.json`, `mode: live`) | First 1,000-post corpus |
-| Retained SQLite (`pipeline/data/live_corpus.db`) | Rotated daily (~1/7) |
-| Spam filter | Quality gate before the window |
+| Retained SQLite (`pipeline/data/live_corpus.db`) | Rolling 7 days; a fetched UTC day is not searched again |
+| Spam filter | Regex, then Jev when `TYPESAFE_API_KEY` is set |
 | Live pipeline (`--live`) | Default command; lexical clustering on CI |
-| React + R3F observatory | Ready, with Sports / Geopolitics / AI filters |
+| React + R3F observatory | Newspaper-section filters; All topics stays unsupervised |
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
 | Daily refresh | `.github/workflows/pipeline.yml` — publishes even if Bluesky 403s |
 | DeepInfra / OpenAI-compatible labels | Wired (`OPENAI_API_KEY` + `OPENAI_BASE_URL`); heuristic until a token is set |
@@ -83,7 +83,11 @@ OPENAI_BASE_URL=https://api.deepinfra.com/v1/openai
 OPENAI_MODEL=meta-llama/Llama-3.3-70B-Instruct-Turbo
 ```
 
-Same three names as GitHub Actions secrets. About 50 short JSON calls per snapshot (~$0.01, cents/month on the daily job). Relabel the saved 1,000 without refetching Bluesky:
+Same three names as GitHub Actions secrets. About 50 short JSON calls per snapshot (~$0.01, cents/month on the daily job).
+
+**Sections and spam (Jev).** Jev is a decision model, not a writer. When `TYPESAFE_API_KEY` is set, each new post gets a spam probability and one newspaper section. High-confidence spam is dropped. Planet names still come from DeepInfra. With no key, the regex and the keyword section map run and the job still publishes. Add the key as an Actions secret too. `JEV_MODEL` is optional (`jev-latest` if unset).
+
+Relabel the saved 1,000 without refetching Bluesky:
 
 ```bash
 python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
@@ -97,7 +101,7 @@ python -m pipeline.run_pipeline --live --fixture tests/fixtures/tiny_posts.json 
 
 The example config uses `label_backend: auto` (Ollama, then `OPENAI_API_KEY`, then heuristic names from terms and posts).
 
-To pull a **brand-shaped or claim-shaped sample** instead of the default common-English queries (still a 7-day search, still the same 10-planet job):
+To pull a **brand-shaped or claim-shaped sample** instead of the neutral public sample (still the same 10-planet job):
 
 ```bash
 python -m pipeline.run_pipeline --live --query "acme" --query "acme shoes" --output /tmp/acme.json

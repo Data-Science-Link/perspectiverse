@@ -85,7 +85,10 @@ def extract_grouped_posts(
     rng: random.Random | None = None,
     per_query: int = 100,
 ) -> list[dict]:
-    """Pull a balanced sample so Sports / Geopolitics / AI are not empty."""
+    """Pull one quota per named query group.
+
+    The public live job does not call this. It searches neutral tokens instead.
+    """
     chooser = rng or random.Random()
     collected: list[dict] = []
     seen: set[str] = set()

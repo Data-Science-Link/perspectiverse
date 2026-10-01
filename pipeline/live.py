@@ -4,17 +4,33 @@ from __future__ import annotations
 
 import json
 import random
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pipeline.assemble import assemble_payload, face_id, topic_name, write_payload
 from pipeline.cleaning import clean_posts, drop_near_duplicates
-from pipeline.corpus import TARGET_POSTS, rotate_corpus, scale_quotas, select_quality
-from pipeline.data_sources.extract_bluesky import extract_grouped_posts, extract_posts
+from pipeline.corpus import (
+    TARGET_POSTS,
+    cap_sample,
+    posts_on_utc_date,
+    retain_window,
+    window_utc_dates,
+)
+from pipeline.data_sources.extract_bluesky import extract_posts
+from pipeline.jev import apply_jev, describe_jev
 from pipeline.label import label_perspective, label_topic
 from pipeline.perspectives import select_representatives, split_perspectives
-from pipeline.schema import SYSTEM_SIZE, infer_category, to_percents
+from pipeline.schema import SYSTEM_SIZE, category_for_members, to_percents
 from pipeline.settings import load_settings
-from pipeline.store import LIVE_CORPUS_DB, connect, load_posts, replace_posts, write_clusters
+from pipeline.store import (
+    LIVE_CORPUS_DB,
+    connect,
+    fetched_day_set,
+    load_posts,
+    record_fetched_days,
+    replace_posts,
+    write_clusters,
+)
 from pipeline.topics import cluster_texts
 
 
@@ -37,10 +53,21 @@ def run_live(
     settings = load_settings(config)
     target = int(settings.get("sample_size") or TARGET_POSTS)
     database = Path(db_path) if db_path else LIVE_CORPUS_DB
+    print(describe_jev())
     connection = connect(database)
     try:
         existing = load_posts(connection)
-        cleaned, source = _collect_posts(existing, settings, fixture, queries, target, relabel=relabel)
+        cleaned, source = _collect_posts(
+            existing,
+            settings,
+            fixture,
+            queries,
+            target,
+            connection,
+            relabel=relabel,
+        )
+        if source == "bluesky":
+            cleaned = apply_jev(cleaned)
         if not cleaned:
             raise RuntimeError("No quality posts in the retained corpus or the extract.")
 
@@ -90,8 +117,10 @@ def _collect_posts(
     fixture: Path | None,
     queries: list[str] | None,
     target: int,
+    connection,
     *,
     relabel: bool = False,
+    now: datetime | None = None,
 ) -> tuple[list[dict], str]:
     if fixture:
         return clean_posts(load_fixture(fixture)), "fixture"
@@ -101,28 +130,43 @@ def _collect_posts(
         print(f"Relabeling {len(existing)} retained posts without fetching Bluesky.")
         return list(existing), "bluesky"
 
-    first_fill = len(existing) < max(int(target * 0.5), 80)
-    window_hours = int(settings["window_hours"] if first_fill else settings.get("refresh_hours") or 24)
-    fetch_size = target if first_fill else max(40, int(round(target * float(settings.get("refresh_fraction") or (1 / 7)))))
+    moment = now or datetime.now(timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    today = moment.date().isoformat()
     search_queries = [item for item in (queries or []) if item]
-    incoming: list[dict] = []
+    ledger = fetched_day_set(connection)
+    if not search_queries and today in ledger and posts_on_utc_date(existing, today):
+        print(f"UTC day {today} already fetched; keeping {len(existing)} retained posts.")
+        return list(existing), "bluesky"
+
+    window_hours = int(settings["window_hours"])
+    refresh_hours = int(settings.get("refresh_hours") or 24)
+    neutral = [item for item in (settings.get("neutral_queries") or []) if item]
+    refill = not search_queries and not ledger
+    rng = random.Random(int(settings["seed"]))
+    if search_queries:
+        fetch_queries = search_queries
+        hours = window_hours if len(existing) < max(int(target * 0.5), 80) else refresh_hours
+        pool = max(target, 80)
+    elif refill:
+        fetch_queries = neutral
+        hours = window_hours
+        pool = max(target * 2, 80)
+        print("No neutral fetch on record. Replacing the retained window with a 7-day sample.")
+    else:
+        fetch_queries = neutral
+        hours = refresh_hours
+        pool = max(int(target * 0.4), 80)
+
     try:
-        if search_queries:
-            incoming = extract_posts(
-                sample_size=max(fetch_size, 80),
-                window_hours=window_hours,
-                queries=search_queries,
-                rng=random.Random(int(settings["seed"])),
-            )
-        else:
-            groups = dict(settings.get("query_groups") or {})
-            quotas = scale_quotas(max(fetch_size, 80), dict(settings.get("group_quotas") or {}))
-            incoming = extract_grouped_posts(
-                quotas=quotas,
-                query_groups=groups,
-                window_hours=window_hours,
-                rng=random.Random(int(settings["seed"])),
-            )
+        incoming = extract_posts(
+            sample_size=pool,
+            window_hours=hours,
+            queries=fetch_queries,
+            rng=rng,
+            now=moment,
+        )
     except RuntimeError as exc:
         print(f"Bluesky extract failed ({exc}). Rebuilding from the retained corpus.")
         incoming = []
@@ -133,19 +177,24 @@ def _collect_posts(
             raise RuntimeError("Bluesky returned no quality posts and no corpus is retained")
         print(f"No new quality posts; keeping {len(existing)} retained posts.")
         return list(existing), "bluesky"
-    if len(existing) < target:
-        combined = drop_near_duplicates(existing + fresh)
-        cleaned = select_quality(combined, target)
+
+    if refill:
+        cleaned = cap_sample(fresh, target, rng)
+        dates = window_utc_dates(moment)
     else:
-        cleaned = rotate_corpus(
+        cleaned = retain_window(
             existing,
             fresh,
+            now=moment,
+            window_hours=window_hours,
             target=target,
-            drop_fraction=float(settings.get("refresh_fraction") or (1 / 7)),
+            rng=rng,
         )
-    if not cleaned and not existing:
-        raise RuntimeError("Bluesky returned no quality posts and no corpus is retained")
-    return drop_near_duplicates(cleaned or existing), "bluesky"
+        dates = [today]
+    cleaned = drop_near_duplicates(cleaned)
+    if not search_queries and cleaned:
+        record_fetched_days(connection, dates, fetched_at=moment.isoformat(), kept=len(cleaned))
+    return cleaned, "bluesky"
 
 
 def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[list[dict], list[tuple], list[tuple]]:
@@ -197,7 +246,7 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
             {
                 "id": topic_id,
                 "name": name,
-                "category": infer_category(name, terms, member_texts),
+                "category": category_for_members(name, terms, member_texts, members),
                 "total_volume_percent": volume,
                 "perspectives": perspectives,
             }
