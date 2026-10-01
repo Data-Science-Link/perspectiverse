@@ -36,6 +36,23 @@ def test_failed_fetch_does_not_shrink_the_window():
     assert rotate_corpus(existing, [], target=10) == existing
 
 
+def test_short_fetch_does_not_shrink_a_full_window():
+    existing = [_post(f"at://old-{index}", hours_ago=300 - index) for index in range(14)]
+    incoming = [_post("at://new", hours_ago=1, likes=20)]
+    rotated = rotate_corpus(existing, incoming, target=14, drop_fraction=1 / 7)
+    uris = {post["uri"] for post in rotated}
+    assert len(rotated) == 14
+    assert "at://new" in uris
+    assert "at://old-0" not in uris
+    assert "at://old-1" in uris
+
+
+def test_duplicate_fetch_does_not_drop_posts():
+    existing = [_post(f"at://old-{index}", hours_ago=20 - index) for index in range(7)]
+    rotated = rotate_corpus(existing, [dict(existing[0])], target=7, drop_fraction=1 / 7)
+    assert {post["uri"] for post in rotated} == {post["uri"] for post in existing}
+
+
 def test_quality_prefers_liked_argumentative_posts():
     weak = _post("at://weak", 1, likes=0, text="hello there everybody in this place now")
     strong = _post("at://strong", 1, likes=40, text="The league changed the playoff format and the players are furious about it.")

@@ -58,6 +58,54 @@ def _post_lines(posts: list[dict], limit: int = 12) -> str:
     return "\n".join(lines)
 
 
+def _relax_unescaped_quotes(text: str) -> str:
+    """Escape double quotes a model dropped inside a JSON string.
+
+    A quote ends the string only when the next non-space character is a
+    comma, colon, closing brace, or closing bracket. Anything else is
+    content, which strict json.loads rejects.
+    """
+    out: list[str] = []
+    in_string = False
+    escaped = False
+    for index, char in enumerate(text):
+        if not in_string:
+            out.append(char)
+            if char == '"':
+                in_string = True
+            continue
+        if escaped:
+            out.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            out.append(char)
+            escaped = True
+            continue
+        if char != '"':
+            out.append(char)
+            continue
+        follower = index + 1
+        while follower < len(text) and text[follower] in " \t\r\n":
+            follower += 1
+        if follower >= len(text) or text[follower] in ",}]:":
+            out.append(char)
+            in_string = False
+        else:
+            out.append('\\"')
+    return "".join(out)
+
+
+def _load_label_json(blob: str):
+    try:
+        return json.loads(blob)
+    except json.JSONDecodeError:
+        try:
+            return json.loads(_relax_unescaped_quotes(blob))
+        except json.JSONDecodeError:
+            return None
+
+
 def parse_label(text: str) -> dict | None:
     """Pull the first JSON object that has a title/name and a summary."""
     if not text:
@@ -66,9 +114,8 @@ def parse_label(text: str) -> dict | None:
     end = text.rfind("}")
     if start < 0 or end <= start:
         return None
-    try:
-        data = json.loads(text[start : end + 1])
-    except json.JSONDecodeError:
+    data = _load_label_json(text[start : end + 1])
+    if data is None:
         return None
     if not isinstance(data, dict):
         return None

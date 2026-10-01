@@ -78,11 +78,15 @@ jobs:
           cp pipeline/data/live_corpus.db /tmp/perspectiverse-snapshot/live_corpus.db
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The live step dirties data.json and live_corpus.db. Those bytes are
+          # already in /tmp. Discard the worktree or checkout refuses to switch
+          # onto data-snapshot (run 36664060030, exit 1, ~0s).
+          git reset --hard HEAD
           if git ls-remote --exit-code --heads origin data-snapshot >/dev/null 2>&1; then
             git fetch origin data-snapshot
-            git checkout -B data-snapshot origin/data-snapshot
+            git checkout --force -B data-snapshot origin/data-snapshot
           else
-            git checkout -B data-snapshot
+            git checkout --force -B data-snapshot
           fi
           mkdir -p pipeline/data
           cp /tmp/perspectiverse-snapshot/data.json public/data.json

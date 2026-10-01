@@ -24,6 +24,18 @@ def test_parse_label_accepts_wrapped_json():
     assert parsed["title"] == "Rent Burden"
 
 
+def test_parse_label_accepts_unescaped_quotes_inside_strings():
+    raw = (
+        '{"title": "AI Terminology", "summary": "Prefer the term "machine learning" over "AI" here", '
+        '"arguments": ["Using "AI" chases funding.", "The narrower name is more accurate."]}'
+    )
+    parsed = parse_label(raw)
+    assert parsed is not None
+    assert parsed["title"] == "AI Terminology"
+    assert "machine learning" in parsed["summary"]
+    assert parsed["arguments"][0].startswith("Using")
+
+
 def test_parse_label_keeps_arguments_and_topic_name():
     parsed = parse_label(
         '{"name": "AI Jobs", "title": "AI Jobs", "summary": "People argue about automation.", '
