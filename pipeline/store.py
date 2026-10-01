@@ -33,7 +33,18 @@ CREATE TABLE IF NOT EXISTS perspectives (
     face_index INTEGER NOT NULL,
     distance REAL
 );
+CREATE TABLE IF NOT EXISTS fetched_days (
+    utc_date TEXT PRIMARY KEY,
+    fetched_at TEXT NOT NULL,
+    kept INTEGER NOT NULL
+);
 """
+
+_POST_COLUMNS = (
+    ("section", "TEXT"),
+    ("section_confidence", "REAL"),
+    ("spam_score", "REAL"),
+)
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
@@ -41,6 +52,11 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(db_path)
     connection.executescript(SCHEMA)
+    present = {row[1] for row in connection.execute("PRAGMA table_info(posts)")}
+    for name, declaration in _POST_COLUMNS:
+        if name not in present:
+            connection.execute(f"ALTER TABLE posts ADD COLUMN {name} {declaration}")
+    connection.commit()
     return connection
 
 
@@ -51,8 +67,11 @@ def replace_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
     connection.execute("DELETE FROM posts")
     connection.executemany(
         """
-        INSERT INTO posts (uri, author, text, clean_text, likes, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO posts (
+            uri, author, text, clean_text, likes, created_at,
+            section, section_confidence, spam_score
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -62,6 +81,9 @@ def replace_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
                 post["clean_text"],
                 int(post["likes"]),
                 post.get("created_at") or "",
+                post.get("section") or None,
+                post.get("section_confidence"),
+                post.get("spam_score"),
             )
             for post in posts
         ],
@@ -72,7 +94,12 @@ def replace_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
 def load_posts(connection: sqlite3.Connection) -> list[dict]:
     """Return cleaned posts currently in the store, oldest first."""
     rows = connection.execute(
-        "SELECT uri, author, text, clean_text, likes, created_at FROM posts ORDER BY created_at ASC"
+        """
+        SELECT uri, author, text, clean_text, likes, created_at,
+               section, section_confidence, spam_score
+        FROM posts
+        ORDER BY created_at ASC
+        """
     ).fetchall()
     return [
         {
@@ -82,9 +109,33 @@ def load_posts(connection: sqlite3.Connection) -> list[dict]:
             "clean_text": row[3],
             "likes": int(row[4] or 0),
             "created_at": row[5] or "",
+            "section": row[6] or "",
+            "section_confidence": row[7],
+            "spam_score": row[8],
         }
         for row in rows
     ]
+
+
+def fetched_day_set(connection: sqlite3.Connection) -> set[str]:
+    """UTC dates that already have a successful public fetch."""
+    rows = connection.execute("SELECT utc_date FROM fetched_days").fetchall()
+    return {str(row[0]) for row in rows}
+
+
+def record_fetched_days(connection: sqlite3.Connection, dates: list[str], *, fetched_at: str, kept: int) -> None:
+    """Remember a successful public fetch so that UTC day is not searched again."""
+    connection.executemany(
+        """
+        INSERT INTO fetched_days (utc_date, fetched_at, kept)
+        VALUES (?, ?, ?)
+        ON CONFLICT(utc_date) DO UPDATE SET
+            fetched_at = excluded.fetched_at,
+            kept = excluded.kept
+        """,
+        [(day, fetched_at, int(kept)) for day in dates],
+    )
+    connection.commit()
 
 
 def write_clusters(

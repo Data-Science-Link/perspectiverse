@@ -102,7 +102,6 @@ def test_relabel_skips_bluesky_and_keeps_the_corpus(monkeypatch, tmp_path):
         raise AssertionError("relabel must not fetch Bluesky")
 
     monkeypatch.setattr("pipeline.live.extract_posts", boom)
-    monkeypatch.setattr("pipeline.live.extract_grouped_posts", boom)
     output = tmp_path / "data.json"
     main(
         [
@@ -137,7 +136,6 @@ def test_bluesky_403_does_not_shrink_retained_corpus(monkeypatch, tmp_path):
         raise RuntimeError("HTTP 403 from api.bsky.app")
 
     monkeypatch.setattr("pipeline.live.extract_posts", forbidden)
-    monkeypatch.setattr("pipeline.live.extract_grouped_posts", forbidden)
     output = tmp_path / "data.json"
     path = run_live(
         output=output,
@@ -151,4 +149,116 @@ def test_bluesky_403_does_not_shrink_retained_corpus(monkeypatch, tmp_path):
     remaining = connection.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
     connection.close()
     assert remaining == len(posts)
+
+
+def test_neutral_refill_replaces_a_seeded_corpus(monkeypatch, tmp_path):
+    from datetime import datetime, timezone
+
+    from pipeline.live import _collect_posts
+    from pipeline.store import connect, fetched_day_set, replace_posts
+
+    database = tmp_path / "live.db"
+    connection = connect(database)
+    seeded = {
+        "uri": "at://seeded",
+        "author": "old",
+        "text": "A seeded sports post about the nfl that should not survive the refill.",
+        "clean_text": "A seeded sports post about the nfl that should not survive the refill.",
+        "likes": 1,
+        "created_at": "2026-09-01T00:00:00Z",
+    }
+    replace_posts(connection, [seeded])
+
+    def fake_extract(**kwargs):
+        assert kwargs["queries"] == ["the", "and"]
+        assert kwargs["window_hours"] == 168
+        return [
+            {
+                "uri": "at://fresh",
+                "author": "new",
+                "text": "People were arguing about the rent increase on my block again today.",
+                "likes": 2,
+                "created_at": "2026-09-28T12:00:00Z",
+            }
+        ]
+
+    monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
+    cleaned, source = _collect_posts(
+        [seeded],
+        {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the", "and"]},
+        None,
+        None,
+        10,
+        connection,
+        now=datetime(2026, 9, 28, tzinfo=timezone.utc),
+    )
+    assert source == "bluesky"
+    assert [post["uri"] for post in cleaned] == ["at://fresh"]
+    assert "2026-09-28" in fetched_day_set(connection)
+    assert "2026-09-22" in fetched_day_set(connection)
+    connection.close()
+
+
+def test_recorded_utc_day_skips_bluesky(monkeypatch, tmp_path):
+    from datetime import datetime, timezone
+
+    from pipeline.live import _collect_posts
+    from pipeline.store import connect, record_fetched_days, replace_posts
+
+    database = tmp_path / "live.db"
+    connection = connect(database)
+    kept = {
+        "uri": "at://today",
+        "author": "ada",
+        "text": "A post from today that is already inside the retained window.",
+        "clean_text": "A post from today that is already inside the retained window.",
+        "likes": 3,
+        "created_at": "2026-09-28T08:00:00Z",
+    }
+    replace_posts(connection, [kept])
+    record_fetched_days(connection, ["2026-09-28"], fetched_at="2026-09-28T09:00:00+00:00", kept=1)
+
+    def boom(**_kwargs):
+        raise AssertionError("a recorded UTC day must not search Bluesky again")
+
+    monkeypatch.setattr("pipeline.live.extract_posts", boom)
+    cleaned, source = _collect_posts(
+        [kept],
+        {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the"]},
+        None,
+        None,
+        10,
+        connection,
+        now=datetime(2026, 9, 28, 18, tzinfo=timezone.utc),
+    )
+    assert source == "bluesky"
+    assert [post["uri"] for post in cleaned] == ["at://today"]
+    connection.close()
+
+
+def test_section_columns_round_trip(tmp_path):
+    from pipeline.store import connect, load_posts, replace_posts
+
+    connection = connect(tmp_path / "posts.db")
+    replace_posts(
+        connection,
+        [
+            {
+                "uri": "at://a",
+                "author": "ada",
+                "text": "A retained post.",
+                "clean_text": "A retained post.",
+                "likes": 4,
+                "created_at": "2026-09-28T00:00:00Z",
+                "section": "World",
+                "section_confidence": 0.81,
+                "spam_score": 0.05,
+            }
+        ],
+    )
+    loaded = load_posts(connection)
+    connection.close()
+    assert loaded[0]["section"] == "World"
+    assert loaded[0]["section_confidence"] == 0.81
+    assert loaded[0]["spam_score"] == 0.05
 

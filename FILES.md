@@ -31,14 +31,15 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/schema.py` | Shared `data.json` contract |
 | `pipeline/settings.py` | YAML config loader |
 | `pipeline/cleaning.py` | URL, handle, and spam cleaning |
-| `pipeline/corpus.py` | 1,000-post window and 1/7 daily rotate |
-| `pipeline/store.py` | SQLite posts and derived membership |
+| `pipeline/jev.py` | Jev spam noul and newspaper section |
+| `pipeline/corpus.py` | 1,000-post rolling 7-day window |
+| `pipeline/store.py` | SQLite posts, fetched days, and derived membership |
 | `pipeline/topics.py` | 10 planets (lexical or BERTopic) |
 | `pipeline/perspectives.py` | 2–6 faces and representative posts |
 | `pipeline/label.py` | Ollama, OpenAI-compatible (DeepInfra), or heuristic titles |
 | `pipeline/assemble.py` | Writes `public/data.json` |
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
-| `pipeline/http_json.py` | Allow-listed JSON HTTP (`api.bsky.app`, `api.openai.com`, `api.deepinfra.com`) |
+| `pipeline/http_json.py` | Allow-listed JSON HTTP (`api.bsky.app`, `api.openai.com`, `api.deepinfra.com`, `api.typesafe.ai`) |
 | `pipeline/config/pipeline.example.yaml` | Sample size, models, `min_cluster_size` |
 | `pipeline/data/live_corpus.db` | Retained ~1,000-post window (tracked) |
 | `pipeline/data_sources/extract_bluesky.py` | Bluesky 7-day sample |

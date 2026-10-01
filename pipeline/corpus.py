@@ -1,16 +1,17 @@
-"""Retain and rotate the live Bluesky corpus.
+"""Retain a rolling window of Bluesky posts.
 
-The first fill keeps ``target`` quality posts. Each later run drops the oldest
-seventh and adds a seventh of new posts from the prior day. A failed fetch
-must not shrink the retained window — the daily job still has to publish.
+Posts older than the window fall off only after a successful fetch. An empty
+incoming batch leaves the retained posts untouched, including ones that are
+now past the window, so a 403 cannot erase yesterday's sample. The public
+sample is random within the fetch, not ranked by likes.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import random
+from datetime import datetime, timedelta, timezone
 
 TARGET_POSTS = 1000
-REFRESH_FRACTION = 1.0 / 7.0
 MIN_GROUP_POSTS = 10
 
 GROUP_QUOTAS = {
@@ -54,39 +55,55 @@ def select_quality(posts: list[dict], limit: int) -> list[dict]:
     return ranked[: max(limit, 0)]
 
 
-def rotate_corpus(
+def cap_sample(posts: list[dict], limit: int, rng: random.Random) -> list[dict]:
+    """Keep up to ``limit`` posts at random. Does not rank by likes."""
+    if limit <= 0:
+        return []
+    if len(posts) <= limit:
+        return list(posts)
+    return rng.sample(list(posts), limit)
+
+
+def retain_window(
     existing: list[dict],
     incoming: list[dict],
     *,
-    target: int = TARGET_POSTS,
-    drop_fraction: float = REFRESH_FRACTION,
+    now: datetime,
+    window_hours: int,
+    target: int,
+    rng: random.Random,
 ) -> list[dict]:
-    """Merge incoming posts into a ~target window.
+    """Expire posts outside the window and top up toward ``target``.
 
-    If ``incoming`` is empty, ``existing`` is returned unchanged so a 403
-    cannot erase yesterday's sample. A full window also never shrinks: a
-    short fetch drops only as many posts as it can replace. First fill
-    (no existing rows) keeps the best ``target`` incoming posts.
+    An empty ``incoming`` list returns ``existing`` unchanged. In-window posts
+    are never dropped to make room, and likes are not a rank.
     """
     if not incoming:
         return list(existing)
-    if not existing:
-        return select_quality(incoming, target)
-
-    drop_count = max(1, int(round(len(existing) * drop_fraction)))
-    add_count = max(drop_count, int(round(target * drop_fraction)))
-    # Count only posts that are not already retained. A 403 or a thin day
-    # must not drop more of the window than it can replace.
-    seen = {post["uri"] for post in existing if post.get("uri")}
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    cutoff = now.astimezone(timezone.utc) - timedelta(hours=window_hours)
+    survivors = [post for post in existing if parse_created(post.get("created_at") or "") >= cutoff]
+    seen = {post["uri"] for post in survivors if post.get("uri")}
     fresh = [post for post in incoming if post.get("uri") and post["uri"] not in seen]
-    fresh = select_quality(fresh, add_count)
-    if len(existing) >= target:
-        drop_count = min(drop_count, len(fresh))
-    survivors = sorted(existing, key=lambda post: parse_created(post.get("created_at") or ""))[drop_count:]
-    merged = survivors + fresh
-    if len(merged) > target:
-        merged = select_quality(merged, target)
-    return merged
+    need = max(0, target - len(survivors))
+    return survivors + cap_sample(fresh, need, rng)
+
+
+def posts_on_utc_date(posts: list[dict], utc_date: str) -> bool:
+    """True when any post was created on ``utc_date`` (``YYYY-MM-DD``)."""
+    for post in posts:
+        if parse_created(post.get("created_at") or "").date().isoformat() == utc_date:
+            return True
+    return False
+
+
+def window_utc_dates(now: datetime, days: int = 7) -> list[str]:
+    """UTC dates covered by a first fill, newest first."""
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    moment = now.astimezone(timezone.utc).date()
+    return [(moment - timedelta(days=offset)).isoformat() for offset in range(days)]
 
 
 def scale_quotas(sample_size: int, quotas: dict[str, int] | None = None) -> dict[str, int]:
