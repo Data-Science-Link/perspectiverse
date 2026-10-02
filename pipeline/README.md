@@ -80,7 +80,7 @@ There is one topic-name call per planet and one face call per perspective (title
 python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
 ```
 
-The public dropdown is a newspaper: **World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, Other**. With `TYPESAFE_API_KEY` set, Jev assigns a section to each new post (one `choice` plus a spam `noul` per post). A planet's category is the majority section of its members. Without a key, or when a call fails, the keyword map is the fallback. All topics is still one unsupervised clustering of the whole window. A section filter can show fewer than 10 planets at 1,000 posts. Jev does not name planets and does not replace BERTopic.
+The public dropdown is a newspaper: **World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, Other**. With `TYPESAFE_API_KEY` set, Jev assigns a section to each new post (one `choice` plus a spam `noul` per post). A planet's category is the majority section of its members. Without a key, or when a call fails, the keyword map is the fallback. All topics is still one unsupervised clustering of the whole window. A section filter can show fewer planets than All topics. Jev does not name planets and does not replace the embedder. Spam drops at 0.8. A public claim is kept at 0.5. Non-claims stay in the window and out of the planets.
 
 ## Publish
 
@@ -88,7 +88,7 @@ The daily workflow (06:00 UTC, plus `workflow_dispatch`) runs `--live`. It does 
 
 ## Retained corpus in Cloudflare R2
 
-`public/data.json` stays in git. The SQLite window is a different file. At about 1,000 posts it is ~1 MB. At 100,000 posts the same file is about 100–200 MB, and GitHub rejects blobs over 100 MB. `pipeline/r2.py` is the uploader. It talks to R2 with the S3 API (SigV4, region `auto`). BERTopic still reads a local database. Do not put Postgres in front of it.
+`public/data.json` stays in git. The SQLite window is a different file. A few thousand posts are a few megabytes. At 100,000 posts the same file is about 100–200 MB, and GitHub rejects blobs over 100 MB. `pipeline/r2.py` is the uploader. It talks to R2 with the S3 API (SigV4, region `auto`). The clusterer still reads a local database. Do not put Postgres in front of it.
 
 Until `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_ENDPOINT` are set, the job keeps the git behavior: restore `pipeline/data/live_corpus.db` from `data-snapshot` (or the committed seed) and push it back after a successful run.
 

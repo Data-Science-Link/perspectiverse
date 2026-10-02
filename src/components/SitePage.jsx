@@ -31,7 +31,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Why only ten planets?',
-    a: 'So the solar system stays readable. The ten largest topics after noise is dropped. Posts that fit no planet are left out of the percentages.',
+    a: 'So the solar system stays readable. The job keeps the largest tight groups and stops at ten. It does not invent planets to fill the orbits. Posts that fit no planet are left out of the percentages.',
   },
   {
     q: 'How often does it update?',
@@ -301,8 +301,8 @@ function MethodologyPage() {
   return (
     <>
       <p className="lede">
-        One daily job reads a week of public posts, finds ten topics and a few opinions
-        each, and writes a file. The site is that file, drawn as a solar system.
+        One daily job reads a week of public posts, finds up to ten topics and the
+        opinions that differ, and writes a file. The site is that file, drawn as a solar system.
       </p>
 
       <section>
@@ -371,7 +371,7 @@ function DonatePage() {
         <h2>What support is for</h2>
         <ul className="page-list">
           <li>Keep the civic homepage query-free and ad-free.</li>
-          <li>Thicken the snapshot: more example posts, better labels, a larger sample.</li>
+          <li>Thicken what a face can show: more example posts, clearer labels, a longer archive.</li>
           <li>Time to explain the method in public, not hide it in a dashboard.</li>
         </ul>
       </section>

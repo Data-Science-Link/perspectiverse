@@ -4,8 +4,8 @@ How a visitor talks to a planet or a face — and what has to change if those an
 
 The public observatory today is three cheap moves:
 
-1. **Lightweight storage.** A JSON snapshot. The sample that produced it lives in an ephemeral SQLite file on the machine that ran the job.
-2. **Once-per-day computation.** Ingest, clean, cluster 10 topics, cut 2–6 faces, label, write `data.json`.
+1. **Lightweight storage.** A JSON snapshot on `data-snapshot`. The window that produced it is `live_corpus.db` on private R2 (or on that branch until R2 is configured).
+2. **Once-per-day computation.** Ingest, clean, keep up to 10,000 filtered claims, cluster up to 10 topics, cut 1–6 faces, label, write `data.json`.
 3. **Cheap rendering.** GitHub Pages fetches that file. The GPU in the visitor's machine draws the solar system. There is no application server.
 
 That design is why the bill is ~$0. It is also why "chat with the planet" is not a feature you bolt onto `App.jsx`.
@@ -39,7 +39,7 @@ After a live run:
 | Raw Bluesky payloads, URIs in the UI | no | never stored in the snapshot |
 | Embeddings | no | computed in memory, discarded |
 
-A visitor who "talks to the planet" on the static site can only hear the **representatives**. On the demo solar system that is 3 posts × 2–6 faces. On a full live cap that is 12 × 2–6. That is enough to *feel* a conversation. It is not the cluster.
+A visitor who "talks to the planet" on the static site can only hear the **representatives**. The live cap is 12 posts on each of 1–6 faces. That is enough to *feel* a conversation. It is not the cluster.
 
 ## Two architectures
 
@@ -162,7 +162,7 @@ Intelligent enough is **not** "wins a debate." It is:
 - stays inside the scoped posts
 - can follow a thread of questions without changing planet
 - will say "they did not write that"
-- will hand you the gold face when you asked about a moon
+- will hand you the majority face when you asked about a moon
 
 A small model with retrieval does that. A large model without retrieval does not.
 

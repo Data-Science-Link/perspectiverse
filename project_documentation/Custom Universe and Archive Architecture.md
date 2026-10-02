@@ -12,20 +12,20 @@ A custom universe is **query-shaped**. Someone types `Nike`, or pastes a paragra
 
 ## What "retain all Bluesky posts" would actually mean
 
-Today we retain almost nothing:
+Today the public job retains a rolling window, not a firehose:
 
-- The daily job asks public search for a handful of common tokens (`the`, `people`, `today`, …).
-- It keeps up to `sample_size` posts (200 default) inside the last 168 hours.
-- Those rows sit in `pipeline/data/posts.db` on the runner and vanish when the job ends.
-- `data.json` keeps ≤12 representatives per face.
+- Neutral search tokens are `the`, `and`, `to`, `of`, `in`, and `for`.
+- It keeps up to 10,000 posts that passed cleaning, dedup, spam, and the public-claim check, inside the last 168 hours. Non-claims stay in the file and do not count.
+- Those rows live in `live_corpus.db`. The daily job stores that file in private R2 when the `R2_*` secrets are set.
+- `data.json` still keeps at most 12 representatives per face.
 
-People hear "7-day window" and picture a firehose on disk. We do not have that. We have a **windowed search + subsample**. Storage cost of Bluesky posts is currently ~0 because we throw them away.
+People hear "7-day window" and picture a firehose on disk. We do not have that. We have a **windowed search** whose survivors are kept. A 30–90 day trail of past windows is still Grade 1 work that has not shipped.
 
 "Retain all posts" has four grades. Only the first two belong near v1.
 
 ### Grade 1 — keep what we already fetched
 
-After clustering, write the cleaned sample (and face membership) to object storage before the runner dies. 200–10,000 posts × ~1–2 KB is nothing.
+The current window already lands in R2. Extending that to 30–90 days of past windows is 10,000 posts × ~1–2 KB per day, which is still small.
 
 **Unlocks:** reruns, better extractive debate, debugging a bad planet, a 30-day trail of *samples* (not of Bluesky), and **URI-overlap matching** so Horizon C can tell whether yesterday's planet and today's are the same neighborhood instead of guessing from names.
 
@@ -54,7 +54,7 @@ Object storage is not the scary line. The scary lines are:
 
 - **Always-on ingest.** Jetstream is a socket, not a cron. A $5–$12 box, or a platform worker that does not sleep.
 - **Index.** Grep over 50 GB of JSONL is not a product. You need partitions (day + lang) and FTS or a column store. That is another few dollars to a few tens, plus care.
-- **Embeddings of the firehose.** This is how bills jump two orders of magnitude. Do not. Embed after a filter, or not at all (lexical cluster is how CI already works).
+- **Embeddings of the firehose.** This is how bills jump two orders of magnitude. Do not. The daily job already embeds the filtered window with MiniLM. Embed after a filter, or not at all.
 - **ToS, deletion, and "public" vs "publicly archived."** A post that was public at ingest may be deleted later. Lifecycle plus a honor-delete path is part of the architecture, not a later ethics slide.
 
 **Unlocks:** "type any brand, get this week's solar system" without a pre-registered watch list.
@@ -86,7 +86,7 @@ Jetstream/search ┤
                     retrieve matching posts in window
                                     │
                     same clusterer as pipeline.topics
-                    + 2–6 faces + labels
+                    + 1–6 faces + labels
                                     │
                          store snapshot JSON at /u/:id
                                     │
@@ -95,9 +95,9 @@ Jetstream/search ┤
 
 ### Why not run this in the browser today
 
-It looks tempting: the clusterer is numpy TF-IDF; we could port it. Three hard no's:
+It looks tempting: the tests use numpy TF-IDF. The daily job uses MiniLM. Neither belongs in the visitor's tab. Three hard no's:
 
-1. **The corpus is not in the bundle.** Filtering the public snapshot for "Nike" tells you whether Nike appeared in a 200-post general sample. That is Path 0 on the home page (useful!). It is not a Nike universe.
+1. **The corpus is not in the bundle.** Filtering the public snapshot for "Nike" tells you whether Nike appeared in this week's claims. That is not a Nike universe.
 2. **Bluesky search is not a browser API.** `api.bsky.app` is not a CORS-open, keyless, quota-free engine for a GitHub Pages origin. Putting an app password in an extension is how you lose the account.
 3. **A 10k embed in someone's tab** is a worse product than a 4-second server job.
 
@@ -126,8 +126,8 @@ Reuse `pipeline.live.run_live` with injected posts. Do not fork a second NLP sta
 | --- | --- | --- |
 | Source | config `queries` (common English tokens) | request text / brand / plugin highlight |
 | Window | 168 hours | 168 hours (or 24h for "live") |
-| Sample | 200–10,000 | 2,000–10,000 matches, then cap |
-| Cluster | lexical default | lexical default (same code) |
+| Sample | up to 10,000 filtered claims | matches, then the same claim cap |
+| Cluster | MiniLM (TF-IDF in tests) | the same clusterer |
 | Labels | heuristic / Ollama / mini | same; prefer heuristic if the quota is thin |
 | Output | `public/data.json` | `universes/{id}.json` + metadata (query, owner, expiry) |
 | Cache | one solar system / day | cache key = `(normalized query, window, snapshot date)` |

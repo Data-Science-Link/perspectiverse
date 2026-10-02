@@ -17,8 +17,8 @@ export function OverviewGraphic() {
       >
         <title id="overview-graphic-title">How Perspectiverse connects public talk to a solar system you can look around</title>
         <desc id="overview-graphic-desc">
-          Public posts from a week of conversation are clustered once a day into ten topics.
-          Each topic splits into two to six opinions. You open the solar system and check where you stand.
+          Public posts from a week of conversation are clustered once a day into up to ten topics.
+          Each topic keeps one to six opinions that are actually different. You open the solar system and check where you stand.
         </desc>
         <rect x="12" y="10" width="296" height="78" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
         <circle cx="46" cy="40" r="7" fill="#6ea8ff" />
@@ -44,9 +44,9 @@ export function OverviewGraphic() {
         <circle cx="58" cy="268" r="22" fill="#f4c14e" />
         <circle cx="52" cy="260" r="7" fill="rgba(255,255,255,0.22)" />
         <circle cx="88" cy="278" r="9" fill="#4aa3e6" />
-        <text x="112" y="258" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">Ten planets</text>
+        <text x="112" y="258" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">Up to ten planets</text>
         <text x="112" y="280" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Size is share of attention</text>
-        <text x="112" y="298" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Longest spike = majority view</text>
+        <text x="112" y="298" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Darkest spike = most common</text>
 
         <path d="M160 312 v22" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
         <path d="M154 328 l6 10 6-10" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
@@ -58,7 +58,7 @@ export function OverviewGraphic() {
         <text x="74" y="396" fill="#f4e2b0" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Check where your take stands</text>
       </svg>
       <figcaption>
-        Public posts become ten planets. Each planet opens into a few opinions.
+        Public posts become up to ten planets. Each planet opens into the opinions that differ.
         You look around the solar system — not a feed ranked for you.
       </figcaption>
     </figure>
@@ -73,11 +73,11 @@ const STAGES = [
     nodes: [
       {
         name: 'Bluesky search',
-        detail: 'English posts from the last 168 hours. Default sample is small (200) so the job stays cheap; 10,000 is the fuller target.',
+        detail: 'English posts from the last 168 hours. The job holds up to 10,000 that already passed cleaning, dedup, spam, and the public-claim check.',
       },
       {
         name: 'Clean + SQLite',
-        detail: 'Strip URLs, handles, and obvious spam. Keep the sample on the runner; it is not published.',
+        detail: 'Strip URLs and handles, drop spam, and keep public claims. The window stays in SQLite. The site publishes only the snapshot.',
       },
     ],
   },
@@ -87,16 +87,16 @@ const STAGES = [
     title: 'Find neighborhoods in the words',
     nodes: [
       {
-        name: 'TF-IDF + k-means',
-        detail: 'The daily job uses lexical clustering. BERTopic is optional locally. Tiny clumps and noise (Topic −1) are dropped.',
+        name: 'MiniLM embeddings',
+        detail: 'The daily job embeds with a local MiniLM model and keeps tight groups. Tests use TF-IDF. Tiny clumps and noise (Topic −1) are dropped.',
       },
       {
         name: '10 planets',
-        detail: 'The largest remaining clusters become the solar system. Size is share of kept posts, not importance.',
+        detail: 'The largest tight groups become the solar system, and the job stops at ten. Size is share of kept posts, not importance.',
       },
       {
-        name: '2–6 faces',
-        detail: 'Each planet is split again. A cube is the ceiling. Face length is that view\'s share of the topic.',
+        name: '1–6 faces',
+        detail: 'One stance stays one spike. Another face is added only when it is large and different. Length is share. Darker is more common. An empty cube side is dashed.',
       },
     ],
   },
@@ -107,7 +107,7 @@ const STAGES = [
     nodes: [
       {
         name: 'Ollama, then API, then fallback',
-        detail: 'About 60 short prompts (10 × 6), never one per post. Heuristic titles from top terms if no model is available.',
+        detail: 'One short prompt per planet and per face, never one per post. If no model answers, the summary is a sentence from a shown post.',
       },
     ],
   },
@@ -139,8 +139,8 @@ export function TechnicalMapGraphic() {
       >
         <title id="tech-map-title">Detailed path from Bluesky through the daily job to the static observatory</title>
         <desc id="tech-map-desc">
-          Bluesky search feeds a GitHub Actions job that cleans posts, clusters ten planets
-          and two to six faces, labels them, and writes data.json. GitHub Pages serves a
+          Bluesky search feeds a GitHub Actions job that cleans posts, clusters up to ten planets
+          and one to six faces, labels them, and writes data.json. GitHub Pages serves a
           React and Three.js observatory that only fetches that file.
         </desc>
         <text x="160" y="22" textAnchor="middle" fill="#f4c14e" fontSize="11" letterSpacing="2" fontFamily="Instrument Sans, Segoe UI, sans-serif">OUTSIDE THE BROWSER</text>
@@ -163,7 +163,7 @@ export function TechnicalMapGraphic() {
 
         <rect x="18" y="206" width="136" height="70" rx="14" fill="#10131c" stroke="rgba(47,210,168,0.45)" />
         <text x="86" y="234" textAnchor="middle" fill="#efeef7" fontSize="13" fontFamily="Instrument Sans, Segoe UI, sans-serif">Clean + cluster</text>
-        <text x="86" y="254" textAnchor="middle" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">TF-IDF · k-means</text>
+        <text x="86" y="254" textAnchor="middle" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">MiniLM embeddings</text>
 
         <rect x="166" y="206" width="136" height="70" rx="14" fill="#10131c" stroke="rgba(199,125,255,0.5)" />
         <text x="234" y="234" textAnchor="middle" fill="#efeef7" fontSize="13" fontFamily="Instrument Sans, Segoe UI, sans-serif">Label faces</text>
@@ -177,7 +177,7 @@ export function TechnicalMapGraphic() {
 
         <rect x="18" y="314" width="284" height="58" rx="14" fill="rgba(244,193,78,0.08)" stroke="rgba(244,193,78,0.55)" />
         <text x="160" y="338" textAnchor="middle" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">public/data.json</text>
-        <text x="160" y="358" textAnchor="middle" fill="#f4e2b0" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">10 planets · 2–6 faces · example posts</text>
+        <text x="160" y="358" textAnchor="middle" fill="#f4e2b0" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">≤10 planets · 1–6 faces · example posts</text>
 
         <path d="M160 372 v20" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
         <path d="M154 386 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />

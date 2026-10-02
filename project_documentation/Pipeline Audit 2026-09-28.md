@@ -1,6 +1,6 @@
 # Pipeline audit — 2026-09-28
 
-Honest assessment of what shipped versus what is still synthetic, written so a later pass does not have to rediscover it. The living sequence is [ROADMAP.md](../ROADMAP.md). This note is the snapshot of the codebase *before* the live-corpus conversion; the conversion itself is the next commit on this branch.
+Historical. The live window, MiniLM daily job, and 10,000-claim target are described in [pipeline/README.md](../pipeline/README.md) and [ROADMAP.md](../ROADMAP.md). This note is the snapshot of the codebase *before* the live-corpus conversion.
 
 ## Verdict
 
