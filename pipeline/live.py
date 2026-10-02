@@ -286,7 +286,15 @@ def _build_topics(
                 representatives = select_representatives(on_claim, [0.0] * len(on_claim), limit=limit)
             focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
             representatives = _align_representatives(representatives, focus)
-            if len(representatives) < 3 or not _posts_share_a_subject(representatives):
+            summary = str(label.get("summary") or "")
+            if content_tokens(title) and not _claim_words_overlap(title, summary):
+                label = {
+                    "title": "Mixed remarks",
+                    "summary": "These posts do not share a claim.",
+                    "label_source": "heuristic",
+                }
+                arguments = []
+            elif len(representatives) < 3 or not _posts_share_a_subject(representatives):
                 label = {
                     "title": "Mixed remarks",
                     "summary": "These posts do not share a claim.",
@@ -404,6 +412,13 @@ def _name_misses_face(name: str, face: dict) -> bool:
         ]
     )
     return any(not shares_claim_word(token, text) for token in tokens)
+
+
+def _claim_words_overlap(left: str, right: str) -> bool:
+    """True when a title and a summary are about the same words."""
+    left_stems = {subject_stem(token) for token in content_tokens(left)}
+    right_stems = {subject_stem(token) for token in content_tokens(right)}
+    return bool(left_stems & right_stems)
 
 
 def _word_bags_overlap(left: set[str], right: set[str]) -> bool:

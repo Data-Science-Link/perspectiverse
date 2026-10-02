@@ -55,6 +55,20 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(topic["name"] for topic in payload["topics"])
 
 
+def test_title_and_summary_must_share_a_claim_word():
+    from pipeline.live import _claim_words_overlap
+
+    assert _claim_words_overlap("Death Penalty", "The death penalty is barbaric.")
+    assert _claim_words_overlap("Botched Execution", "The state is inept at legal executions.")
+    assert _claim_words_overlap("Rape Culture", "Trump sympathizes with rapists.")
+    assert _claim_words_overlap("Artists Reject AI", "AI harms artists and creatives.")
+    assert not _claim_words_overlap(
+        "Grooming Help",
+        "Online discussions prioritize outrage over serious issues.",
+    )
+    assert not _claim_words_overlap("Rape Culture", "Men are the problem.")
+
+
 def test_drop_planet_that_admits_no_shared_claim():
     from pipeline.live import _drop_unshared_planets, _renumber_planets
 
