@@ -166,5 +166,5 @@ export function cubeSpikeFaces(count) {
 }
 
 export function faceHeight(volumePercent) {
-  return 0.22 + (Number(volumePercent) / 100) * 1.2
+  return 0.46 + (Number(volumePercent) / 100) * 0.9
 }

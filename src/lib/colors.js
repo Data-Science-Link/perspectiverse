@@ -54,7 +54,7 @@ export function mixHex(hex, other, amount = 0.5) {
 }
 
 const MAJORITY_SHADE = 0.32
-const MINORITY_LIGHTEN = 0.62
+const MINORITY_LIGHTEN = 0.46
 
 export function faceShade(hex, rank, count) {
   const pigment = hex || '#9aa3b5'
@@ -69,6 +69,12 @@ export function faceShade(hex, rank, count) {
   const span = faces - 1 - middle
   const towardLight = span === 0 ? 1 : (index - middle) / span
   return mixHex(pigment, '#ffffff', MINORITY_LIGHTEN * towardLight)
+}
+
+export function spikeCaption(title) {
+  const words = String(title || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean)
+  if (!words.length) return 'View'
+  return words.slice(0, 2).join(' ')
 }
 
 export function rankPerspectives(perspectives = []) {

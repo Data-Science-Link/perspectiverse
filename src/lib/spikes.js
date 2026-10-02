@@ -107,6 +107,8 @@ export function buildPencilSpike(verts, centroid, normal, height, { rings, segsP
     }
   }
 
+  const baseIndex = positions.length / 3
+  positions.push(centroid.x, centroid.y, centroid.z)
   _apex.copy(centroid).addScaledVector(normal, height)
   const apexIndex = positions.length / 3
   positions.push(_apex.x, _apex.y, _apex.z)
@@ -126,6 +128,12 @@ export function buildPencilSpike(verts, centroid, normal, height, { rings, segsP
     const a = last + i
     const b = last + ((i + 1) % radial)
     indices.push(a, b, apexIndex)
+  }
+  // Close the base so the spike is a solid, not a hollow shell you can see through.
+  for (let i = 0; i < radial; i += 1) {
+    const a = i
+    const b = (i + 1) % radial
+    indices.push(baseIndex, b, a)
   }
 
   return geometryFromIndexed(positions, indices)
@@ -217,6 +225,11 @@ export function buildCrystal(perspectives, { quality = 'high', pigment = '#f4c14
       color: faceShade(pigment, index, ranked.length),
       opacity: 1,
       direction: [normal.x, normal.y, normal.z],
+      labelAt: [
+        liftedCentroid.x + normal.x * (height + 0.16),
+        liftedCentroid.y + normal.y * (height + 0.16),
+        liftedCentroid.z + normal.z * (height + 0.16),
+      ],
       extrusion: buildPencilSpike(lifted, liftedCentroid, normal, height, detail),
       pick: geometryFromTriangles(pick),
     }

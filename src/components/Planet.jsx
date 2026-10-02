@@ -86,9 +86,8 @@ export default function Planet({
       return
     }
 
-    if (drag.current) return
-    const rate = selected ? spin.speed * 0.32 : spin.speed
-    cube.current.rotateOnAxis(spinAxis, delta * rate)
+    if (drag.current || selected) return
+    cube.current.rotateOnAxis(spinAxis, delta * spin.speed)
   })
 
   const startDrag = (event) => {
@@ -194,6 +193,7 @@ export default function Planet({
             selectedPerspectiveId={selectedPerspectiveId}
             dimmed={dimmed}
             showSpikes={selected}
+            showLabels={selected}
             quality={quality}
             sphereDetail={sphereDetail}
             onSelectPerspective={(perspectiveId) => {

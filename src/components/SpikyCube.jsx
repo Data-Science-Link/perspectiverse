@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { AdditiveBlending, DoubleSide } from 'three'
-import { shadeHex } from '../lib/colors'
+import { AdditiveBlending, DoubleSide, EdgesGeometry, Vector3 } from 'three'
+import { shadeHex, spikeCaption } from '../lib/colors'
 import { CORE_RADIUS } from '../lib/faces'
 import { createBodyTexture, createRingTexture } from '../lib/planetTextures'
 import { buildCrystal } from '../lib/spikes'
+
+const _faceDir = new Vector3()
+const _faceOrigin = new Vector3()
+const _toCamera = new Vector3()
 
 function SaturnRings({ meshRef, quality = 'high' }) {
   const texture = useMemo(() => createRingTexture(quality), [quality])
@@ -62,6 +67,7 @@ export default function SpikyCube({
   showSpikes = true,
   onSelectPerspective,
   interactive = true,
+  showLabels = false,
   quality = 'high',
   sphereDetail = [48, 36],
 }) {
@@ -73,6 +79,7 @@ export default function SpikyCube({
   const ringMesh = useRef()
   const corona = useRef()
   const [crystalReady, setCrystalReady] = useState(showSpikes)
+  const [facing, setFacing] = useState([])
   const pigment = body?.color ?? coreColor
   const isSun = body?.key === 'sun'
   const color = pigment
@@ -105,7 +112,7 @@ export default function SpikyCube({
     }
   }, [crystalGeo])
 
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     const target = showSpikes && !dimmed ? 1 : 0
     reveal.current += (target - reveal.current) * Math.min(1, delta * 5.2)
     const amount = reveal.current
@@ -132,9 +139,38 @@ export default function SpikyCube({
     if (corona.current) {
       corona.current.visible = isSun && !dimmed && amount < 0.85
     }
+    if (!showLabels || !crystal.current || !crystalGeo) return
+    crystal.current.updateWorldMatrix(true, false)
+    const dots = crystalGeo.faces.map((face) => {
+      _faceDir.set(face.direction[0], face.direction[1], face.direction[2])
+      _faceDir.transformDirection(crystal.current.matrixWorld)
+      _faceOrigin.set(face.labelAt[0], face.labelAt[1], face.labelAt[2])
+      _faceOrigin.applyMatrix4(crystal.current.matrixWorld)
+      _toCamera.copy(camera.position).sub(_faceOrigin).normalize()
+      return _faceDir.dot(_toCamera)
+    })
+    const ranked = dots
+      .map((dot, index) => ({ dot, index }))
+      .sort((a, b) => b.dot - a.dot)
+    const shown = new Set(
+      ranked.filter((item) => item.dot > 0.05).slice(0, 3).map((item) => item.index),
+    )
+    if (!shown.size && ranked.length) shown.add(ranked[0].index)
+    const next = dots.map((_, index) => shown.has(index))
+    setFacing((previous) => (
+      previous.length === next.length && previous.every((value, index) => value === next[index])
+        ? previous
+        : next
+    ))
   })
 
   const faces = crystalGeo?.faces ?? []
+  const coreEdges = useMemo(() => {
+    const count = crystalGeo?.core?.getAttribute('position')?.count ?? 0
+    if (!count) return null
+    return new EdgesGeometry(crystalGeo.core, 25)
+  }, [crystalGeo])
+  useEffect(() => () => coreEdges?.dispose(), [coreEdges])
 
   return (
     <group>
@@ -177,13 +213,18 @@ export default function SpikyCube({
       )}
       {crystalGeo && (
         <group ref={crystal}>
+          {coreEdges && (
+            <lineSegments geometry={coreEdges} raycast={() => null}>
+              <lineBasicMaterial color={shadeHex(pigment, 0.32)} />
+            </lineSegments>
+          )}
           <mesh geometry={crystalGeo.core} raycast={() => null}>
             <meshStandardMaterial
-              color={shadeHex(pigment, 0.42)}
+              color={shadeHex(pigment, 0.55)}
               emissive={pigment}
-              emissiveIntensity={0.18}
-              roughness={0.4}
-              metalness={0.16}
+              emissiveIntensity={0.06}
+              roughness={0.48}
+              metalness={0.18}
             />
           </mesh>
           {(crystalGeo.empty ?? []).map((face, index) => (
@@ -191,9 +232,8 @@ export default function SpikyCube({
               <mesh geometry={face.fill} raycast={() => null}>
                 <meshStandardMaterial
                   color={pigment}
-                  roughness={0.62}
-                  metalness={0.04}
-                  side={DoubleSide}
+                  roughness={0.55}
+                  metalness={0.06}
                 />
               </mesh>
               <lineSegments geometry={face.dashes} raycast={() => null}>
@@ -201,7 +241,7 @@ export default function SpikyCube({
               </lineSegments>
             </group>
           ))}
-          {faces.map((face) => {
+          {faces.map((face, index) => {
             const selected = selectedPerspectiveId === face.id
             return (
               <group key={face.id} scale={selected ? 1.05 : 1}>
@@ -231,16 +271,25 @@ export default function SpikyCube({
                   <meshStandardMaterial
                     color={face.color}
                     emissive={face.color}
-                    emissiveIntensity={selected ? 0.85 : 0.05}
-                    roughness={0.34}
-                    metalness={0.06}
-                    side={DoubleSide}
-                    toneMapped={false}
-                    polygonOffset
-                    polygonOffsetFactor={-1}
-                    polygonOffsetUnits={-1}
+                    emissiveIntensity={selected ? 0.12 : 0}
+                    roughness={0.46}
+                    metalness={0.08}
                   />
                 </mesh>
+                {showLabels && !dimmed && facing[index] && (
+                  <Html
+                    position={face.labelAt}
+                    center
+                    distanceFactor={5.4}
+                    zIndexRange={[24, 0]}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    <div className={`spike-label ${selected ? 'is-selected' : ''}`} style={{ borderColor: face.color }}>
+                      <strong>{`${Math.round(Number(face.volume_percent) || 0)}%`}</strong>
+                      <em>{spikeCaption(face.title)}</em>
+                    </div>
+                  </Html>
+                )}
               </group>
             )
           })}

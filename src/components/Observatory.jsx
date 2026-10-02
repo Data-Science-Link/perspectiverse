@@ -162,7 +162,7 @@ function Universe({
         volumeMax={volumeMax}
         layoutExtent={layout.extent}
       />
-      {settings.bloom && (
+      {settings.bloom && !inspecting && (
         <EffectComposer disableNormalPass>
           <Bloom intensity={0.32} luminanceThreshold={0.42} luminanceSmoothing={0.45} mipmapBlur />
         </EffectComposer>
