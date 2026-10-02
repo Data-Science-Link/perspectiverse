@@ -1,19 +1,22 @@
 """Group posts into a saved topic catalog.
 
-`embedding` is the live default: a local MiniLM model, then k-means only while
-the split actually separates. `lexical` is TF-IDF for tests. `bertopic` is
-optional. Clusters below `min_cluster_size` are Topic -1. `catalog_size` is a
-ceiling. A week with fewer coherent planets stays smaller instead of being
-split until it fills ten orbits.
+`embedding` is the live default: a local MiniLM model, then many tight groups.
+Loose posts stay unlabeled. `catalog_size` keeps only the largest of those
+groups, so a week is not poured into ten planets and a small week is not
+split until it fills ten orbits. `lexical` is TF-IDF for tests. `bertopic` is
+optional. Clusters below `min_cluster_size` are Topic -1.
 """
 
 from __future__ import annotations
 
 from pipeline.schema import SYSTEM_SIZE
-from pipeline.cluster_math import cluster_inertia, cluster_kmeans, salient_terms, vectorize
+from pipeline.cluster_math import cluster_kmeans, salient_terms, vectorize
 
-# A new cluster has to explain at least this fraction of the remaining scatter.
-_SEPARATION_GAIN = 0.15
+# MiniLM cosine on mixed posts sits near 0.1. A member has to sit much closer
+# than that to its centroid, or it is left out instead of watering the group down.
+_MEMBER_COSINE = 0.50
+# Fragments of one subject land above this. Different subjects do not.
+_MERGE_COSINE = 0.72
 
 
 def cluster_texts(
@@ -37,6 +40,7 @@ def cluster_texts(
             seed=seed,
             embed=embed,
             embedding_model=embedding_model,
+            min_cluster_size=min_cluster_size,
         )
     else:
         raise ValueError(f"Unknown cluster_backend {cluster_backend}")
@@ -60,13 +64,14 @@ def _embedding_labels(
     seed: int,
     embed,
     embedding_model: str,
+    min_cluster_size: int,
 ) -> tuple[list[int], dict[int, list[str]]]:
     if embed is None:
         from pipeline.embed import embed_minilm
 
         embed = lambda batch: embed_minilm(batch, model_name=embedding_model)  # noqa: E731
     matrix = _l2_normalize(embed(texts))
-    labels = _labels_by_separation(matrix, max_clusters=min(20, matrix.shape[0]), seed=seed)
+    labels = _labels_by_cohesion(matrix, seed=seed, min_cluster_size=min_cluster_size)
     return labels, {}
 
 
@@ -81,28 +86,90 @@ def _l2_normalize(matrix) -> "np.ndarray":
     return values / norms
 
 
-def _labels_by_separation(matrix, *, max_clusters: int, seed: int) -> list[int]:
-    """Add a cluster only while it still separates the posts."""
+def _labels_by_cohesion(matrix, *, seed: int, min_cluster_size: int) -> list[int]:
+    """Return many tight groups. Posts that do not fit one stay at -1.
+
+    The k-means count is one slot per minimum planet, so a long week can
+    yield 100 or more groups. That search does not stop at ten, and it does
+    not hand every post to a planet. The caller keeps the largest groups.
+    """
     import numpy as np
 
     count = int(matrix.shape[0])
     if count == 0:
         return []
-    labels = np.zeros(count, dtype=int)
-    prev = cluster_inertia(matrix, labels)
-    chosen = labels
-    upper = max(1, min(max_clusters, count))
-    for k in range(2, upper + 1):
-        if prev <= 1e-4:
-            break
-        trial, _centers = cluster_kmeans(matrix, k, seed=seed)
-        inertia = cluster_inertia(matrix, trial)
-        gain = (prev - inertia) / prev
-        if gain < _SEPARATION_GAIN:
-            break
-        chosen = trial
-        prev = inertia
-    return [int(label) for label in chosen]
+    if count < 2:
+        return [0] * count
+    slot = max(int(min_cluster_size), 1)
+    # One candidate group per minimum planet. A long week can exceed 100.
+    # catalog_size later keeps the largest. There is no cap at 10 here.
+    k = min(count, max(2, count // slot))
+    labels, _centers = cluster_kmeans(matrix, k, seed=seed)
+    labels = np.asarray(labels, dtype=int).copy()
+    _peel_loose(matrix, labels)
+    _merge_near_centroids(matrix, labels)
+    _peel_loose(matrix, labels)
+    return [int(label) for label in labels]
+
+
+def _peel_loose(matrix, labels) -> None:
+    """Drop members that are not close to their own centroid. In place."""
+    import numpy as np
+
+    for label in sorted({int(item) for item in labels if int(item) >= 0}):
+        members = np.flatnonzero(labels == label)
+        if members.size == 0:
+            continue
+        center = matrix[members].mean(axis=0)
+        norm = float(np.linalg.norm(center))
+        if norm == 0.0:
+            labels[members] = -1
+            continue
+        cosine = matrix[members] @ (center / norm)
+        labels[members[cosine < _MEMBER_COSINE]] = -1
+
+
+def _merge_near_centroids(matrix, labels) -> None:
+    """Fold split pieces of one subject back together. Dissimilar groups stay apart."""
+    import numpy as np
+
+    def snapshot():
+        found: dict[int, np.ndarray] = {}
+        centers: dict[int, np.ndarray] = {}
+        for label in sorted({int(item) for item in labels if int(item) >= 0}):
+            members = np.flatnonzero(labels == label)
+            if members.size == 0:
+                continue
+            center = matrix[members].mean(axis=0)
+            norm = float(np.linalg.norm(center))
+            if norm == 0.0:
+                labels[members] = -1
+                continue
+            found[label] = members
+            centers[label] = center / norm
+        return found, centers
+
+    while True:
+        members, centers = snapshot()
+        labels_now = list(members)
+        best = None
+        for index, left in enumerate(labels_now):
+            for right in labels_now[index + 1 :]:
+                similarity = float(centers[left] @ centers[right])
+                if similarity < _MERGE_COSINE:
+                    continue
+                low, high = (left, right) if left < right else (right, left)
+                key = (similarity, -low, -high)
+                if best is None or key > best[0]:
+                    best = (key, left, right)
+        if best is None:
+            return
+        _key, left, right = best
+        if members[right].size > members[left].size or (
+            members[right].size == members[left].size and right < left
+        ):
+            left, right = right, left
+        labels[members[right]] = left
 
 
 def _bertopic_labels(

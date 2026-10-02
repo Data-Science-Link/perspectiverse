@@ -11,7 +11,8 @@ min_cluster_size: 8
 
 # embedding: local MiniLM via fastembed, no torch. lexical: TF-IDF for tests.
 # bertopic: all-MiniLM-L6-v2 when that extra stack is installed.
-# catalog_size is a ceiling. A week is not split until it has 10 planets.
+# catalog_size is how many of the tight groups to publish, largest first.
+# Clustering may find many more. The rest stay out of the planets.
 cluster_backend: embedding
 embedding_model: all-MiniLM-L6-v2
 

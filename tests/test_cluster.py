@@ -90,6 +90,64 @@ def test_lexical_cluster_does_not_mint_a_tenth_planet():
     assert all(topic["size"] >= 6 for topic in clustered["topics"])
 
 
+def test_embedding_publishes_the_largest_tight_groups_and_leaves_the_rest():
+    import numpy as np
+
+    def embed(texts):
+        rows = []
+        for text in texts:
+            if text.startswith("topic"):
+                axis = int(text.split()[1])
+                row = np.zeros(32)
+                row[axis] = 1.0
+            else:
+                axis = 16 + int(text.split()[1])
+                row = np.zeros(32)
+                row[axis] = 1.0
+            rows.append(row)
+        return np.asarray(rows, dtype=float)
+
+    texts = [f"topic {topic} words {copy}" for topic in range(12) for copy in range(10)]
+    texts += [f"loose {index} words" for index in range(15)]
+    clustered = cluster_texts(
+        texts,
+        min_cluster_size=8,
+        cluster_backend="embedding",
+        seed=0,
+        catalog_size=10,
+        embed=embed,
+    )
+    assert len(clustered["topics"]) == 10
+    assert clustered["noise_count"] == 35
+    for topic in clustered["topics"]:
+        axes = {int(texts[index].split()[1]) for index in topic["member_indices"]}
+        assert axes == {int(texts[topic["member_indices"][0]].split()[1])}
+        assert all(texts[index].startswith("topic") for index in topic["member_indices"])
+
+
+def test_embedding_does_not_publish_a_loose_cloud():
+    import numpy as np
+
+    def embed(texts):
+        rows = []
+        for index, _text in enumerate(texts):
+            row = np.zeros(len(texts))
+            row[index] = 1.0
+            rows.append(row)
+        return np.asarray(rows, dtype=float)
+
+    texts = [f"unrelated post number {index} about nothing shared" for index in range(40)]
+    with pytest.raises(RuntimeError, match="No cluster met min size"):
+        cluster_texts(
+            texts,
+            min_cluster_size=8,
+            cluster_backend="embedding",
+            seed=0,
+            catalog_size=10,
+            embed=embed,
+        )
+
+
 def test_embedding_backend_keeps_three_separated_groups():
     import numpy as np
 

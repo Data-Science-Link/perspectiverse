@@ -54,7 +54,7 @@ Re-running BERTopic reads this SQLite file. It does not fetch days that are alre
 
 ## Clustering
 
-`cluster_backend: embedding` (default) uses a local MiniLM model through fastembed (ONNX, no torch) and adds a cluster only while the posts still separate. The daily job installs fastembed. `catalog_size` is a ceiling: a week with six coherent planets stays at six.
+`cluster_backend: embedding` (default) uses a local MiniLM model through fastembed (ONNX, no torch). It looks for many tight groups — a long week can have 100 or more — and leaves posts that are not close to a group unlabeled. `catalog_size` then keeps the largest of those groups (10 by default). It does not assign every post to a planet, and it does not split a week until ten orbits are full. The daily job installs fastembed.
 
 `cluster_backend: lexical` uses numpy TF-IDF and k-means. Pytest uses this path and does not download a model.
 
