@@ -607,9 +607,22 @@ _VERB_STEMS = frozenset(
 )
 
 
+_TOPIC_GLUE = frozenset(
+    {
+        "christian",
+        "church",
+        "religion",
+        "religious",
+        "religiou",
+        "catholic",
+        "faith",
+    }
+)
+
+
 def _face_subject_words(face: dict) -> set[str]:
     glue = _post_word_glue() | _PERSON_GLUE
-    posts = face.get("representative_posts") or []
+    posts = face.get("subject_posts") or face.get("representative_posts") or []
     text = " ".join(str(post.get("text") or "") for post in posts[:6])
     stems = set()
     for token in content_tokens(text):
@@ -632,8 +645,12 @@ def _shared_post_words(faces: list[dict]) -> set[str]:
 
 
 def specific_shared_words(faces: list[dict]) -> set[str]:
-    """Subject words the faces' posts share, ignoring a politician's name alone."""
-    return {word for word in _shared_post_words(faces) if word not in _PERSON_GLUE}
+    """Subject words the faces' posts share, ignoring a bare politician or creed."""
+    return {
+        word
+        for word in _shared_post_words(faces)
+        if word not in _PERSON_GLUE and word not in _TOPIC_GLUE and word not in _VERB_STEMS
+    }
 
 
 def faces_share_vocabulary(faces: list[dict]) -> bool:
