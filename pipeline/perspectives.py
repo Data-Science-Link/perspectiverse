@@ -9,10 +9,12 @@ to 100.
 
 from __future__ import annotations
 
-from pipeline.cluster_math import cluster_kmeans, distances_to_centers, salient_terms, vectorize
+from pipeline.cluster_math import cluster_inertia, cluster_kmeans, distances_to_centers, salient_terms, vectorize
 from pipeline.schema import MAX_FACES, MIN_FACES
 
-MIN_FACE_SHARE = 0.08
+MIN_FACE_SHARE = 0.12
+# Another face has to explain at least this much of the remaining scatter.
+_FACE_GAIN = 0.12
 
 
 def choose_n_faces(
@@ -28,20 +30,22 @@ def choose_n_faces(
         raise ValueError(f"Need at least {min_faces} posts to cut faces, found {count}")
     upper = min(max_faces, count)
     matrix = vectorize(texts)
+    # The cube needs two faces. Further cuts have to be a real split.
     best_k = min_faces
-    best_score = float("-inf")
-    for k in range(min_faces, upper + 1):
-        labels, centers = cluster_kmeans(matrix, k, seed=seed)
-        sizes = [int(sum(1 for label in labels if int(label) == index)) for index in range(k)]
-        if min(sizes) < 1:
-            continue
-        distances = distances_to_centers(matrix, labels, centers)
-        compactness = 1.0 / (1.0 + sum(distances) / max(len(distances), 1))
-        tiny = sum(1 for size in sizes if size / count < MIN_FACE_SHARE)
-        score = compactness + 0.08 * k - 0.45 * tiny
-        if score > best_score:
-            best_score = score
-            best_k = k
+    labels, _centers = cluster_kmeans(matrix, min_faces, seed=seed)
+    prev = cluster_inertia(matrix, labels)
+    for k in range(min_faces + 1, upper + 1):
+        if prev <= 1e-4:
+            break
+        trial, _centers = cluster_kmeans(matrix, k, seed=seed)
+        sizes = [int(sum(1 for label in trial if int(label) == index)) for index in range(k)]
+        if min(sizes) / count < MIN_FACE_SHARE:
+            break
+        inertia = cluster_inertia(matrix, trial)
+        if (prev - inertia) / prev < _FACE_GAIN:
+            break
+        best_k = k
+        prev = inertia
     return best_k
 
 

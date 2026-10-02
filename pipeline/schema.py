@@ -228,8 +228,11 @@ def validate_payload(payload: dict[str, Any]) -> None:
         raise ValueError("last_updated is required")
 
     topics = payload.get("topics") or []
-    if len(topics) < SYSTEM_SIZE:
-        raise ValueError(f"Expected at least {SYSTEM_SIZE} topics, found {len(topics)}")
+    # Live weeks publish only the planets that actually separated. The demo
+    # catalog still fills every orbit.
+    minimum_topics = 1 if payload.get("mode") == "live" else SYSTEM_SIZE
+    if len(topics) < minimum_topics:
+        raise ValueError(f"Expected at least {minimum_topics} topics, found {len(topics)}")
 
     topic_volume = 0.0
     seen_topic_ids: set[int] = set()

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import Callable
 
 from pipeline.http_json import read_json
@@ -26,12 +27,15 @@ def build_prompt(posts: list[dict]) -> str:
 def build_perspective_prompt(posts: list[dict]) -> str:
     body = _post_lines(posts)
     return (
-        "Label one perspective cluster from public social posts.\n"
+        "These posts are meant to be one perspective. Name that view.\n"
         "Return JSON only, with no markdown: "
         '{"title": "2-3 words", "summary": "one sentence", '
         '"arguments": ["steelman 1", "steelman 2", "steelman 3"]}\n'
         "The title is 2 to 3 words. The summary is one sentence. "
-        "Give 2 to 4 short steelman arguments in that view's own voice.\n"
+        "Each argument must paraphrase one of the posts below, in that view's own voice. "
+        "Do not add a fact, number, or proper noun that is not in those posts. "
+        "If the posts do not share a subject, use title \"Mixed remarks\", say so in the summary, "
+        "and return an empty arguments list.\n"
         f"Posts:\n{body}\n"
     )
 
@@ -44,6 +48,7 @@ def build_topic_prompt(posts: list[dict], terms: list[str]) -> str:
         "Return JSON only, with no markdown: "
         '{"name": "2-4 words", "summary": "one sentence"}\n'
         "The name should sound like a newsbeat or civic issue, not a keyword dump. "
+        "Use only entities that appear in the posts or the salient terms. "
         f"Salient terms: {shown}.\n"
         f"Posts:\n{body}\n"
     )
@@ -200,6 +205,211 @@ def heuristic_arguments(posts: list[dict], terms: list[str] | None = None) -> li
     return arguments[:4]
 
 
+def content_tokens(text: str) -> set[str]:
+    """Words long enough to show that a sentence is about the same post."""
+    return {token for token in _TOKEN.findall(text.lower()) if len(token) >= 4 and token not in _GROUND_STOP}
+
+
+def unique_label(name: str, seen: set[str]) -> str:
+    """Keep planet and face titles distinct inside one snapshot."""
+    base = " ".join((name or "").split()) or "Untitled"
+    candidate = base
+    number = 2
+    while candidate.lower() in seen:
+        candidate = f"{base} {number}"
+        number += 1
+    seen.add(candidate.lower())
+    return candidate
+
+
+def invented_entities(text: str, source: str, *, title: bool = False) -> list[str]:
+    """Names, acronyms, and numbers the posts never said.
+
+    A title is title case, so ordinary words there are not treated as entities.
+    Inside a sentence, a capitalized word that is not the first word is.
+    """
+    lexicon = set(_TOKEN.findall((source or "").lower()))
+    found: list[str] = []
+    source_numbers = set(_NUMBER.findall(source or ""))
+    for number in _NUMBER.findall(text or ""):
+        if number not in source_numbers:
+            found.append(number)
+    for match in _CAMEL.findall(text or ""):
+        if match.lower() not in lexicon:
+            found.append(match)
+    for match in _ACRONYM.findall(text or ""):
+        if match.lower() not in lexicon:
+            found.append(match)
+    if title:
+        return found
+    words = re.findall(r"[A-Za-z][A-Za-z'’-]*", text or "")
+    for index, word in enumerate(words):
+        if index == 0 or word.lower() in lexicon or word.lower() in _TITLE_WORDS:
+            continue
+        if re.fullmatch(r"[A-Z][a-z]{2,}", word):
+            found.append(word)
+    return found
+
+
+def ground_perspective(labeled: dict, posts: list[dict], terms: list[str]) -> dict:
+    """Drop steelmans that invent a fact or do not paraphrase a shown post."""
+    source = _source_text(posts, terms)
+    titled = dict(labeled)
+    if invented_entities(str(titled.get("title") or ""), source, title=True):
+        fallback = heuristic_label(terms, posts)
+        titled["title"] = fallback["title"]
+        titled["label_source"] = "heuristic"
+    if invented_entities(str(titled.get("summary") or ""), source):
+        titled["summary"] = heuristic_label(terms, posts)["summary"]
+        titled["label_source"] = "heuristic"
+    arguments = _grounded_arguments(titled.get("arguments") or [], posts, source)
+    if len(arguments) < 2:
+        for extra in heuristic_arguments(posts):
+            if extra in arguments:
+                continue
+            arguments.extend(_grounded_arguments([extra], posts, source))
+            if len(arguments) >= 2:
+                break
+    if len(arguments) >= 2:
+        titled["arguments"] = arguments[:6]
+    else:
+        titled.pop("arguments", None)
+    return titled
+
+
+def ground_topic(labeled: dict, posts: list[dict], terms: list[str]) -> dict:
+    """Reject a planet name that names something the posts do not mention."""
+    source = _source_text(posts, terms)
+    titled = dict(labeled)
+    name = str(titled.get("name") or titled.get("title") or "").strip()
+    if not name or invented_entities(name, source, title=True):
+        name = heuristic_topic_label(terms, posts)["name"]
+        titled["label_source"] = "heuristic"
+    titled["name"] = name
+    titled["title"] = name
+    if invented_entities(str(titled.get("summary") or ""), source):
+        titled["summary"] = heuristic_topic_label(terms, posts)["summary"]
+        titled["label_source"] = "heuristic"
+    return titled
+
+
+def _grounded_arguments(items: list, posts: list[dict], source: str) -> list[str]:
+    kept: list[str] = []
+    for item in items:
+        text = str(item).strip()
+        if not text or invented_entities(text, source) or not _paraphrases(text, posts):
+            continue
+        kept.append(text)
+    return kept
+
+
+def _source_text(posts: list[dict], terms: list[str]) -> str:
+    parts = [str(term) for term in terms]
+    for post in posts:
+        parts.append(str(post.get("text") or ""))
+        parts.append(str(post.get("clean_text") or ""))
+    return " ".join(parts)
+
+
+def _paraphrases(argument: str, posts: list[dict]) -> bool:
+    argument_tokens = content_tokens(argument)
+    if len(argument_tokens) < 2:
+        return False
+    for post in posts:
+        post_tokens = content_tokens(str(post.get("text") or post.get("clean_text") or ""))
+        if len(argument_tokens & post_tokens) >= 2:
+            return True
+    return False
+
+
+_TOKEN = re.compile(r"[a-z0-9]+")
+_NUMBER = re.compile(r"\b\d[\d,]*(?:\.\d+)?%?\b")
+_ACRONYM = re.compile(r"\b[A-Z]{2,}\b")
+_CAMEL = re.compile(r"\b[A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*\b")
+_TITLE_WORDS = frozenset(
+    {
+        "the",
+        "this",
+        "that",
+        "some",
+        "many",
+        "people",
+        "posts",
+        "public",
+        "social",
+        "media",
+        "when",
+        "what",
+        "with",
+        "from",
+        "they",
+        "their",
+        "there",
+        "these",
+        "those",
+        "other",
+        "about",
+        "after",
+        "before",
+        "because",
+        "would",
+        "could",
+        "should",
+        "still",
+        "just",
+        "more",
+        "most",
+        "also",
+        "only",
+        "into",
+        "over",
+        "under",
+        "such",
+        "than",
+        "then",
+        "them",
+        "been",
+        "have",
+        "were",
+        "will",
+        "your",
+        "here",
+        "even",
+        "very",
+        "really",
+        "today",
+        "world",
+        "news",
+        "mixed",
+        "remarks",
+        "untitled",
+        "cluster",
+        "topic",
+    }
+)
+_GROUND_STOP = _TITLE_WORDS | frozenset(
+    {
+        "post",
+        "posts",
+        "face",
+        "concentrate",
+        "around",
+        "live",
+        "cluster",
+        "these",
+        "those",
+        "their",
+        "there",
+        "about",
+        "which",
+        "where",
+        "while",
+        "being",
+        "having",
+    }
+)
+
+
 def label_perspective(
     posts: list[dict],
     terms: list[str],
@@ -213,12 +423,12 @@ def label_perspective(
         labeled = _from_generator(generate, build_perspective_prompt(posts), terms, posts)
         if "arguments" not in labeled:
             labeled["arguments"] = heuristic_arguments(posts, terms)
-        return labeled
+        return ground_perspective(labeled, posts, terms)
 
     chosen = _resolve_backend(backend)
     if chosen == "heuristic":
-        return heuristic_label(terms, posts)
-    return _via_model(chosen, build_perspective_prompt(posts), terms, posts, model)
+        return ground_perspective(heuristic_label(terms, posts), posts, terms)
+    return ground_perspective(_via_model(chosen, build_perspective_prompt(posts), terms, posts, model), posts, terms)
 
 
 def label_topic(
@@ -234,15 +444,15 @@ def label_topic(
         labeled = _from_generator(generate, build_topic_prompt(posts, terms), terms, posts)
         if "name" not in labeled:
             labeled["name"] = labeled.get("title") or heuristic_topic_label(terms, posts)["name"]
-        return labeled
+        return ground_topic(labeled, posts, terms)
 
     chosen = _resolve_backend(backend)
     if chosen == "heuristic":
-        return heuristic_topic_label(terms, posts)
+        return ground_topic(heuristic_topic_label(terms, posts), posts, terms)
     labeled = _via_model(chosen, build_topic_prompt(posts, terms), terms, posts, model)
     if "name" not in labeled:
         labeled["name"] = labeled.get("title") or heuristic_topic_label(terms, posts)["name"]
-    return labeled
+    return ground_topic(labeled, posts, terms)
 
 
 def _resolve_backend(backend: str) -> str:

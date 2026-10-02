@@ -17,6 +17,37 @@ def test_prompt_demands_json_only():
     assert '{"title"' in prompt
     assert "JSON only" in prompt
     assert "arguments" in prompt
+    assert "paraphrase" in prompt
+
+
+def test_invented_entity_is_dropped_and_a_paraphrase_is_kept():
+    posts = [{"text": "The rent increase on my block is the whole story tonight.", "likes": 4}]
+    labeled = label_perspective(
+        posts,
+        ["rent"],
+        generate=lambda _prompt: json.dumps(
+            {
+                "title": "Rent Burden",
+                "summary": "People are talking about the rent increase.",
+                "arguments": [
+                    "The rent increase on the block is the whole story.",
+                    "OpenAI cancelled GPT-6.1 Astra yesterday.",
+                ],
+            }
+        ),
+    )
+    arguments = labeled.get("arguments") or []
+    assert arguments
+    assert all("Astra" not in item and "OpenAI" not in item and "6.1" not in item for item in arguments)
+    assert "rent increase" in arguments[0]
+
+
+def test_duplicate_titles_get_a_suffix():
+    from pipeline.label import unique_label
+
+    seen: set[str] = set()
+    assert unique_label("Anti Trump", seen) == "Anti Trump"
+    assert unique_label("Anti Trump", seen) == "Anti Trump 2"
 
 
 def test_parse_label_accepts_wrapped_json():

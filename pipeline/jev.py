@@ -20,6 +20,7 @@ SYSTEMONE_URL = "https://api.typesafe.ai/v1/systemone"
 MODELS_URL = "https://api.typesafe.ai/v1/models"
 DEFAULT_MODEL = "jev-latest"
 SPAM_THRESHOLD = 0.8
+CLAIM_THRESHOLD = 0.5
 _WORKERS = 8
 
 SECTION_CRITERIA = {
@@ -95,6 +96,8 @@ def apply_jev(posts: list[dict]) -> list[dict]:
         section = decision["section"] if decision["section"] in CATEGORIES else "Other"
         updated["section"] = section
         updated["section_confidence"] = decision["section_confidence"]
+        if decision.get("is_claim") is not None:
+            updated["is_claim"] = bool(decision["is_claim"])
         kept.append(updated)
     return kept
 
@@ -134,10 +137,17 @@ def _classify_post(post: dict) -> dict | None:
         confidence_value = float(confidence) if confidence is not None else float((section.get("probabilities") or {}).get(choice) or 0.0)
     except (TypeError, ValueError):
         confidence_value = 0.0
+    claim = answers.get("claim") or {}
+    try:
+        claim_noul = float(claim.get("noul"))
+        is_claim: bool | None = claim_noul >= CLAIM_THRESHOLD
+    except (TypeError, ValueError):
+        is_claim = None
     return {
         "spam_score": spam_score,
         "section": choice,
         "section_confidence": confidence_value,
+        "is_claim": is_claim,
         "model": str(payload.get("model") or ""),
     }
 
@@ -160,6 +170,16 @@ def _post_systemone(text: str) -> dict:
                     "type": "choice",
                     "instructions": "Which newspaper section is this post's primary subject?",
                     "criteria": SECTION_CRITERIA,
+                },
+                "claim": {
+                    "type": "noul",
+                    "instructions": (
+                        "Is this a public claim: a position on an event, policy, institution, or shared issue?"
+                    ),
+                    "criteria": {
+                        "true": "A position about an event, policy, institution, or public issue",
+                        "false": "Personal status, a joke, fandom aside, small talk, or promo",
+                    },
                 },
             },
         }

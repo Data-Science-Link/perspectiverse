@@ -22,7 +22,7 @@ DEFAULTS: dict[str, Any] = {
     "sample_size": TARGET_POSTS,
     "min_cluster_size": 8,
     "embedding_model": "all-MiniLM-L6-v2",
-    "cluster_backend": "lexical",
+    "cluster_backend": "embedding",
     "label_backend": "auto",
     "ollama_model": "llama3.2",
     "openai_model": "gpt-4o-mini",

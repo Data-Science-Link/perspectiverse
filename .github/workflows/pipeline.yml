@@ -42,10 +42,10 @@ jobs:
       - name: Install pipeline
         run: |
           uv venv
-          # Lexical clustering does not import BERTopic. Skip torch on the runner.
+          # MiniLM embeddings are ONNX (fastembed). Skip torch and BERTopic.
           # atproto is required for BLUESKY_HANDLE / BLUESKY_APP_PASSWORD search.
           uv pip install -e . --no-deps
-          uv pip install pyyaml "numpy>=1.24,<2" atproto
+          uv pip install pyyaml "numpy>=1.24,<2" atproto fastembed
 
       - name: Download corpus from R2
         id: r2

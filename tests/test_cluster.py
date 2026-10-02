@@ -72,7 +72,12 @@ def test_choose_n_faces_collapses_a_binary_topic():
     assert choose_n_faces(texts, seed=0) == 2
 
 
-def test_lexical_cluster_rebalances_an_uneven_live_sample():
+def test_choose_n_faces_does_not_slice_a_uniform_topic():
+    texts = [f"rent rent rent housing housing costs discussion {index}" for index in range(24)]
+    assert choose_n_faces(texts, seed=0) == 2
+
+
+def test_lexical_cluster_does_not_mint_a_tenth_planet():
     texts = []
     for topic in TOPICS[:9]:
         for copy in range(12):
@@ -81,11 +86,40 @@ def test_lexical_cluster_rebalances_an_uneven_live_sample():
         for copy in range(4):
             texts.append(f"{word} {word} {word} outlier {copy}")
     clustered = cluster_texts(texts, min_cluster_size=2, cluster_backend="lexical", seed=0)
-    assert len(clustered["topics"]) == 10
+    assert len(clustered["topics"]) == 9
     assert all(topic["size"] >= 6 for topic in clustered["topics"])
 
 
-def test_keep_top_rebalances_short_clusters_into_ten_planets():
+def test_embedding_backend_keeps_three_separated_groups():
+    import numpy as np
+
+    def embed(texts):
+        rows = []
+        for text in texts:
+            if "alpha" in text:
+                rows.append([1.0, 0.0, 0.0])
+            elif "beta" in text:
+                rows.append([0.0, 1.0, 0.0])
+            else:
+                rows.append([0.0, 0.0, 1.0])
+        return np.asarray(rows, dtype=float)
+
+    texts = [f"alpha topic words {index}" for index in range(12)]
+    texts += [f"beta topic words {index}" for index in range(12)]
+    texts += [f"gamma topic words {index}" for index in range(12)]
+    clustered = cluster_texts(
+        texts,
+        min_cluster_size=8,
+        cluster_backend="embedding",
+        seed=0,
+        catalog_size=10,
+        embed=embed,
+    )
+    assert len(clustered["topics"]) == 3
+    assert clustered["noise_count"] == 0
+
+
+def test_keep_top_does_not_split_large_clusters_to_fill_ten():
     texts = []
     labels = []
     for topic in range(9):
@@ -99,14 +133,14 @@ def test_keep_top_rebalances_short_clusters_into_ten_planets():
             labels.append(topic)
 
     clustered = _keep_top(texts, labels, {}, min_cluster_size=6, keep=10)
-    assert len(clustered["topics"]) == 10
+    assert len(clustered["topics"]) == 9
     assert all(topic["size"] >= 6 for topic in clustered["topics"])
-    assert clustered["noise_count"] == 2
-    assert sum(1 for assignment in clustered["assignments"] if assignment >= 0) == 78
+    assert clustered["noise_count"] == 8
+    assert sum(1 for assignment in clustered["assignments"] if assignment >= 0) == 72
 
 
 def test_keep_top_rejects_too_few_posts():
     texts = ["alpha beta gamma extra"] * 50
     labels = [index % 11 for index in range(50)]
-    with pytest.raises(RuntimeError, match="found 50 posts"):
+    with pytest.raises(RuntimeError, match="No cluster met min size"):
         _keep_top(texts, labels, {}, min_cluster_size=6, keep=10)
