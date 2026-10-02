@@ -36,7 +36,7 @@ Copy the repo-root `.env.example` to `.env`. The CLI loads it on start without o
   Create the token at https://deepinfra.com/dash. Reuse the `OPENAI_*` names; the client is OpenAI-compatible. Llama 3.3 70B Turbo is about **$0.01 per snapshot** (~$0.30/month daily). Alternatives: `deepseek-ai/DeepSeek-V4-Flash`, `Qwen/Qwen3.5-9B`. `pipeline/http_json.py` allow-lists `api.deepinfra.com` and `api.openai.com`. The daily workflow forwards all three `OPENAI_*` secrets.
 - `TYPESAFE_API_KEY` turns on Jev for per-post spam and newspaper section. `JEV_MODEL` is optional and defaults to `jev-latest`. The workflow forwards both. With no key, the regex and keyword section map run and the job still publishes.
 
-`.env` is gitignored. Scratch extracts in `pipeline/data/*` stay gitignored. The retained window `pipeline/data/live_corpus.db` is tracked. Copy `pipeline/config/pipeline.example.yaml` to `pipeline/config/pipeline.yaml` for local overrides (also gitignored).
+`.env` is gitignored. Scratch extracts in `pipeline/data/*` stay gitignored. The retained window `pipeline/data/live_corpus.db` is tracked as the seed. When the `R2_*` secrets are set, the daily job uses the private R2 object instead. Copy `pipeline/config/pipeline.example.yaml` to `pipeline/config/pipeline.yaml` for local overrides (also gitignored).
 
 ## What lands in `pipeline/data/`
 
@@ -82,17 +82,28 @@ The public dropdown is a newspaper: **World, Politics, Business, Technology, Spo
 
 ## Publish
 
-The daily workflow (06:00 UTC, plus `workflow_dispatch`) runs `--live`. It does not commit to `main`. It uploads `data.json` and `live_corpus.db` as artifacts and pushes both to `data-snapshot`. Pages overlays `data.json` at build time when the branch exists.
+The daily workflow (06:00 UTC, plus `workflow_dispatch`) runs `--live`. It does not commit to `main`. It uploads `data.json` and `live_corpus.db` as artifacts. `data.json` is pushed to `data-snapshot`, which Pages overlays at build time. When the R2 secrets are set, `live_corpus.db` is uploaded to the private bucket and removed from that branch. Until the secrets exist, the SQLite file is still committed to `data-snapshot`.
 
-## When the corpus approaches 100,000 posts
+## Retained corpus in Cloudflare R2
 
-Do not add object storage for the 1,000-post file. It is about 1 MB and fits on `data-snapshot`. At 100,000 posts the same SQLite file is about 100–200 MB, and GitHub rejects blobs over 100 MB. Move that file, not the schema, to Cloudflare R2 before it nears 50 MB. BERTopic still reads a local database. The job would download it at the start and upload it at the end. That uploader is not in this repo yet.
+`public/data.json` stays in git. The SQLite window is a different file. At about 1,000 posts it is ~1 MB. At 100,000 posts the same file is about 100–200 MB, and GitHub rejects blobs over 100 MB. `pipeline/r2.py` is the uploader. It talks to R2 with the S3 API (SigV4, region `auto`). BERTopic still reads a local database. Do not put Postgres in front of it.
+
+Until `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_ENDPOINT` are set, the job keeps the git behavior: restore `pipeline/data/live_corpus.db` from `data-snapshot` (or the committed seed) and push it back after a successful run.
 
 1. Create a [Cloudflare](https://dash.cloudflare.com/) account and open **R2**.
 2. Create a bucket named `perspectiverse-corpus`. Default region is fine. Leave public access off.
 3. Under **Manage R2 API tokens**, create a token that can read and write objects in that bucket. Copy the access key id, the secret, and the account endpoint (`https://<accountid>.r2.cloudflarestorage.com`).
 4. Add GitHub Actions secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET` (`perspectiverse-corpus`).
-5. Point the daily job at the file with the S3-compatible API, for example `aws s3 cp` using that endpoint, `--db` on the downloaded path, then upload the same path after a successful run. Keep `public/data.json` in git. Do not put Postgres in front of BERTopic.
+
+On each run the workflow downloads `live_corpus.db` and passes that path to `--db`. The upload runs only after the pipeline step succeeds, and only if `PRAGMA integrity_check` returns `ok` and `posts`, `fetched_days`, `topic_membership`, and `perspectives` are present. A failed step skips the upload. The PUT replaces the object only when R2 accepts the full body, so a dropped connection leaves the previous object in place. A missing object (the first run) keeps the git seed and uploads it after success. Any other R2 error stops the job, so that seed is not written over a newer object.
+
+The schema stays as it is. `--relabel` and a BERTopic rerun read the downloaded file and do not search a UTC day already in `fetched_days`.
+
+```bash
+python -m pipeline.r2 restore pipeline/data/live_corpus.db
+python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
+python -m pipeline.r2 upload pipeline/data/live_corpus.db
+```
 
 R2's free tier includes 10 GB. This file stays under a gigabyte.
 
@@ -103,6 +114,7 @@ R2's free tier includes 10 GB. This file stays under a gigabyte.
 - `data_sources/extract_bluesky.py` — Bluesky extract with host fallback
 - `cleaning.py`, `jev.py`, `corpus.py`, `store.py` — regex, Jev decisions, 7-day window, SQLite
 - `topics.py`, `perspectives.py`, `label.py`, `assemble.py` — planets, faces, names, `data.json`
+- `r2.py` — download and upload `live_corpus.db` to private Cloudflare R2
 - `live.py` — live orchestration
 - `generate_demo_data.py` — synthetic universe (still available)
 - `run_pipeline.py` — `--live` / `--relabel` / `--demo`

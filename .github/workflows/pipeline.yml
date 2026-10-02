@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore retained corpus
+      - name: Restore retained corpus from git
         run: |
           mkdir -p pipeline/data
           if git ls-remote --exit-code --heads origin data-snapshot >/dev/null 2>&1; then
@@ -47,7 +47,24 @@ jobs:
           uv pip install -e . --no-deps
           uv pip install pyyaml "numpy>=1.24,<2" atproto
 
+      - name: Download corpus from R2
+        id: r2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          source .venv/bin/activate
+          # downloaded: R2 is the corpus. absent: first run, keep the git seed.
+          # unconfigured: secrets are empty, keep the git seed and commit it back.
+          # Any other R2 error fails this step so the seed is not uploaded later.
+          status=$(python -m pipeline.r2 restore pipeline/data/live_corpus.db)
+          echo "$status"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
       - name: Run live pipeline
+        id: live
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
@@ -62,9 +79,23 @@ jobs:
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
 
+      - name: Upload corpus to R2
+        id: r2upload
+        if: steps.live.outcome == 'success'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          source .venv/bin/activate
+          # integrity_check runs before the PUT. A non-zero pipeline step never
+          # reaches here, and a dropped upload does not replace the last object.
+          python -m pipeline.r2 upload pipeline/data/live_corpus.db
+
       - name: Upload data.json
+        if: steps.live.outcome == 'success'
         uses: actions/upload-artifact@v4
-        if: success()
         with:
           name: data-json
           path: |
@@ -73,7 +104,7 @@ jobs:
           retention-days: 14
 
       - name: Publish data-snapshot branch
-        if: success()
+        if: steps.live.outcome == 'success' && steps.r2upload.outcome == 'success'
         run: |
           mkdir -p /tmp/perspectiverse-snapshot
           cp public/data.json /tmp/perspectiverse-snapshot/data.json
@@ -92,8 +123,18 @@ jobs:
           fi
           mkdir -p pipeline/data
           cp /tmp/perspectiverse-snapshot/data.json public/data.json
-          cp /tmp/perspectiverse-snapshot/live_corpus.db pipeline/data/live_corpus.db
-          git add public/data.json pipeline/data/live_corpus.db
+          # Pages publishes data.json. Once R2 is configured, stop committing
+          # the SQLite file so the blob cannot grow toward GitHub's 100 MB limit.
+          if [ "${{ steps.r2.outputs.status }}" = "unconfigured" ]; then
+            cp /tmp/perspectiverse-snapshot/live_corpus.db pipeline/data/live_corpus.db
+            git add public/data.json pipeline/data/live_corpus.db
+          elif [ "${{ steps.r2.outputs.status }}" = "downloaded" ] || [ "${{ steps.r2.outputs.status }}" = "absent" ]; then
+            git add public/data.json
+            git rm -f --ignore-unmatch pipeline/data/live_corpus.db
+          else
+            echo "Unexpected R2 restore status"
+            exit 1
+          fi
           if git diff --cached --quiet; then
             echo "Snapshot unchanged"
             exit 0

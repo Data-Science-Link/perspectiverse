@@ -19,7 +19,7 @@ The observatory now ships a **live** `public/data.json` built from a retained wi
 | Layer | State |
 | --- | --- |
 | Live universe (`public/data.json`, `mode: live`) | First 1,000-post corpus |
-| Retained SQLite (`pipeline/data/live_corpus.db`) | Rolling 7 days; a fetched UTC day is not searched again |
+| Retained SQLite (`pipeline/data/live_corpus.db`) | Rolling 7 days; a fetched UTC day is not searched again. Daily job uses private R2 when the `R2_*` secrets are set |
 | Spam filter | Regex, then Jev when `TYPESAFE_API_KEY` is set |
 | Live pipeline (`--live`) | Default command; lexical clustering on CI |
 | React + R3F observatory | Newspaper-section filters; All topics stays unsupervised |
@@ -127,7 +127,7 @@ The workflow builds with `base: /perspectiverse/`. After a green deploy the site
 
 `https://data-science-link.github.io/perspectiverse/`
 
-Setting the repository homepage to that URL is optional and done in the same settings screen. The daily job does not push to `main` (the ruleset would block it). It uploads `data.json` and commits it on the unprotected `data-snapshot` branch. The Pages build uses that file when the branch exists.
+Setting the repository homepage to that URL is optional and done in the same settings screen. The daily job does not push to `main` (the ruleset would block it). It commits `data.json` on the unprotected `data-snapshot` branch. The Pages build uses that file when the branch exists. The SQLite corpus is uploaded to a private R2 bucket when those secrets exist, and stays on `data-snapshot` until they do.
 
 ## Security
 
