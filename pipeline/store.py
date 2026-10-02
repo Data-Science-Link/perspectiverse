@@ -1,8 +1,9 @@
 """SQLite store for raw posts and derived cluster membership.
 
 ``pipeline/data/posts.db`` stays gitignored scratch. The retained live window
-is ``pipeline/data/live_corpus.db`` and is committed so the daily job can
-rotate it. topic_membership and perspectives are derived and rebuilt each run.
+is ``pipeline/data/live_corpus.db``. That file is tracked as a seed. When the
+R2 secrets are set, the daily job downloads and uploads it instead of growing
+the git blob. topic_membership and perspectives are derived and rebuilt each run.
 """
 
 from __future__ import annotations

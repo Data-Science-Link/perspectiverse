@@ -26,6 +26,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | File/Directory | Description |
 | --- | --- |
 | `pipeline/run_pipeline.py` | `--live` (default), `--relabel`, or `--demo` entry point |
+| `pipeline/r2.py` | Download and upload `live_corpus.db` to private Cloudflare R2 |
 | `pipeline/generate_demo_data.py` | Synthetic 10×6 universe (not what the site ships) |
 | `pipeline/live.py` | Rotate corpus, cluster, label, write `data.json` |
 | `pipeline/schema.py` | Shared `data.json` contract |
@@ -41,7 +42,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
 | `pipeline/http_json.py` | Allow-listed JSON HTTP (`api.bsky.app`, `api.openai.com`, `api.deepinfra.com`, `api.typesafe.ai`) |
 | `pipeline/config/pipeline.example.yaml` | Sample size, models, `min_cluster_size` |
-| `pipeline/data/live_corpus.db` | Retained ~1,000-post window (tracked) |
+| `pipeline/data/live_corpus.db` | Retained-window seed (tracked). Daily rotation uses R2 when configured |
 | `pipeline/data_sources/extract_bluesky.py` | Bluesky 7-day sample |
 | `tests/` | Contract tests and the tiny live fixture |
 
@@ -105,5 +106,5 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `.github/workflows/security-audit.yml` | Bandit + pip-audit on every push/PR, plus `workflow_dispatch` |
 | `.github/workflows/pytest.yml` | Pytest without a model download |
 | `.github/workflows/frontend.yml` | Lint, category check, build, data contract |
-| `.github/workflows/pipeline.yml` | Daily live run, artifact, `data-snapshot` branch |
+| `.github/workflows/pipeline.yml` | Daily live run, R2 corpus sync, artifact, `data-snapshot` `data.json` |
 | `.github/workflows/pages.yml` | GitHub Pages, overlaying `data-snapshot` when present |
