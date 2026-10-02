@@ -11,6 +11,8 @@ const _world = new Vector3()
 const _toCamera = new Vector3()
 const _look = new Vector3()
 const _target = new Quaternion()
+const _align = new Quaternion()
+const _tilt = new Quaternion()
 const _axisX = new Vector3(1, 0, 0)
 const _axisY = new Vector3(0, 1, 0)
 
@@ -77,11 +79,17 @@ export default function Planet({
 
     if (!cube.current) return
 
-    if (selected && focusIndex >= 0 && layout[focusIndex] && !drag.current) {
+    const aimIndex = focusIndex >= 0 ? focusIndex : 0
+    if (selected && layout[aimIndex] && !drag.current) {
       group.current.getWorldPosition(_world)
       _toCamera.copy(state.camera.position).sub(_world).normalize()
-      _look.set(...layout[focusIndex].direction)
-      _target.setFromUnitVectors(_look, _toCamera)
+      _look.set(...layout[aimIndex].direction)
+      _align.setFromUnitVectors(_look, _toCamera)
+      // A straight-on spike collapses into a diamond. Turn it so the point and the cube both read.
+      _tilt.setFromAxisAngle(_axisY, 0.7)
+      _target.copy(_tilt).multiply(_align)
+      _tilt.setFromAxisAngle(_axisX, -0.28)
+      _target.premultiply(_tilt)
       cube.current.quaternion.slerp(_target, 1 - Math.exp(-delta * 6))
       return
     }

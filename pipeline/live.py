@@ -107,11 +107,12 @@ def run_live(
         topics,
         mode="live",
         source=source,
-        total_posts=len(cleaned),
+        total_posts=len(planet_posts),
     )
     destination = write_payload(payload, output)
     print(
-        f"Live snapshot: {len(cleaned)} quality posts, "
+        f"Live snapshot: {len(planet_posts)} public claims "
+        f"from {len(cleaned)} posts in the window, "
         f"{clustered['noise_count']} excluded as noise, wrote {destination}"
     )
     return destination
@@ -278,7 +279,13 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
                 "perspectives": perspectives,
             }
         )
-    _dedupe_labels(built)
+        _dedupe_labels(built)
+    built = _drop_unshared_planets(built)
+    if built:
+        # Volumes were shares of the pre-drop set. Rebalance after a mixed planet leaves.
+        sizes = [max(topic.get("total_volume_percent") or 0, 0.1) for topic in built]
+        for topic, volume in zip(built, to_percents(sizes)):
+            topic["total_volume_percent"] = volume
     return built, membership, face_rows
 
 
@@ -291,15 +298,18 @@ def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> lis
     labeled = any(post.get("is_claim") is not None for post in posts)
     if require_claims and not labeled:
         raise RuntimeError("Jev did not label claims. Refusing to cluster unlabeled posts.")
-    if require_claims and any(post.get("is_claim") is None for post in posts):
-        raise RuntimeError("Jev left some posts unlabeled. Refusing to cluster them.")
     if not labeled:
         return list(posts)
     claims = [post for post in posts if post.get("is_claim") is True]
+    unlabeled = sum(1 for post in posts if post.get("is_claim") is None)
+    if require_claims and unlabeled and not claims:
+        raise RuntimeError("Jev left the posts unlabeled. Refusing to cluster them.")
     if require_claims and not claims:
         raise RuntimeError("No public claims passed the filters.")
     if not claims:
         return list(posts)
+    if unlabeled:
+        print(f"Jev left {unlabeled} posts unlabeled. They stay out of the planets.")
     print(
         f"Clustering {len(claims)} public claims; "
         f"{len(posts) - len(claims)} non-claims stay in the window."
@@ -318,6 +328,30 @@ def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
         return (-overlap, -int(post.get("likes") or 0))
 
     return sorted(posts, key=sort_key)
+
+
+def _face_has_no_shared_claim(face: dict) -> bool:
+    title = str(face.get("title") or "").strip().lower()
+    summary = str(face.get("summary") or "").lower()
+    if title in {"mixed remarks", "untitled cluster"}:
+        return True
+    return any(
+        phrase in summary
+        for phrase in ("various opinions", "various issues", "no shared claim", "do not share a claim")
+    )
+
+
+def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
+    """A planet whose label admits the posts do not share a claim is not published."""
+    kept = []
+    for topic in topics:
+        faces = [face for face in (topic.get("perspectives") or []) if not _face_has_no_shared_claim(face)]
+        if not faces:
+            print(f"Dropping {topic.get('name')}: the posts do not share a claim.")
+            continue
+        topic["perspectives"] = faces
+        kept.append(topic)
+    return kept
 
 
 def _dedupe_labels(topics: list[dict]) -> None:

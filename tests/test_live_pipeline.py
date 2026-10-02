@@ -55,6 +55,23 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(topic["name"] for topic in payload["topics"])
 
 
+def test_drop_planet_that_admits_no_shared_claim():
+    from pipeline.live import _drop_unshared_planets
+
+    mixed = {
+        "name": "Canada",
+        "total_volume_percent": 20,
+        "perspectives": [{"title": "Canadian Politics", "summary": "These posts share various issues and opinions."}],
+    }
+    solid = {
+        "name": "Taxes",
+        "total_volume_percent": 80,
+        "perspectives": [{"title": "Tax the Rich", "summary": "Wealth taxes should fund public services."}],
+    }
+    kept = _drop_unshared_planets([mixed, solid])
+    assert [topic["name"] for topic in kept] == ["Taxes"]
+
+
 def test_live_run_refuses_unlabeled_posts():
     posts = [{"uri": "at://a", "is_claim": None, "clean_text": "hello", "text": "hello"}]
     try:
@@ -65,7 +82,7 @@ def test_live_run_refuses_unlabeled_posts():
         raise AssertionError("unlabeled posts should not be clustered")
     aside = dict(posts[0], is_claim=False)
     claim = dict(posts[0], uri="at://b", is_claim=True)
-    kept = posts_for_planets([aside, claim], require_claims=True)
+    kept = posts_for_planets([posts[0], aside, claim], require_claims=True)
     assert [post["uri"] for post in kept] == ["at://b"]
     assert posts_for_planets(posts, require_claims=False) == posts
 

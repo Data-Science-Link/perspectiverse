@@ -71,10 +71,15 @@ export function faceShade(hex, rank, count) {
   return mixHex(pigment, '#ffffff', MINORITY_LIGHTEN * towardLight)
 }
 
+const CAPTION_SMALL = new Set(['a', 'an', 'the', 'of', 'and', 'or', 'to', 'in', 'on', 'for'])
+
 export function spikeCaption(title) {
   const words = String(title || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean)
   if (!words.length) return 'View'
-  return words.slice(0, 2).join(' ')
+  const full = words.join(' ')
+  if (words.length <= 3 && full.length <= 22) return full
+  const kept = words.filter((word, index) => index === 0 || !CAPTION_SMALL.has(word.toLowerCase()))
+  return (kept.length ? kept : words).slice(0, 2).join(' ')
 }
 
 export function rankPerspectives(perspectives = []) {

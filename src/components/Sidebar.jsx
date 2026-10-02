@@ -91,7 +91,7 @@ function WelcomePanel({
       )}
       <p className="lede">
         A week of public conversation as a solar system. Bigger planets got more
-        attention. Open one to see the main opinions — the longest, most solid
+        attention. Open one to see the main opinions — the longest, darkest
         spike is the most common view, and lighter faces are smaller views. That is
         where yours stacks up.
       </p>
