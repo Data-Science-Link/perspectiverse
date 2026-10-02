@@ -274,7 +274,6 @@ def _build_topics(
             face_posts = [members[index] for index in face["member_indices"]]
             face_distances = [split["distances"][index] for index in face["member_indices"]]
             representatives = select_representatives(face_posts, face_distances, limit=limit)
-            subject_posts = list(representatives)
             label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
             arguments = label.get("arguments") or []
             title = str(label.get("title") or "")
@@ -304,7 +303,6 @@ def _build_topics(
             }
             if len(arguments) >= 2:
                 perspective["arguments"] = arguments[:6]
-            perspective["subject_posts"] = subject_posts
             rows = [
                 (members[index]["uri"], topic_id, position, float(split["distances"][index]))
                 for index in face["member_indices"]
@@ -362,11 +360,7 @@ def _build_topics(
         sizes = [max(topic.get("total_volume_percent") or 0, 0.1) for topic in built]
         for topic, volume in zip(built, to_percents(sizes)):
             topic["total_volume_percent"] = volume
-    topics, membership, face_rows = _renumber_planets(built, membership, face_rows)
-    for topic in topics:
-        for face in topic.get("perspectives") or []:
-            face.pop("subject_posts", None)
-    return topics, membership, face_rows
+    return _renumber_planets(built, membership, face_rows)
 
 
 def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> list[dict]:

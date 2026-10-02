@@ -622,7 +622,7 @@ _TOPIC_GLUE = frozenset(
 
 def _face_subject_words(face: dict) -> set[str]:
     glue = _post_word_glue() | _PERSON_GLUE
-    posts = face.get("subject_posts") or face.get("representative_posts") or []
+    posts = face.get("representative_posts") or []
     text = " ".join(str(post.get("text") or "") for post in posts[:6])
     stems = set()
     for token in content_tokens(text):
@@ -649,7 +649,7 @@ def specific_shared_words(faces: list[dict]) -> set[str]:
     return {
         word
         for word in _shared_post_words(faces)
-        if word not in _PERSON_GLUE and word not in _TOPIC_GLUE and word not in _VERB_STEMS
+        if len(word) >= 4 and word not in _PERSON_GLUE and word not in _TOPIC_GLUE and word not in _VERB_STEMS
     }
 
 

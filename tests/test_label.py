@@ -93,7 +93,7 @@ def test_a_shared_commodity_counts_as_one_subject():
         },
         {
             "title": "Cornell Rape Case",
-            "representative_posts": [{"text": "Trump feels badly for the Cornell rape suspects."}],
+            "representative_posts": [{"text": "The Cornell rape suspects were students at that college."}],
         },
     ]
     politicians = [
