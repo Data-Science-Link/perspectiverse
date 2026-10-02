@@ -53,8 +53,8 @@ export function mixHex(hex, other, amount = 0.5) {
   return formatHex(from.map((channel, index) => channel + (to[index] - channel) * blend))
 }
 
-const MAJORITY_SHADE = 0.45
-const MINORITY_LIGHTEN = 0.42
+const MAJORITY_SHADE = 0.32
+const MINORITY_LIGHTEN = 0.62
 
 export function faceShade(hex, rank, count) {
   const pigment = hex || '#9aa3b5'

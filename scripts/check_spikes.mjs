@@ -77,7 +77,7 @@ const four = buildCrystal(
 )
 assert.equal(four.faces.length, 4)
 assert.equal(four.empty.length, 2)
-assert.ok(four.empty.every((face) => face.getAttribute('uv')))
+assert.ok(four.empty.every((face) => face.fill.getAttribute('position') && face.dashes.getAttribute('position').count >= 8))
 assert.ok(four.faces.every((face) => face.sides === 4))
 assert.ok(four.faces.every((face) => face.opacity === 1))
 
@@ -87,7 +87,10 @@ crystal.faces.forEach((face) => {
   face.pick.dispose()
 })
 four.core.dispose()
-four.empty.forEach((face) => face.dispose())
+four.empty.forEach((face) => {
+  face.fill.dispose()
+  face.dashes.dispose()
+})
 four.faces.forEach((face) => {
   face.extrusion.dispose()
   face.pick.dispose()
