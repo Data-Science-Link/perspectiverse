@@ -393,6 +393,8 @@ def _title_needs_repair(title: str) -> bool:
         return True
     if _SLOGAN_TITLE.search(str(title or "").strip()):
         return True
+    if _MOOD_ENDING.search(words[-1]):
+        return True
     if len(words) == 2 and _BROKEN_TITLE_ENDING.search(words[-1]):
         return True
     return False
@@ -569,20 +571,34 @@ def _post_word_glue() -> frozenset[str]:
     )
 
 
+def subject_stem(token: str) -> str:
+    """Fold rape/rapists and export/exports onto one subject stem."""
+    word = token
+    for suffix in ("ists", "ist", "ings", "ing", "ers", "er", "ed", "es", "s"):
+        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+            word = word[: -len(suffix)]
+            break
+    return word.rstrip("e")
+
+
+def _face_subject_words(face: dict) -> set[str]:
+    glue = _post_word_glue() | _PERSON_GLUE
+    posts = face.get("representative_posts") or []
+    text = " ".join(str(post.get("text") or "") for post in posts[:6])
+    return {
+        subject_stem(token)
+        for token in content_tokens(text)
+        if len(token) >= 4 and token not in glue
+    }
+
+
 def _shared_post_words(faces: list[dict]) -> set[str]:
-    """Words of five letters or more that every face's posts use."""
-    glue = _post_word_glue()
-    bags: list[set[str]] = []
-    for face in faces:
-        posts = face.get("representative_posts") or []
-        text = " ".join(str(post.get("text") or "") for post in posts[:6])
-        tokens = {token for token in content_tokens(text) if len(token) >= 5 and token not in glue}
-        if not tokens:
-            return set()
-        bags.append(tokens)
-    if len(bags) < 2:
+    """Subject words every face's posts use, ignoring a bare politician name."""
+    bags = [_face_subject_words(face) for face in faces]
+    if len(bags) < 2 or any(not bag for bag in bags):
         return set()
-    return set.intersection(*bags)
+    shared = set.intersection(*bags)
+    return shared
 
 
 def specific_shared_words(faces: list[dict]) -> set[str]:
@@ -738,6 +754,10 @@ def _claim_title(posts: list[dict], terms: list[str]) -> str:
 
 _BROKEN_TITLE_ENDING = re.compile(
     r"(equipped|undermines|questionable|exists)$",
+    re.IGNORECASE,
+)
+_MOOD_ENDING = re.compile(
+    r"(harmful|flawed|opposed|discourse|views|opinions)$",
     re.IGNORECASE,
 )
 

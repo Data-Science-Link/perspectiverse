@@ -86,6 +86,28 @@ def test_a_shared_commodity_counts_as_one_subject():
     ]
     assert "diesel" in specific_shared_words(diesel)
     assert specific_shared_words(courts) == set()
+    cornell = [
+        {
+            "title": "Rape Culture",
+            "representative_posts": [{"text": "Trump sympathizes with the rapists at that college."}],
+        },
+        {
+            "title": "Cornell Rape Case",
+            "representative_posts": [{"text": "Trump feels badly for the Cornell rape suspects."}],
+        },
+    ]
+    politicians = [
+        {
+            "title": "Female Candidate",
+            "representative_posts": [{"text": "AOC will move the field and Angie Nixon belongs in America."}],
+        },
+        {
+            "title": "Susan Collins",
+            "representative_posts": [{"text": "Susan Collins was caught taking bribes with no consequences."}],
+        },
+    ]
+    assert specific_shared_words(cornell)
+    assert specific_shared_words(politicians) == set()
 
 
 def test_faces_that_share_no_subject_word_are_different_stories():

@@ -23,13 +23,12 @@ from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
 from pipeline.label import (
     content_tokens,
-    faces_share_vocabulary,
     label_perspective,
     label_topic,
     name_from_perspectives,
-    perspectives_share_subject,
     shares_claim_word,
     specific_shared_words,
+    subject_stem,
     titles_alike,
     topic_name_is_weak,
     unique_label,
@@ -316,12 +315,8 @@ def _build_topics(
             continue
         perspectives = [item[0] for item in drafted]
         if len(perspectives) >= 2 and not specific_shared_words(perspectives):
-            same_story = faces_share_vocabulary(perspectives) and perspectives_share_subject(
-                perspectives, backend=backend, model=model
-            )
-            if not same_story:
-                print(f"Dropping {name}: its faces are different stories.")
-                continue
+            print(f"Dropping {name}: its faces are different stories.")
+            continue
         if (
             planet.get("label_source") == "heuristic"
             or topic_name_is_weak(name, members, terms)
@@ -407,7 +402,13 @@ def _name_misses_face(name: str, face: dict) -> bool:
             *[str(post.get("text") or "") for post in (face.get("representative_posts") or [])[:6]],
         ]
     )
-    return not any(shares_claim_word(token, text) for token in tokens)
+    return any(not shares_claim_word(token, text) for token in tokens)
+
+
+def _word_bags_overlap(left: set[str], right: set[str]) -> bool:
+    stemmed_left = {subject_stem(token) for token in left}
+    stemmed_right = {subject_stem(token) for token in right}
+    return bool(stemmed_left & stemmed_right)
 
 
 def _posts_share_a_subject(posts: list[dict]) -> bool:
@@ -437,17 +438,17 @@ def _posts_share_a_subject(posts: list[dict]) -> bool:
     for post in posts[:5]:
         text = str(post.get("text") or post.get("clean_text") or "")
         bags.append({token for token in content_tokens(text) if token not in glue})
-    if len(bags) < 4:
+    if len(bags) < 3:
         return True
     pairs = hits = 0
     for index, left in enumerate(bags):
         for right in bags[index + 1 :]:
             pairs += 1
-            if left & right:
+            if _word_bags_overlap(left, right):
                 hits += 1
     if pairs == 0:
         return True
-    return hits / pairs >= 0.2
+    return hits / pairs >= 0.34
 
 
 def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
