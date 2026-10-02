@@ -9,8 +9,11 @@ sample_size: 1000
 # groups if it cannot mint 10 planets.
 min_cluster_size: 8
 
-# lexical: numpy TF-IDF, no model download. bertopic: all-MiniLM-L6-v2 via BERTopic.
-cluster_backend: lexical
+# embedding: local MiniLM via fastembed, no torch. lexical: TF-IDF for tests.
+# bertopic: all-MiniLM-L6-v2 when that extra stack is installed.
+# catalog_size is how many of the tight groups to publish, largest first.
+# Clustering may find many more. The rest stay out of the planets.
+cluster_backend: embedding
 embedding_model: all-MiniLM-L6-v2
 
 # auto tries Ollama, then an OpenAI-compatible API, then a heuristic name.

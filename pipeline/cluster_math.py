@@ -285,6 +285,21 @@ def grow_clusters_to_min(
     return labels
 
 
+def cluster_inertia(matrix: np.ndarray, labels: np.ndarray) -> float:
+    """Mean squared distance to each row's own centroid. Lower is tighter."""
+    labels = np.asarray(labels, dtype=int)
+    count = int(labels.shape[0])
+    if count == 0:
+        return 0.0
+    total = 0.0
+    for label in sorted({int(item) for item in labels}):
+        mask = labels == label
+        center = matrix[mask].mean(axis=0)
+        delta = matrix[mask] - center
+        total += float(np.einsum("ij,ij->", delta, delta))
+    return total / count
+
+
 def distances_to_centers(matrix: np.ndarray, labels: np.ndarray, centers: np.ndarray) -> list[float]:
     values: list[float] = []
     for row, label in enumerate(labels):

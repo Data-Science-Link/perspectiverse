@@ -92,10 +92,21 @@ def retain_window(
 
 def posts_on_utc_date(posts: list[dict], utc_date: str) -> bool:
     """True when any post was created on ``utc_date`` (``YYYY-MM-DD``)."""
+    return utc_date in set(utc_dates_present(posts))
+
+
+def utc_dates_present(posts: list[dict]) -> list[str]:
+    """UTC dates that already have posts, oldest first.
+
+    A missing or unparsable timestamp is skipped so it cannot look like year 1.
+    """
+    found: set[str] = set()
     for post in posts:
-        if parse_created(post.get("created_at") or "").date().isoformat() == utc_date:
-            return True
-    return False
+        created = parse_created(post.get("created_at") or "")
+        if created.year < 2000:
+            continue
+        found.add(created.date().isoformat())
+    return sorted(found)
 
 
 def window_utc_dates(now: datetime, days: int = 7) -> list[str]:

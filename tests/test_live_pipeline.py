@@ -151,7 +151,7 @@ def test_bluesky_403_does_not_shrink_retained_corpus(monkeypatch, tmp_path):
     assert remaining == len(posts)
 
 
-def test_neutral_refill_replaces_a_seeded_corpus(monkeypatch, tmp_path):
+def test_seeded_corpus_without_ledger_is_not_refilled(monkeypatch, tmp_path):
     from datetime import datetime, timezone
 
     from pipeline.live import _collect_posts
@@ -162,12 +162,39 @@ def test_neutral_refill_replaces_a_seeded_corpus(monkeypatch, tmp_path):
     seeded = {
         "uri": "at://seeded",
         "author": "old",
-        "text": "A seeded sports post about the nfl that should not survive the refill.",
-        "clean_text": "A seeded sports post about the nfl that should not survive the refill.",
+        "text": "A seeded sports post about the nfl that should survive an empty ledger.",
+        "clean_text": "A seeded sports post about the nfl that should survive an empty ledger.",
         "likes": 1,
-        "created_at": "2026-09-01T00:00:00Z",
+        "created_at": "2026-09-28T00:00:00Z",
     }
     replace_posts(connection, [seeded])
+
+    def boom(**_kwargs):
+        raise AssertionError("posts already stored must not be replaced by a 7-day Bluesky refill")
+
+    monkeypatch.setattr("pipeline.live.extract_posts", boom)
+    cleaned, source = _collect_posts(
+        [seeded],
+        {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the", "and"]},
+        None,
+        None,
+        10,
+        connection,
+        now=datetime(2026, 9, 28, tzinfo=timezone.utc),
+    )
+    assert source == "bluesky"
+    assert [post["uri"] for post in cleaned] == ["at://seeded"]
+    assert "2026-09-28" in fetched_day_set(connection)
+    connection.close()
+
+
+def test_empty_corpus_still_refills_seven_days(monkeypatch, tmp_path):
+    from datetime import datetime, timezone
+
+    from pipeline.live import _collect_posts
+    from pipeline.store import connect, fetched_day_set
+
+    connection = connect(tmp_path / "live.db")
 
     def fake_extract(**kwargs):
         assert kwargs["queries"] == ["the", "and"]
@@ -184,7 +211,7 @@ def test_neutral_refill_replaces_a_seeded_corpus(monkeypatch, tmp_path):
 
     monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
     cleaned, source = _collect_posts(
-        [seeded],
+        [],
         {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the", "and"]},
         None,
         None,
@@ -196,6 +223,51 @@ def test_neutral_refill_replaces_a_seeded_corpus(monkeypatch, tmp_path):
     assert [post["uri"] for post in cleaned] == ["at://fresh"]
     assert "2026-09-28" in fetched_day_set(connection)
     assert "2026-09-22" in fetched_day_set(connection)
+    connection.close()
+
+
+def test_missing_day_is_a_refresh_not_a_refill(monkeypatch, tmp_path):
+    from datetime import datetime, timezone
+
+    from pipeline.live import _collect_posts
+    from pipeline.store import connect, fetched_day_set, replace_posts
+
+    connection = connect(tmp_path / "live.db")
+    seeded = {
+        "uri": "at://seeded",
+        "author": "old",
+        "text": "A seeded post from earlier in the window about rent and housing policy.",
+        "clean_text": "A seeded post from earlier in the window about rent and housing policy.",
+        "likes": 1,
+        "created_at": "2026-09-26T00:00:00Z",
+    }
+    replace_posts(connection, [seeded])
+
+    def fake_extract(**kwargs):
+        assert kwargs["window_hours"] == 24
+        return [
+            {
+                "uri": "at://today",
+                "author": "new",
+                "text": "Today's argument about the same rent increase on the block.",
+                "likes": 2,
+                "created_at": "2026-09-28T12:00:00Z",
+            }
+        ]
+
+    monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
+    cleaned, _source = _collect_posts(
+        [seeded],
+        {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the"]},
+        None,
+        None,
+        10,
+        connection,
+        now=datetime(2026, 9, 28, tzinfo=timezone.utc),
+    )
+    assert {post["uri"] for post in cleaned} == {"at://seeded", "at://today"}
+    assert "2026-09-26" in fetched_day_set(connection)
+    assert "2026-09-28" in fetched_day_set(connection)
     connection.close()
 
 

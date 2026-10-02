@@ -54,11 +54,13 @@ Re-running BERTopic reads this SQLite file. It does not fetch days that are alre
 
 ## Clustering
 
-`cluster_backend: lexical` (default) uses numpy TF-IDF and k-means. CI and the daily Actions job use this path.
+`cluster_backend: embedding` (default) uses a local MiniLM model through fastembed (ONNX, no torch). It looks for many tight groups — a long week can have 100 or more — and leaves posts that are not close to a group unlabeled. `catalog_size` then keeps the largest of those groups (10 by default). It does not assign every post to a planet, and it does not split a week until ten orbits are full. The daily job installs fastembed.
+
+`cluster_backend: lexical` uses numpy TF-IDF and k-means. Pytest uses this path and does not download a model.
 
 `cluster_backend: bertopic` uses BERTopic with `all-MiniLM-L6-v2` when that extra stack is installed (`uv sync` locally).
 
-The lexical pass asks for 11 clusters. Anything smaller than `min_cluster_size` is Topic -1. A planet also needs at least 6 posts so it can grow two to six faces. If a messy sample leaves fewer than 10 planets, large groups are split and leftover posts are reassigned. **Topic -1 is excluded from the volume denominator.**
+Anything smaller than `min_cluster_size` is Topic -1. A planet needs at least 6 posts so it can grow two faces. Further faces are cut only when they separate. **Topic -1 is excluded from the volume denominator.**
 
 `min_cluster_size` is **8** on the 1,000-post window. Planet ids are 1–10 in descending volume for that snapshot. Names are generated each run and are not a durable key.
 

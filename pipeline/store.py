@@ -45,6 +45,7 @@ _POST_COLUMNS = (
     ("section", "TEXT"),
     ("section_confidence", "REAL"),
     ("spam_score", "REAL"),
+    ("is_claim", "INTEGER"),
 )
 
 
@@ -70,9 +71,9 @@ def replace_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
         """
         INSERT INTO posts (
             uri, author, text, clean_text, likes, created_at,
-            section, section_confidence, spam_score
+            section, section_confidence, spam_score, is_claim
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -85,6 +86,7 @@ def replace_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
                 post.get("section") or None,
                 post.get("section_confidence"),
                 post.get("spam_score"),
+                _claim_bit(post.get("is_claim")),
             )
             for post in posts
         ],
@@ -97,7 +99,7 @@ def load_posts(connection: sqlite3.Connection) -> list[dict]:
     rows = connection.execute(
         """
         SELECT uri, author, text, clean_text, likes, created_at,
-               section, section_confidence, spam_score
+               section, section_confidence, spam_score, is_claim
         FROM posts
         ORDER BY created_at ASC
         """
@@ -113,9 +115,17 @@ def load_posts(connection: sqlite3.Connection) -> list[dict]:
             "section": row[6] or "",
             "section_confidence": row[7],
             "spam_score": row[8],
+            "is_claim": None if row[9] is None else bool(row[9]),
         }
         for row in rows
     ]
+
+
+def _claim_bit(value) -> int | None:
+    """Store a claim decision. ``None`` means Jev has not been asked."""
+    if value is None or value == "":
+        return None
+    return 1 if value in (True, 1, "1") else 0
 
 
 def fetched_day_set(connection: sqlite3.Connection) -> set[str]:

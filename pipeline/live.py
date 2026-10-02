@@ -14,11 +14,12 @@ from pipeline.corpus import (
     cap_sample,
     posts_on_utc_date,
     retain_window,
+    utc_dates_present,
     window_utc_dates,
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
-from pipeline.label import label_perspective, label_topic
+from pipeline.label import label_perspective, label_topic, unique_label
 from pipeline.perspectives import select_representatives, split_perspectives
 from pipeline.schema import SYSTEM_SIZE, category_for_members, to_percents
 from pipeline.settings import load_settings
@@ -66,33 +67,24 @@ def run_live(
             connection,
             relabel=relabel,
         )
-        if source == "bluesky":
+        if source == "bluesky" and not relabel:
             cleaned = apply_jev(cleaned)
         if not cleaned:
             raise RuntimeError("No quality posts in the retained corpus or the extract.")
 
         replace_posts(connection, cleaned)
-        texts = [post["clean_text"] for post in cleaned]
+        planet_posts = posts_for_planets(cleaned)
+        texts = [post["clean_text"] for post in planet_posts]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
-        try:
-            clustered = cluster_texts(
-                texts,
-                min_cluster_size=int(settings["min_cluster_size"]),
-                cluster_backend=str(settings["cluster_backend"]),
-                embedding_model=str(settings["embedding_model"]),
-                seed=int(settings["seed"]),
-                catalog_size=catalog_size,
-            )
-        except RuntimeError:
-            clustered = cluster_texts(
-                texts,
-                min_cluster_size=3,
-                cluster_backend="lexical",
-                embedding_model=str(settings["embedding_model"]),
-                seed=int(settings["seed"]),
-                catalog_size=catalog_size,
-            )
-        topics, membership, face_rows = _build_topics(cleaned, clustered, settings)
+        clustered = cluster_texts(
+            texts,
+            min_cluster_size=int(settings["min_cluster_size"]),
+            cluster_backend=str(settings["cluster_backend"]),
+            embedding_model=str(settings["embedding_model"]),
+            seed=int(settings["seed"]),
+            catalog_size=catalog_size,
+        )
+        topics, membership, face_rows = _build_topics(planet_posts, clustered, settings)
         write_clusters(connection, membership, face_rows)
     finally:
         connection.close()
@@ -136,6 +128,12 @@ def _collect_posts(
     today = moment.date().isoformat()
     search_queries = [item for item in (queries or []) if item]
     ledger = fetched_day_set(connection)
+    if not search_queries and not ledger and existing:
+        covered = utc_dates_present(existing)
+        if covered:
+            record_fetched_days(connection, covered, fetched_at=moment.isoformat(), kept=len(existing))
+            ledger = fetched_day_set(connection)
+            print(f"Backfilled fetched_days for {len(covered)} dates already in the retained corpus.")
     if not search_queries and today in ledger and posts_on_utc_date(existing, today):
         print(f"UTC day {today} already fetched; keeping {len(existing)} retained posts.")
         return list(existing), "bluesky"
@@ -143,7 +141,9 @@ def _collect_posts(
     window_hours = int(settings["window_hours"])
     refresh_hours = int(settings.get("refresh_hours") or 24)
     neutral = [item for item in (settings.get("neutral_queries") or []) if item]
-    refill = not search_queries and not ledger
+    # An empty ledger with no posts is the first fill. Posts without a ledger
+    # are backfilled above so a seeded file is not replaced by a 7-day scrape.
+    refill = not search_queries and not ledger and not existing
     rng = random.Random(int(settings["seed"]))
     if search_queries:
         fetch_queries = search_queries
@@ -227,6 +227,8 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
             representatives = select_representatives(face_posts, face_distances, limit=limit)
             label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
             arguments = label.get("arguments") or []
+            focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
+            representatives = _align_representatives(representatives, focus)
             perspective = {
                 "id": face_id(topic_id, position),
                 "title": label["title"],
@@ -251,4 +253,43 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
                 "perspectives": perspectives,
             }
         )
+    _dedupe_labels(built)
     return built, membership, face_rows
+
+
+def posts_for_planets(posts: list[dict]) -> list[dict]:
+    """Leave personal asides in the window and out of planet membership.
+
+    ``is_claim is None`` means Jev has not been asked, so those posts stay in.
+    A claim set smaller than a few planets is not enough to map, so the whole
+    window is used instead of publishing an empty solar system.
+    """
+    claims = [post for post in posts if post.get("is_claim") is not False]
+    if len(claims) >= 24 and len(claims) < len(posts):
+        print(
+            f"Clustering {len(claims)} public claims; "
+            f"{len(posts) - len(claims)} non-claims stay in the window."
+        )
+        return claims
+    return list(posts)
+
+
+def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
+    """Show the post the title is about first. Likes break a tie."""
+    from pipeline.label import content_tokens
+
+    focus_tokens = content_tokens(focus)
+
+    def sort_key(post: dict) -> tuple:
+        overlap = len(content_tokens(str(post.get("text") or "")) & focus_tokens)
+        return (-overlap, -int(post.get("likes") or 0))
+
+    return sorted(posts, key=sort_key)
+
+
+def _dedupe_labels(topics: list[dict]) -> None:
+    seen: set[str] = set()
+    for topic in topics:
+        topic["name"] = unique_label(str(topic.get("name") or ""), seen)
+        for face in topic.get("perspectives") or []:
+            face["title"] = unique_label(str(face.get("title") or ""), seen)

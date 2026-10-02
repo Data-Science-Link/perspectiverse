@@ -1,44 +1,175 @@
 """Group posts into a saved topic catalog.
 
-`lexical` is the default: TF-IDF and k-means, no model download.
-`bertopic` uses all-MiniLM-L6-v2 when that extra stack is installed.
-Topic -1 (below min_cluster_size, or beyond the catalog) is excluded from the
-denominator. The observatory always displays SYSTEM_SIZE planets; catalog_size
-can be larger so category solar systems have enough topics to fill.
+`embedding` is the live default: a local MiniLM model, then many tight groups.
+Loose posts stay unlabeled. `catalog_size` keeps only the largest of those
+groups, so a week is not poured into ten planets and a small week is not
+split until it fills ten orbits. `lexical` is TF-IDF for tests. `bertopic` is
+optional. Clusters below `min_cluster_size` are Topic -1.
 """
 
 from __future__ import annotations
 
 from pipeline.schema import SYSTEM_SIZE
-from pipeline.cluster_math import cluster_kmeans, grow_clusters_to_min, salient_terms, vectorize
+from pipeline.cluster_math import cluster_kmeans, salient_terms, vectorize
+
+# MiniLM cosine on mixed posts sits near 0.1. A member has to sit much closer
+# than that to its centroid, or it is left out instead of watering the group down.
+_MEMBER_COSINE = 0.50
+# Fragments of one subject land above this. Different subjects do not.
+_MERGE_COSINE = 0.72
 
 
 def cluster_texts(
     texts: list[str],
     *,
     min_cluster_size: int = 8,
-    cluster_backend: str = "lexical",
+    cluster_backend: str = "embedding",
     embedding_model: str = "all-MiniLM-L6-v2",
     seed: int = 0,
     catalog_size: int = SYSTEM_SIZE,
+    embed=None,
 ) -> dict:
     """Return kept topics and per-post assignments (-1 is noise)."""
     if cluster_backend == "bertopic":
         raw_labels, term_lookup = _bertopic_labels(texts, min_cluster_size, embedding_model)
     elif cluster_backend == "lexical":
         raw_labels, term_lookup = _lexical_labels(texts, min_cluster_size, seed)
+    elif cluster_backend == "embedding":
+        raw_labels, term_lookup = _embedding_labels(
+            texts,
+            seed=seed,
+            embed=embed,
+            embedding_model=embedding_model,
+            min_cluster_size=min_cluster_size,
+        )
     else:
         raise ValueError(f"Unknown cluster_backend {cluster_backend}")
-    # Keep enough posts that a planet can still grow two to six faces.
+    # A planet still needs enough posts to grow two faces. catalog_size caps the count.
     return _keep_top(texts, raw_labels, term_lookup, max(min_cluster_size, 6), keep=catalog_size)
 
 
 def _lexical_labels(texts: list[str], min_cluster_size: int, seed: int) -> tuple[list[int], dict[int, list[str]]]:
-    del min_cluster_size  # applied when the top 10 are selected
+    del min_cluster_size  # applied when small clusters are dropped
     matrix = vectorize(texts)
+    # Eleven is enough for the separable fixture (ten topics plus noise).
+    # Extra planets are not manufactured afterwards.
     k = min(11, matrix.shape[0])
     labels, _centers = cluster_kmeans(matrix, k, seed=seed)
     return [int(label) for label in labels], {}
+
+
+def _embedding_labels(
+    texts: list[str],
+    *,
+    seed: int,
+    embed,
+    embedding_model: str,
+    min_cluster_size: int,
+) -> tuple[list[int], dict[int, list[str]]]:
+    if embed is None:
+        from pipeline.embed import embed_minilm
+
+        embed = lambda batch: embed_minilm(batch, model_name=embedding_model)  # noqa: E731
+    matrix = _l2_normalize(embed(texts))
+    labels = _labels_by_cohesion(matrix, seed=seed, min_cluster_size=min_cluster_size)
+    return labels, {}
+
+
+def _l2_normalize(matrix) -> "np.ndarray":
+    import numpy as np
+
+    values = np.asarray(matrix, dtype=float)
+    if values.ndim != 2:
+        raise RuntimeError("Embeddings must be a 2-d matrix")
+    norms = np.linalg.norm(values, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    return values / norms
+
+
+def _labels_by_cohesion(matrix, *, seed: int, min_cluster_size: int) -> list[int]:
+    """Return many tight groups. Posts that do not fit one stay at -1.
+
+    The k-means count is one slot per minimum planet, so a long week can
+    yield 100 or more groups. That search does not stop at ten, and it does
+    not hand every post to a planet. The caller keeps the largest groups.
+    """
+    import numpy as np
+
+    count = int(matrix.shape[0])
+    if count == 0:
+        return []
+    if count < 2:
+        return [0] * count
+    slot = max(int(min_cluster_size), 1)
+    # One candidate group per minimum planet. A long week can exceed 100.
+    # catalog_size later keeps the largest. There is no cap at 10 here.
+    k = min(count, max(2, count // slot))
+    labels, _centers = cluster_kmeans(matrix, k, seed=seed)
+    labels = np.asarray(labels, dtype=int).copy()
+    _peel_loose(matrix, labels)
+    _merge_near_centroids(matrix, labels)
+    _peel_loose(matrix, labels)
+    return [int(label) for label in labels]
+
+
+def _peel_loose(matrix, labels) -> None:
+    """Drop members that are not close to their own centroid. In place."""
+    import numpy as np
+
+    for label in sorted({int(item) for item in labels if int(item) >= 0}):
+        members = np.flatnonzero(labels == label)
+        if members.size == 0:
+            continue
+        center = matrix[members].mean(axis=0)
+        norm = float(np.linalg.norm(center))
+        if norm == 0.0:
+            labels[members] = -1
+            continue
+        cosine = matrix[members] @ (center / norm)
+        labels[members[cosine < _MEMBER_COSINE]] = -1
+
+
+def _merge_near_centroids(matrix, labels) -> None:
+    """Fold split pieces of one subject back together. Dissimilar groups stay apart."""
+    import numpy as np
+
+    def snapshot():
+        found: dict[int, np.ndarray] = {}
+        centers: dict[int, np.ndarray] = {}
+        for label in sorted({int(item) for item in labels if int(item) >= 0}):
+            members = np.flatnonzero(labels == label)
+            if members.size == 0:
+                continue
+            center = matrix[members].mean(axis=0)
+            norm = float(np.linalg.norm(center))
+            if norm == 0.0:
+                labels[members] = -1
+                continue
+            found[label] = members
+            centers[label] = center / norm
+        return found, centers
+
+    while True:
+        members, centers = snapshot()
+        labels_now = list(members)
+        best = None
+        for index, left in enumerate(labels_now):
+            for right in labels_now[index + 1 :]:
+                similarity = float(centers[left] @ centers[right])
+                if similarity < _MERGE_COSINE:
+                    continue
+                low, high = (left, right) if left < right else (right, left)
+                key = (similarity, -low, -high)
+                if best is None or key > best[0]:
+                    best = (key, left, right)
+        if best is None:
+            return
+        _key, left, right = best
+        if members[right].size > members[left].size or (
+            members[right].size == members[left].size and right < left
+        ):
+            left, right = right, left
+        labels[members[right]] = left
 
 
 def _bertopic_labels(
@@ -78,43 +209,18 @@ def _keep_top(
     keep: int = SYSTEM_SIZE,
 ) -> dict:
     labels = [int(label) for label in raw_labels]
-    if len(texts) < keep * min_cluster_size:
+    if len(texts) < min_cluster_size:
         raise RuntimeError(
-            f"Need {keep} clusters of at least {min_cluster_size} posts, found {len(texts)} posts. "
-            "Raise sample_size."
+            f"Need at least {min_cluster_size} posts to form a planet, found {len(texts)} posts."
         )
 
-    labels = _ensure_cluster_count(texts, labels, keep, min_cluster_size)
     ranked = _ranked_clusters(labels)
-    if len(ranked) < keep:
-        raise RuntimeError(
-            f"Need {keep} clusters of at least {min_cluster_size} posts, found {len(ranked)}. "
-            "Lower min_cluster_size or raise sample_size."
-        )
-
     survivors = [(label, members) for label, members in ranked if len(members) >= min_cluster_size]
-    if len(survivors) >= keep:
-        kept = survivors[:keep]
-    else:
-        selected = {label for label, _members in ranked[:keep]}
-        grown = grow_clusters_to_min(vectorize(texts), labels, selected, min_cluster_size)
-        labels = [int(label) for label in grown]
-        kept = []
-        for label, members in _ranked_clusters(labels):
-            if label not in selected:
-                continue
-            if len(members) < min_cluster_size:
-                raise RuntimeError(
-                    f"Need {keep} clusters of at least {min_cluster_size} posts, "
-                    f"found {len(kept)} after rebalance. Lower min_cluster_size or raise sample_size."
-                )
-            kept.append((label, members))
-        kept.sort(key=lambda item: (-len(item[1]), item[0]))
-        if len(kept) < keep:
-            raise RuntimeError(
-                f"Need {keep} clusters of at least {min_cluster_size} posts, found {len(kept)}. "
-                "Lower min_cluster_size or raise sample_size."
-            )
+    if not survivors:
+        raise RuntimeError(
+            f"No cluster met min size {min_cluster_size} among {len(texts)} posts."
+        )
+    kept = survivors[:keep]
 
     remap = {label: new_id for new_id, (label, _members) in enumerate(kept)}
     assignments = [remap.get(label, -1) for label in labels]
@@ -144,24 +250,3 @@ def _ranked_clusters(labels: list[int]) -> list[tuple[int, list[int]]]:
     ranked.sort(key=lambda item: (-len(item[1]), item[0]))
     return ranked
 
-
-def _ensure_cluster_count(texts: list[str], labels: list[int], keep: int, min_cluster_size: int) -> list[int]:
-    """Split the largest planets until k-means/BERTopic produced `keep` groups."""
-    labels = list(labels)
-    next_label = max(labels) + 1 if labels else 0
-    for _ in range(keep):
-        ranked = _ranked_clusters(labels)
-        if len(ranked) >= keep:
-            return labels
-        candidates = [(label, members) for label, members in ranked if len(members) >= 2 * min_cluster_size]
-        if not candidates:
-            candidates = [(label, members) for label, members in ranked if len(members) >= 4]
-        if not candidates:
-            return labels
-        label, members = candidates[0]
-        member_texts = [texts[index] for index in members]
-        local_labels, _centers = cluster_kmeans(vectorize(member_texts), 2, seed=0)
-        for local, index in zip(local_labels, members):
-            labels[index] = label if int(local) == 0 else next_label
-        next_label += 1
-    return labels

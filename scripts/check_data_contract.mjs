@@ -39,8 +39,9 @@ const demoCategories = [
   'Religion',
 ]
 
-if (!Array.isArray(payload.topics) || payload.topics.length < SYSTEM_SIZE) {
-  fail(`Expected at least ${SYSTEM_SIZE} topics, found ${payload.topics?.length}`)
+const minimumTopics = payload.mode === 'live' ? 1 : SYSTEM_SIZE
+if (!Array.isArray(payload.topics) || payload.topics.length < minimumTopics) {
+  fail(`Expected at least ${minimumTopics} topics, found ${payload.topics?.length}`)
 }
 
 const categoryCounts = Object.fromEntries([...categories].map((name) => [name, 0]))
