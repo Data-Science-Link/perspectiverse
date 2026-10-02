@@ -27,22 +27,48 @@ export function spikeColor(rank) {
   return PERSPECTIVE_COLORS[rank % PERSPECTIVE_COLORS.length]
 }
 
-export function shadeHex(hex, factor = 0.55) {
+function parseHex(hex) {
   const normalized = (hex ?? '#9aa3b5').replace('#', '')
   const value = normalized.length === 3
     ? normalized.split('').map((part) => part + part).join('')
     : normalized
   const int = Number.parseInt(value, 16)
-  if (!Number.isFinite(int)) return hex ?? '#9aa3b5'
-  const r = Math.round(((int >> 16) & 255) * factor)
-  const g = Math.round(((int >> 8) & 255) * factor)
-  const b = Math.round((int & 255) * factor)
-  return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`
+  if (!Number.isFinite(int) || value.length !== 6) return [154, 163, 181]
+  return [(int >> 16) & 255, (int >> 8) & 255, int & 255]
 }
 
-export function faceOpacity(volumePercent, maxPercent) {
-  const relative = Math.max(0, Number(volumePercent) || 0) / Math.max(Number(maxPercent) || 0, 0.01)
-  return 0.24 + Math.min(relative, 1) * 0.76
+function formatHex(channels) {
+  return `#${channels.map((channel) => Math.round(Math.min(255, Math.max(0, channel))).toString(16).padStart(2, '0')).join('')}`
+}
+
+export function shadeHex(hex, factor = 0.55) {
+  const [r, g, b] = parseHex(hex)
+  return formatHex([r * factor, g * factor, b * factor])
+}
+
+export function mixHex(hex, other, amount = 0.5) {
+  const blend = Math.min(1, Math.max(0, amount))
+  const from = parseHex(hex)
+  const to = parseHex(other)
+  return formatHex(from.map((channel, index) => channel + (to[index] - channel) * blend))
+}
+
+const MAJORITY_SHADE = 0.45
+const MINORITY_LIGHTEN = 0.42
+
+export function faceShade(hex, rank, count) {
+  const pigment = hex || '#9aa3b5'
+  const faces = Math.max(1, Math.round(Number(count) || 1))
+  const index = Math.min(Math.max(0, Math.round(Number(rank) || 0)), faces - 1)
+  if (faces === 1) return shadeHex(pigment, MAJORITY_SHADE)
+  const middle = (faces - 1) / 2
+  if (index <= middle) {
+    const towardPlanet = middle === 0 ? 1 : index / middle
+    return shadeHex(pigment, MAJORITY_SHADE + (1 - MAJORITY_SHADE) * towardPlanet)
+  }
+  const span = faces - 1 - middle
+  const towardLight = span === 0 ? 1 : (index - middle) / span
+  return mixHex(pigment, '#ffffff', MINORITY_LIGHTEN * towardLight)
 }
 
 export function rankPerspectives(perspectives = []) {

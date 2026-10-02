@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import hmac
 import os
+import re
 import sqlite3
 import sys
 import urllib.error
@@ -26,6 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 CORPUS_KEY = "live_corpus.db"
+_OBJECT_KEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.db")
 DEFAULT_BUCKET = "perspectiverse-corpus"
 _REGION = "auto"
 _SERVICE = "s3"
@@ -61,6 +63,7 @@ def load_r2_config(environ: Mapping[str, str] | None = None) -> R2Config | None:
     secret = _setting(env, "R2_SECRET_ACCESS_KEY")
     endpoint = _setting(env, "R2_ENDPOINT").rstrip("/")
     bucket = _setting(env, "R2_BUCKET") or DEFAULT_BUCKET
+    object_key = _setting(env, "R2_OBJECT_KEY") or CORPUS_KEY
     if not access_key and not secret and not endpoint:
         return None
     missing = [
@@ -81,6 +84,7 @@ def load_r2_config(environ: Mapping[str, str] | None = None) -> R2Config | None:
         secret_access_key=secret,
         endpoint=endpoint,
         bucket=bucket,
+        object_key=object_key,
     )
     _validate_config(config)
     return config
@@ -170,9 +174,13 @@ def _setting(env, name: str) -> str:
     return str(env.get(name) or "").strip()
 
 
+def _valid_object_key(key: str) -> bool:
+    return bool(_OBJECT_KEY.fullmatch(key or ""))
+
+
 def _validate_config(config: R2Config) -> None:
-    if config.region != _REGION or config.object_key != CORPUS_KEY:
-        raise RuntimeError("The corpus object is live_corpus.db in region auto")
+    if config.region != _REGION or not _valid_object_key(config.object_key):
+        raise RuntimeError("The corpus object must be a .db name in region auto")
     _validate_endpoint(config.endpoint)
     _validate_bucket(config.bucket)
     if not config.access_key_id or not config.secret_access_key:

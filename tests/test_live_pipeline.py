@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-from pipeline.live import run_live
+from pipeline.live import posts_for_planets, run_live
 from pipeline.run_pipeline import main
 from pipeline.schema import validate_payload
 from tests.corpus import build_tiny_posts
@@ -55,6 +55,21 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(topic["name"] for topic in payload["topics"])
 
 
+def test_live_run_refuses_unlabeled_posts():
+    posts = [{"uri": "at://a", "is_claim": None, "clean_text": "hello", "text": "hello"}]
+    try:
+        posts_for_planets(posts, require_claims=True)
+    except RuntimeError as exc:
+        assert "unlabeled" in str(exc).lower() or "Jev" in str(exc)
+    else:
+        raise AssertionError("unlabeled posts should not be clustered")
+    aside = dict(posts[0], is_claim=False)
+    claim = dict(posts[0], uri="at://b", is_claim=True)
+    kept = posts_for_planets([aside, claim], require_claims=True)
+    assert [post["uri"] for post in kept] == ["at://b"]
+    assert posts_for_planets(posts, require_claims=False) == posts
+
+
 def test_run_live_function_matches_cli(tmp_path):
     fixture = tmp_path / "posts.json"
     fixture.write_text(json.dumps(build_tiny_posts()), encoding="utf-8")
@@ -62,7 +77,7 @@ def test_run_live_function_matches_cli(tmp_path):
     config.write_text("min_cluster_size: 8\ncluster_backend: lexical\nlabel_backend: heuristic\nseed: 0\n", encoding="utf-8")
     path = run_live(fixture=fixture, output=tmp_path / "out.json", config=config, db_path=tmp_path / "p.db")
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert 2 <= len(payload["topics"][0]["perspectives"]) <= 6
+    assert 1 <= len(payload["topics"][0]["perspectives"]) <= 6
     assert payload["topics"][0]["perspectives"][0]["representative_posts"][0]["likes"] >= 0
 
 
@@ -136,6 +151,11 @@ def test_bluesky_403_does_not_shrink_retained_corpus(monkeypatch, tmp_path):
         raise RuntimeError("HTTP 403 from api.bsky.app")
 
     monkeypatch.setattr("pipeline.live.extract_posts", forbidden)
+
+    def keep_as_claims(posts):
+        return [{**post, "is_claim": True, "section": post.get("section") or "Other"} for post in posts]
+
+    monkeypatch.setattr("pipeline.live.apply_jev", keep_as_claims)
     output = tmp_path / "data.json"
     path = run_live(
         output=output,

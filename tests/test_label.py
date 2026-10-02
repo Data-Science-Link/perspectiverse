@@ -50,6 +50,25 @@ def test_duplicate_titles_get_a_suffix():
     assert unique_label("Anti Trump", seen) == "Anti Trump 2"
 
 
+def test_titles_alike_catches_a_numbered_copy_and_not_a_different_claim():
+    from pipeline.label import titles_alike
+
+    assert titles_alike("Pro Ukraine", "Pro Ukraine 2")
+    assert titles_alike("AI Criticism", "AI Critique")
+    assert not titles_alike("Pro Ukraine", "Oil Crisis")
+
+
+def test_heuristic_summary_uses_a_shown_sentence():
+    from pipeline.label import heuristic_label
+
+    labeled = heuristic_label(
+        ["rent"],
+        [{"text": "Half my paycheck is rent and the lease still went up.", "likes": 4}],
+    )
+    assert "paycheck" in labeled["summary"]
+    assert "concentrate on" not in labeled["summary"]
+
+
 def test_parse_label_accepts_wrapped_json():
     parsed = parse_label('Sure thing {"title": "Rent Burden", "summary": "People cannot pay rent."}')
     assert parsed["title"] == "Rent Burden"

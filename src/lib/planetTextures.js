@@ -1,4 +1,5 @@
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three'
+import { shadeHex } from './colors.js'
 
 function hash(ix, iy, seed) {
   const n = Math.sin(ix * 127.1 + iy * 311.7 + seed * 74.7) * 43758.5453123
@@ -341,5 +342,28 @@ export function createRingTexture(quality = 'high') {
   texture.colorSpace = SRGBColorSpace
   texture.needsUpdate = true
   ringCache.set(quality, texture)
+  return texture
+}
+
+export function createDashTexture(hex) {
+  if (typeof document === 'undefined') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 128
+  const context = canvas.getContext('2d')
+  context.fillStyle = hex || '#9aa3b5'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.strokeStyle = shadeHex(hex, 0.55)
+  context.lineWidth = 5
+  context.setLineDash([14, 10])
+  for (let offset = -128; offset <= 256; offset += 22) {
+    context.beginPath()
+    context.moveTo(offset, canvas.height)
+    context.lineTo(offset + canvas.width, 0)
+    context.stroke()
+  }
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  texture.needsUpdate = true
   return texture
 }

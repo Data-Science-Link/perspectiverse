@@ -44,7 +44,7 @@ DEMO_CATEGORIES = (
 )
 ALLOWED_CATEGORIES = frozenset(CATEGORIES) | frozenset(DEMO_CATEGORIES) | frozenset(LEGACY_CATEGORIES)
 NOISE_POLICY = "Topic -1 is dropped and excluded from the volume denominator."
-MIN_FACES = 2
+MIN_FACES = 1
 MAX_FACES = 6
 
 CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {

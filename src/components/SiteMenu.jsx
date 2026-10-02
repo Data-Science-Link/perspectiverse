@@ -100,8 +100,9 @@ export default function SiteMenu({
           <p>
             The largest topic sits in the center as the sun. The next nine orbit around
             it as Mercury through Pluto. Size is share of attention, not importance.
-            When you open a planet, the longest, most solid spike is the loudest
-            opinion — it keeps that planet&apos;s color, and quieter views fade.
+            When you open a planet, the longest, darkest spike is the most common
+            opinion. Smaller views are the same color, only lighter. A dashed face
+            has no perspective.
           </p>
           {onShowWelcome && (
             <button type="button" className="menu-feedback" onClick={onShowWelcome}>
@@ -115,7 +116,7 @@ export default function SiteMenu({
           <ul>
             <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
             <li>Bigger planet = more people were talking about that topic this week.</li>
-            <li>Tap a planet to open its opinions. Tap a face to read its core arguments and the posts behind them. The longest, most solid spike is the majority.</li>
+            <li>Tap a planet to open its opinions. Tap a face to read its core arguments and the posts behind them. The longest, darkest spike is the most common view. A dashed face has no perspective.</li>
             <li>After you open a planet, drag the shape to turn it. Scroll or pinch to zoom.</li>
           </ul>
         </section>

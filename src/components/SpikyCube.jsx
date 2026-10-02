@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, DoubleSide } from 'three'
 import { shadeHex } from '../lib/colors'
 import { CORE_RADIUS } from '../lib/faces'
-import { createBodyTexture, createRingTexture } from '../lib/planetTextures'
+import { createBodyTexture, createDashTexture, createRingTexture } from '../lib/planetTextures'
 import { buildCrystal } from '../lib/spikes'
 
 function SaturnRings({ meshRef, quality = 'high' }) {
@@ -83,6 +83,7 @@ export default function SpikyCube({
     () => createBodyTexture(body?.key ?? 'mercury', quality),
     [body?.key, quality],
   )
+  const dashTexture = useMemo(() => createDashTexture(pigment), [pigment])
   const crystalGeo = useMemo(
     () => (crystalReady ? buildCrystal(perspectives, { quality, pigment }) : null),
     [crystalReady, perspectives, quality, pigment],
@@ -92,6 +93,8 @@ export default function SpikyCube({
     if (showSpikes) setCrystalReady(true)
   }, [showSpikes])
 
+  useEffect(() => () => dashTexture?.dispose(), [dashTexture])
+
   useEffect(() => () => {
     if (!crystalGeo) return
     crystalGeo.core.dispose()
@@ -99,6 +102,7 @@ export default function SpikyCube({
       face.extrusion.dispose()
       face.pick.dispose()
     }
+    for (const face of crystalGeo.empty ?? []) face.dispose()
   }, [crystalGeo])
 
   useFrame((_, delta) => {
@@ -130,9 +134,7 @@ export default function SpikyCube({
     }
   })
 
-  const faces = crystalGeo
-    ? [...crystalGeo.faces].sort((a, b) => b.opacity - a.opacity)
-    : []
+  const faces = crystalGeo?.faces ?? []
 
   return (
     <group>
@@ -184,9 +186,19 @@ export default function SpikyCube({
               metalness={0.16}
             />
           </mesh>
+          {(crystalGeo.empty ?? []).map((geometry, index) => (
+            <mesh key={`empty-${index}`} geometry={geometry} raycast={() => null}>
+              <meshStandardMaterial
+                map={dashTexture ?? undefined}
+                color={dashTexture ? '#ffffff' : pigment}
+                roughness={0.62}
+                metalness={0.04}
+                side={DoubleSide}
+              />
+            </mesh>
+          ))}
           {faces.map((face) => {
             const selected = selectedPerspectiveId === face.id
-            const transparent = face.opacity < 0.98
             return (
               <group key={face.id} scale={selected ? 1.05 : 1}>
                 {interactive && (
@@ -215,14 +227,11 @@ export default function SpikyCube({
                   <meshStandardMaterial
                     color={face.color}
                     emissive={face.color}
-                    emissiveIntensity={selected ? 1.15 : 0.16 + face.opacity * 0.28}
+                    emissiveIntensity={selected ? 1.15 : 0.28}
                     roughness={0.34}
                     metalness={0.06}
                     side={DoubleSide}
                     toneMapped={false}
-                    transparent={transparent}
-                    opacity={face.opacity}
-                    depthWrite={!transparent}
                     polygonOffset
                     polygonOffsetFactor={-1}
                     polygonOffsetUnits={-1}

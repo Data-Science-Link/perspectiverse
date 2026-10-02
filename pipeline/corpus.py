@@ -11,7 +11,9 @@ from __future__ import annotations
 import random
 from datetime import datetime, timedelta, timezone
 
-TARGET_POSTS = 1000
+# Posts that already passed cleaning, dedup, spam, and the public-claim check.
+CLAIM_TARGET = 10000
+TARGET_POSTS = CLAIM_TARGET
 MIN_GROUP_POSTS = 10
 
 GROUP_QUOTAS = {
@@ -72,11 +74,13 @@ def retain_window(
     window_hours: int,
     target: int,
     rng: random.Random,
+    cap: bool = True,
 ) -> list[dict]:
-    """Expire posts outside the window and top up toward ``target``.
+    """Expire posts outside the window and, when ``cap`` is set, top up toward ``target``.
 
     An empty ``incoming`` list returns ``existing`` unchanged. In-window posts
-    are never dropped to make room, and likes are not a rank.
+    are never dropped to make room, and likes are not a rank. ``cap=False``
+    keeps every new in-window post so a later claim trim can decide what counts.
     """
     if not incoming:
         return list(existing)
@@ -86,8 +90,27 @@ def retain_window(
     survivors = [post for post in existing if parse_created(post.get("created_at") or "") >= cutoff]
     seen = {post["uri"] for post in survivors if post.get("uri")}
     fresh = [post for post in incoming if post.get("uri") and post["uri"] not in seen]
+    if not cap:
+        return survivors + fresh
     need = max(0, target - len(survivors))
     return survivors + cap_sample(fresh, need, rng)
+
+
+def keep_claims(posts: list[dict], target: int, rng: random.Random) -> list[dict]:
+    """Keep up to ``target`` public claims. Non-claims stay and do not fill a slot.
+
+    Unlabeled posts are returned with the claims so the caller can refuse to
+    cluster them. Likes are not a rank.
+    """
+    claims = [post for post in posts if post.get("is_claim") is True]
+    others = [post for post in posts if post.get("is_claim") is not True]
+    if len(claims) <= max(target, 0):
+        return claims + others
+    return cap_sample(claims, target, rng) + others
+
+
+def claim_count(posts: list[dict]) -> int:
+    return sum(1 for post in posts if post.get("is_claim") is True)
 
 
 def posts_on_utc_date(posts: list[dict], utc_date: str) -> bool:

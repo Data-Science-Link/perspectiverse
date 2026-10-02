@@ -31,10 +31,12 @@ def build_perspective_prompt(posts: list[dict]) -> str:
         "Return JSON only, with no markdown: "
         '{"title": "2-3 words", "summary": "one sentence", '
         '"arguments": ["steelman 1", "steelman 2", "steelman 3"]}\n'
-        "The title is 2 to 3 words. The summary is one sentence. "
+        "The title is 2 to 3 words naming the specific claim these posts share. "
+        "The summary is one sentence of that claim. "
+        "Do not invent an opposing camp, and do not call the posts various opinions. "
         "Each argument must paraphrase one of the posts below, in that view's own voice. "
         "Do not add a fact, number, or proper noun that is not in those posts. "
-        "If the posts do not share a subject, use title \"Mixed remarks\", say so in the summary, "
+        "If the posts do not share a claim, use title \"Mixed remarks\", say so in one clause, "
         "and return an empty arguments list.\n"
         f"Posts:\n{body}\n"
     )
@@ -153,11 +155,24 @@ def fallback_label(terms: list[str]) -> dict:
     }
 
 
+def _shown_sentence(posts: list[dict] | None) -> str:
+    ranked = sorted(posts or [], key=lambda post: -int(post.get("likes") or 0))
+    for post in ranked:
+        text = str(post.get("text") or post.get("clean_text") or "").strip()
+        if len(text) < 24:
+            continue
+        sentence = text.split(". ")[0].strip()
+        if len(sentence) > 180:
+            sentence = sentence[:177].rsplit(" ", 1)[0] + "…"
+        return sentence
+    return ""
+
+
 def heuristic_label(terms: list[str], posts: list[dict] | None = None) -> dict:
     words = [term.capitalize() for term in terms[:3]]
     title = " ".join(words) if words else FALLBACK_TITLE
     shown = ", ".join(terms[:5]) if terms else "these posts"
-    summary = f"Posts in this face concentrate on {shown}."
+    summary = _shown_sentence(posts) or f"A live remark about {shown}."
     labeled = {
         "title": title[:48],
         "summary": summary[:280],
@@ -208,6 +223,41 @@ def heuristic_arguments(posts: list[dict], terms: list[str] | None = None) -> li
 def content_tokens(text: str) -> set[str]:
     """Words long enough to show that a sentence is about the same post."""
     return {token for token in _TOKEN.findall(text.lower()) if len(token) >= 4 and token not in _GROUND_STOP}
+
+
+def titles_alike(left: str | None, right: str | None) -> bool:
+    """True when two face titles are the same stance, including a numbered copy."""
+    from difflib import SequenceMatcher
+
+    def normalize(value: str | None) -> str:
+        words = re.findall(r"[a-z0-9]+", str(value or "").lower())
+        while words and words[-1].isdigit():
+            words.pop()
+        return " ".join(words)
+
+    a = normalize(left)
+    b = normalize(right)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    if SequenceMatcher(None, a, b).ratio() >= 0.8:
+        return True
+    a_tokens = set(a.split())
+    b_tokens = set(b.split())
+    if len(a_tokens) >= 2 and len(b_tokens) >= 2:
+        overlap = len(a_tokens & b_tokens) / len(a_tokens | b_tokens)
+        if overlap >= 0.67:
+            return True
+    shared = a_tokens & b_tokens
+    only_a = a_tokens - b_tokens
+    only_b = b_tokens - a_tokens
+    if shared and len(only_a) == 1 and len(only_b) == 1:
+        left = next(iter(only_a))
+        right = next(iter(only_b))
+        if len(left) >= 4 and len(right) >= 4 and left[:4] == right[:4]:
+            return True
+    return False
 
 
 def unique_label(name: str, seen: set[str]) -> str:

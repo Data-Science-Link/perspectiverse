@@ -137,6 +137,25 @@ def test_r2_config_requires_the_account_host_and_defaults_the_bucket():
     assert config is not None
     assert config.bucket == "perspectiverse-corpus"
     assert config.object_key == "live_corpus.db"
+    preview = load_r2_config(
+        {
+            "R2_ACCESS_KEY_ID": "AKID",
+            "R2_SECRET_ACCESS_KEY": "secret",
+            "R2_ENDPOINT": _ENDPOINT,
+            "R2_OBJECT_KEY": "live_corpus_preview.db",
+        }
+    )
+    assert preview is not None
+    assert preview.object_key == "live_corpus_preview.db"
+    with pytest.raises(RuntimeError, match="\\.db"):
+        load_r2_config(
+            {
+                "R2_ACCESS_KEY_ID": "AKID",
+                "R2_SECRET_ACCESS_KEY": "secret",
+                "R2_ENDPOINT": _ENDPOINT,
+                "R2_OBJECT_KEY": "../live_corpus.db",
+            }
+        )
     assert config.endpoint == _ENDPOINT
     assert "secret" not in repr(config)
     with pytest.raises(RuntimeError, match="partially configured"):
@@ -244,7 +263,10 @@ def test_round_trip_clusters_without_searching_a_fetched_day(monkeypatch, tmp_pa
         raise AssertionError("a restored fetched day must not search Bluesky")
 
     monkeypatch.setattr("pipeline.live.extract_posts", boom)
-    monkeypatch.setattr("pipeline.live.apply_jev", lambda posts: list(posts))
+    monkeypatch.setattr(
+        "pipeline.live.apply_jev",
+        lambda posts: [{**post, "is_claim": True, "section": post.get("section") or "Other"} for post in posts],
+    )
     config = tmp_path / "pipeline.yaml"
     config.write_text(
         "\n".join(

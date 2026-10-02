@@ -10,6 +10,7 @@ instead. Callers can pass ``fetch`` so tests never touch the network.
 
 from __future__ import annotations
 
+import math
 import os
 import random
 import time
@@ -23,6 +24,19 @@ PUBLIC_SEARCH_URLS = (
     "https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
 )
 USER_AGENT = "perspectiverse-pipeline/0.2"
+_MAX_PAGES = 40
+
+
+def page_budget(sample_size: int, query_count: int, per_query: int = 100) -> int:
+    """Pages per query so a large claim window can be inspected.
+
+    The extractor overscans to twice ``sample_size`` before it subsamples.
+    A fixed 8-page loop stops near 4,800 posts across the neutral queries.
+    """
+    queries = max(int(query_count), 1)
+    per = max(int(per_query), 1)
+    needed = math.ceil((max(int(sample_size), 1) * 2) / (queries * per))
+    return min(_MAX_PAGES, max(8, needed))
 
 
 def extract_posts(
@@ -47,7 +61,7 @@ def extract_posts(
 
     for query in queries:
         cursor = None
-        for _page in range(8):
+        for _page in range(page_budget(sample_size, len(queries), per_query)):
             try:
                 page = getter(query, cursor, per_query)
             except RuntimeError as exc:

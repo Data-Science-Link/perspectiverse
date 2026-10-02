@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import json
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from pipeline.assemble import assemble_payload, face_id, topic_name, write_payload
 from pipeline.cleaning import clean_posts, drop_near_duplicates
 from pipeline.corpus import (
     TARGET_POSTS,
-    cap_sample,
+    claim_count,
+    keep_claims,
+    parse_created,
     posts_on_utc_date,
     retain_window,
     utc_dates_present,
@@ -19,7 +21,7 @@ from pipeline.corpus import (
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
-from pipeline.label import label_perspective, label_topic, unique_label
+from pipeline.label import label_perspective, label_topic, titles_alike, unique_label
 from pipeline.perspectives import select_representatives, split_perspectives
 from pipeline.schema import SYSTEM_SIZE, category_for_members, to_percents
 from pipeline.settings import load_settings
@@ -69,20 +71,32 @@ def run_live(
         )
         if source == "bluesky" and not relabel:
             cleaned = apply_jev(cleaned)
+            before = claim_count(cleaned)
+            cleaned = keep_claims(cleaned, target, random.Random(int(settings["seed"])))
+            kept = claim_count(cleaned)
+            if kept < target:
+                print(f"Claim shortfall: {kept} of {target} filtered claims. Search did not fill the window.")
+            elif before > kept:
+                print(f"Kept {kept} filtered claims and left {before - kept} extra claims out of the window.")
         if not cleaned:
             raise RuntimeError("No quality posts in the retained corpus or the extract.")
 
         replace_posts(connection, cleaned)
-        planet_posts = posts_for_planets(cleaned)
+        planet_posts = posts_for_planets(
+            cleaned,
+            require_claims=source == "bluesky" and not relabel,
+        )
         texts = [post["clean_text"] for post in planet_posts]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
+        floor = max(int(settings["min_cluster_size"]), len(planet_posts) // 200)
         clustered = cluster_texts(
             texts,
-            min_cluster_size=int(settings["min_cluster_size"]),
+            min_cluster_size=floor,
             cluster_backend=str(settings["cluster_backend"]),
             embedding_model=str(settings["embedding_model"]),
             seed=int(settings["seed"]),
             catalog_size=catalog_size,
+            authors=[str(post.get("author") or "unknown") for post in planet_posts],
         )
         topics, membership, face_rows = _build_topics(planet_posts, clustered, settings)
         write_clusters(connection, membership, face_rows)
@@ -145,19 +159,25 @@ def _collect_posts(
     # are backfilled above so a seeded file is not replaced by a 7-day scrape.
     refill = not search_queries and not ledger and not existing
     rng = random.Random(int(settings["seed"]))
+    cutoff = moment - timedelta(hours=window_hours)
+    in_window = [
+        post for post in existing
+        if parse_created(post.get("created_at") or "") >= cutoff
+    ]
+    deficit = target if refill else max(0, target - claim_count(in_window))
+    # About half of a neutral fetch was a public claim last window, so inspect
+    # two posts for each claim still missing. A full window still checks today.
+    pool = max(deficit * 2, 80)
     if search_queries:
         fetch_queries = search_queries
         hours = window_hours if len(existing) < max(int(target * 0.5), 80) else refresh_hours
-        pool = max(target, 80)
     elif refill:
         fetch_queries = neutral
         hours = window_hours
-        pool = max(target * 2, 80)
         print("No neutral fetch on record. Replacing the retained window with a 7-day sample.")
     else:
         fetch_queries = neutral
         hours = refresh_hours
-        pool = max(int(target * 0.4), 80)
 
     try:
         incoming = extract_posts(
@@ -179,7 +199,7 @@ def _collect_posts(
         return list(existing), "bluesky"
 
     if refill:
-        cleaned = cap_sample(fresh, target, rng)
+        cleaned = list(fresh)
         dates = window_utc_dates(moment)
     else:
         cleaned = retain_window(
@@ -189,6 +209,7 @@ def _collect_posts(
             window_hours=window_hours,
             target=target,
             rng=rng,
+            cap=False,
         )
         dates = [today]
     cleaned = drop_near_duplicates(cleaned)
@@ -210,7 +231,11 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
     for topic, volume in zip(clustered["topics"], volumes):
         members = [posts[index] for index in topic["member_indices"]]
         member_texts = [post["clean_text"] for post in members]
-        split = split_perspectives(member_texts, seed=seed)
+        matrix = clustered.get("matrix")
+        member_matrix = None
+        if matrix is not None:
+            member_matrix = matrix[topic["member_indices"]]
+        split = split_perspectives(member_texts, seed=seed, matrix=member_matrix)
         face_volumes = to_percents([face["size"] for face in split["faces"]])
         topic_id = topic["id"] + 1
         terms = list(topic["terms"])
@@ -257,21 +282,29 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
     return built, membership, face_rows
 
 
-def posts_for_planets(posts: list[dict]) -> list[dict]:
+def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> list[dict]:
     """Leave personal asides in the window and out of planet membership.
 
-    ``is_claim is None`` means Jev has not been asked, so those posts stay in.
-    A claim set smaller than a few planets is not enough to map, so the whole
-    window is used instead of publishing an empty solar system.
+    A live fetch with no claim labels fails. Fixtures and a relabel of an
+    unlabeled file still cluster the posts they were given.
     """
-    claims = [post for post in posts if post.get("is_claim") is not False]
-    if len(claims) >= 24 and len(claims) < len(posts):
-        print(
-            f"Clustering {len(claims)} public claims; "
-            f"{len(posts) - len(claims)} non-claims stay in the window."
-        )
-        return claims
-    return list(posts)
+    labeled = any(post.get("is_claim") is not None for post in posts)
+    if require_claims and not labeled:
+        raise RuntimeError("Jev did not label claims. Refusing to cluster unlabeled posts.")
+    if require_claims and any(post.get("is_claim") is None for post in posts):
+        raise RuntimeError("Jev left some posts unlabeled. Refusing to cluster them.")
+    if not labeled:
+        return list(posts)
+    claims = [post for post in posts if post.get("is_claim") is True]
+    if require_claims and not claims:
+        raise RuntimeError("No public claims passed the filters.")
+    if not claims:
+        return list(posts)
+    print(
+        f"Clustering {len(claims)} public claims; "
+        f"{len(posts) - len(claims)} non-claims stay in the window."
+    )
+    return claims
 
 
 def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
@@ -291,5 +324,36 @@ def _dedupe_labels(topics: list[dict]) -> None:
     seen: set[str] = set()
     for topic in topics:
         topic["name"] = unique_label(str(topic.get("name") or ""), seen)
-        for face in topic.get("perspectives") or []:
-            face["title"] = unique_label(str(face.get("title") or ""), seen)
+        _merge_alike_faces(topic)
+
+
+def _merge_alike_faces(topic: dict) -> None:
+    """Fold a second face into the larger one when the titles are the same stance.
+
+    Numbering a duplicate ("Pro Ukraine 2") was presenting one view as two.
+    """
+    ranked = sorted(
+        topic.get("perspectives") or [],
+        key=lambda face: (-float(face.get("volume_percent") or 0), str(face.get("id") or "")),
+    )
+    kept: list[dict] = []
+    for face in ranked:
+        match = next((item for item in kept if titles_alike(item.get("title"), face.get("title"))), None)
+        if match is None:
+            kept.append(face)
+            continue
+        match["volume_percent"] = float(match.get("volume_percent") or 0) + float(face.get("volume_percent") or 0)
+        seen_text = {str(post.get("text") or "") for post in match.get("representative_posts") or []}
+        posts = list(match.get("representative_posts") or [])
+        for post in face.get("representative_posts") or []:
+            if str(post.get("text") or "") in seen_text:
+                continue
+            posts.append(post)
+            seen_text.add(str(post.get("text") or ""))
+        posts.sort(key=lambda post: -int(post.get("likes") or 0))
+        match["representative_posts"] = posts[:12]
+    topic_id = int(topic["id"])
+    topic["perspectives"] = [
+        {**face, "id": face_id(topic_id, position)}
+        for position, face in enumerate(kept)
+    ]
