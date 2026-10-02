@@ -32,12 +32,12 @@ def build_perspective_prompt(posts: list[dict]) -> str:
         '{"title": "2-3 words", "summary": "one sentence", '
         '"arguments": ["steelman 1", "steelman 2", "steelman 3"]}\n'
         "The title is 2 to 3 words naming the specific event, policy, or claim. "
-        "Do not name a camp. Titles like \"Anti Republican\", \"Pro Ukraine\", "
-        "\"AI Criticism\", or \"Economic Critique\" are not allowed. "
+        "Do not name a camp or a bare slogan. Titles like \"Anti Republican\", \"Pro Ukraine\", "
+        "\"AI Criticism\", \"Art World Criticized\", or \"Stop AI\" are not allowed. "
         "Do not use an insult or a criminal accusation as the title. "
-        "The summary is one complete sentence of that same claim, written in your own words. "
+        "The summary is one complete sentence of that same claim, at most 22 words, written in your own words. "
         "Do not paste a post, and do not end the sentence with an ellipsis. "
-        "Do not add a second camp, a motive, or a \"but\" that joins a different claim. "
+        "Do not add a second camp, a motive, or a \"but\" or \", and some\" that joins a different claim. "
         "Do not call the posts various opinions. "
         "If the posts name different events, different people, or different policies, they do not share a claim. "
         "Each argument paraphrases a different post below, in that view's own voice, "
@@ -62,9 +62,9 @@ def build_repair_prompt(posts: list[dict], draft: dict) -> str:
         '"arguments": ["steelman 1", "steelman 2"]}\n'
         "The title is a grammatical phrase a person could say. "
         "Good titles: \"Halt Executions\", \"Artists Reject AI\", \"Diesel Export Ban\", \"Cornell Rape Case\". "
-        "Bad titles: \"Evangelists Unequipped\", \"Detrimental Undermines\", \"AI Criticism\", \"Anti Trump\". "
-        "The summary is one complete sentence of the single claim most of these posts make. "
-        "Do not join a second claim with \"but\". Do not say various. Do not copy a post. "
+        "Bad titles: \"Evangelists Unequipped\", \"Detrimental Undermines\", \"AI Criticism\", \"Anti Trump\", \"Stop AI\", \"Art World Criticized\". "
+        "The summary is one complete sentence of the single claim most of these posts make, at most 22 words. "
+        "Do not join a second claim with \"but\" or \", and some\". Do not say various. Do not copy a post. "
         "Do not end the summary with an ellipsis. "
         "Each argument paraphrases a different post and states a claim, not a name-call. "
         "Do not add a fact, number, or proper noun that is not in the posts. "
@@ -268,30 +268,28 @@ def heuristic_topic_label(terms: list[str], posts: list[dict] | None = None) -> 
 
 
 def heuristic_arguments(posts: list[dict], terms: list[str] | None = None) -> list[str]:
-    """Extractive steelman: the strongest distinct posts, trimmed."""
+    """A short claim from one post's own words, not a pasted post."""
+    del terms
     arguments: list[str] = []
     seen: set[str] = set()
     ranked = sorted(posts, key=lambda post: -int(post.get("likes") or 0))
     for post in ranked:
-        text = _shown_sentence([post])
-        if not text:
-            raw = str(post.get("text") or post.get("clean_text") or "").strip()
-            words = raw.split()
-            if 4 <= len(words) <= 32 and len(raw) <= 180 and not raw.endswith("…"):
-                text = raw
-        if not text:
+        tokens = sorted(
+            content_tokens(str(post.get("text") or post.get("clean_text") or "")),
+            key=len,
+            reverse=True,
+        )
+        if len(tokens) < 2:
             continue
-        key = text.lower()[:80]
-        if key in seen:
-            continue
-        seen.add(key)
-        arguments.append(text)
-        if len(arguments) >= 3:
+        primary = f"The claim centers on {tokens[0]} and {tokens[1]}."
+        secondary = f"Readers are treating {tokens[0]} and {tokens[1]} as the live issue."
+        for sentence in (primary, secondary):
+            if sentence in seen:
+                continue
+            seen.add(sentence)
+            arguments.append(sentence)
+        if len(arguments) >= 2:
             break
-    if len(arguments) < 2 and terms:
-        shown = ", ".join(terms[:4])
-        arguments.append(f"The conversation keeps returning to {shown}.")
-        arguments.append(f"Readers are treating {shown} as the live issue this week.")
     return arguments[:4]
 
 
@@ -391,6 +389,8 @@ def _title_needs_repair(title: str) -> bool:
         return True
     if any(word.lower().strip(".,") in _FRAGMENT_WORDS for word in words):
         return True
+    if _SLOGAN_TITLE.search(str(title or "").strip()):
+        return True
     if len(words) == 2 and _BROKEN_TITLE_ENDING.search(words[-1]):
         return True
     return False
@@ -403,7 +403,9 @@ def _summary_needs_repair(summary: str) -> bool:
     if len(text.split()) < 4:
         return True
     lowered = text.lower()
-    if _hedged(text) or " but " in f" {lowered} ":
+    if _hedged(text) or " but " in f" {lowered} " or _SECOND_SUBJECT.search(text):
+        return True
+    if len(text.split()) > 28:
         return True
     return False
 
@@ -425,8 +427,9 @@ def ground_perspective(labeled: dict, posts: list[dict], terms: list[str]) -> di
             titled["summary"] = sentence
             titled["label_source"] = "heuristic"
     arguments = _grounded_arguments(titled.get("arguments") or [], posts, source)
+    arguments = _arguments_about_the_title(arguments, str(titled.get("title") or ""))
     if len(arguments) < 2:
-        for extra in heuristic_arguments(posts):
+        for extra in heuristic_arguments(posts, terms):
             if extra in arguments:
                 continue
             arguments.extend(_grounded_arguments([extra], posts, source))
@@ -469,8 +472,92 @@ def _grounded_arguments(items: list, posts: list[dict], source: str) -> list[str
         text = str(item).strip()
         if not text or invented_entities(text, source) or not _paraphrases(text, posts):
             continue
+        if _copies_post(text, posts):
+            continue
         kept.append(text)
     return kept
+
+
+def _copies_post(text: str, posts: list[dict]) -> bool:
+    """A steelman that pastes a post is not a summary of the claim."""
+    snippet = " ".join(text.lower().split())
+    if len(snippet) < 48:
+        return False
+    for post in posts:
+        body = " ".join(str(post.get("text") or post.get("clean_text") or "").lower().split())
+        if snippet[:72] in body:
+            return True
+    return False
+
+
+def _arguments_about_the_title(arguments: list[str], title: str) -> list[str]:
+    """Drop steelmans that wandered into a different claim when the title is specific."""
+    if not content_tokens(title):
+        return arguments
+    matched = [item for item in arguments if shares_claim_word(item, title)]
+    if len(matched) >= 2:
+        return matched
+    return arguments
+
+
+def shares_claim_word(text: str, focus: str) -> bool:
+    """True when a sentence uses a word from the claim, including a close plural."""
+    focus_tokens = content_tokens(focus)
+    text_tokens = content_tokens(text)
+    for left in text_tokens:
+        for right in focus_tokens:
+            if left == right:
+                return True
+            short, long = (left, right) if len(left) <= len(right) else (right, left)
+            if len(short) >= 5 and long.startswith(short):
+                return True
+            if len(short) >= 4 and long.startswith(short) and len(long) - len(short) <= 3:
+                return True
+    return False
+
+
+def faces_share_vocabulary(faces: list[dict]) -> bool:
+    """False when representative posts share no subject word.
+
+    Titles are ignored on purpose: a label can glue two stories with one verb.
+    """
+    glue = _GROUND_STOP | frozenset(
+        {
+            "actually",
+            "think",
+            "thinking",
+            "anything",
+            "through",
+            "against",
+            "certain",
+            "support",
+            "understand",
+            "agree",
+            "better",
+            "every",
+            "small",
+            "without",
+            "large",
+            "really",
+            "something",
+            "someone",
+            "because",
+            "another",
+            "before",
+            "after",
+        }
+    )
+    bags: list[set[str]] = []
+    for face in faces:
+        posts = face.get("representative_posts") or []
+        text = " ".join(str(post.get("text") or "") for post in posts[:6])
+        tokens = {token for token in content_tokens(text) if len(token) >= 5 and token not in glue}
+        if not tokens:
+            return True
+        bags.append(tokens)
+    if len(bags) < 2:
+        return True
+    return bool(set.intersection(*bags))
 
 
 def _source_text(posts: list[dict], terms: list[str]) -> str:
@@ -481,7 +568,12 @@ def _source_text(posts: list[dict], terms: list[str]) -> str:
     return " ".join(parts)
 
 
-_CAMP_TITLE = re.compile(r"^(anti|pro)\b|\b(criticism|critique)$", re.IGNORECASE)
+_CAMP_TITLE = re.compile(
+    r"^(anti|pro)\b|\b(criticism|critique|criticized)$",
+    re.IGNORECASE,
+)
+_SLOGAN_TITLE = re.compile(r"^(stop|ban|end)\s+[A-Za-z0-9]{2,3}$", re.IGNORECASE)
+_SECOND_SUBJECT = re.compile(r", and (some|many|other|women|men)\b", re.IGNORECASE)
 _INSULT_TITLE = re.compile(r"\b(rapists?|fascists?|nazis?|morons?|scum)\b", re.IGNORECASE)
 
 

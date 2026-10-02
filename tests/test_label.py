@@ -61,6 +61,37 @@ def test_weak_term_does_not_become_the_face_title():
     assert "evangelists" in labeled["summary"].lower()
 
 
+def test_faces_that_share_no_subject_word_are_different_stories():
+    from pipeline.label import faces_share_vocabulary
+
+    judicial = {
+        "title": "Judicial Compliance",
+        "summary": "Judges' orders are being ignored.",
+        "representative_posts": [
+            {"text": "Nothing happens when officials defy a judge's order and skip the hearing."}
+        ],
+    }
+    powell = {
+        "title": "No Prosecution",
+        "summary": "The department will not charge the former chair.",
+        "representative_posts": [
+            {"text": "The Justice Department will not reopen the Powell renovation investigation."}
+        ],
+    }
+    death = {
+        "title": "Death Penalty",
+        "summary": "The execution of Christa Pike was torture.",
+        "representative_posts": [{"text": "Christa Pike survived a botched execution in Tennessee."}],
+    }
+    needle = {
+        "title": "Lethal Injection",
+        "summary": "Lethal injection made Christa Pike suffer.",
+        "representative_posts": [{"text": "Christa Pike suffered during the botched execution."}],
+    }
+    assert faces_share_vocabulary([judicial, powell]) is False
+    assert faces_share_vocabulary([death, needle]) is True
+
+
 def test_different_stories_are_not_one_subject():
     from pipeline.label import perspectives_share_subject
 

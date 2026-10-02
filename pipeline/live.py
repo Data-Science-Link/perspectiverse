@@ -22,10 +22,12 @@ from pipeline.corpus import (
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
 from pipeline.label import (
+    faces_share_vocabulary,
     label_perspective,
     label_topic,
     name_from_perspectives,
     perspectives_share_subject,
+    shares_claim_word,
     titles_alike,
     topic_name_is_weak,
     unique_label,
@@ -101,7 +103,7 @@ def run_live(
         # leaving the solar system short of specific conversations.
         pool = catalog_size
         if str(settings["cluster_backend"]) == "embedding":
-            pool = min(20, catalog_size + 6)
+            pool = min(20, catalog_size + 10)
         clustered = cluster_texts(
             texts,
             min_cluster_size=floor,
@@ -296,8 +298,9 @@ def _build_topics(
             print(f"Dropping {name}: the posts do not share a claim.")
             continue
         perspectives = [item[0] for item in drafted]
-        if len(perspectives) >= 2 and not perspectives_share_subject(
-            perspectives, backend=backend, model=model
+        if len(perspectives) >= 2 and (
+            not faces_share_vocabulary(perspectives)
+            or not perspectives_share_subject(perspectives, backend=backend, model=model)
         ):
             print(f"Dropping {name}: its faces are different stories.")
             continue
@@ -371,7 +374,7 @@ def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> lis
 
 
 def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
-    """Show the post the title is about first. Likes break a tie."""
+    """Show posts that use the claim's words. Likes break a tie."""
     from pipeline.label import content_tokens
 
     focus_tokens = content_tokens(focus)
@@ -380,7 +383,11 @@ def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
         overlap = len(content_tokens(str(post.get("text") or "")) & focus_tokens)
         return (-overlap, -int(post.get("likes") or 0))
 
-    return sorted(posts, key=sort_key)
+    ranked = sorted(posts, key=sort_key)
+    matched = [post for post in ranked if shares_claim_word(str(post.get("text") or ""), focus)]
+    if len(matched) >= 3:
+        return matched
+    return ranked
 
 
 def _face_has_no_shared_claim(face: dict) -> bool:
