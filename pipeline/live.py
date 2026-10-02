@@ -284,6 +284,8 @@ def _build_topics(
             ]
             if len(on_claim) >= 3:
                 representatives = select_representatives(on_claim, [0.0] * len(on_claim), limit=limit)
+            focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
+            representatives = _align_representatives(representatives, focus)
             if not _posts_share_a_subject(representatives):
                 label = {
                     "title": "Mixed remarks",
@@ -291,8 +293,7 @@ def _build_topics(
                     "label_source": "heuristic",
                 }
                 arguments = []
-            focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
-            representatives = _align_representatives(representatives, focus)
+                representatives = _align_representatives(representatives, label["title"])
             perspective = {
                 "id": face_id(topic_id, position),
                 "title": label["title"],

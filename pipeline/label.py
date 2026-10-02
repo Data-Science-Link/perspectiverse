@@ -395,6 +395,9 @@ def _title_needs_repair(title: str) -> bool:
         return True
     if _MOOD_ENDING.search(words[-1]):
         return True
+    stems = [subject_stem(word.lower()) for word in words if len(word) >= 4]
+    if len(stems) != len(set(stems)):
+        return True
     if len(words) == 2 and _BROKEN_TITLE_ENDING.search(words[-1]):
         return True
     return False
@@ -581,15 +584,42 @@ def subject_stem(token: str) -> str:
     return word.rstrip("e")
 
 
+_VERB_STEMS = frozenset(
+    {
+        "know",
+        "want",
+        "lik",
+        "need",
+        "said",
+        "mak",
+        "think",
+        "look",
+        "com",
+        "tak",
+        "hav",
+        "get",
+        "say",
+        "just",
+        "also",
+        "even",
+        "very",
+    }
+)
+
+
 def _face_subject_words(face: dict) -> set[str]:
     glue = _post_word_glue() | _PERSON_GLUE
     posts = face.get("representative_posts") or []
     text = " ".join(str(post.get("text") or "") for post in posts[:6])
-    return {
-        subject_stem(token)
-        for token in content_tokens(text)
-        if len(token) >= 4 and token not in glue
-    }
+    stems = set()
+    for token in content_tokens(text):
+        if len(token) < 4 or token in glue:
+            continue
+        stem = subject_stem(token)
+        if len(stem) < 3 or stem in _VERB_STEMS:
+            continue
+        stems.add(stem)
+    return stems
 
 
 def _shared_post_words(faces: list[dict]) -> set[str]:
@@ -757,7 +787,7 @@ _BROKEN_TITLE_ENDING = re.compile(
     re.IGNORECASE,
 )
 _MOOD_ENDING = re.compile(
-    r"(harmful|flawed|opposed|discourse|views|opinions)$",
+    r"(harmful|flawed|discourse|views|opinions|outrage|toxic)$",
     re.IGNORECASE,
 )
 
