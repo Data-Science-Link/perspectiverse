@@ -17,8 +17,9 @@ from pipeline.cluster_math import cluster_kmeans, salient_terms, vectorize
 _MEMBER_COSINE = 0.50
 # Fragments of one subject land above this. Different subjects do not.
 _MERGE_COSINE = 0.72
-# A group whose members only barely clear the peel is still a mixed bag.
-_MIN_MEAN_COSINE = 0.55
+# A group whose members only barely clear the peel is a mood, not a subject.
+# Specific conversations in a live week sit above this; a political grab bag does not.
+_MIN_MEAN_COSINE = 0.60
 _AUTHOR_CAP = 3
 
 

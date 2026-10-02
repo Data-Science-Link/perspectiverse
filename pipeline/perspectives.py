@@ -1,9 +1,9 @@
 """Split one planet into one to six faces.
 
 The live path picks a face count from the conversation. A second face is kept
-only when it is large and far from the first. One stance stays one face.
-Representative posts are ordered by likes, then by distance to the face
-centroid. A lopsided topic is valid: volumes are renormalized to 100.
+only when it is large and is a different stance, not a paraphrase. One stance
+stays one face. Representative posts are ordered by likes, then by distance
+to the face centroid. A lopsided topic is valid: volumes are renormalized to 100.
 """
 
 from __future__ import annotations
@@ -11,11 +11,16 @@ from __future__ import annotations
 from pipeline.cluster_math import cluster_inertia, cluster_kmeans, distances_to_centers, salient_terms, vectorize
 from pipeline.schema import MAX_FACES, MIN_FACES
 
-MIN_FACE_SHARE = 0.12
-# Another face has to explain at least this much of the remaining scatter.
-_FACE_GAIN = 0.12
+# A second face has to be about a fifth of the planet. A short tail is not a view.
+MIN_FACE_SHARE = 0.20
+# MiniLM leaves two stances of one subject close together. A cut that explains
+# a few percent of the scatter is a real second view; TF-IDF paraphrases fail
+# the share test before this bar matters.
+_FACE_GAIN = 0.035
+# Planet merge treats 0.72 as the same subject. Two stances of that subject
+# usually land between 0.75 and 0.88, so the face line has to sit higher.
 # Closer than this and the cut is one stance written two ways.
-_FACE_COSINE = 0.72
+_FACE_COSINE = 0.90
 
 
 def _as_matrix(texts: list[str], matrix):

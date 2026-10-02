@@ -50,8 +50,9 @@ for (const topic of payload.topics) {
   if (!categories.has(topic.category)) fail(`Bad category on topic ${topic.id}`)
   categoryCounts[topic.category] += 1
   const faceCount = topic.perspectives?.length
-  if (!Array.isArray(topic.perspectives) || faceCount < 2 || faceCount > 6) {
-    fail(`Topic ${topic.id} should have 2-6 faces, found ${faceCount}`)
+  const minFaces = payload.mode === 'demo' ? 2 : 1
+  if (!Array.isArray(topic.perspectives) || faceCount < minFaces || faceCount > 6) {
+    fail(`Topic ${topic.id} should have ${minFaces}-6 faces, found ${faceCount}`)
   }
   topicVolume += Number(topic.total_volume_percent)
   let faceVolume = 0

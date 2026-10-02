@@ -60,13 +60,13 @@ Re-running BERTopic reads this SQLite file. It does not fetch days that are alre
 
 `cluster_backend: bertopic` uses BERTopic with `all-MiniLM-L6-v2` when that extra stack is installed (`uv sync` locally).
 
-Anything smaller than `min_cluster_size` is Topic -1. The live floor is `max(8, claims // 200)`. A planet needs at least 6 posts. Further faces are cut only when they are large and far apart in the same vector space as the planet. One face is allowed. **Topic -1 is excluded from the volume denominator.**
+Anything smaller than `min_cluster_size` is Topic -1. The live floor is `max(8, claims // 200)`. A planet needs at least 6 posts. Further faces are cut only when the second stance is large. One face is allowed when the posts actually agree. **Topic -1 is excluded from the volume denominator.**
 
-Inside a candidate group, at most 3 posts per author count. Planets are ranked by distinct authors, then by posts. A group whose mean cosine to its centroid is below 0.55 is dropped. `catalog_size` (10) is a ceiling. Planet ids are 1–N in that rank order for the snapshot. Names are generated each run and are not a durable key.
+Inside a candidate group, at most 3 posts per author count. Planets are ranked by distinct authors, then by posts. A group whose mean cosine to its centroid is below 0.60 is dropped, so a political mood does not crowd out a specific conversation. Groups closer than cosine 0.72 are merged as one subject. `catalog_size` (10) is a ceiling. Planet ids are 1–N in that rank order for the snapshot. Names are generated each run and are not a durable key.
 
 ## Faces and labels
 
-Each kept planet is split into **1–6 faces**. Representative posts: highest likes first, then nearer the face centroid. Cap is `representative_posts` (12). Two faces with the same or near-same title are merged. Face titles are not numbered to look distinct.
+Each kept planet is split into **1–6 faces**. A second face needs at least a fifth of the planet and a centroid cosine below 0.90. That line is higher than the planet-merge line on purpose: two stances of one subject sit above 0.72 on MiniLM, and the old face gate treated them as one view. Representative posts: highest likes first, then nearer the face centroid. Cap is `representative_posts` (12). Two faces with the same or near-same title are merged. Face titles name the claim, not a camp ("Anti Republican") and not an insult. Face titles are not numbered to look distinct.
 
 `label_backend: auto` tries, in order:
 

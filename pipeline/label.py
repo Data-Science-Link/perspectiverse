@@ -27,14 +27,19 @@ def build_prompt(posts: list[dict]) -> str:
 def build_perspective_prompt(posts: list[dict]) -> str:
     body = _post_lines(posts)
     return (
-        "These posts are meant to be one perspective. Name that view.\n"
+        "These posts are meant to be one perspective. Name the claim they share.\n"
         "Return JSON only, with no markdown: "
         '{"title": "2-3 words", "summary": "one sentence", '
         '"arguments": ["steelman 1", "steelman 2", "steelman 3"]}\n'
-        "The title is 2 to 3 words naming the specific claim these posts share. "
-        "The summary is one sentence of that claim. "
-        "Do not invent an opposing camp, and do not call the posts various opinions. "
-        "Each argument must paraphrase one of the posts below, in that view's own voice. "
+        "The title is 2 to 3 words naming the specific event, policy, or claim. "
+        "Do not name a camp. Titles like \"Anti Republican\", \"Pro Ukraine\", "
+        "\"AI Criticism\", or \"Economic Critique\" are not allowed. "
+        "Do not use an insult or a criminal accusation as the title. "
+        "The summary is one sentence of that same claim. "
+        "Do not add a second camp, a motive, or a \"but\" that joins a different claim. "
+        "Do not call the posts various opinions. "
+        "Each argument paraphrases a different post below, in that view's own voice, "
+        "and states a claim rather than a name-call. "
         "Do not add a fact, number, or proper noun that is not in those posts. "
         "If the posts do not share a claim, use title \"Mixed remarks\", say so in one clause, "
         "and return an empty arguments list.\n"
@@ -49,7 +54,8 @@ def build_topic_prompt(posts: list[dict], terms: list[str]) -> str:
         "Name one public-conversation topic clustered from social posts.\n"
         "Return JSON only, with no markdown: "
         '{"name": "2-4 words", "summary": "one sentence"}\n'
-        "The name should sound like a newsbeat or civic issue, not a keyword dump. "
+        "The name should sound like a newsbeat: a specific event, case, or policy, "
+        "not a mood, a party, or a keyword dump. "
         "Use only entities that appear in the posts or the salient terms. "
         f"Salient terms: {shown}.\n"
         f"Posts:\n{body}\n"
@@ -162,6 +168,8 @@ def _shown_sentence(posts: list[dict] | None) -> str:
         if len(text) < 24:
             continue
         sentence = text.split(". ")[0].strip()
+        if len(sentence.split()) < 8:
+            continue
         if len(sentence) > 180:
             sentence = sentence[:177].rsplit(" ", 1)[0] + "…"
         return sentence
@@ -305,13 +313,27 @@ def ground_perspective(labeled: dict, posts: list[dict], terms: list[str]) -> di
     """Drop steelmans that invent a fact or do not paraphrase a shown post."""
     source = _source_text(posts, terms)
     titled = dict(labeled)
-    if invented_entities(str(titled.get("title") or ""), source, title=True):
-        fallback = heuristic_label(terms, posts)
-        titled["title"] = fallback["title"]
+    title = str(titled.get("title") or "")
+    summary = str(titled.get("summary") or "")
+    summary_was_unusable = bool(invented_entities(summary, source) or _hedged(summary))
+    if summary_was_unusable:
+        titled["summary"] = _shown_sentence(posts) or heuristic_label(terms, posts)["summary"]
         titled["label_source"] = "heuristic"
-    if invented_entities(str(titled.get("summary") or ""), source):
-        titled["summary"] = heuristic_label(terms, posts)["summary"]
-        titled["label_source"] = "heuristic"
+        summary = str(titled.get("summary") or "")
+    if (
+        invented_entities(title, source, title=True)
+        or _is_camp_title(title)
+        or _is_insult_title(title)
+        or _title_is_weak(title)
+    ):
+        fallback = (
+            ("" if summary_was_unusable else _concrete_title(summary))
+            or _claim_title(posts, terms)
+            or _concrete_title(_lead_text(posts))
+        )
+        if fallback and not _is_camp_title(fallback) and not _is_insult_title(fallback) and not _title_is_weak(fallback):
+            titled["title"] = fallback
+            titled["label_source"] = "heuristic"
     arguments = _grounded_arguments(titled.get("arguments") or [], posts, source)
     if len(arguments) < 2:
         for extra in heuristic_arguments(posts):
@@ -332,9 +354,17 @@ def ground_topic(labeled: dict, posts: list[dict], terms: list[str]) -> dict:
     source = _source_text(posts, terms)
     titled = dict(labeled)
     name = str(titled.get("name") or titled.get("title") or "").strip()
-    if not name or invented_entities(name, source, title=True):
-        name = heuristic_topic_label(terms, posts)["name"]
-        titled["label_source"] = "heuristic"
+    if (
+        not name
+        or invented_entities(name, source, title=True)
+        or _is_camp_title(name)
+        or _is_insult_title(name)
+        or _name_adds_words(name, source)
+    ):
+        replacement = _claim_title(posts, terms) or heuristic_topic_label(terms, posts)["name"]
+        if replacement and not _title_is_weak(replacement):
+            name = replacement
+            titled["label_source"] = "heuristic"
     titled["name"] = name
     titled["title"] = name
     if invented_entities(str(titled.get("summary") or ""), source):
@@ -359,6 +389,187 @@ def _source_text(posts: list[dict], terms: list[str]) -> str:
         parts.append(str(post.get("text") or ""))
         parts.append(str(post.get("clean_text") or ""))
     return " ".join(parts)
+
+
+_CAMP_TITLE = re.compile(r"^(anti|pro)\b|\b(criticism|critique)$", re.IGNORECASE)
+_INSULT_TITLE = re.compile(r"\b(rapists?|fascists?|nazis?|morons?|scum)\b", re.IGNORECASE)
+
+
+def _is_camp_title(title: str) -> bool:
+    """A camp label hides the claim. 'Tax the Rich' is a claim; 'Anti Republican' is not."""
+    return bool(_CAMP_TITLE.search(str(title or "").strip()))
+
+
+def _is_insult_title(title: str) -> bool:
+    return bool(_INSULT_TITLE.search(str(title or "")))
+
+
+def _term_title(terms: list[str]) -> str:
+    words = [_display_word(str(term).strip()) for term in terms[:3] if str(term).strip()]
+    return " ".join(words)[:48]
+
+
+_WEAK_TITLE_WORDS = frozenset(
+    {
+        "most",
+        "use",
+        "used",
+        "using",
+        "think",
+        "thing",
+        "things",
+        "stuff",
+        "other",
+        "others",
+        "really",
+        "very",
+        "just",
+        "like",
+        "make",
+        "made",
+        "want",
+        "need",
+        "take",
+        "going",
+        "says",
+        "said",
+        "much",
+        "many",
+        "well",
+        "something",
+        "someone",
+        "anything",
+        "everything",
+        "nothing",
+    }
+)
+_ACRONYM_CASE = {
+    "ai": "AI",
+    "us": "US",
+    "uk": "UK",
+    "g7": "G7",
+    "lgbtq": "LGBTQ",
+    "fbi": "FBI",
+    "doj": "DOJ",
+}
+_HEDGE_PHRASES = (
+    "various opinions",
+    "various issues",
+    "various concerns",
+    "various forms",
+    "no shared claim",
+    "do not share a claim",
+)
+
+
+def _display_word(token: str) -> str:
+    lower = token.lower()
+    if lower in _ACRONYM_CASE:
+        return _ACRONYM_CASE[lower]
+    return token[:1].upper() + token[1:]
+
+
+def _title_is_weak(title: str) -> bool:
+    words = re.findall(r"[A-Za-z0-9']+", title or "")
+    if not words:
+        return True
+    return len(words) == 1 and (words[0].lower() in _WEAK_TITLE_WORDS or len(words[0]) <= 3)
+
+
+def _hedged(summary: str) -> bool:
+    text = str(summary or "").lower()
+    return any(phrase in text for phrase in _HEDGE_PHRASES)
+
+
+def _specific_terms(terms: list[str]) -> list[str]:
+    kept = []
+    for term in terms:
+        token = str(term).strip()
+        if not token:
+            continue
+        if token.lower() in _WEAK_TITLE_WORDS or token.lower() in _TITLE_WORDS:
+            continue
+        if len(token) <= 3 and token.lower() not in _ACRONYM_CASE:
+            continue
+        kept.append(_display_word(token))
+    return kept
+
+
+def _claim_title(posts: list[dict], terms: list[str]) -> str:
+    """Use salient terms only when they already name a claim, such as Rent Increase."""
+    del posts
+    from_terms = _specific_terms(terms)
+    if len(from_terms) >= 2 and any(len(word) >= 6 for word in from_terms):
+        return " ".join(from_terms[:3])[:48]
+    return ""
+
+
+_FRAGMENT_WORDS = frozenset(
+    {
+        "doesn",
+        "doesnt",
+        "isn",
+        "isnt",
+        "wasn",
+        "wasnt",
+        "weren",
+        "werent",
+        "couldn",
+        "couldnt",
+        "wouldn",
+        "wouldnt",
+        "shouldn",
+        "shouldnt",
+        "dont",
+        "cant",
+        "wont",
+        "happen",
+        "happens",
+        "happened",
+    }
+)
+
+
+def _lead_text(posts: list[dict] | None) -> str:
+    ranked = sorted(posts or [], key=lambda post: -int(post.get("likes") or 0))
+    for post in ranked:
+        text = str(post.get("text") or post.get("clean_text") or "").strip()
+        if len(text.split()) >= 8:
+            return text
+    return ""
+
+
+def _concrete_title(text: str) -> str:
+    """Two specific words from a sentence, longest first, written in reading order."""
+    words = []
+    for raw in re.findall(r"[A-Za-z][A-Za-z']+", text or ""):
+        token = raw.lower().replace("'", "").replace("’", "")
+        if token.endswith("ly") and len(token) > 4:
+            continue
+        if token in _TITLE_WORDS or token in _WEAK_TITLE_WORDS or token in _GROUND_STOP or token in _FRAGMENT_WORDS:
+            continue
+        if len(token) < 5:
+            continue
+        words.append(_display_word(token))
+    pool = [word for word in words if len(word) >= 8]
+    if len(pool) < 2:
+        pool = [word for word in words if len(word) >= 6]
+    if len(pool) < 2:
+        return ""
+    chosen = sorted(pool, key=len, reverse=True)[:2]
+    chosen.sort(key=words.index)
+    return " ".join(chosen)[:48]
+
+
+def _name_adds_words(name: str, source: str) -> bool:
+    """True when two or more name words never appear in the posts."""
+    lexicon = set(_TOKEN.findall((source or "").lower()))
+    missing = [
+        word
+        for word in re.findall(r"[A-Za-z][A-Za-z']*", name or "")
+        if len(word) >= 5 and word.lower() not in _TITLE_WORDS and word.lower() not in lexicon
+    ]
+    return len(missing) >= 2
 
 
 def _paraphrases(argument: str, posts: list[dict]) -> bool:

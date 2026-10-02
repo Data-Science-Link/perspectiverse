@@ -18,6 +18,53 @@ def test_prompt_demands_json_only():
     assert "JSON only" in prompt
     assert "arguments" in prompt
     assert "paraphrase" in prompt
+    assert "Anti Republican" in prompt
+    assert "insult" in prompt.lower()
+
+
+def test_weak_term_does_not_become_the_face_title():
+    posts = [
+        {"text": "AI evangelists are morally unequipped to oversee this technology.", "likes": 9},
+        {"text": "Those AI evangelists keep shipping it without consent.", "likes": 4},
+    ]
+    labeled = label_perspective(
+        posts,
+        ["most"],
+        generate=lambda _prompt: json.dumps(
+            {
+                "title": "AI Criticism",
+                "summary": "These posts share various concerns about the tools.",
+                "arguments": [
+                    "AI evangelists are morally unequipped to oversee this technology.",
+                    "Those AI evangelists keep shipping it without consent.",
+                ],
+            }
+        ),
+    )
+    assert labeled["title"] not in {"Most", "AI Criticism"}
+    assert "evangelist" in labeled["title"].lower()
+    assert "various concerns" not in labeled["summary"].lower()
+    assert "evangelists" in labeled["summary"].lower()
+
+
+def test_camp_title_is_replaced_with_the_claim_terms():
+    posts = [{"text": "The rent increase on my block is the whole story tonight.", "likes": 4}]
+    labeled = label_perspective(
+        posts,
+        ["rent", "increase"],
+        generate=lambda _prompt: json.dumps(
+            {
+                "title": "Anti Landlord",
+                "summary": "The rent increase on the block is the story.",
+                "arguments": [
+                    "The rent increase on the block is the whole story.",
+                    "The rent increase tonight is what the block is talking about.",
+                ],
+            }
+        ),
+    )
+    assert labeled["title"] == "Rent Increase"
+    assert "Astra" not in labeled["summary"]
 
 
 def test_invented_entity_is_dropped_and_a_paraphrase_is_kept():

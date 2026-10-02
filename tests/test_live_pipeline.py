@@ -56,20 +56,30 @@ def test_live_fixture_writes_contract(tmp_path):
 
 
 def test_drop_planet_that_admits_no_shared_claim():
-    from pipeline.live import _drop_unshared_planets
+    from pipeline.live import _drop_unshared_planets, _renumber_planets
 
     mixed = {
+        "id": 9,
         "name": "Canada",
         "total_volume_percent": 20,
-        "perspectives": [{"title": "Canadian Politics", "summary": "These posts share various issues and opinions."}],
+        "perspectives": [{"id": "9A", "title": "Canadian Politics", "summary": "These posts share various issues and opinions."}],
     }
     solid = {
+        "id": 10,
         "name": "Taxes",
         "total_volume_percent": 80,
-        "perspectives": [{"title": "Tax the Rich", "summary": "Wealth taxes should fund public services."}],
+        "perspectives": [{"id": "10A", "title": "Tax the Rich", "summary": "Wealth taxes should fund public services."}],
     }
     kept = _drop_unshared_planets([mixed, solid])
     assert [topic["name"] for topic in kept] == ["Taxes"]
+    renumbered, membership, _faces = _renumber_planets(
+        kept,
+        [("at://gone", 9), ("at://kept", 10)],
+        [("at://gone", 9, 0, 0.1), ("at://kept", 10, 0, 0.2)],
+    )
+    assert renumbered[0]["id"] == 1
+    assert renumbered[0]["perspectives"][0]["id"] == "1A"
+    assert membership == [("at://kept", 1)]
 
 
 def test_live_run_refuses_unlabeled_posts():

@@ -286,7 +286,7 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
         sizes = [max(topic.get("total_volume_percent") or 0, 0.1) for topic in built]
         for topic, volume in zip(built, to_percents(sizes)):
             topic["total_volume_percent"] = volume
-    return built, membership, face_rows
+    return _renumber_planets(built, membership, face_rows)
 
 
 def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> list[dict]:
@@ -339,6 +339,29 @@ def _face_has_no_shared_claim(face: dict) -> bool:
         phrase in summary
         for phrase in ("various opinions", "various issues", "no shared claim", "do not share a claim")
     )
+
+
+def _renumber_planets(
+    topics: list[dict],
+    membership: list[tuple],
+    face_rows: list[tuple],
+) -> tuple[list[dict], list[tuple], list[tuple]]:
+    """Publish ids 1..N after a mixed planet is dropped, and drop its membership."""
+    remap = {int(topic["id"]): new_id for new_id, topic in enumerate(topics, start=1)}
+    for topic in topics:
+        new_id = remap[int(topic["id"])]
+        topic["id"] = new_id
+        topic["perspectives"] = [
+            {**face, "id": face_id(new_id, position)}
+            for position, face in enumerate(topic.get("perspectives") or [])
+        ]
+    kept_membership = [(uri, remap[int(topic_id)]) for uri, topic_id in membership if int(topic_id) in remap]
+    kept_faces = [
+        (uri, remap[int(topic_id)], face_index, distance)
+        for uri, topic_id, face_index, distance in face_rows
+        if int(topic_id) in remap
+    ]
+    return topics, kept_membership, kept_faces
 
 
 def _drop_unshared_planets(topics: list[dict]) -> list[dict]:

@@ -252,8 +252,17 @@ function PerspectivePanel({
         className="perspective-stat"
         style={{ borderColor: hexToRgba(planetColor, 0.4), background: hexToRgba(planetColor, 0.08) }}
       >
-        <strong>{formatPercent(perspective.volume_percent)}</strong>
-        <span>of this planet&apos;s conversation — darkest and longest if this is the most common view, lighter if fewer posts sat here</span>
+        {ranked.length === 1 ? (
+          <>
+            <strong>One view</strong>
+            <span>The posts kept on this planet share this claim. A second spike appears when another large view is actually different.</span>
+          </>
+        ) : (
+          <>
+            <strong>{formatPercent(perspective.volume_percent)}</strong>
+            <span>of this planet&apos;s conversation — darkest and longest if this is the most common view, lighter if fewer posts sat here</span>
+          </>
+        )}
       </div>
       <div className="post-feed">
         <h2>Example posts</h2>

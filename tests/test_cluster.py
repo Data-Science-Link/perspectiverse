@@ -77,6 +77,28 @@ def test_choose_n_faces_does_not_slice_a_uniform_topic():
     assert choose_n_faces(texts, seed=0) == 1
 
 
+def test_choose_n_faces_splits_two_stances_of_one_subject():
+    """MiniLM puts two stances of one subject well above the planet-merge line."""
+    import numpy as np
+
+    left = np.array([1.0, 0.0])
+    # Cosine 0.82 is the same subject, and a different stance.
+    right = np.array([0.82, (1 - 0.82**2) ** 0.5])
+    matrix = np.vstack([left] * 12 + [right] * 12)
+    texts = ["alpha stance"] * 12 + ["beta stance"] * 12
+    assert choose_n_faces(texts, seed=0, matrix=matrix) == 2
+
+
+def test_choose_n_faces_keeps_a_paraphrase_as_one_face():
+    import numpy as np
+
+    left = np.array([1.0, 0.0])
+    right = np.array([0.96, (1 - 0.96**2) ** 0.5])
+    matrix = np.vstack([left] * 12 + [right] * 12)
+    texts = ["same stance"] * 12 + ["same stance again"] * 12
+    assert choose_n_faces(texts, seed=0, matrix=matrix) == 1
+
+
 def test_lexical_cluster_does_not_mint_a_tenth_planet():
     texts = []
     for topic in TOPICS[:9]:

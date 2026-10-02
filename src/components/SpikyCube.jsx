@@ -285,8 +285,14 @@ export default function SpikyCube({
                     style={{ pointerEvents: 'none' }}
                   >
                     <div className={`spike-label ${selected ? 'is-selected' : ''}`} style={{ borderColor: face.color }}>
-                      <strong>{`${Math.round(Number(face.volume_percent) || 0)}%`}</strong>
-                      <em>{spikeCaption(face.title)}</em>
+                      {faces.length === 1 ? (
+                        <strong>{spikeCaption(face.title)}</strong>
+                      ) : (
+                        <>
+                          <strong>{`${Math.round(Number(face.volume_percent) || 0)}%`}</strong>
+                          <em>{spikeCaption(face.title)}</em>
+                        </>
+                      )}
                     </div>
                   </Html>
                 )}
