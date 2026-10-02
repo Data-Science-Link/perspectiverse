@@ -27,10 +27,22 @@ def test_weak_term_does_not_become_the_face_title():
         {"text": "AI evangelists are morally unequipped to oversee this technology.", "likes": 9},
         {"text": "Those AI evangelists keep shipping it without consent.", "likes": 4},
     ]
-    labeled = label_perspective(
-        posts,
-        ["most"],
-        generate=lambda _prompt: json.dumps(
+    calls = {"n": 0}
+
+    def generate(prompt):
+        calls["n"] += 1
+        if "not publishable" in prompt:
+            return json.dumps(
+                {
+                    "title": "Unfit Evangelists",
+                    "summary": "The posts say AI evangelists are morally unequipped to govern the technology.",
+                    "arguments": [
+                        "AI evangelists are morally unequipped to oversee this technology.",
+                        "Those AI evangelists keep shipping it without consent.",
+                    ],
+                }
+            )
+        return json.dumps(
             {
                 "title": "AI Criticism",
                 "summary": "These posts share various concerns about the tools.",
@@ -39,12 +51,40 @@ def test_weak_term_does_not_become_the_face_title():
                     "Those AI evangelists keep shipping it without consent.",
                 ],
             }
-        ),
-    )
-    assert labeled["title"] not in {"Most", "AI Criticism"}
+        )
+
+    labeled = label_perspective(posts, ["most"], generate=generate)
+    assert calls["n"] >= 2
+    assert labeled["title"] not in {"Most", "AI Criticism", "Mixed remarks"}
     assert "evangelist" in labeled["title"].lower()
     assert "various concerns" not in labeled["summary"].lower()
     assert "evangelists" in labeled["summary"].lower()
+
+
+def test_different_stories_are_not_one_subject():
+    from pipeline.label import perspectives_share_subject
+
+    faces = [
+        {"title": "Pentagon Religion", "summary": "The defense secretary opened a religious affairs office."},
+        {"title": "Church Alliance", "summary": "A church is partnering with artists on outreach."},
+    ]
+    assert perspectives_share_subject(faces, backend="heuristic") is True
+    assert (
+        perspectives_share_subject(
+            faces,
+            backend="openai",
+            generate=lambda _prompt: '{"same": false}',
+        )
+        is False
+    )
+    assert (
+        perspectives_share_subject(
+            faces,
+            backend="openai",
+            generate=lambda _prompt: "not json",
+        )
+        is True
+    )
 
 
 def test_camp_title_is_replaced_with_the_claim_terms():

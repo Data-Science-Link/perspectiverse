@@ -35,14 +35,75 @@ def build_perspective_prompt(posts: list[dict]) -> str:
         "Do not name a camp. Titles like \"Anti Republican\", \"Pro Ukraine\", "
         "\"AI Criticism\", or \"Economic Critique\" are not allowed. "
         "Do not use an insult or a criminal accusation as the title. "
-        "The summary is one sentence of that same claim. "
+        "The summary is one complete sentence of that same claim, written in your own words. "
+        "Do not paste a post, and do not end the sentence with an ellipsis. "
         "Do not add a second camp, a motive, or a \"but\" that joins a different claim. "
         "Do not call the posts various opinions. "
+        "If the posts name different events, different people, or different policies, they do not share a claim. "
         "Each argument paraphrases a different post below, in that view's own voice, "
         "and states a claim rather than a name-call. "
         "Do not add a fact, number, or proper noun that is not in those posts. "
         "If the posts do not share a claim, use title \"Mixed remarks\", say so in one clause, "
         "and return an empty arguments list.\n"
+        f"Posts:\n{body}\n"
+    )
+
+
+def build_repair_prompt(posts: list[dict], draft: dict) -> str:
+    body = _post_lines(posts)
+    title = str(draft.get("title") or "")
+    summary = str(draft.get("summary") or "")
+    return (
+        "Rewrite this perspective label. The draft is not publishable.\n"
+        f"Draft title: {title}\n"
+        f"Draft summary: {summary}\n"
+        "Return JSON only, with no markdown: "
+        '{"title": "2-3 words", "summary": "one sentence", '
+        '"arguments": ["steelman 1", "steelman 2"]}\n'
+        "The title is a grammatical phrase a person could say. "
+        "Good titles: \"Halt Executions\", \"Artists Reject AI\", \"Diesel Export Ban\", \"Cornell Rape Case\". "
+        "Bad titles: \"Evangelists Unequipped\", \"Detrimental Undermines\", \"AI Criticism\", \"Anti Trump\". "
+        "The summary is one complete sentence of the single claim most of these posts make. "
+        "Do not join a second claim with \"but\". Do not say various. Do not copy a post. "
+        "Do not end the summary with an ellipsis. "
+        "Each argument paraphrases a different post and states a claim, not a name-call. "
+        "Do not add a fact, number, or proper noun that is not in the posts. "
+        "If the posts do not share one claim, use title \"Mixed remarks\", "
+        "summary \"These posts do not share a claim.\", and an empty arguments list.\n"
+        f"Posts:\n{body}\n"
+    )
+
+
+def build_same_subject_prompt(faces: list[dict]) -> str:
+    lines = []
+    for face in faces:
+        lines.append(f"- {face.get('title')}: {face.get('summary')}")
+    shown = "\n".join(lines)
+    return (
+        "Do these perspectives belong on one page because they are about the same event, case, or policy?\n"
+        "Return JSON only: {\"same\": true} or {\"same\": false}.\n"
+        "Same: \"Halt the death penalty\" and \"Lethal injection causes suffering\" about one execution. "
+        "Same: \"Artists reject generative AI\" and \"AI evangelists are unfit to govern it\". "
+        "Same: battlefield updates and calls to defend that country, about one war. "
+        "Same: a criminal case and argument about how that case was decided.\n"
+        "Not the same: a Pentagon religion office and a church's alliance with artists. "
+        "Not the same: one candidate's campaign and a different politician's bribery case. "
+        "Not the same: posts about one politician and posts about a different politician. "
+        "Not the same: a government office and an unrelated program that only share a topic word.\n"
+        f"Perspectives:\n{shown}\n"
+    )
+
+
+def build_planet_name_prompt(posts: list[dict], faces: list[dict]) -> str:
+    lines = [f"- {face.get('title')}: {face.get('summary')}" for face in faces]
+    body = _post_lines(posts, limit=10)
+    return (
+        "Name the one subject these perspectives share.\n"
+        "Return JSON only: {\"name\": \"2-4 words\"}.\n"
+        "The name is a newsbeat: a specific event, case, or policy. "
+        "Every word must appear in the posts. Do not invent a movement, bill, or person. "
+        "If the perspectives are different stories, name the largest one.\n"
+        f"Perspectives:\n{chr(10).join(lines)}\n"
         f"Posts:\n{body}\n"
     )
 
@@ -162,17 +223,20 @@ def fallback_label(terms: list[str]) -> dict:
 
 
 def _shown_sentence(posts: list[dict] | None) -> str:
+    """A finished sentence from a shown post, never a clipped fragment."""
     ranked = sorted(posts or [], key=lambda post: -int(post.get("likes") or 0))
     for post in ranked:
         text = str(post.get("text") or post.get("clean_text") or "").strip()
-        if len(text) < 24:
-            continue
-        sentence = text.split(". ")[0].strip()
-        if len(sentence.split()) < 8:
-            continue
-        if len(sentence) > 180:
-            sentence = sentence[:177].rsplit(" ", 1)[0] + "…"
-        return sentence
+        for sentence in re.split(r"(?<=[.!?])\s+", text):
+            sentence = sentence.strip()
+            words = sentence.split()
+            if len(words) < 4 or len(words) > 32:
+                continue
+            if sentence.endswith("…") or sentence.endswith("..."):
+                continue
+            if sentence[-1:] not in ".!?":
+                continue
+            return sentence
     return ""
 
 
@@ -209,15 +273,18 @@ def heuristic_arguments(posts: list[dict], terms: list[str] | None = None) -> li
     seen: set[str] = set()
     ranked = sorted(posts, key=lambda post: -int(post.get("likes") or 0))
     for post in ranked:
-        text = str(post.get("text") or post.get("clean_text") or "").strip()
-        if len(text) < 32:
+        text = _shown_sentence([post])
+        if not text:
+            raw = str(post.get("text") or post.get("clean_text") or "").strip()
+            words = raw.split()
+            if 4 <= len(words) <= 32 and len(raw) <= 180 and not raw.endswith("…"):
+                text = raw
+        if not text:
             continue
         key = text.lower()[:80]
         if key in seen:
             continue
         seen.add(key)
-        if len(text) > 180:
-            text = text[:177].rsplit(" ", 1)[0] + "…"
         arguments.append(text)
         if len(arguments) >= 3:
             break
@@ -309,30 +376,53 @@ def invented_entities(text: str, source: str, *, title: bool = False) -> list[st
     return found
 
 
+def perspective_needs_repair(labeled: dict) -> bool:
+    """A publishable face has a grammatical title and one complete sentence."""
+    return _title_needs_repair(str(labeled.get("title") or "")) or _summary_needs_repair(
+        str(labeled.get("summary") or "")
+    )
+
+
+def _title_needs_repair(title: str) -> bool:
+    words = str(title or "").split()
+    if not words or len(words) > 4:
+        return True
+    if _is_camp_title(title) or _is_insult_title(title) or _title_is_weak(title):
+        return True
+    if any(word.lower().strip(".,") in _FRAGMENT_WORDS for word in words):
+        return True
+    if len(words) == 2 and _BROKEN_TITLE_ENDING.search(words[-1]):
+        return True
+    return False
+
+
+def _summary_needs_repair(summary: str) -> bool:
+    text = str(summary or "").strip()
+    if not text or text.endswith("…") or text.endswith("..."):
+        return True
+    if len(text.split()) < 4:
+        return True
+    lowered = text.lower()
+    if _hedged(text) or " but " in f" {lowered} ":
+        return True
+    return False
+
+
 def ground_perspective(labeled: dict, posts: list[dict], terms: list[str]) -> dict:
     """Drop steelmans that invent a fact or do not paraphrase a shown post."""
     source = _source_text(posts, terms)
     titled = dict(labeled)
     title = str(titled.get("title") or "")
-    summary = str(titled.get("summary") or "")
-    summary_was_unusable = bool(invented_entities(summary, source) or _hedged(summary))
-    if summary_was_unusable:
-        titled["summary"] = _shown_sentence(posts) or heuristic_label(terms, posts)["summary"]
-        titled["label_source"] = "heuristic"
-        summary = str(titled.get("summary") or "")
-    if (
-        invented_entities(title, source, title=True)
-        or _is_camp_title(title)
-        or _is_insult_title(title)
-        or _title_is_weak(title)
-    ):
-        fallback = (
-            ("" if summary_was_unusable else _concrete_title(summary))
-            or _claim_title(posts, terms)
-            or _concrete_title(_lead_text(posts))
-        )
-        if fallback and not _is_camp_title(fallback) and not _is_insult_title(fallback) and not _title_is_weak(fallback):
+    if invented_entities(title, source, title=True) or _title_needs_repair(title):
+        fallback = _claim_title(posts, terms)
+        if fallback and not _title_needs_repair(fallback):
             titled["title"] = fallback
+            titled["label_source"] = "heuristic"
+    summary = str(titled.get("summary") or "")
+    if invented_entities(summary, source) or _summary_needs_repair(summary):
+        sentence = _shown_sentence(posts)
+        if sentence and not _summary_needs_repair(sentence) and not invented_entities(sentence, source):
+            titled["summary"] = sentence
             titled["label_source"] = "heuristic"
     arguments = _grounded_arguments(titled.get("arguments") or [], posts, source)
     if len(arguments) < 2:
@@ -504,6 +594,12 @@ def _claim_title(posts: list[dict], terms: list[str]) -> str:
     return ""
 
 
+_BROKEN_TITLE_ENDING = re.compile(
+    r"(equipped|undermines|questionable|exists)$",
+    re.IGNORECASE,
+)
+
+
 _FRAGMENT_WORDS = frozenset(
     {
         "doesn",
@@ -561,15 +657,51 @@ def _concrete_title(text: str) -> str:
     return " ".join(chosen)[:48]
 
 
+def _word_in_source(word: str, lexicon: set[str]) -> bool:
+    """True when the posts use this word, including a simple plural."""
+    token = word.lower()
+    if token in lexicon:
+        return True
+    candidates = {token}
+    if token.endswith("es") and len(token) > 5:
+        candidates.add(token[:-2])
+    if token.endswith("s") and len(token) > 4:
+        candidates.add(token[:-1])
+    for item in lexicon:
+        if item in candidates:
+            return True
+        stem = item
+        if item.endswith("es") and len(item) > 5:
+            stem = item[:-2]
+        elif item.endswith("s") and len(item) > 4:
+            stem = item[:-1]
+        if stem == token:
+            return True
+    return False
+
+
 def _name_adds_words(name: str, source: str) -> bool:
-    """True when two or more name words never appear in the posts."""
+    """True when a name word of five letters or more never appears in the posts."""
     lexicon = set(_TOKEN.findall((source or "").lower()))
     missing = [
         word
         for word in re.findall(r"[A-Za-z][A-Za-z']*", name or "")
-        if len(word) >= 5 and word.lower() not in _TITLE_WORDS and word.lower() not in lexicon
+        if len(word) >= 5 and word.lower() not in _TITLE_WORDS and not _word_in_source(word, lexicon)
     ]
-    return len(missing) >= 2
+    return len(missing) >= 1
+
+
+def topic_name_is_weak(name: str, posts: list[dict], terms: list[str]) -> bool:
+    """A planet name that invents a story or dumps keywords should be rewritten."""
+    source = _source_text(posts, terms)
+    cleaned = str(name or "").strip()
+    return (
+        not cleaned
+        or _title_needs_repair(cleaned)
+        or _is_camp_title(cleaned)
+        or _is_insult_title(cleaned)
+        or _name_adds_words(cleaned, source)
+    )
 
 
 def _paraphrases(argument: str, posts: list[dict]) -> bool:
@@ -682,14 +814,136 @@ def label_perspective(
     """Return title, summary, arguments, and label_source."""
     if generate is not None:
         labeled = _from_generator(generate, build_perspective_prompt(posts), terms, posts)
-        if "arguments" not in labeled:
-            labeled["arguments"] = heuristic_arguments(posts, terms)
-        return ground_perspective(labeled, posts, terms)
+        labeled = _repair_perspective(labeled, posts, terms, generate)
+        return _finish_perspective(labeled, posts, terms, drop_if_unrepaired=True)
 
     chosen = _resolve_backend(backend)
     if chosen == "heuristic":
-        return ground_perspective(heuristic_label(terms, posts), posts, terms)
-    return ground_perspective(_via_model(chosen, build_perspective_prompt(posts), terms, posts, model), posts, terms)
+        return _finish_perspective(heuristic_label(terms, posts), posts, terms, drop_if_unrepaired=False)
+    generator = _generator_for(chosen, model)
+    labeled = _from_generator(generator, build_perspective_prompt(posts), terms, posts)
+    if labeled["label_source"] != "fallback":
+        labeled["label_source"] = chosen
+    labeled = _repair_perspective(labeled, posts, terms, generator)
+    return _finish_perspective(labeled, posts, terms, drop_if_unrepaired=True)
+
+
+def _repair_perspective(
+    labeled: dict,
+    posts: list[dict],
+    terms: list[str],
+    generate: Callable[[str], str],
+) -> dict:
+    if not perspective_needs_repair(labeled):
+        return labeled
+    repaired = _from_generator(generate, build_repair_prompt(posts, labeled), terms, posts)
+    if repaired.get("label_source") == "fallback":
+        return labeled
+    merged = dict(labeled)
+    if not _title_needs_repair(str(repaired.get("title") or "")):
+        merged["title"] = repaired["title"]
+    if not _summary_needs_repair(str(repaired.get("summary") or "")):
+        merged["summary"] = repaired["summary"]
+    if repaired.get("arguments"):
+        merged["arguments"] = repaired["arguments"]
+    merged["label_source"] = repaired.get("label_source") or merged.get("label_source")
+    return merged
+
+
+def _finish_perspective(
+    labeled: dict,
+    posts: list[dict],
+    terms: list[str],
+    *,
+    drop_if_unrepaired: bool,
+) -> dict:
+    grounded = ground_perspective(labeled, posts, terms)
+    if drop_if_unrepaired and perspective_needs_repair(grounded):
+        grounded["title"] = "Mixed remarks"
+        grounded["summary"] = "These posts do not share a claim."
+        grounded.pop("arguments", None)
+        grounded["label_source"] = "heuristic"
+    return grounded
+
+
+def perspectives_share_subject(
+    faces: list[dict],
+    *,
+    backend: str = "auto",
+    generate: Callable[[str], str] | None = None,
+    model: str | None = None,
+) -> bool:
+    """False when the faces are different stories glued into one planet."""
+    if len(faces) < 2:
+        return True
+    chosen = _resolve_backend(backend)
+    if chosen == "heuristic":
+        return True
+    try:
+        if generate is not None:
+            raw = generate(build_same_subject_prompt(faces)) or ""
+        else:
+            raw = _generator_for(chosen, model)(build_same_subject_prompt(faces)) or ""
+    except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError):
+        return True
+    parsed = _load_object(raw)
+    if not isinstance(parsed, dict) or "same" not in parsed:
+        return True
+    return bool(parsed.get("same"))
+
+
+def name_from_perspectives(
+    posts: list[dict],
+    faces: list[dict],
+    terms: list[str],
+    *,
+    backend: str = "auto",
+    model: str | None = None,
+) -> str | None:
+    """A newsbeat name that the posts actually use."""
+    if not faces:
+        return None
+    chosen = _resolve_backend(backend)
+    if chosen == "heuristic":
+        return None
+    try:
+        raw = _generator_for(chosen, model)(build_planet_name_prompt(posts, faces)) or ""
+    except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError):
+        return None
+    parsed = parse_label(raw) or _load_object(raw)
+    if not isinstance(parsed, dict):
+        return None
+    name = str(parsed.get("name") or parsed.get("title") or "").strip()
+    if not name:
+        return None
+    grounded = ground_topic({"name": name, "summary": str(faces[0].get("summary") or name)}, posts, terms)
+    if grounded.get("label_source") == "heuristic":
+        return None
+    cleaned = str(grounded.get("name") or "").strip()
+    if not cleaned or _title_needs_repair(cleaned) or _is_camp_title(cleaned):
+        return None
+    return cleaned
+
+
+def _generator_for(chosen: str, model: str | None) -> Callable[[str], str]:
+    if chosen == "ollama":
+        chosen_model = model or (os.getenv("OLLAMA_MODEL") or "llama3.2")
+        return lambda text: _ollama_generate(text, chosen_model)
+    if chosen == "openai":
+        chosen_model = resolve_openai_model(model)
+        return lambda text: _openai_generate(text, chosen_model)
+    raise ValueError(f"Unknown label_backend {chosen}")
+
+
+def _load_object(text: str) -> dict | None:
+    if not text:
+        return None
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    data = _load_label_json(text[start : end + 1])
+    return data if isinstance(data, dict) else None
 
 
 def label_topic(

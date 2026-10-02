@@ -21,7 +21,15 @@ from pipeline.corpus import (
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
-from pipeline.label import label_perspective, label_topic, titles_alike, unique_label
+from pipeline.label import (
+    label_perspective,
+    label_topic,
+    name_from_perspectives,
+    perspectives_share_subject,
+    titles_alike,
+    topic_name_is_weak,
+    unique_label,
+)
 from pipeline.perspectives import select_representatives, split_perspectives
 from pipeline.schema import SYSTEM_SIZE, category_for_members, to_percents
 from pipeline.settings import load_settings
@@ -89,16 +97,23 @@ def run_live(
         texts = [post["clean_text"] for post in planet_posts]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
         floor = max(int(settings["min_cluster_size"]), len(planet_posts) // 200)
+        # Ask for a few spare groups so a mixed planet can be dropped without
+        # leaving the solar system short of specific conversations.
+        pool = catalog_size
+        if str(settings["cluster_backend"]) == "embedding":
+            pool = min(20, catalog_size + 6)
         clustered = cluster_texts(
             texts,
             min_cluster_size=floor,
             cluster_backend=str(settings["cluster_backend"]),
             embedding_model=str(settings["embedding_model"]),
             seed=int(settings["seed"]),
-            catalog_size=catalog_size,
+            catalog_size=pool,
             authors=[str(post.get("author") or "unknown") for post in planet_posts],
         )
-        topics, membership, face_rows = _build_topics(planet_posts, clustered, settings)
+        topics, membership, face_rows = _build_topics(
+            planet_posts, clustered, settings, keep=catalog_size
+        )
         write_clusters(connection, membership, face_rows)
     finally:
         connection.close()
@@ -219,7 +234,12 @@ def _collect_posts(
     return cleaned, "bluesky"
 
 
-def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[list[dict], list[tuple], list[tuple]]:
+def _build_topics(
+    posts: list[dict],
+    clustered: dict,
+    settings: dict,
+    keep: int | None = None,
+) -> tuple[list[dict], list[tuple], list[tuple]]:
     volumes = to_percents([topic["size"] for topic in clustered["topics"]])
     limit = int(settings["representative_posts"])
     backend = str(settings["label_backend"])
@@ -242,7 +262,7 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
         terms = list(topic["terms"])
         planet = label_topic(members, terms, backend=backend, model=model)
         name = str(planet.get("name") or topic_name(terms))
-        perspectives = []
+        drafted: list[tuple[dict, list[tuple[str, int, int, float]], int]] = []
         ordered_faces = sorted(
             zip(split["faces"], face_volumes),
             key=lambda item: (-item[1], item[0]["index"]),
@@ -264,10 +284,41 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
             }
             if len(arguments) >= 2:
                 perspective["arguments"] = arguments[:6]
+            rows = [
+                (members[index]["uri"], topic_id, position, float(split["distances"][index]))
+                for index in face["member_indices"]
+            ]
+            drafted.append((perspective, rows, int(face["size"])))
+        drafted = [
+            item for item in drafted if not _face_has_no_shared_claim(item[0])
+        ]
+        if not drafted:
+            print(f"Dropping {name}: the posts do not share a claim.")
+            continue
+        perspectives = [item[0] for item in drafted]
+        if len(perspectives) >= 2 and not perspectives_share_subject(
+            perspectives, backend=backend, model=model
+        ):
+            print(f"Dropping {name}: its faces are different stories.")
+            continue
+        if planet.get("label_source") == "heuristic" or topic_name_is_weak(name, members, terms):
+            renamed = name_from_perspectives(members, perspectives, terms, backend=backend, model=model)
+            if renamed:
+                name = renamed
+            elif perspectives and not topic_name_is_weak(str(perspectives[0].get("title") or ""), members, terms):
+                name = str(perspectives[0]["title"])
+        face_volumes = to_percents([item[2] for item in drafted])
+        perspectives = []
+        for position, ((perspective, rows, _size), volume) in enumerate(zip(drafted, face_volumes)):
+            perspective["volume_percent"] = volume
+            perspective["id"] = face_id(topic_id, position)
             perspectives.append(perspective)
-            for index in face["member_indices"]:
-                post = members[index]
-                face_rows.append((post["uri"], topic_id, position, float(split["distances"][index])))
+            for uri, _topic_id, _position, distance in rows:
+                face_rows.append((uri, topic_id, position, distance))
+        print(
+            f"Planet {name}: "
+            + " | ".join(f"{item['volume_percent']}% {item['title']}" for item in perspectives)
+        )
         for post in members:
             membership.append((post["uri"], topic_id))
         built.append(
@@ -281,6 +332,8 @@ def _build_topics(posts: list[dict], clustered: dict, settings: dict) -> tuple[l
         )
         _dedupe_labels(built)
     built = _drop_unshared_planets(built)
+    if keep is not None:
+        built = built[: max(int(keep), 1)]
     if built:
         # Volumes were shares of the pre-drop set. Rebalance after a mixed planet leaves.
         sizes = [max(topic.get("total_volume_percent") or 0, 0.1) for topic in built]

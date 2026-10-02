@@ -54,7 +54,7 @@ Re-running BERTopic reads this SQLite file. It does not fetch days that are alre
 
 ## Clustering
 
-`cluster_backend: embedding` (default) uses a local MiniLM model through fastembed (ONNX, no torch). It looks for many tight groups — a long week can have 100 or more — and leaves posts that are not close to a group unlabeled. `catalog_size` then keeps the largest of those groups (10 by default). It does not assign every post to a planet, and it does not split a week until ten orbits are full. The daily job installs fastembed.
+`cluster_backend: embedding` (default) uses a local MiniLM model through fastembed (ONNX, no torch). It looks for many tight groups — a long week can have 100 or more — and leaves posts that are not close to a group unlabeled. The embedding path asks for a few spare groups past `catalog_size` (10 by default) so a mixed planet can be dropped and the next specific group takes its place. It does not assign every post to a planet, and it does not split a week until ten orbits are full. The daily job installs fastembed.
 
 `cluster_backend: lexical` uses numpy TF-IDF and k-means. Pytest uses this path and does not download a model.
 
@@ -66,7 +66,7 @@ Inside a candidate group, at most 3 posts per author count. Planets are ranked b
 
 ## Faces and labels
 
-Each kept planet is split into **1–6 faces**. A second face needs at least a fifth of the planet and a centroid cosine below 0.90. That line is higher than the planet-merge line on purpose: two stances of one subject sit above 0.72 on MiniLM, and the old face gate treated them as one view. Representative posts: highest likes first, then nearer the face centroid. Cap is `representative_posts` (12). Two faces with the same or near-same title are merged. Face titles name the claim, not a camp ("Anti Republican") and not an insult. Face titles are not numbered to look distinct.
+Each kept planet is split into **1–6 faces**. A second face needs at least a fifth of the planet and a centroid cosine below 0.90. That line is higher than the planet-merge line on purpose: two stances of one subject sit above 0.72 on MiniLM, and the old face gate treated them as one view. Representative posts: highest likes first, then nearer the face centroid. Cap is `representative_posts` (12). Two faces with the same or near-same title are merged. Face titles name the claim in a grammatical phrase, not a camp ("Anti Republican"), not an insult, and not two leftover words ("Evangelists Unequipped"). A title or summary that is still a camp, a fragment, a "but" joining a second claim, or an ellipsis is rewritten once. If it is still not one claim, that face is dropped. Two faces that are different stories are dropped as a planet, and a spare group fills the slot. Face titles are not numbered to look distinct.
 
 `label_backend: auto` tries, in order:
 
@@ -74,7 +74,7 @@ Each kept planet is split into **1–6 faces**. A second face needs at least a f
 2. An OpenAI-compatible API when `OPENAI_API_KEY` is set (`OPENAI_BASE_URL` defaults to OpenAI, or DeepInfra when pointed at `https://api.deepinfra.com/v1/openai`)
 3. Heuristic names from top terms, plus extractive steelmans from the strongest posts
 
-There is one topic-name call per planet and one face call per perspective (title, summary, 2–4 arguments). Invalid model output is tried once more, then the heuristic is stored. The heuristic summary is a sentence from a shown post. Relabel the retained corpus without a Bluesky fetch:
+There is one topic-name call per planet, one face call per perspective (title, summary, 2–4 arguments), a repair call when that label is not publishable, and a same-subject check when a planet has two faces. Invalid model output is tried once more, then the heuristic is stored. The heuristic summary is a complete sentence from a shown post. Relabel the retained corpus without a Bluesky fetch:
 
 ```bash
 python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
