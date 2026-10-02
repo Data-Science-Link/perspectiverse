@@ -286,7 +286,7 @@ def _build_topics(
                 representatives = select_representatives(on_claim, [0.0] * len(on_claim), limit=limit)
             focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
             representatives = _align_representatives(representatives, focus)
-            if not _posts_share_a_subject(representatives):
+            if len(representatives) < 3 or not _posts_share_a_subject(representatives):
                 label = {
                     "title": "Mixed remarks",
                     "summary": "These posts do not share a claim.",
