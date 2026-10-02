@@ -22,12 +22,14 @@ from pipeline.corpus import (
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
 from pipeline.label import (
+    content_tokens,
     faces_share_vocabulary,
     label_perspective,
     label_topic,
     name_from_perspectives,
     perspectives_share_subject,
     shares_claim_word,
+    specific_shared_words,
     titles_alike,
     topic_name_is_weak,
     unique_label,
@@ -275,6 +277,21 @@ def _build_topics(
             representatives = select_representatives(face_posts, face_distances, limit=limit)
             label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
             arguments = label.get("arguments") or []
+            title = str(label.get("title") or "")
+            on_claim = [
+                post
+                for post in face_posts
+                if shares_claim_word(str(post.get("text") or post.get("clean_text") or ""), title)
+            ]
+            if len(on_claim) >= 3:
+                representatives = select_representatives(on_claim, [0.0] * len(on_claim), limit=limit)
+            if not _posts_share_a_subject(representatives):
+                label = {
+                    "title": "Mixed remarks",
+                    "summary": "These posts do not share a claim.",
+                    "label_source": "heuristic",
+                }
+                arguments = []
             focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
             representatives = _align_representatives(representatives, focus)
             perspective = {
@@ -298,13 +315,18 @@ def _build_topics(
             print(f"Dropping {name}: the posts do not share a claim.")
             continue
         perspectives = [item[0] for item in drafted]
-        if len(perspectives) >= 2 and (
-            not faces_share_vocabulary(perspectives)
-            or not perspectives_share_subject(perspectives, backend=backend, model=model)
+        if len(perspectives) >= 2 and not specific_shared_words(perspectives):
+            same_story = faces_share_vocabulary(perspectives) and perspectives_share_subject(
+                perspectives, backend=backend, model=model
+            )
+            if not same_story:
+                print(f"Dropping {name}: its faces are different stories.")
+                continue
+        if (
+            planet.get("label_source") == "heuristic"
+            or topic_name_is_weak(name, members, terms)
+            or _name_misses_face(name, perspectives[0])
         ):
-            print(f"Dropping {name}: its faces are different stories.")
-            continue
-        if planet.get("label_source") == "heuristic" or topic_name_is_weak(name, members, terms):
             renamed = name_from_perspectives(members, perspectives, terms, backend=backend, model=model)
             if renamed:
                 name = renamed
@@ -373,6 +395,61 @@ def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> lis
     return claims
 
 
+def _name_misses_face(name: str, face: dict) -> bool:
+    """True when the planet name's words are absent from the largest face."""
+    tokens = [token for token in content_tokens(name) if len(token) >= 5]
+    if not tokens:
+        return False
+    text = " ".join(
+        [
+            str(face.get("title") or ""),
+            str(face.get("summary") or ""),
+            *[str(post.get("text") or "") for post in (face.get("representative_posts") or [])[:6]],
+        ]
+    )
+    return not any(shares_claim_word(token, text) for token in tokens)
+
+
+def _posts_share_a_subject(posts: list[dict]) -> bool:
+    """False when the shown posts are a grab bag rather than one claim."""
+    glue = {
+        "actually",
+        "think",
+        "thinking",
+        "anything",
+        "through",
+        "against",
+        "certain",
+        "support",
+        "people",
+        "would",
+        "could",
+        "should",
+        "there",
+        "their",
+        "other",
+        "about",
+        "being",
+        "really",
+        "something",
+    }
+    bags = []
+    for post in posts[:5]:
+        text = str(post.get("text") or post.get("clean_text") or "")
+        bags.append({token for token in content_tokens(text) if token not in glue})
+    if len(bags) < 4:
+        return True
+    pairs = hits = 0
+    for index, left in enumerate(bags):
+        for right in bags[index + 1 :]:
+            pairs += 1
+            if left & right:
+                hits += 1
+    if pairs == 0:
+        return True
+    return hits / pairs >= 0.2
+
+
 def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
     """Show posts that use the claim's words. Likes break a tie."""
     from pipeline.label import content_tokens
@@ -385,7 +462,7 @@ def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
 
     ranked = sorted(posts, key=sort_key)
     matched = [post for post in ranked if shares_claim_word(str(post.get("text") or ""), focus)]
-    if len(matched) >= 3:
+    if matched:
         return matched
     return ranked
 

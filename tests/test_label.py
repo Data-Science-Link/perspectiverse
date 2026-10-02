@@ -61,6 +61,33 @@ def test_weak_term_does_not_become_the_face_title():
     assert "evangelists" in labeled["summary"].lower()
 
 
+def test_a_shared_commodity_counts_as_one_subject():
+    from pipeline.label import specific_shared_words
+
+    diesel = [
+        {
+            "title": "Diesel Export",
+            "representative_posts": [{"text": "The president will not ban diesel exports this week."}],
+        },
+        {
+            "title": "Oil Release",
+            "representative_posts": [{"text": "Allies will release diesel from emergency stockpiles."}],
+        },
+    ]
+    courts = [
+        {
+            "title": "Judicial Compliance",
+            "representative_posts": [{"text": "Nothing happens when officials defy a judge's order."}],
+        },
+        {
+            "title": "No Prosecution",
+            "representative_posts": [{"text": "The department will not reopen the renovation investigation."}],
+        },
+    ]
+    assert "diesel" in specific_shared_words(diesel)
+    assert specific_shared_words(courts) == set()
+
+
 def test_faces_that_share_no_subject_word_are_different_stories():
     from pipeline.label import faces_share_vocabulary
 

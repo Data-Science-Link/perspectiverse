@@ -86,6 +86,7 @@ def build_same_subject_prompt(faces: list[dict]) -> str:
         "Same: \"Artists reject generative AI\" and \"AI evangelists are unfit to govern it\". "
         "Same: battlefield updates and calls to defend that country, about one war. "
         "Same: a criminal case and argument about how that case was decided.\n"
+        "Same: a diesel export ban and a release of diesel stockpiles.\n"
         "Not the same: a Pentagon religion office and a church's alliance with artists. "
         "Not the same: one candidate's campaign and a different politician's bribery case. "
         "Not the same: posts about one politician and posts about a different politician. "
@@ -374,11 +375,12 @@ def invented_entities(text: str, source: str, *, title: bool = False) -> list[st
     return found
 
 
-def perspective_needs_repair(labeled: dict) -> bool:
+def perspective_needs_repair(labeled: dict, posts: list[dict] | None = None) -> bool:
     """A publishable face has a grammatical title and one complete sentence."""
-    return _title_needs_repair(str(labeled.get("title") or "")) or _summary_needs_repair(
-        str(labeled.get("summary") or "")
-    )
+    summary = str(labeled.get("summary") or "")
+    if _title_needs_repair(str(labeled.get("title") or "")) or _summary_needs_repair(summary):
+        return True
+    return bool(posts and _copies_post(summary, posts))
 
 
 def _title_needs_repair(title: str) -> bool:
@@ -421,21 +423,26 @@ def ground_perspective(labeled: dict, posts: list[dict], terms: list[str]) -> di
             titled["title"] = fallback
             titled["label_source"] = "heuristic"
     summary = str(titled.get("summary") or "")
-    if invented_entities(summary, source) or _summary_needs_repair(summary):
+    if invented_entities(summary, source):
         sentence = _shown_sentence(posts)
-        if sentence and not _summary_needs_repair(sentence) and not invented_entities(sentence, source):
+        if (
+            sentence
+            and not _summary_needs_repair(sentence)
+            and not invented_entities(sentence, source)
+            and not _copies_post(sentence, posts)
+        ):
             titled["summary"] = sentence
             titled["label_source"] = "heuristic"
     arguments = _grounded_arguments(titled.get("arguments") or [], posts, source)
     arguments = _arguments_about_the_title(arguments, str(titled.get("title") or ""))
-    if len(arguments) < 2:
+    if len(arguments) < 2 and str(titled.get("label_source") or "") == "heuristic":
         for extra in heuristic_arguments(posts, terms):
             if extra in arguments:
                 continue
             arguments.extend(_grounded_arguments([extra], posts, source))
             if len(arguments) >= 2:
                 break
-    if len(arguments) >= 2:
+    if arguments:
         titled["arguments"] = arguments[:6]
     else:
         titled.pop("arguments", None)
@@ -495,7 +502,7 @@ def _arguments_about_the_title(arguments: list[str], title: str) -> list[str]:
     if not content_tokens(title):
         return arguments
     matched = [item for item in arguments if shares_claim_word(item, title)]
-    if len(matched) >= 2:
+    if matched:
         return matched
     return arguments
 
@@ -516,12 +523,25 @@ def shares_claim_word(text: str, focus: str) -> bool:
     return False
 
 
-def faces_share_vocabulary(faces: list[dict]) -> bool:
-    """False when representative posts share no subject word.
+_PERSON_GLUE = frozenset(
+    {
+        "trump",
+        "donald",
+        "biden",
+        "harris",
+        "kamala",
+        "president",
+        "republican",
+        "democrat",
+        "america",
+        "american",
+        "americans",
+    }
+)
 
-    Titles are ignored on purpose: a label can glue two stories with one verb.
-    """
-    glue = _GROUND_STOP | frozenset(
+
+def _post_word_glue() -> frozenset[str]:
+    return _GROUND_STOP | frozenset(
         {
             "actually",
             "think",
@@ -547,6 +567,38 @@ def faces_share_vocabulary(faces: list[dict]) -> bool:
             "after",
         }
     )
+
+
+def _shared_post_words(faces: list[dict]) -> set[str]:
+    """Words of five letters or more that every face's posts use."""
+    glue = _post_word_glue()
+    bags: list[set[str]] = []
+    for face in faces:
+        posts = face.get("representative_posts") or []
+        text = " ".join(str(post.get("text") or "") for post in posts[:6])
+        tokens = {token for token in content_tokens(text) if len(token) >= 5 and token not in glue}
+        if not tokens:
+            return set()
+        bags.append(tokens)
+    if len(bags) < 2:
+        return set()
+    return set.intersection(*bags)
+
+
+def specific_shared_words(faces: list[dict]) -> set[str]:
+    """Subject words the faces' posts share, ignoring a politician's name alone."""
+    return {word for word in _shared_post_words(faces) if word not in _PERSON_GLUE}
+
+
+def faces_share_vocabulary(faces: list[dict]) -> bool:
+    """False when representative posts share no subject word.
+
+    Titles are ignored on purpose: a label can glue two stories with one verb.
+    A face with no usable words does not, by itself, prove the stories differ.
+    """
+    if len(faces) < 2:
+        return True
+    glue = _post_word_glue()
     bags: list[set[str]] = []
     for face in faces:
         posts = face.get("representative_posts") or []
@@ -555,8 +607,6 @@ def faces_share_vocabulary(faces: list[dict]) -> bool:
         if not tokens:
             return True
         bags.append(tokens)
-    if len(bags) < 2:
-        return True
     return bool(set.intersection(*bags))
 
 
@@ -926,7 +976,7 @@ def _repair_perspective(
     terms: list[str],
     generate: Callable[[str], str],
 ) -> dict:
-    if not perspective_needs_repair(labeled):
+    if not perspective_needs_repair(labeled, posts):
         return labeled
     repaired = _from_generator(generate, build_repair_prompt(posts, labeled), terms, posts)
     if repaired.get("label_source") == "fallback":
@@ -950,7 +1000,7 @@ def _finish_perspective(
     drop_if_unrepaired: bool,
 ) -> dict:
     grounded = ground_perspective(labeled, posts, terms)
-    if drop_if_unrepaired and perspective_needs_repair(grounded):
+    if drop_if_unrepaired and perspective_needs_repair(grounded, posts):
         grounded["title"] = "Mixed remarks"
         grounded["summary"] = "These posts do not share a claim."
         grounded.pop("arguments", None)
