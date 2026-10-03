@@ -288,7 +288,8 @@ def _build_topics(
                 representatives = select_representatives(on_claim, [0.0] * len(on_claim), limit=limit)
             focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
             representatives = _align_representatives(representatives, focus)
-            summary = str(label.get("summary") or "")
+            summary = _without_ungrounded_tail(str(label.get("summary") or ""), representatives)
+            label["summary"] = summary
             if content_tokens(title) and (
                 not _claim_words_overlap(title, summary) or not _title_covers_posts(title, representatives)
             ):
@@ -425,6 +426,24 @@ def _claim_words_overlap(left: str, right: str) -> bool:
     left_stems = {subject_stem(token) for token in content_tokens(left)}
     right_stems = {subject_stem(token) for token in content_tokens(right)}
     return bool(left_stems & right_stems)
+
+
+def _without_ungrounded_tail(summary: str, posts: list[dict]) -> str:
+    """Drop an 'and ...' ending that the shown posts never say."""
+    text = str(summary or "").strip()
+    if " and " not in text:
+        return text
+    head, tail = text.split(" and ", 1)
+    if len(head.split()) < 3 or len(tail.split()) > 3:
+        return text
+    post_stems: set[str] = set()
+    for post in posts:
+        body = str(post.get("text") or post.get("clean_text") or "")
+        post_stems.update(subject_stem(token) for token in content_tokens(body))
+    tail_stems = {subject_stem(token) for token in content_tokens(tail)}
+    if tail_stems and any(stem not in post_stems for stem in tail_stems):
+        return head.rstrip(" ,;")
+    return text
 
 
 def _title_covers_posts(title: str, posts: list[dict]) -> bool:

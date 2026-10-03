@@ -55,6 +55,17 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(topic["name"] for topic in payload["topics"])
 
 
+def test_an_ungrounded_and_tail_is_removed():
+    from pipeline.live import _without_ungrounded_tail
+
+    posts = [{"text": "Rape culture is definitely on the rise and people stay silent."}]
+    assert _without_ungrounded_tail("Rape culture exists and is understudied", posts) == "Rape culture exists"
+    iran = [{"text": "The US may strike Iran and Iran may widen the conflict."}]
+    assert _without_ungrounded_tail("US and Iran may engage in conflict", iran) == "US and Iran may engage in conflict"
+    artists = [{"text": "AI harms artists and creative workers."}]
+    assert _without_ungrounded_tail("AI harms artists and creatives", artists) == "AI harms artists and creatives"
+
+
 def test_a_title_has_to_cover_most_of_its_posts():
     from pipeline.live import _title_covers_posts
 

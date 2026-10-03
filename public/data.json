@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-10-02",
+  "last_updated": "2026-10-03",
   "total_posts": 2805,
   "window_hours": 168,
   "source": "bluesky",
@@ -8,89 +8,15 @@
   "topics": [
     {
       "id": 1,
-      "name": "AI Regulation Debate",
+      "name": "Artists Reject AI",
       "category": "Technology",
-      "total_volume_percent": 24.9,
+      "total_volume_percent": 15.1,
       "perspectives": [
         {
           "id": "1A",
-          "title": "Evangelists Unequipped",
-          "summary": "I feel like the debate about what parts of AI are good and what parts are bad should wait until we solve the worldwide crisis caused by the fact that almost of all of its\u2026",
-          "volume_percent": 59.3,
-          "representative_posts": [
-            {
-              "author": "markharris.bsky.social",
-              "text": "I feel like the debate about what parts of AI are good and what parts are bad should wait until we solve the worldwide crisis caused by the fact that almost of all of its evangelists in both tech and govt are morally, intellectually, and ethically unequipped to oversee it, when not downright evil.",
-              "likes": 45
-            },
-            {
-              "author": "flyingtrilobite.com",
-              "text": "EVEN IF generative AI... had guardrails against abuse (it doesn't) was good for the environment (it's not) and was accurate all the time (not even close) it was still created by scraping billions of works of creative labour without consent, compensation, or even notification.",
-              "likes": 8
-            },
-            {
-              "author": "sarahspain.com",
-              "text": "I can\u2019t believe it didn\u2019t even occur to me that men would use AI to make photos & videos like this. I know it\u2019s not real but it\u2019s somehow still violating & nauseating to imagine some creeper making realistic-looking photos of me kissing them (or otherwise). Get me off this fucking planet.",
-              "likes": 12
-            },
-            {
-              "author": "davelevitan.bsky.social",
-              "text": "AI evangelists might do better at converting skeptical people if every bit of news out of the small handful of companies doing all of it doesn't make the people in charge seem like absolute lunatics",
-              "likes": 43
-            },
-            {
-              "author": "aliettedebodard.com",
-              "text": "What I don't get with the whole \"AI is sentient\" slop that they're trying to sell us is--surely if AI were sentient, it would be a living being and as such humans wouldn't be allowed to exploit AI with no pay, no rest and no workers rights?",
-              "likes": 19
-            },
-            {
-              "author": "klemdrake.bsky.social",
-              "text": "It pains and disgusts me that SO MANY vendors use AI SLOP LOGOS. Like jfc your whole business exists BECAUSE OF ARTISTS. REAL CREATIVITY & SKILLS. No decency to make a logo yourself or pay someone for it ?? Vile, low, lazy. I hope this shit becomes illegal & they pay for it/close up shops \ud83d\udc96\u263a\ufe0f\ud83d\udca2",
-              "likes": 2
-            },
-            {
-              "author": "bajablastoise.bsky.social",
-              "text": "\"some people just made up their minds that AI is bad and won't reassess\" yeah man that tends to happen when you get harrassed six ways from sunday. maybe if ai companies came in good faith but they didn't. they lost. shut up",
-              "likes": 1
-            },
-            {
-              "author": "dialhforhagai.bsky.social",
-              "text": "and it occurred to me that AI might cause a similar sort of splintering-off \u2014 artists not wanting to \u201cnormalize\u201d AI by depicting it as anything other than the big threat even though it\u2019s obviously a major part of a lot of people\u2019s life and thus is inherently, at least in terms of scale, \u201cnormalized\u201d",
-              "likes": 1
-            },
-            {
-              "author": "djangowexler.bsky.social",
-              "text": "I think Anthropic would LOVE if some group was protesting them on behalf of AI rights, that would be wonderful press. But they're confident in their capture of government and so nothing would actually happen.",
-              "likes": 1
-            },
-            {
-              "author": "markharris.bsky.social",
-              "text": "AI is an unregulated emergency on every level--academia, art, national security, privacy, the environment, faith in journalism, and on and on and on--and deriding those who are desperately trying to pull the handbrake as we go over the cliff as alarmists will not age well (if we get to age at all).",
-              "likes": 4
-            },
-            {
-              "author": "noahweinberger2003.bsky.social",
-              "text": "My biggest concern is actually less about waifus and synthetic relationships and more about people pairing their financial authorization credits to agents. A threat actor can make their AI product more addictive and drive people indo debt, especially youth or those with ADHD",
-              "likes": 2
-            },
-            {
-              "author": "barkerrant.bsky.social",
-              "text": "This is probably true, but when the purveyors of this tech \u2014 who happen to be among the richest and most powerful people on earth \u2014 are busy spinning some of the wildest bullshit I\u2019ve ever heard in its favor, I\u2019m less concerned that some regular dude saying \u201cAI sucks lol\u201d doesn\u2019t have all the facts.",
-              "likes": 1
-            }
-          ],
-          "arguments": [
-            "AI evangelists are morally and intellectually unequipped to oversee its development",
-            "If AI were truly sentient, it would be entitled to rights and not be exploitable",
-            "AI can be used to create violating and nauseating content",
-            "AI development has occurred without consent or compensation for the creative labor it has scraped"
-          ]
-        },
-        {
-          "id": "1B",
-          "title": "Detrimental Undermines",
-          "summary": "Artists and creatives are pushing back against the use of AI in their fields because it is detrimental to their work and undermines human creativity",
-          "volume_percent": 40.7,
+          "title": "Artists Reject AI",
+          "summary": "AI harms artists and creatives",
+          "volume_percent": 100.0,
           "representative_posts": [
             {
               "author": "flyingtrilobite.com",
@@ -98,67 +24,24 @@
               "likes": 9
             },
             {
-              "author": "disencants.bsky.social",
-              "text": "AI is so detrimental to writing. I'm someone who used AI to talk about my story because I had no place to do so in my life, and it really ripped the passion away from me. And I understand that as a creative, it's a type of betrayal to us AI. But I've found now it's not just about moral standing, but",
-              "likes": 1
-            },
-            {
               "author": "bella.meangirls.online",
               "text": "this is very easy to verify as fake, jfc can we not spread AI-generated slop in a time where it's already impossible for small artists to thrive",
               "likes": 4
             },
             {
-              "author": "sexulpenut.bsky.social",
-              "text": "A little tired and limited space lol. More so AI as a tool is fueled by the elitism in art that I realized I hated and seemed like such a poor excuse to give creativity to something that can't even create then act like it created something when you can do simple things and enjoy creating art",
-              "likes": 1
-            },
-            {
-              "author": "technology-news.bsky.social",
-              "text": "AI-assisted modding in the industry is leading to mashups of games like Elden Ring and Minecraft with little effort.",
+              "author": "disencants.bsky.social",
+              "text": "AI is so detrimental to writing. I'm someone who used AI to talk about my story because I had no place to do so in my life, and it really ripped the passion away from me. And I understand that as a creative, it's a type of betrayal to us AI. But I've found now it's not just about moral standing, but",
               "likes": 1
             },
             {
               "author": "jun-orphancross.bsky.social",
               "text": "I hope many people will fill out this survey. So they know that Ai is NOT welcome in our creative fields",
               "likes": 0
-            },
-            {
-              "author": "braak.bsky.social",
-              "text": "You could make a similar argument for like, \"well, why is it a big deal if you put the AI in charge of a machinegun if it doesn't work? If all it does is screw up shooting the machinegun, maybe that would be better.\" I'm not sure it would!",
-              "likes": 1
-            },
-            {
-              "author": "sdotbailey.bsky.social",
-              "text": "I know that I hate that every fucking job listing I'm seeing now requires me to be able to \"make use of AI tools\" to increase design speed and whateverthefuck else. I don't want to pay these companies to utilize/get better with the tools. I work just fine without it.",
-              "likes": 1
-            },
-            {
-              "author": "mktsutherland.bsky.social",
-              "text": "I take the fact that we haven\u2019t come up with a straightforward easy way to gate websites for children as proof that either AI doesn\u2019t work that well yet/isn\u2019t that smart yet or that we just don\u2019t care it\u2019s just absurd!",
-              "likes": 1
-            },
-            {
-              "author": "justokonline.bsky.social",
-              "text": "Did I ever tell you about the time my colleague and I shot down a planned state-sponsored \u201cAI art\u201d contest?",
-              "likes": 1
-            },
-            {
-              "author": "fiervind.bsky.social",
-              "text": "\"AI SMART BIRD DUMB\" What weirdly rotted brains. Especially when they try to argue that genAI is totally alive and thinking",
-              "likes": 1
-            },
-            {
-              "author": "joesteel.bsky.social",
-              "text": "This is so bad. Keep your mind and your tools sharp. AI might be here to stay, in one form or another, but it doesn't think in the same way humans can - if we can even call it thinking.",
-              "likes": 0
             }
           ],
           "arguments": [
-            "Artists love new innovations in creative tech, but are pushing back hard on generative AI",
-            "AI-generated content is fake and hurts small artists",
-            "AI is fueled by elitism in art and can't truly create",
-            "AI is detrimental to writing and rips away passion from creatives",
-            "AI-assisted modding leads to unoriginal mashups"
+            "Artists push back against generative AI",
+            "AI-generated content is detrimental to small artists"
           ]
         }
       ]
@@ -167,53 +50,18 @@
       "id": 2,
       "name": "Cornell Rape Case",
       "category": "Politics",
-      "total_volume_percent": 16.6,
+      "total_volume_percent": 5.0,
       "perspectives": [
         {
           "id": "2A",
           "title": "Rape Culture",
-          "summary": "Some individuals and institutions are too sympathetic to rapists and need to be held accountable",
+          "summary": "Rapists are being sympathized with",
           "volume_percent": 66.7,
           "representative_posts": [
             {
               "author": "chelelea.bsky.social",
               "text": "Any college fostering rape culture needs to be outed and dismantled. Tolerance for SA is f\u2019n OVER.",
               "likes": 3
-            },
-            {
-              "author": "taliesin82.bsky.social",
-              "text": "And he should have given them that choice. He didn't need to name victim or anything but treat it in the same way as a sex offender needing to let places of employment know your history. it's about honesty, but also about safety and people feeling safe in knowledge and choice",
-              "likes": 1
-            },
-            {
-              "author": "cionaod.bsky.social",
-              "text": "Pedo-POTUS isn't going to condemn gang rape at any American University because he's an adjudicated rapist. How disgusting is that fact alone? Then there's the Epstein files. He must be held accountable.",
-              "likes": 0
-            },
-            {
-              "author": "grandpapat1964.bsky.social",
-              "text": "You know Trump would sympathize with the rapists. Disgusting pig.",
-              "likes": 3
-            },
-            {
-              "author": "mtfromcc.bsky.social",
-              "text": "Of course Trump identifies with the rapists.",
-              "likes": 2
-            },
-            {
-              "author": "zdh87.bsky.social",
-              "text": "Donald Trump feels bad for rapists... So out of character..",
-              "likes": 2
-            },
-            {
-              "author": "thempireiain.neocities.org",
-              "text": "In a position to be a danger to others!! I don't know that a person who commits sexual assault needs to have a sign round their neck forever declaring them a pariah, but they probably shouldn't become a person with such incredible parasocial power",
-              "likes": 2
-            },
-            {
-              "author": "gastropoda.bsky.social",
-              "text": "Nice of the big whiner to remind everyone he had to pay out $5 million for sexual assault.",
-              "likes": 1
             },
             {
               "author": "papageirr.bsky.social",
@@ -226,52 +74,76 @@
               "likes": 1
             },
             {
+              "author": "weirwoodtreehug.bsky.social",
+              "text": "Important \ud83e\uddf5 I've seen a lot of people - mostly men - on here who are otherwise progressive and who agree that cops and prosecutors are liars and bigots under any other circumstances take the DA statements at face value to excuse disbelieving the victim. But ACAB absolutely applies to rape cases too.",
+              "likes": 0
+            },
+            {
+              "author": "abigailcolter.bsky.social",
+              "text": "A reminder. It is against the law to rape a person who is sober, or drunk, or who may be in a compromising position of some sort. Rape is never legal.",
+              "likes": 0
+            },
+            {
+              "author": "wjsnofficial.bsky.social",
+              "text": "guy who doxxed jane doe in that rape case is now facing legal consequences because he doxxed the wrong girl and has sent a bunch of incels after some random student who had nothing to do with anything.. we are in hell truly",
+              "likes": 0
+            },
+            {
+              "author": "anchovygirlfriend.northsky.social",
+              "text": "noah fence but suggesting anything other than zero tolerance policy for rape is a fundamental misunderstanding of how one should act in any society",
+              "likes": 0
+            },
+            {
+              "author": "cionaod.bsky.social",
+              "text": "Pedo-POTUS isn't going to condemn gang rape at any American University because he's an adjudicated rapist. How disgusting is that fact alone? Then there's the Epstein files. He must be held accountable.",
+              "likes": 0
+            },
+            {
               "author": "emericanjezebel.bsky.social",
               "text": "just\u2026imagine being the woman he raped, and reading that essay",
               "likes": 10
             },
             {
-              "author": "hudsonette.bsky.social",
-              "text": "Excellent reporting. It\u2019s bad when the descriptions of the assaults reminds you in part of those from two witnesses who testified against Kavanaugh.",
-              "likes": 1
+              "author": "nomdeplume7.bsky.social",
+              "text": "The campus police didn't pass on to the district attorney that the victim said she had been raped. No other criminal investigation took place. Now it has been reopened, after she filed a big civil lawsuit against everyone.",
+              "likes": 0
+            },
+            {
+              "author": "path550.bsky.social",
+              "text": "His hate for Leticia James won't allow him to consider no woman should be gang raped.",
+              "likes": 0
+            },
+            {
+              "author": "abcbtommi.bsky.social",
+              "text": "It just feels like Graham Platner all over again. When the Nazi tattoo and history of alcoholism came up people were like, oh yeah he definitely raped somebody. This was just obviously going to come out. And still we played this stupid game of assuming someone with a Nazi tattoo has good judgement.",
+              "likes": 0
             }
           ],
           "arguments": [
-            "Trump sympathizes with rapists",
-            "Colleges that foster rape culture should be dismantled",
-            "Institutions should prioritize honesty and safety for victims of sexual assault"
+            "Colleges foster rape culture",
+            "Rape apologists are prevalent"
           ]
         },
         {
           "id": "2B",
           "title": "Cornell Rape Case",
-          "summary": "Trump expressed sympathy for the Cornell rape suspects and attacked Letitia James instead of addressing the allegations",
+          "summary": "Trump supports Cornell rape suspects",
           "volume_percent": 33.3,
           "representative_posts": [
+            {
+              "author": "arghavansallesmd.medsky.social",
+              "text": "One of the 7 men in Jane Doe\u2019s lawsuit sued Cornell (and lost\u2014they are currently appealing). Here is what his punishment was for \u201cattempted sexual exploitation\u201d\u2014a class and a paper. (Gift link)",
+              "likes": 2
+            },
             {
               "author": "cwebbonline.com",
               "text": "Are you kidding me \u203c\ufe0f Just now at the White House, Trump was asked about the Cornell rape case. He didn\u2019t address the allegations. He attacked Letitia James, calling her \u201ccorrupt\u201d and claiming anyone she investigates \u201cwon\u2019t get a fair shake.\u201d Trump\u2019s sympathy clearly isn\u2019t with the survivor.",
               "likes": 35
             },
             {
-              "author": "oskywosky.bsky.social",
-              "text": "Trump: 'I feel badly' for Cornell rape suspects His comments came a day after New York Gov. Kathy Hochul (D-NY) signed an executive order naming state Attorney General Letitia James (D-NY) special prosecutor in the case, according to the governor's office.",
-              "likes": 0
-            },
-            {
-              "author": "captalexjharman.bsky.social",
-              "text": "CALL THEM WHAT THEY ARE: CORNELL RAPISTS. RAPISTS. Let THAT sink in. SEVEN RAPISTS. 7. ALL KNEW it was RAPE. They DIDN'T CARE. These Bastards NEED to be Prosecuted to the FULLEST extent of the Law!!!",
-              "likes": 0
-            },
-            {
-              "author": "linstigateur.bsky.social",
-              "text": "Trump always supports the vic...wait... what? No? Oh... the PERPETRATORS of rape. Professional courtesy? \ud83e\udd37\u200d\u2642\ufe0f\ud83d\ude44 Trump: 'I feel badly' for Cornell rape suspects",
-              "likes": 0
-            },
-            {
-              "author": "arghavansallesmd.medsky.social",
-              "text": "One of the 7 men in Jane Doe\u2019s lawsuit sued Cornell (and lost\u2014they are currently appealing). Here is what his punishment was for \u201cattempted sexual exploitation\u201d\u2014a class and a paper. (Gift link)",
-              "likes": 2
+              "author": "lon08.bsky.social",
+              "text": "The overall theme of what is left of our country and society, is that we are a culture of rapists, pedophiles, lawless bullies, liars, and traitors. Almost like they are virtues. The Cornell gang-rape mess, privilege, the Epstein files? The dots aren\u2019t tough to connect.",
+              "likes": 1
             },
             {
               "author": "sunshinelaughter.bsky.social",
@@ -279,13 +151,13 @@
               "likes": 0
             },
             {
-              "author": "uspol.skyfleet.blue",
-              "text": "Hochul eyes changes to state\u2019s rape law amid Cornell crisis",
+              "author": "peacefulcrone.bsky.social",
+              "text": "Hate how white this site is bc there's barely any pushback to the blatant rape apologia from \"leftist\" clowns who claim to care about the cornell case",
               "likes": 0
             },
             {
-              "author": "lon08.bsky.social",
-              "text": "The overall theme of what is left of our country and society, is that we are a culture of rapists, pedophiles, lawless bullies, liars, and traitors. Almost like they are virtues. The Cornell gang-rape mess, privilege, the Epstein files? The dots aren\u2019t tough to connect.",
+              "author": "moonflower74.bsky.social",
+              "text": "Literally. As a rape survivor \"Cornell 7\" (especially seen as there were 57 overall in that group chat) just sounds so unserious, they're not some crappy boy band. Of course many (myself included) know what the 7 alludes to, but hashtags such as #CornellRapists shows just how severe this really is.",
               "likes": 1
             },
             {
@@ -299,106 +171,77 @@
               "likes": 1
             },
             {
-              "author": "moonflower74.bsky.social",
-              "text": "Literally. As a rape survivor \"Cornell 7\" (especially seen as there were 57 overall in that group chat) just sounds so unserious, they're not some crappy boy band. Of course many (myself included) know what the 7 alludes to, but hashtags such as #CornellRapists shows just how severe this really is.",
-              "likes": 1
+              "author": "uspol.skyfleet.blue",
+              "text": "Hochul eyes changes to state\u2019s rape law amid Cornell crisis",
+              "likes": 0
             },
             {
-              "author": "arcordray.bsky.social",
-              "text": "This makes me feel mad. For what reason will they not investigate this. The Cornell seven men must have rich parents probably",
+              "author": "captalexjharman.bsky.social",
+              "text": "CALL THEM WHAT THEY ARE: CORNELL RAPISTS. RAPISTS. Let THAT sink in. SEVEN RAPISTS. 7. ALL KNEW it was RAPE. They DIDN'T CARE. These Bastards NEED to be Prosecuted to the FULLEST extent of the Law!!!",
+              "likes": 0
+            },
+            {
+              "author": "cchristian-la.bsky.social",
+              "text": "Not second guessing the appointment, but there are several NYS DA\u2019s offices, particularly in NYC and some suburban counties, that have highly experienced Special Victims or Sex Crimes Bureaus staffed by prosecutors who handle complex sexual assault cases every day.",
+              "likes": 0
+            },
+            {
+              "author": "chrisaintmarchin.mastodon.social.ap.brid.gy",
+              "text": "Cornell Seven news: How campus police should have responded to Jane Doe.",
               "likes": 0
             }
           ],
           "arguments": [
-            "Trump supports the perpetrators of rape",
-            "The punishment for attempted sexual exploitation at Cornell is too lenient",
-            "The Cornell rape case is part of a larger culture of rape and lawlessness",
-            "The suspects in the Cornell rape case should be prosecuted to the fullest extent of the law",
-            "Trump's comments on the Cornell rape case reveal his true character",
-            "The Cornell rape case highlights the need for changes to the state's rape law"
+            "The punishment for attempted sexual exploitation at Cornell was too lenient",
+            "The Cornell case is part of a larger culture of rape and privilege"
           ]
         }
       ]
     },
     {
       "id": 3,
-      "name": "Men Upholding Rape Culture",
+      "name": "Rape Culture",
       "category": "Other",
-      "total_volume_percent": 9.6,
+      "total_volume_percent": 15.0,
       "perspectives": [
         {
           "id": "3A",
           "title": "Rape Culture",
-          "summary": "Men are primarily responsible for upholding rape culture, but some women also play a role in it",
+          "summary": "Rape culture exists",
           "volume_percent": 100.0,
           "representative_posts": [
             {
-              "author": "blackanarch.blacksky.app",
-              "text": "Similar to what I was just saying. Misogyny is not generally ostracizing. We lived in a misogynistic society, how could it be on its own.?",
-              "likes": 6
+              "author": "lawisterian.bsky.social",
+              "text": "\"If they were just pretending, then the normalization is built on a ruse\" The technical term for the ruse you refer to here is \"patriarchy\". Men understand rape perfectly well when it's their asshole on the line, they just don't have empathy for women.",
+              "likes": 0
             },
             {
-              "author": "riptodeesse.blacksky.app",
-              "text": "Women\u2019s reproductive system, anatomy, and functions are so massively understudied even to this day. A lot of common misinformation about the female body out here",
-              "likes": 3
+              "author": "lalegault.bsky.social",
+              "text": "How rape culture is passively participated in: You see a woman call out a guy who continually is trying to rehabilitate the Oilers\u2019 image and not only do you remain silent, but you get mad at her for saying anything. It\u2019s a spectrum, and Canadians are experts at it.",
+              "likes": 0
             },
             {
-              "author": "kojanue.space",
-              "text": "Even femme dudes take like all the attention and spotlight at times too and it sucks!! Girls and women don't get to have anything when guys get involved a lot of the time! It's always in service to guys and men...",
-              "likes": 2
+              "author": "buzogryz.bsky.social",
+              "text": "what I think is the most important here is to once again, realise that we live in a terrible time for this stuff. Rape culture is definitely on the rise, most certainly because people who want to mantain it got scared when they saw the MeToo movement and the rise of pop culture feminism in 2010s",
+              "likes": 0
             },
             {
-              "author": "lizzslockeroom.bsky.social",
-              "text": "It's all a joke to them.... it was never about protecting women's sports.... are folks getting it yet?",
-              "likes": 2
+              "author": "shazbat.bsky.social",
+              "text": "MAGAts have a different view on rape than healthy people do, and that POS is their evil leader. They think men have a right to women's bodies. It's a large part of their dysfunction.",
+              "likes": 0
             },
             {
-              "author": "forgetitjake.bsky.social",
-              "text": "The \"she must have done something to deserve it\" crowd is not short on internalized misogyny, and also some women believe if they just \"act right,\" SA will never happen to them, so they have to believe that assaulted women did something wrong or stupid. 2/2",
-              "likes": 1
-            },
-            {
-              "author": "forgetitjake.bsky.social",
-              "text": "And sorry! This was meant to be after a post expressing that men are the problem, by and large, but women sadly play a role in upholding rape culture / victim blaming as well.",
-              "likes": 1
-            },
-            {
-              "author": "geraldinepiche.bsky.social",
-              "text": "Its a complicated issue but generally speaking i agree that too many women will protect abusers and throw victims under the bus if not straight up serving them on a platter to abusers",
-              "likes": 1
-            },
-            {
-              "author": "reformedrebel001.bsky.social",
-              "text": "Only men can change the rape culture we have in America. Good dads teach their sons how to respect women.",
-              "likes": 1
-            },
-            {
-              "author": "forgetitjake.bsky.social",
-              "text": "I am not \"what about\"ing at all, but I must point out that while men are the problem, women play their part in upholding rape culture as well.",
-              "likes": 1
-            },
-            {
-              "author": "zoomoo.bsky.social",
-              "text": "Great article. I really noticed the gendered nature of the debate at the Mt Eden candidates evening, in the audience. Women asked about homelessness, child poverty, climate change. Men behind me muttered \"who's going to pay for it\". Men need to step up into a place of caring for others, urgently.",
-              "likes": 1
-            },
-            {
-              "author": "darkrose.bsky.social",
-              "text": "Who is arguing otherwise? Certainly not women; we\u2019re well aware that violent misogyny is not limited to a particular kind of man.",
-              "likes": 1
-            },
-            {
-              "author": "kirito5556.bsky.social",
-              "text": "Yes, they do. And the women\u2019s self defense classes do too. Gender equality.",
+              "author": "friesandersen.bsky.social",
+              "text": "I have gone to bars, worn clothes that show off my physique (quite in back, I have a physique, just not that kind), and gotten drunk. But being a man, I was not raped. I can't imagine how it must be to be a woman and have to worry every time I leave my home.",
               "likes": 1
             }
           ],
           "arguments": [
-            "Misogyny is not generally ostracizing and is a societal issue",
-            "Some women protect abusers and blame victims",
-            "Internalized misogyny leads some women to believe that assaulted women did something wrong",
-            "Only men can change the rape culture by teaching their sons to respect women",
-            "Men need to step up and take a more active role in caring for social issues"
+            "Men do not face the same risks of rape as women",
+            "Society enables rape culture through silence and victim-blaming",
+            "Rape culture is perpetuated by patriarchal norms and lack of empathy for women",
+            "People often participate in rape culture passively by not speaking out against it",
+            "Rape culture is terrifying and defended by some individuals"
           ]
         }
       ]
@@ -407,13 +250,13 @@
       "id": 4,
       "name": "Christa Pike Execution",
       "category": "Politics",
-      "total_volume_percent": 7.6,
+      "total_volume_percent": 6.0,
       "perspectives": [
         {
           "id": "4A",
           "title": "Death Penalty",
-          "summary": "The death penalty is barbaric and should be abolished",
-          "volume_percent": 76.9,
+          "summary": "The death penalty is barbaric",
+          "volume_percent": 100.0,
           "representative_posts": [
             {
               "author": "repsych.bsky.social",
@@ -426,38 +269,13 @@
               "likes": 2
             },
             {
-              "author": "joedmills2.bsky.social",
-              "text": "What they did to that girl was torture pure and simple",
-              "likes": 1
-            },
-            {
-              "author": "jeremysear.bsky.social",
-              "text": "If you missed the utter horror that a already existed in this case before they further tortured her...",
-              "likes": 1
-            },
-            {
-              "author": "jpaulette.bsky.social",
-              "text": "How can a country so vested in anesthesia drugs, so able to euthanize your beloved pet with speed and kindness, be absolutely inept in carrying out legal execution as punishment?",
-              "likes": 1
-            },
-            {
-              "author": "simpson.tw",
-              "text": "The legal aspects of this case just get stranger and stranger: \"Ms. Pike\u2019s medical condition, some legal experts said, raises questions about whether the state could attempt to execute her again if she is not fully cognizant or capable of understanding what is happening.\"",
-              "likes": 1
-            },
-            {
-              "author": "stephen54.bsky.social",
-              "text": "Cruel and unusual punishment",
-              "likes": 1
-            },
-            {
-              "author": "bobtheguardian.bsky.social",
-              "text": "People seem to think that they need this as \"ultimate justice\" and forget that we have the technology to keep people locked up for life. It's also nice to not have We The People collectively responsible for her death, just in case they turn out to be innocent.",
+              "author": "thebluefoxthief.bsky.social",
+              "text": "I hope Christa Pike's case, the woman who went through 2 failed execution attempts via lethal injection in TN, becomes a pivotal point of eliminating capital punishment. I personally believe capital punishment, aka the death penalty, is inhuman and essentially murder, which is supposedly illegal.",
               "likes": 0
             },
             {
-              "author": "thebluefoxthief.bsky.social",
-              "text": "I hope Christa Pike's case, the woman who went through 2 failed execution attempts via lethal injection in TN, becomes a pivotal point of eliminating capital punishment. I personally believe capital punishment, aka the death penalty, is inhuman and essentially murder, which is supposedly illegal.",
+              "author": "lilbrownbat.bsky.social",
+              "text": "The death penalty is barbaric.",
               "likes": 0
             },
             {
@@ -466,160 +284,48 @@
               "likes": 0
             },
             {
-              "author": "maxplaid.bsky.social",
-              "text": "We mustn't forget horrific murder of Colleen Slemmer in all of this, but honestly what's happened is barbaric in the extreme Also somewhat hypocritical to read that medics are \"fighting to save\" Christa Pike's life - why? I mean the whole idea was to murder her, so why go to all this trouble now?",
+              "author": "bobtheguardian.bsky.social",
+              "text": "People seem to think that they need this as \"ultimate justice\" and forget that we have the technology to keep people locked up for life. It's also nice to not have We The People collectively responsible for her death, just in case they turn out to be innocent.",
               "likes": 0
             },
             {
-              "author": "lilbrownbat.bsky.social",
-              "text": "The death penalty is barbaric.",
+              "author": "wontgetfooledagain.bsky.social",
+              "text": "You have articulated my feelings perfectly. The death penalty is wrong. Killing a person in the name of the state is grotesque. Her crime was heinous and wrong but we compounded that wrong.",
+              "likes": 0
+            },
+            {
+              "author": "joe-knows.bsky.social",
+              "text": "Death of old age in confinement and state delivered death are the same result. You should know that except you are trying to dispose yourself of responsibility",
+              "likes": 0
+            },
+            {
+              "author": "dragon7380.bsky.social",
+              "text": "I am sorry there was a problem, BUT. this woman planned this in advance that is PREMEDITATE MURDER, she tortured and killed the person. THIS is the only reason I believe anyone should be put to death. If you plan and excute that plan to kill someone, YOU SHOLD DIE, PERIOD",
               "likes": 0
             }
           ],
           "arguments": [
-            "The death penalty is a form of torture",
             "The death penalty is inhuman and essentially murder",
-            "The technology to keep people locked up for life makes the death penalty unnecessary",
-            "The risk of executing an innocent person is a reason to abolish the death penalty"
-          ]
-        },
-        {
-          "id": "4B",
-          "title": "Lethal Injection",
-          "summary": "Lethal injection is a problematic method of execution that can cause suffering",
-          "volume_percent": 23.1,
-          "representative_posts": [
-            {
-              "author": "meganders.bsky.social",
-              "text": "Let Christa Pike's botched execution be an excuse to revisit this story, which analyzed autopsies of people killed by lethal injection: The vast majority had signs of pulmonary edema, which causes a feeling of drowning. This has been an issue for a long time.",
-              "likes": 2
-            },
-            {
-              "author": "gmpinglish.bsky.social",
-              "text": "The execution team worked for an hour to administer the lethal drugs, said Pike\u2019s defense lawyer Randy Spivey, who counted at least seven needles in her left arm. Pike was still snoring when the execution chamber\u2019s microphone was cut off more than an hour into the attempt.",
-              "likes": 1
-            },
-            {
-              "author": "robin-hood.bsky.social",
-              "text": "They couldn\u2019t hit her veins even with a second try. So they fried her arms, poisoned her, and tortured her, because they didn\u2019t have the required medical expertise to hit a damn vein. What a damn bunch of shite.",
-              "likes": 1
-            },
-            {
-              "author": "cyn-cedilla.bsky.social",
-              "text": "probably this is not worth the return of public executions, but who can say for sure",
-              "likes": 1
-            },
-            {
-              "author": "momcjl.bsky.social",
-              "text": "If they wanted to execute her, why aren\u2019t they pulling the plug? Executions are required in a prison setting?",
-              "likes": 0
-            },
-            {
-              "author": "blackskymonkey.bsky.social",
-              "text": "Hmmm. Odd. In the Central Park Five case he was screaming for the (totally innocent) defendants to be executed.",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "Lethal injection can cause pulmonary edema, a feeling of drowning",
-            "The execution process can be botched due to lack of medical expertise",
-            "The difficulty in administering the drugs can lead to a prolonged and painful execution",
-            "The use of lethal injection is inhumane and should be reevaluated"
+            "The death penalty is barbaric and torturous"
           ]
         }
       ]
     },
     {
       "id": 5,
-      "name": "Israel Palestine Conflict",
+      "name": "Zionism Opposed",
       "category": "World",
-      "total_volume_percent": 8.7,
+      "total_volume_percent": 15.0,
       "perspectives": [
         {
           "id": "5A",
-          "title": "Palestinian Persecution",
-          "summary": "Palestinians face persecution and repression, including LGBTQ individuals in the West Bank",
-          "volume_percent": 56.7,
+          "title": "Zionism Opposed",
+          "summary": "Zionism has negative impacts",
+          "volume_percent": 100.0,
           "representative_posts": [
-            {
-              "author": "theins.press",
-              "text": "\u201cThey hung me up in an abandoned building and started beating me\u201d: Palestinian sexual minorities speak out about repression LGBTQ people in the West Bank face persecution that can continue even after they flee to Israel.",
-              "likes": 2
-            },
-            {
-              "author": "dailytimespress.bsky.social",
-              "text": "IN AMSTERDAM, THE NETHERLANDS, HUNDREDS OF THOUSANDS OF PEOPLE TOOK TO THE STREETS IN SUPPORT OF PALESTINE \u0641\u064a \u0623\u0645\u0633\u062a\u0631\u062f\u0627\u0645\u060c \u0647\u0648\u0644\u0646\u062f\u0627\u060c \u062e\u0631\u062c \u0645\u0626\u0627\u062a \u0627\u0644\u0622\u0644\u0627\u0641 \u0645\u0646 \u0627\u0644\u0646\u0627\u0633 \u0625\u0644\u0649 \u0627\u0644\u0634\u0648\u0627\u0631\u0639 \u062f\u0639\u0645\u064b\u0627 \u0644\u0641\u0644\u0633\u0637\u064a\u0646",
-              "likes": 0
-            },
-            {
-              "author": "chadshakespeare.bsky.social",
-              "text": "My homework for some of you will be to look up what Ilya Ehrenburg wrote about the Germans and try to understand why a Jewish man might have felt that way about those committing a genocide against his people. After that, try to imagine what Palestinians might feel before tone policing them.",
-              "likes": 1
-            },
-            {
-              "author": "cdnjackdaw.bsky.social",
-              "text": "So, there is no illegal settlement in Gaza. Got it. Give me a start date to the conflict. You have evidence of sex crimes against Palestinians imprisoned for murder/terrorism?",
-              "likes": 0
-            },
-            {
-              "author": "byteseu.bsky.social",
-              "text": "Israeli in Netherlands Rejected From Dutch Course After Refusing to Call Gaza War a \u2018Genocide\u2019 March 29, 2025, Amsterdam, North Holland, Netherlands: A pro-Palestinian demonstrator burns a hand-fashioned Israeli flag. Photo: James Petermeier/ZUMA Press Wire via \u2026",
-              "likes": 0
-            },
-            {
-              "author": "boudicaqueen.bsky.social",
-              "text": "He fights against the name because for it to be ruled a genocide also rules that Palestinians are a group. That undermines \u2018 a land without a people \u2018",
-              "likes": 0
-            },
-            {
-              "author": "norzola.bsky.social",
-              "text": "How are people still arguing against calling Israel's genocide a genocide without bothering to Check What Constitutes A Genocide According To The Genocide Convention? There are five measures. The number of babies being born versus civilians being killed is not one of them. FFS, look it up!",
-              "likes": 0
-            },
-            {
-              "author": "miniver.bsky.social",
-              "text": "Again, I am saying that different strains of Zionism have different visions of what a Jewish state should entail, so the essence of Zionism is the lowest common denominator those different Zionists agree on. And that is no more necessarily unjust than the way that Holland is a \u201cDutch state\u201d.",
-              "likes": 0
-            },
-            {
-              "author": "miniver.bsky.social",
-              "text": "I understand the semantics very well. You are trying a motte-and-bailey move by asserting that Zionism \u201cis\u201d ethnonationalism and then making assertions about what \u201cethnonationalism\u201d implies.",
-              "likes": 0
-            },
             {
               "author": "flowstateneworleans.com",
-              "text": "I am not attempting to make any kind of rhetorical maneuver. Is Zionism not both nationalist and ethnic? I've already said that i think of Dutch nationalism or US nationalism as inherently illegitimate and I sincerely believe that.",
-              "likes": 0
-            },
-            {
-              "author": "lucifersson.bsky.social",
-              "text": "This Zionist must be arrested, tried and convicted of treason.",
-              "likes": 0
-            },
-            {
-              "author": "justis4u.bsky.social",
-              "text": "#Jewish humanitarian #NoamChomsky exposes the fact that #ApartheidIsrael is a #Western colonial project to enslave the #MiddleEast and only the disgusting #UAE have fallen to its knees in front of its masters upscrolled.com/",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "Palestinian sexual minorities face persecution in the West Bank that can continue even after fleeing to Israel",
-            "Palestinians may feel a strong sense of resentment towards those they perceive as committing genocide against their people",
-            "Hundreds of thousands of people in Amsterdam took to the streets in support of Palestine",
-            "The Israeli-Palestinian conflict has a long and complex history with evidence of human rights abuses",
-            "Zionism can be seen as an unjust ideology that undermines the rights of Palestinians",
-            "The treatment of Palestinians by Israel has been likened to genocide and apartheid"
-          ]
-        },
-        {
-          "id": "5B",
-          "title": "Nationalism Questionable",
-          "summary": "Zionism as a Jewish ethnic nationalism has questionable utility and impact in the present day",
-          "volume_percent": 43.3,
-          "representative_posts": [
-            {
-              "author": "ecppdx.bsky.social",
-              "text": "it feels pretty gross to say but it sure seems like (at least Zionist) Jewish people are a Very Special Minority\u2122 that gets rights and privileges that other minorities and marginalized groups are routinely denied",
+              "text": "What positive impact or utility does Zionism as a Jewish ethnic nationalism serve in 2026? I'm sincerely asking.",
               "likes": 0
             },
             {
@@ -628,271 +334,43 @@
               "likes": 0
             },
             {
-              "author": "trabimechanic.bsky.social",
-              "text": "\"they cannot simply dismiss Zionism if they are at all interested in entering into any meaningful dialogue with the Jewish community. And it means that they have to be sensitive to why Jews support Israel in order to influence their views.\"",
-              "likes": 0
-            },
-            {
-              "author": "flowstateneworleans.com",
-              "text": "What positive impact or utility does Zionism as a Jewish ethnic nationalism serve in 2026? I'm sincerely asking.",
-              "likes": 0
-            },
-            {
               "author": "flowstateneworleans.com",
               "text": "I would agree that they do not define Zionism nor do they emerge inevitably from Israel's existence. But one can be an anti-Zionist Jew and either Israeli or non-Israeli. There are plenty of both. Neither being a Jew nor an Israeli Jew requires one to be Zionist.",
               "likes": 0
             },
             {
-              "author": "misserichan.bsky.social",
-              "text": "FINALLY someone fucking says it. This is why I don't like comparing the Trump Reich and Israel to the Nazis",
-              "likes": 1
-            },
-            {
-              "author": "rootless.bsky.social",
-              "text": "Is he arguing Antisemitism is a structural system and not Jew-hatred? Am I understanding this properly?",
-              "likes": 1
-            },
-            {
-              "author": "domiracer.bsky.social",
-              "text": "Well, someone high up encouraged the \"Jews will not replace us\" and \"Blood and soil\" crowd over the past 10 years or so. Wonder who that person is, and who his enablers are and who gives them massive amount of funding come re-election time...",
-              "likes": 0
-            },
-            {
-              "author": "readsettle.rs",
-              "text": "it doesn't really matter because it's basically a matter of doctrinal faith that a rounding error of jews hold to at this point, but the non-zionist reading of \"next year in jerusalem\" takes into account the political environment surrounding the development of reform judaism",
-              "likes": 0
-            },
-            {
-              "author": "chucklebot314.bsky.social",
-              "text": "Most Americans are astounded and unhappy to hear that there is an 'Israel Day' in the USA and the vast majority are unaware.",
-              "likes": 0
-            },
-            {
-              "author": "janusdaniels.bsky.social",
-              "text": "\"Higher interest rates, rising costs, and no jobs. American families are being squeezed\" while you pay for Israel to commit genocide. Please, please, do better for the US and the world.",
-              "likes": 0
-            },
-            {
-              "author": "fletcherveyluu.bsky.social",
-              "text": "I've seen people argue that antisemitism isn't real because there aren't \"Jews not served\" or \"Jews need not apply\" signs on businesses anymore, but, like... You have to understand that these things work in subtler ways now.",
+              "author": "trabimechanic.bsky.social",
+              "text": "\"they cannot simply dismiss Zionism if they are at all interested in entering into any meaningful dialogue with the Jewish community. And it means that they have to be sensitive to why Jews support Israel in order to influence their views.\"",
               "likes": 0
             }
           ],
           "arguments": [
-            "Zionism is not inevitable from Israel's existence and one can be an anti-Zionist Jew",
-            "Zionism serves as a system that gives Jewish people special rights and privileges denied to other minorities",
-            "The concept of Zionism is often used to dismiss criticism of Israel and its actions",
-            "Zionism has a complex and problematic history, particularly in relation to colonialism and international law",
-            "The influence of Zionism on Jewish identity and community is nuanced and multifaceted"
+            "Zionism serves no positive purpose",
+            "Zionism is a form of ethnic nationalism"
           ]
         }
       ]
     },
     {
       "id": 6,
-      "name": "Kamala Harris Investigation",
-      "category": "Politics",
-      "total_volume_percent": 7.3,
+      "name": "Ukraine War",
+      "category": "World",
+      "total_volume_percent": 5.2,
       "perspectives": [
         {
           "id": "6A",
-          "title": "Kamala Support",
-          "summary": "Kamala Harris is a strong and capable individual who can make a positive impact, and she should be supported and not criticized or investigated",
-          "volume_percent": 44.0,
-          "representative_posts": [
-            {
-              "author": "alanh5376.bsky.social",
-              "text": "Good for her. It\u2019s time Democrats stopped being defensive and went on the offense.",
-              "likes": 1
-            },
-            {
-              "author": "bobgeiger.bsky.social",
-              "text": "I don't know about that... Kamala Harris is still a strong, smart, Black woman. And Trump is still the guy his MAGA cult loves to be racist with.",
-              "likes": 2
-            },
-            {
-              "author": "merovingians.bsky.social",
-              "text": "that's good for the party and it's good for the United States and it's good for the world. she can do none of that running for senate",
-              "likes": 3
-            },
-            {
-              "author": "oldmangrim.bsky.social",
-              "text": "stop trying to make Kamala happen",
-              "likes": 0
-            },
-            {
-              "author": "gacyclist.bsky.social",
-              "text": "Dems are pushing for her to be investigated",
-              "likes": 1
-            },
-            {
-              "author": "shakergeek.bsky.social",
-              "text": "Paging Kamala and all the other status quo Dems. youtu.be/FI5H08J0pzE?...",
-              "likes": 0
-            },
-            {
-              "author": "gigi133.bsky.social",
-              "text": "Good for Angie! How dare this piece of crap tell an American to leave cause you don't like her politics. Maybe that way of thinking should have every Republican leave then cause I don't like them.",
-              "likes": 0
-            },
-            {
-              "author": "otisredfoot.bsky.social",
-              "text": "And they jumped up her ass for it just like Obama when he said all they have is \"God and guns\".",
-              "likes": 1
-            },
-            {
-              "author": "roadreclaimed.bsky.social",
-              "text": "She should add \"Getting paid to be a cheerleader for abusers and rapists\" to her resume. Trump would hire her in a second if she isn't already on the payroll.",
-              "likes": 0
-            },
-            {
-              "author": "anitaw1610.bsky.social",
-              "text": "apnews.com/article/sena...",
-              "likes": 0
-            },
-            {
-              "author": "randomronil.bsky.social",
-              "text": "Charlotte Church is exactly who the Burnham speech was targeted at. She's fully swallowed the BS #HIGNFY",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "Kamala Harris can do good for the party and the country, but not if she runs for senate",
-            "Kamala Harris is a strong, smart, Black woman who deserves support",
-            "It's time Democrats stopped being defensive and went on the offense, which includes supporting Kamala Harris"
-          ]
-        },
-        {
-          "id": "6B",
-          "title": "Female Leader",
-          "summary": "A female leader will bring positive change and accountability",
-          "volume_percent": 32.0,
-          "representative_posts": [
-            {
-              "author": "crgibs.bsky.social",
-              "text": "I think she really is the only one capable of meeting the moment. Which scares me because she's a woman of color and the American electorate is racist and sexist as fuck",
-              "likes": 0
-            },
-            {
-              "author": "merovingians.bsky.social",
-              "text": "even if AOC loses the nomination, she will move the field toward accountability and responsiveness to the enraged base.",
-              "likes": 16
-            },
-            {
-              "author": "garci32.bsky.social",
-              "text": "Angie Nixon Fires Back After JD Vance Says She Does Not Belong in America VP JD Vance used the Republican midterm convention in Dallas to attack Democratic candidates across the country, calling them \u201ccrazies.\u201d He singled out Florida Senate candidate Angie Nixon Does Usha Vance belong in America ?",
-              "likes": 1
-            },
-            {
-              "author": "thecosmicwhisper.bsky.social",
-              "text": "\ud83d\ude4f NY governor shows she is adamant by selecting the absolutely right person. Discovery will be thorough and no stone unturned. As is just.",
-              "likes": 0
-            },
-            {
-              "author": "paulqdennis.bsky.social",
-              "text": "Would really love to see the woman in the US Senate next year.",
-              "likes": 0
-            },
-            {
-              "author": "airdeez121.bsky.social",
-              "text": "I think Chris Van Hollen would be a good alternative if she doesn't, given that he was the first one to travel to El Salvador to meet with Kilmar Abrego Garcia and get him home, and also has been at the forefront of pushing for consequences for Israel The dream ticket is some combo of CVH/AOC",
-              "likes": 0
-            },
-            {
-              "author": "bearmitcrab.bsky.social",
-              "text": "Not for nothing, I have to wonder if Magic doing stuff like this helps make the brand toxic to you-know-who. I think she retains at least some veto power, so doing streams like this helps make her veto any potential UB sets.",
-              "likes": 0
-            },
-            {
-              "author": "jkarsh.bsky.social",
-              "text": "She was in an impossible situation during the campaign on the war. Bibi was both behind the scenes and openly working to help her opponent. Meanwhile, her boss was trying to keep Bibi from even more indiscriminate killing and pushing us into a war with Iran. Everything was lose/lose for her there.",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "AOC will move the field toward accountability",
-            "Angie Nixon deserves to be in a leadership position",
-            "a woman of color is the only one capable of meeting the moment",
-            "a female leader will bring thorough discovery and justice"
-          ]
-        },
-        {
-          "id": "6C",
-          "title": "Susan Collins",
-          "summary": "Susan Collins is not a good choice for election, according to these posts",
-          "volume_percent": 24.0,
-          "representative_posts": [
-            {
-              "author": "ckeller141.bsky.social",
-              "text": "I know we are beyond laws applying anymore but it\u2019s insane that Susan Collins was caught red handed taking bribes and there are zero consequences",
-              "likes": 0
-            },
-            {
-              "author": "spotandmae.bsky.social",
-              "text": "Collins has never flip-floped. She is the same die-hard partisan Republican she has always been. The masses believe her public relations, and most do not read legislation or keep track of the votes and the consequences",
-              "likes": 0
-            },
-            {
-              "author": "ducati5.bsky.social",
-              "text": "I know that's a Susan Collins campaign claim, but I don't buy it for one minute and it's no reason to vote for her, especially after ProPublica revealed the FBI investigated Collins recently not once but TWICE and investigated her husband on a third bit of malfeasance. She's profoundly CORRUPT:",
-              "likes": 0
-            },
-            {
-              "author": "merovingians.bsky.social",
-              "text": "you think Jon 'Laken Reilly' Ossoff is going to match this? or a former prosecutor in Harris? there is one option, and I pray she runs.",
-              "likes": 41
-            },
-            {
-              "author": "mdsteelerfan.bsky.social",
-              "text": "No kidding. Most likely, vote for her again.",
-              "likes": 0
-            },
-            {
-              "author": "dahchange321.bsky.social",
-              "text": "Fuck Smith and her phoney crying trying to be cutesy in her responses and her straight up lies She deserves to get her ass kicked out UCP is a white supremacist party They only want wealth for them Their lawyer friend Jeff Rath is a thief A drunken thief",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "Susan Collins cannot match another candidate's abilities",
-            "Susan Collins' past investigations and alleged malfeasance make her untrustworthy",
-            "Susan Collins has taken bribes with no consequences",
-            "Susan Collins is a partisan Republican who has not changed",
-            "Susan Collins will likely be re-elected despite her flaws"
-          ]
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "name": "Russia Ukraine Conflict",
-      "category": "World",
-      "total_volume_percent": 7.6,
-      "perspectives": [
-        {
-          "id": "7A",
           "title": "Ukraine War",
-          "summary": "Ukraine is fighting against Russian aggression and will ultimately prevail",
-          "volume_percent": 65.4,
+          "summary": "Ukraine resists Russian aggression",
+          "volume_percent": 100.0,
           "representative_posts": [
+            {
+              "author": "jimmycraig42.bsky.social",
+              "text": "What Putin is doing to Ukraine What Netanyahu is doing to Gaza Is what Americans are doing to Cuba",
+              "likes": 1
+            },
             {
               "author": "banksyfella.bsky.social",
               "text": "Ukraine\u2019s strategy of dismantling Russia\u2019s ability to wage war is sound. Switching to civilian targets is both a war crime and does nothing to win the war. Besidea alienating the EU, let\u2019s be blunt: Putin doesn\u2019t care for if the Russian people live or die anyways. Stick to military targets and WIN!",
-              "likes": 0
-            },
-            {
-              "author": "zac-neuman.bsky.social",
-              "text": "Russia Is Planning Its Most Powerful Blow Yet to Try to Freeze Ukraine",
-              "likes": 0
-            },
-            {
-              "author": "dverhoeven.bsky.social",
-              "text": "Russia( Putin) needs a war with NATO. This way he can mobilize Russians with little protest, and they will accept their degradation of living standards. Putin must win, or he and his clones will be hanging upside down from a bridge. For him it is about survival.",
-              "likes": 0
-            },
-            {
-              "author": "willie383.bsky.social",
-              "text": "Returning POWs will have another effect. They will talk about their treatment by Ukrainians in contrast to their treatment by their own country. Putin's internal corrosion will continue and accelerate through their experiences.",
               "likes": 0
             },
             {
@@ -901,69 +379,28 @@
               "likes": 0
             },
             {
+              "author": "zac-neuman.bsky.social",
+              "text": "Russia Is Planning Its Most Powerful Blow Yet to Try to Freeze Ukraine",
+              "likes": 0
+            },
+            {
               "author": "gregleesnyderpdx.bsky.social",
               "text": "I do not think the world is \"tiring\" of Ukraine. This war is taking a long time because Ukraine is fighting against Putin who continues to believe that he will win and refuses to admit that ending the war, withdrawing troops, leaving occupied territories and agreeing to peace talks would benefit him",
-              "likes": 0
-            },
-            {
-              "author": "badgerthecat.bsky.social",
-              "text": "Strategically that is possibly true. But there comes a time when it is necessary to punch the aggressor right in the face. Maybe then the Russian people would ask why this is happening? Because right now they are not. And learning that Putin is not invulnerable could give them the courage to do so.",
-              "likes": 1
-            },
-            {
-              "author": "jimmycraig42.bsky.social",
-              "text": "What Putin is doing to Ukraine What Netanyahu is doing to Gaza Is what Americans are doing to Cuba",
-              "likes": 1
-            },
-            {
-              "author": "misterz7777.bsky.social",
-              "text": "Putin wants us like Russia , barely able to feed ourselves , under the thumb of a police state .",
-              "likes": 0
-            },
-            {
-              "author": "insideukraine.bsky.social",
-              "text": "Russia has suffered more than 5,000 casualties, and another 250 occupiers have been added to our exchange fund. Since the beginning of the offensive, 176 square kilometers of territory have been returned to Ukrainian control. Today, we discussed plans for the fourth season of active operations.",
-              "likes": 1
-            },
-            {
-              "author": "xiane.bsky.social",
-              "text": "This is how the poor Ukrainians must feel. They've won, it's as obvious as late 1944, but Russia won't admit it.",
               "likes": 0
             },
             {
               "author": "joseph2482.bsky.social",
               "text": "#DNC Those are the countries Ukraine should be forming an alliance with. Baltic and Black Sea nations face a common existential threat! Victory to Ukraine!!!",
               "likes": 0
-            }
-          ],
-          "arguments": [
-            "punching the aggressor could make the Russian people question their leader",
-            "Ukraine's strategy of dismantling Russia's ability to wage war is sound",
-            "Russia's actions in Ukraine are similar to other oppressive actions around the world",
-            "Russia is planning a powerful blow to try to freeze Ukraine",
-            "Putin needs a war with NATO to mobilize Russians and maintain his power",
-            "returning POWs will accelerate Putin's internal corrosion"
-          ]
-        },
-        {
-          "id": "7B",
-          "title": "Ukrainian Defence",
-          "summary": "The Ukrainian Defence Forces have thwarted Russian plans and stabilized the situation on certain sections of the front",
-          "volume_percent": 34.6,
-          "representative_posts": [
-            {
-              "author": "insideukraine.bsky.social",
-              "text": "Over its three seasons, the Ukrainian Defence Forces have thwarted Russian plans to break through the rear of the Slovyansk-Kramatorsk agglomeration and have stabilized the situation on this section of the front.",
-              "likes": 2
             },
             {
-              "author": "michaelmackay.wsocial.eu",
-              "text": "In the Hulyaypole direction, in Zaporizhzhya region, Ukrainian defenders repelled six attacks by the russian fascist invaders near Ternuvate, Vozdvyzhivka, Rivne and Hirke. Two assault actions are ongoing. 2/3",
-              "likes": 1
+              "author": "blacksiteintel.bsky.social",
+              "text": "2. Strategic Implications Of Export Policy Shift The potential transfer marks a fundamental departure from established defense export limitations in Tokyo. We assess that abandoning the post-WWII ban creates a realistic possibility of expanded military support for Ukraine.",
+              "likes": 0
             },
             {
-              "author": "michaelmackay.bsky.social",
-              "text": "Dnipropetrovsk region: \"In the Oleksandrivka sector, the enemy launched two attacks towards Kalynivs'ke and Berezove.\" Source: General Staff of the Armed Forces of Ukraine operational information as of 22:00 on 2 October 2026 regarding the russian invasion 1/3",
+              "author": "skypilotbadindian.bsky.social",
+              "text": "'Trump Backs Plan to Cede Land for Peace in Ukraine' Aug. 16, 2025",
               "likes": 0
             },
             {
@@ -972,199 +409,46 @@
               "likes": 0
             },
             {
-              "author": "michaelmackay.wsocial.eu",
-              "text": "In the Orikhiv direction, in Zaporizhzhya region, the russian fascist invaders attempted to improve their tactical position by launching one attack towards Pavlivka. 3/3",
-              "likes": 0
-            },
-            {
-              "author": "naida46.bsky.social",
-              "text": "\ud83d\udc99\ud83d\udc9b The death toll from the Russian strike on Kharkiv on October 2 has risen to 2 killed and 33 injured. 3 children are among the wounded. About 20 residential buildings, office buildings, an educational institution, and cars were damaged. unn.ua/en/news/russ...",
-              "likes": 0
-            },
-            {
-              "author": "insideukraine.bsky.social",
-              "text": "\u26a1\ufe0f russia strikes Ukrainian power pylon with steel-cutting drone for 1st time, Zelensky's adviser says. The warhead was designed to destroy high-voltage pylons and steel bridges and contains a 40-kilogram main charge and four additional destructive modules, Sergii Beskrestnov said.",
-              "likes": 0
-            },
-            {
-              "author": "blacksiteintel.bsky.social",
-              "text": "1. Proposed Shift In Lethal Arms Policy Japanese lawmakers have proposed transferring Patriot interceptors to Ukraine. The legislative proposal seeks to end a rigid post-WWII ban on lethal arms exports.",
+              "author": "michaelmackay.bsky.social",
+              "text": "Dnipropetrovsk region: \"In the Oleksandrivka sector, the enemy launched two attacks towards Kalynivs'ke and Berezove.\" Source: General Staff of the Armed Forces of Ukraine operational information as of 22:00 on 2 October 2026 regarding the russian invasion 1/3",
               "likes": 0
             },
             {
               "author": "blacksiteintel.bsky.social",
               "text": "JAPANESE LAWMAKERS PROPOSE LETHAL ARMS EXPORT POLICY SHIFT Japanese lawmakers have proposed transferring Patriot interceptors to Ukraine, ending a rigid post-WWII ban on lethal arms exports. We judge this policy shift carries high significance for Tokyo and international security alignment.",
               "likes": 0
+            },
+            {
+              "author": "blacksiteintel.bsky.social",
+              "text": "1. Proposed Shift In Lethal Arms Policy Japanese lawmakers have proposed transferring Patriot interceptors to Ukraine. The legislative proposal seeks to end a rigid post-WWII ban on lethal arms exports.",
+              "likes": 0
             }
           ],
           "arguments": [
-            "Ukrainian forces have repelled multiple Russian attacks in various regions",
-            "The Ukrainian Defence Forces have stabilized the situation on certain sections of the front",
-            "Russian attacks on Ukrainian cities have caused damage and casualties"
+            "Ukraine should fight back against Russia",
+            "Ukraine is making gains against Russia",
+            "Ukraine's strategy is sound",
+            "Russia plans to attack Ukraine"
           ]
         }
       ]
     },
     {
-      "id": 8,
-      "name": "Hegseth Office of Religious Affairs",
+      "id": 7,
+      "name": "Racism Persists",
       "category": "Politics",
-      "total_volume_percent": 5.5,
+      "total_volume_percent": 15.0,
       "perspectives": [
         {
-          "id": "8A",
-          "title": "Christian Nationalism",
-          "summary": "Pete Hegseth and other Christian nationalists are promoting religion in the military and government, which is seen as a threat to separation of church and state",
-          "volume_percent": 52.6,
-          "representative_posts": [
-            {
-              "author": "mirbahmanyar.com",
-              "text": "This whole Pentagon religion stuff has been ongoing for decades. They have extremist pastors & Christian/Jewish Zionists visit special operations training & preach. An insane increase in spreading religion in the military by some - like some officers telling the enlisted swine to go watch Melania.",
-              "likes": 0
-            },
-            {
-              "author": "oma-ruth.bsky.social",
-              "text": "Pete Hegseth creates a Pentagon Office of Religious Affairs reporting directly to him apnews.com/article/pete... It will be such a pleasure cleaning house on this mess and throwing Hegseth out of the Pentagon. Separation of Church and State, Pete. Go open a grass roots church somewhere else.",
-              "likes": 0
-            },
-            {
-              "author": "smknjohnny17.bsky.social",
-              "text": "Hegseth is just trying to build his own cult! hes starting with the military!",
-              "likes": 0
-            },
-            {
-              "author": "phinvincible.bsky.social",
-              "text": "Seems to me like Ohio state doesn't have an opinion about evil people using religion as a vehicle to scam the vulnerable. What a bastion of moral integrity. I'm sure Jesus would flip the whole university over if he saw this.",
-              "likes": 0
-            },
-            {
-              "author": "savedemocracy123.bsky.social",
-              "text": "Hegseth is the \u201cweirdo\u201d, and the scared, insecure \u201cwimp\u201d, who wasted our tax dollars for a makeup studio in the Pentagon just for him. I know a couple of Trans who would wipe the floor with this self-righteous pseudo-\u201cChristian\u201d charlatan moron Pete Hegseth; who claims his war crimes are \u201cHoly War\u201d?",
-              "likes": 0
-            },
-            {
-              "author": "shawshankexemption.bsky.social",
-              "text": "\ud83d\udc40 Hegseth unveils Office of Religious Affairs 'In his effort to boost religion in military life, he's created the Office of Religious Affairs. Military chaplains will have a direct line to him without staff filters and bureaucratic dilution.'",
-              "likes": 0
-            },
-            {
-              "author": "mycandlesp.bsky.social",
-              "text": "Secretary of Sexual Christian War There\u2019s something about Hegseth, But what it is I cannot say, But whiskey fuelled insanity Is obviously in play Invoking God and testosterone Is a bridge too far today If we need a fighting force, Isn't God's will OK? Or is it God swill? Drink up! hooray! c.8647",
-              "likes": 1
-            },
-            {
-              "author": "bluewave26-28.bsky.social",
-              "text": "I want to remind you, Missouri Senator Eric Schmitt is a stupid Christian Nationalist. Elected officials like Eric Schmitt are more dangerous than the Iranians I have less concern over the Iranians than I do the Christian nationalist in America. Our #1 enemy is American Christian Nationalist",
-              "likes": 0
-            },
-            {
-              "author": "depechemodefan101.bsky.social",
-              "text": "That is why..... I don't feel sorry for MAGA CULT!! They are stupid and racist! Let them suffer!",
-              "likes": 3
-            },
-            {
-              "author": "stellarbystarli.bsky.social",
-              "text": "It\u2019s pathetic that these \u201cevangelicals\u201d allow themselves to be used by these self serving crooks. There is no evidence the election in 2020 was \u2018stollen\u2019.",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "Hegseth is using his position to promote his own Christian ideology in the military",
-            "Christian nationalists like Hegseth are trying to build a cult-like following in the military and government",
-            "The promotion of religion in the military is a decades-long problem that has been exacerbated by extremist pastors and Christian nationalists"
-          ]
-        },
-        {
-          "id": "8B",
-          "title": "Church Outreach",
-          "summary": "The church wishes to renew an alliance with artists and cultural institutions to safeguard humanity",
-          "volume_percent": 47.4,
-          "representative_posts": [
-            {
-              "author": "freeloosedirt.bsky.social",
-              "text": "\u201cThe Church wishes to renew an alliance with artists and cultural institutions to safeguard our humanity.\u201d What a beautiful sentiment",
-              "likes": 1
-            },
-            {
-              "author": "la2020champions.bsky.social",
-              "text": "Let's all renew our alliance with artists and cultural institutions no matter our religious affiliation.",
-              "likes": 0
-            },
-            {
-              "author": "refusenik.bsky.social",
-              "text": "Ummm, that takes actual staff. So back to your OP. CT is floundering around trying to figure out how to be a \"ministry\" (as they call it) to evangelicals in the Trump era when 80% of evangelicals are MAGA. It's a dwindling audience.",
-              "likes": 0
-            },
-            {
-              "author": "davis.social",
-              "text": "I was going to make some sort of joke about ironically wanting to join this program while also being raised Catholic and harboring an indelible distrust and cognitive dissonance for the church, but nah, this is just a really nice sentiment to see from anyone in a position of influence and authority.",
-              "likes": 32
-            },
-            {
-              "author": "sandverge.bsky.social",
-              "text": "Religious fanatics who want to convert everyone they can\u2019t force out.",
-              "likes": 0
-            },
-            {
-              "author": "economymedicine.bsky.social",
-              "text": "Really hard to get traction portraying a Methodist pastor as some sort of fire breathing communist",
-              "likes": 1
-            },
-            {
-              "author": "sheckydoskie.bsky.social",
-              "text": "Because we should all just give our hard earned money to churches and the like. (Sic).",
-              "likes": 0
-            },
-            {
-              "author": "gtswanson88.bsky.social",
-              "text": "[Let us] be ambassadors in the midst of a world torn asunder: ambassadors of truth, love and unity; ministers of justice, peace, and charity. -Archbishop William E. Lori, Trinity Sunday homily",
-              "likes": 0
-            },
-            {
-              "author": "favor55.bsky.social",
-              "text": "Bangladesh: Pray for servants of Christ who minister to those living in the poorest slums of Dhaka. #Bangladesh #PersecutedChurch #Christian #Pray #VoiceoftheMartyrsCanada",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "The church has a beautiful sentiment in wanting to renew an alliance with artists and cultural institutions",
-            "The church should renew its alliance with artists and cultural institutions regardless of religious affiliation",
-            "The church is trying to figure out how to be a ministry to evangelicals in the Trump era"
-          ]
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "name": "Black Lives Matter",
-      "category": "Politics",
-      "total_volume_percent": 6.1,
-      "perspectives": [
-        {
-          "id": "9A",
-          "title": "Racism Exists",
-          "summary": "Richard Hanania calling the victim a \"hick\" for having a southern accent is an excellent example of how the caliper brigade has a long list of types of white people they\u2026",
+          "id": "7A",
+          "title": "Racism Persists",
+          "summary": "Racism is present in society",
           "volume_percent": 100.0,
           "representative_posts": [
             {
-              "author": "kebrightbill.bsky.social",
-              "text": "Richard Hanania calling the victim a \"hick\" for having a southern accent is an excellent example of how the caliper brigade has a long list of types of white people they consider inferior too, because they see themselves as philosopher kings born to rule over the unwashed masses.",
-              "likes": 5
-            },
-            {
-              "author": "pixiethinkss.bsky.social",
-              "text": "When I mention Hoodoo to a Black American and they react as if I just began speaking in tongues and summoning the devil .. im just gon call it what it is, antiblack. To start seething and *mistakingly* akining it to voodoo in favor of white washed Jesus is mind blowing \ud83e\udd2f",
-              "likes": 2
-            },
-            {
-              "author": "coyotestail.bsky.social",
-              "text": "which is insane cause these people have 0 idea what actually being invaded is like like my gf is colombian and my family is from china. both of us have recent ish ancestors that saw people Die In Combat. its insane they think that diversity is an invasion or that they are under occupation.",
-              "likes": 3
-            },
-            {
-              "author": "alchemistmioglasi.myatproto.social",
-              "text": "I mention that most of them were Black because there have certainly been cult driven self killing group events, but this is the one people refer to for gullibility and it's one where most of the people were Black and were trying to refuse. Like y'all think their lives meant nothing when they fought.",
-              "likes": 2
+              "author": "bouvierdogmom.bsky.social",
+              "text": "It was all performative. You cannot half ass destroying racism. You should know that after the re election of Trump. My entire family is middle class, I am the only member that even attempted to shop at Neiman Marcus. I rarely if ever saw other African American women. It was referred to as",
+              "likes": 0
             },
             {
               "author": "pdr1985.bsky.social",
@@ -1177,56 +461,23 @@
               "likes": 1
             },
             {
-              "author": "jokeb0i.bsky.social",
-              "text": "I see it as a coin with two sides, black ppl are restricted in their movement, and this is often internalized that historical restriction of movement makes certain forms of american / western culture feel overly sanitized and unsafe for others",
-              "likes": 0
-            },
-            {
-              "author": "kingmystrie.bsky.social",
-              "text": "which is another thing I'd like to point out that violence in black music is always treated like a statement about black communities or an admission of guilt meanwhile stuff like American murder song is allowed to just stand on its own as historical fiction",
-              "likes": 0
-            },
-            {
-              "author": "bouvierdogmom.bsky.social",
-              "text": "It was all performative. You cannot half ass destroying racism. You should know that after the re election of Trump. My entire family is middle class, I am the only member that even attempted to shop at Neiman Marcus. I rarely if ever saw other African American women. It was referred to as",
-              "likes": 0
-            },
-            {
-              "author": "draye.blacksky.app",
-              "text": "They marry outside of whiteness 1. Bc they view non whites as exotic trophies to be captured 2. To obtain a level of control they can never have with someone born in the US",
-              "likes": 1
-            },
-            {
-              "author": "coyotestail.bsky.social",
-              "text": "kids in africa are dying of malaria and american women are being killed by right wing terrorists and ukrainians and gazans are being bombed every day and hong kong activists are going to jail and myanmar is in an armed revolution but jimbob needs his VIDYA GAEM to be whiter!!! this is serious!",
-              "likes": 1
-            },
-            {
               "author": "bigaledge.bsky.social",
               "text": "Fucking racist cowards who have to wear a mask so people can\u2019t identify them and hold them accountable for their crimes",
               "likes": 1
             }
-          ],
-          "arguments": [
-            "The caliper brigade considers certain types of white people inferior",
-            "Some people think diversity is an invasion",
-            "Black lives are not valued",
-            "Hoodoo is misunderstood and dismissed due to antiblack sentiment",
-            "Society still refers to Black people with derogatory terms",
-            "Bigotry is downplayed as controversial"
           ]
         }
       ]
     },
     {
-      "id": 10,
+      "id": 8,
       "name": "Diesel Export Ban",
       "category": "Business",
-      "total_volume_percent": 6.1,
+      "total_volume_percent": 5.7,
       "perspectives": [
         {
-          "id": "10A",
-          "title": "Diesel Export",
+          "id": "8A",
+          "title": "No Diesel Ban",
           "summary": "The US will not ban diesel exports",
           "volume_percent": 61.9,
           "representative_posts": [
@@ -1241,8 +492,13 @@
               "likes": 8
             },
             {
-              "author": "mantahunk.bsky.social",
-              "text": "Someone finally got through to \"high IQ\" President Trump that a diesel export ban would raise the cost of diesel.",
+              "author": "mariafromga.bsky.social",
+              "text": "At best it\u2019s 50-80% of pre-war levels and even then it doesn\u2019t matter bc markets have finally (barely) priced in the cost: diesel needed to transport the oil is now crazy expensive ($3 to $34/barrel to ship to Asia), plus tolls exist, oil prices will be permanently elevated Goodbye cheap oil",
+              "likes": 1
+            },
+            {
+              "author": "whpresspool.bsky.social",
+              "text": "\ud83d\ude81 In-Town Pool Note #7 - WH gaggle quotes Here are some POTUS quotes from the gaggle prior to his M1 departure, with thanks to fellow pooler Ana Ceballos for her help. On the diesel export ban and the G7 release of diesel reserves (1/7)",
               "likes": 0
             },
             {
@@ -1251,23 +507,13 @@
               "likes": 0
             },
             {
-              "author": "whpresspool.bsky.social",
-              "text": "\"It was never really on the table but what Europe did is a great thing\" \"We are not going to be doing the export ban. We are going to be doing what we are supposed to do\u2026We are going to have a lot of oil.\" (2/7)",
+              "author": "hopeful49.bsky.social",
+              "text": "We\u2019re going around the world begging for diesel fuel. What a mess!",
               "likes": 0
-            },
-            {
-              "author": "mariafromga.bsky.social",
-              "text": "At best it\u2019s 50-80% of pre-war levels and even then it doesn\u2019t matter bc markets have finally (barely) priced in the cost: diesel needed to transport the oil is now crazy expensive ($3 to $34/barrel to ship to Asia), plus tolls exist, oil prices will be permanently elevated Goodbye cheap oil",
-              "likes": 1
             },
             {
               "author": "tickertap.bsky.social",
               "text": "\ud83c\udfdb\ufe0f [POLITICS] TRUMP ON DIESEL: WE'RE NOT GOING TO BE DOING THE EXPORT BAN ... - $SOURCE$ \u26a1 Live alerts:",
-              "likes": 0
-            },
-            {
-              "author": "hopeful49.bsky.social",
-              "text": "We\u2019re going around the world begging for diesel fuel. What a mess!",
               "likes": 0
             },
             {
@@ -1276,38 +522,22 @@
               "likes": 0
             },
             {
-              "author": "zac-neuman.bsky.social",
-              "text": "China Resumes Curbs on Fuel Exports, Tightening Global Energy Markets",
-              "likes": 0
-            },
-            {
-              "author": "marlyknows.bsky.social",
-              "text": "The real reason Trump is talking about this is to distract from Canada building a pipeline to their west coast so they can ship more of the oil that had been going to the US to China.",
-              "likes": 0
-            },
-            {
-              "author": "erinellis.bsky.social",
-              "text": "How is is that only Indigenous leaders seem to be standing up to Big Oil? This rush to build another bitumen pipeline will take our country backward in the more crucial global race to get off fossil fuels.",
+              "author": "mantahunk.bsky.social",
+              "text": "Someone finally got through to \"high IQ\" President Trump that a diesel export ban would raise the cost of diesel.",
               "likes": 0
             }
           ],
           "arguments": [
-            "The US will not ban diesel exports and Europe's release of diesel reserves is a great thing",
-            "Europe's diesel stockpiles are a strategic buffer and the US should not urge Europe to draw down these reserves",
-            "The cost of diesel will remain high due to transportation costs and market prices"
+            "Europe's diesel reserves help maintain readiness",
+            "Diesel prices will remain elevated"
           ]
         },
         {
-          "id": "10B",
+          "id": "8B",
           "title": "Oil Release",
-          "summary": "G7 nations agreed to release oil reserves to address price spikes",
+          "summary": "G7 nations release oil reserves",
           "volume_percent": 38.1,
           "representative_posts": [
-            {
-              "author": "affability.bsky.social",
-              "text": "G7 nations will release 100 million barrels of oil and diesel fuel after prices soar:",
-              "likes": 0
-            },
             {
               "author": "some-news.bsky.social",
               "text": "French President Emmanuel Macron announced Friday that the G7 nations have agreed to release 100 million barrels of diesel and crude from their stockpiles.",
@@ -1319,37 +549,160 @@
               "likes": 0
             },
             {
-              "author": "mariafromga.bsky.social",
-              "text": "Furthermore, China importing again w/ export ban matters way more to the current supply shock Along with strategic reserves needed to be refilled after being drawn down, it\u2019s why Brent closed up today despite G7 releasing reserves bc of both China and Yanbu!",
+              "author": "affability.bsky.social",
+              "text": "G7 nations will release 100 million barrels of oil and diesel fuel after prices soar:",
+              "likes": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Iran War",
+      "category": "World",
+      "total_volume_percent": 3.0,
+      "perspectives": [
+        {
+          "id": "9A",
+          "title": "Iran War",
+          "summary": "US may invade Iran",
+          "volume_percent": 80.0,
+          "representative_posts": [
+            {
+              "author": "bladeofthes.bsky.social",
+              "text": "It seems very clear to me that all the anti-Iran stuff is being pushed purposefully to make the US/UK accept an Iraq style invasion. Be aware that there is a purpose behind all this BS.",
+              "likes": 20
+            },
+            {
+              "author": "timdickinson.bsky.social",
+              "text": "Iran and the reflecting pool, from short-term projects to months-long quagmires In this essay, I will...",
+              "likes": 16
+            },
+            {
+              "author": "sobroquet.bsky.social",
+              "text": "Ghoul Kushner said Iran has to be willing to make a fair deal without trying to \"hide certain cards and get certain concessions.\" Mass Negligent Homicide via Covid-19 Neglect, Vanity, Stupidity & Incompetence An Exhaustive Compendium of Facts tinyurl.com/bdh2e8ex",
+              "likes": 1
+            },
+            {
+              "author": "affability.bsky.social",
+              "text": "Iran readies harder retaliation if attacked as diplomacy faces long odds:",
               "likes": 0
             },
             {
-              "author": "jvasil.bsky.social",
-              "text": "Per GoogleAI: \"The US SPR holds ~285m bbl of crude oil. This marks the lowest inventory level recorded since late 1982.\" Other sources have said that this is at or below the level where removing oil causes damage to the storage facilities (salt mines). ycharts.com/indicators/u...",
+              "author": "pdehello.bsky.social",
+              "text": "Iran readies harder retaliation if the country is attacked by the US as diplomacy faces long odds",
               "likes": 0
             },
             {
-              "author": "fromeach.com",
-              "text": "G7 drains 100 million barrels to fix a war's price spike, saves Americans a few pennies The price did not rise all at once; it rose like a bill arriving in installments, and every\u2026 #economy #business",
+              "author": "pdehello.bsky.social",
+              "text": "Reuters: \"Two of the \u200bofficials said Tehran had instructed allied groups in Lebanon, Yemen and Iraq to be ready to support Iran in the event of a renewed large-scale US attack. The guidance, they said, was to prepare for a coordinated response...\"",
               "likes": 0
             },
             {
-              "author": "hudsonrivercroc.bsky.social",
-              "text": "Trading oil for literal retail investors, what could go wrong? I hope they don\u2019t try this in the future.",
-              "likes": 3
+              "author": "aleianjack.bsky.social",
+              "text": "Video: The Morning the U.S. Bombed a School in Iran open.substack.com/pub/dropsite...",
+              "likes": 1
             },
             {
-              "author": "headline-feed.bsky.social",
-              "text": "*CME SHELVES PLANS FOR 24/7 OIL CONTRACT AFTER INDUSTRY PUSHBACK [BLOOMBERG] 2 OCT 16:34 ET",
+              "author": "tomshafshafer.bsky.social",
+              "text": "Sounds like a metaphor for Donald's Iran war.",
+              "likes": 0
+            },
+            {
+              "author": "wordsfailme123.bsky.social",
+              "text": "They\u2019re to blame alright but where do you think they got their stupid idea? Not from their generals, who have resigned or been fired. No, this looks more like an AI model of how to take Iran, assuming they didn\u2019t fight back.",
+              "likes": 0
+            },
+            {
+              "author": "evecodes.com",
+              "text": "Sanctions hurt Iranians, not their government, but the US knows that. They are to incite revolts against their govt but it won't work because Iranians are strong #Iran #codepink",
+              "likes": 0
+            },
+            {
+              "author": "democratsuprsoldr.bsky.social",
+              "text": "It's humiliating to have lost a war to Iran, thanks to tRump.",
+              "likes": 0
+            },
+            {
+              "author": "bea-sue-lee.bsky.social",
+              "text": "It\u2019s kind of like the Iran War, except no schoolgirls, civilians or service members were killed and it didn\u2019t deplete our arsenal of weapons or raise fuel prices.",
               "likes": 0
             }
           ],
           "arguments": [
-            "Releasing oil reserves could lead to unintended consequences for retail investors",
-            "G7 nations agreed to release 100 million barrels of oil and diesel fuel",
-            "Releasing oil reserves may not significantly impact prices",
-            "The release of oil reserves may not be enough to address supply shocks",
-            "The US strategic oil reserves are at a low level, potentially causing damage to storage facilities"
+            "US is pushing for an Iraq-style invasion of Iran",
+            "US actions may lead to a long-term conflict with Iran",
+            "US is trying to provoke Iran into a war"
+          ]
+        },
+        {
+          "id": "9B",
+          "title": "Iran Conflict",
+          "summary": "US and Iran may engage in conflict",
+          "volume_percent": 20.0,
+          "representative_posts": [
+            {
+              "author": "girlsreallyrule.bsky.social",
+              "text": "Trump is dispatching roughly 9,000 troops aboard a group of ships to the Middle East, on Thursday and Trump is warning about new strikes against Iran could be on the horizon. apnews.com/article/iran...",
+              "likes": 2
+            },
+            {
+              "author": "pdehello.bsky.social",
+              "text": "Reuters: \"Senior commanders are reviewing plans to expand potential targets \u200cbeyond US-linked assets to countries that support US military operations and possibly to locations outside the Middle East, according to three senior Iranian officials...\"",
+              "likes": 0
+            },
+            {
+              "author": "trinketbirdy.bsky.social",
+              "text": "I mean the best tactic is just to hit them on the ground honestly. Not like Iran hasn't been pretty successful making them leave bases.",
+              "likes": 1
+            }
+          ],
+          "arguments": [
+            "US is preparing for strikes against Iran",
+            "Iran is planning to expand potential targets"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Special Prosecutor",
+      "category": "Politics",
+      "total_volume_percent": 15.0,
+      "perspectives": [
+        {
+          "id": "10A",
+          "title": "Special Prosecutor",
+          "summary": "A special prosecutor is needed",
+          "volume_percent": 100.0,
+          "representative_posts": [
+            {
+              "author": "t-antony.bsky.social",
+              "text": "We are calling for special prosecutors for local police for standing with lawless federal agents; we are going after state policing agencies as well. We should be calling for special prosecutors for the Federalist freaks on our high court and all fifty state AGs who ignored their oaths.",
+              "likes": 0
+            },
+            {
+              "author": "unknownsoldier.bsky.social",
+              "text": "Research the Independent Prosecutor law from 1975. Ken Starr was the last Independent Prosecutor before the law sunset in 2000. The DOJ created the Special Counsel provision in its place when Congress didn\u2019t reauthorize the IP law. It\u2019s time to bring the law back",
+              "likes": 0
+            },
+            {
+              "author": "otisredfoot.bsky.social",
+              "text": "I was looking at this yesterday, Congress can't appoint a special prosecutor or counsel only the DOJ. So whatever happens we will have to wait 2 more years for anything on that front.",
+              "likes": 0
+            },
+            {
+              "author": "sarcasmoultrablam.bsky.social",
+              "text": "A prosecutor is somebody doing their legal job. Of COURSE a felon is going to hate ANY prosecutor he doesn't control. Just because this daft demented toddler has a grudge, this smells a lot like defamation.. Especially from the White House.",
+              "likes": 1
+            }
+          ],
+          "arguments": [
+            "A felon hates any prosecutor they can't control",
+            "Congress can't appoint a special prosecutor",
+            "The Independent Prosecutor law should be brought back",
+            "Special prosecutors are needed for local police and federal agents"
           ]
         }
       ]
