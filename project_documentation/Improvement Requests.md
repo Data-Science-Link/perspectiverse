@@ -80,3 +80,53 @@ Example posts for whatever is selected (the highlighted planet, or the highlight
 - At planet depth every bar wears that planet’s skin. At solar-system depth each bar wears its own planet’s skin.
 - A summary of the whole solar system, above the planet level, was not requested. The solar-system screen’s middle band is the selected planet.
 - How many example posts, and what the middle shows before any planet bar is highlighted, are not specified.
+
+## 3. Welcome notification on one mobile page, mostly graphical
+
+The welcome informational notification fits on one mobile page and is mostly graphical.
+
+Today it is a dialog with a tagline, a paragraph, a three-step “What to do” list, and two small figures (planet size, and the cube). That stack is more text than graphic and is taller than one phone screen.
+
+## 4. Cut language that is not the idea or the navigation
+
+Remove copy that is not needed to communicate the ideas or to navigate. The percentage lectures are the example: they read as leftovers from the building process.
+
+Keep names, labels, the percentages themselves, and the controls. Drop the explanations of what a percentage means.
+
+Examples of that leftover voice:
+
+- “This planet is N% of the attention among the planets in view — those shares always add up to 100%. That is attention, not importance…”
+- “of this planet’s conversation — darkest and longest if this is the most common view…”
+- “N% of attention” captions, and the mobile home line that explains bigger planets and the darkest spike
+- “A steelman of this view…” and “the raw talk behind the steelman.”
+
+### Logged reading, open to correction
+
+- This is a pass over the product chrome, not a rewrite of the planet and perspective summaries from request 2.
+- The welcome dialog is request 3. This request still applies to explanatory sentences inside it.
+
+## 5. Email of the top planets, their arguments, and their disagreements
+
+Assemble an email of the top planets and their core arguments and disagreements.
+
+Each planet in the email carries:
+
+- The planet
+- Its core arguments
+- The disagreements inside it
+
+### Logged reading, open to correction
+
+- “Top planets” means the published planets, largest first.
+- Who receives it, when it sends, and whether it is a sent message or a draft are not specified.
+
+## 6. Recluster the full 10,000 every day
+
+Every day, cluster the full 10,000 again from scratch.
+
+The day’s planets come from that fresh clustering of the whole threshold, not from a sample, not from only the posts fetched that morning, and not from yesterday’s cluster labels.
+
+### Logged reading, open to correction
+
+- The 10,000 is the same threshold as request 1: the filtered claims kept for the day.
+- The daily job already calls the clusterer on the claim set it has, then keeps the largest groups. This request is that the input of that fresh run is the full 10,000, every day.
