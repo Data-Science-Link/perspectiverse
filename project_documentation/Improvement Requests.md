@@ -35,3 +35,48 @@ Posts older than 7 days are not part of the 10,000. The loop should finish the m
 - One-seventh stays a fraction of the threshold, so a different threshold would move the daily minimum with it. Rounding of 10,000 / 7 is not specified.
 - If search cannot supply enough posts to hit 10,000 or the daily 1/7, that shortfall case is not specified here.
 - Today’s job does not do this. It tops up toward 10,000, skips a UTC day it has already fetched, and does not drop in-window posts to make room. Extra claims are sampled out at random, not by age.
+
+## 2. One mobile-length reading screen, same at every depth
+
+Replace the cube as the way a planet is read. The reading screen is about one mobile screen tall and is split into three bands. The same screen is used at every depth so the interface stays familiar. At solar-system depth the bars are the planets. Inside a planet the bars are that planet’s perspectives.
+
+### Top third — 3D bar chart
+
+A horizontal bar chart. Each bar has a percentage and a label.
+
+- Solar-system depth: one bar per planet.
+- Planet depth: one bar per perspective.
+
+Bars are 3D, shiny, and carry effects. They use the exact planet skin colors already used on the solar-system bodies.
+
+Clicking a bar highlights it and drives the middle band. The highlighted bar is the one the rest of the screen is about.
+
+### Middle third — summary, then a longer defense
+
+A tight summary of no more than 4 sentences, with a **read more …** control.
+
+Read more expands that into a multi-paragraph summary and a defense of the selected item.
+
+What the middle shows:
+
+- Inside a planet, before a perspective is chosen, the planet’s own summary.
+- After a perspective bar is clicked, that perspective’s summary, and the bar stays highlighted.
+- On the solar-system screen, the selected planet’s summary.
+
+The LLM has to prepare both lengths at every level:
+
+| Level | Short | Expanded |
+| --- | --- | --- |
+| Planet | Summary, at most 4 sentences | Multi-paragraph summary and defense |
+| Perspective | Summary, at most 4 sentences | Multi-paragraph summary and defense |
+
+### Bottom third — example posts
+
+Example posts for whatever is selected (the highlighted planet, or the highlighted perspective). This band scrolls.
+
+### Logged reading, open to correction
+
+- “Instead of the cubes” replaces the spiky cube. The orbiting solar system is still the other view; this screen is how that view is read, with planets as the bars. Say if the 3D orrery should go away too.
+- At planet depth every bar wears that planet’s skin. At solar-system depth each bar wears its own planet’s skin.
+- A summary of the whole solar system, above the planet level, was not requested. The solar-system screen’s middle band is the selected planet.
+- How many example posts, and what the middle shows before any planet bar is highlighted, are not specified.
