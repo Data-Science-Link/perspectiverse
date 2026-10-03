@@ -1,45 +1,68 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SITE_TAGLINE, setWelcomeHidden } from '../lib/copy'
 
-function SizeGraphic() {
+function PlanetSizeGraphic() {
   return (
     <figure className="welcome-graphic">
-      <h3>Planet size</h3>
-      <svg viewBox="0 0 320 118" role="img" aria-labelledby="size-graphic-title">
-        <title id="size-graphic-title">A large planet means more public attention than a small one</title>
-        <circle cx="160" cy="58" r="52" fill="none" stroke="rgba(215,222,245,0.12)" />
-        <circle cx="160" cy="58" r="34" fill="none" stroke="rgba(215,222,245,0.08)" />
-        <circle cx="78" cy="60" r="38" fill="#f4c14e" />
-        <circle cx="78" cy="48" r="14" fill="rgba(255,255,255,0.18)" />
-        <text x="78" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">More talk</text>
-        <circle cx="236" cy="74" r="16" fill="#4aa3e6" />
-        <circle cx="230" cy="68" r="5" fill="rgba(255,255,255,0.22)" />
-        <text x="236" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Niche</text>
+      <svg viewBox="0 0 320 240" role="img" aria-labelledby="size-graphic-title">
+        <title id="size-graphic-title">Bigger planet, bigger share</title>
+        <defs>
+          <radialGradient id="welcome-sun" cx="36%" cy="32%" r="68%">
+            <stop offset="0%" stopColor="#ffe7a8" />
+            <stop offset="58%" stopColor="#f4c14e" />
+            <stop offset="100%" stopColor="#c48a22" />
+          </radialGradient>
+          <radialGradient id="welcome-earth" cx="36%" cy="32%" r="68%">
+            <stop offset="0%" stopColor="#d7f2ff" />
+            <stop offset="48%" stopColor="#4aa3e6" />
+            <stop offset="100%" stopColor="#1d4e78" />
+          </radialGradient>
+          <radialGradient id="welcome-mars" cx="36%" cy="32%" r="68%">
+            <stop offset="0%" stopColor="#ffd0bc" />
+            <stop offset="55%" stopColor="#e25a2b" />
+            <stop offset="100%" stopColor="#7a2c12" />
+          </radialGradient>
+          <radialGradient id="welcome-ice" cx="36%" cy="32%" r="68%">
+            <stop offset="0%" stopColor="#f3fffd" />
+            <stop offset="55%" stopColor="#7ee0d8" />
+            <stop offset="100%" stopColor="#1d6b66" />
+          </radialGradient>
+        </defs>
+        <line x1="28" y1="168" x2="292" y2="168" stroke="rgba(239,238,247,0.16)" />
+        <circle cx="62" cy="124" r="44" fill="url(#welcome-sun)" />
+        <circle cx="142" cy="136" r="32" fill="url(#welcome-earth)" />
+        <circle cx="210" cy="146" r="22" fill="url(#welcome-mars)" />
+        <circle cx="266" cy="154" r="14" fill="url(#welcome-ice)" />
+        <text x="62" y="196" textAnchor="middle" fill="#efeef7" fontSize="14" fontFamily="system-ui, sans-serif">42%</text>
+        <text x="142" y="196" textAnchor="middle" fill="#efeef7" fontSize="14" fontFamily="system-ui, sans-serif">28%</text>
+        <text x="210" y="196" textAnchor="middle" fill="#efeef7" fontSize="14" fontFamily="system-ui, sans-serif">18%</text>
+        <text x="266" y="196" textAnchor="middle" fill="#efeef7" fontSize="14" fontFamily="system-ui, sans-serif">12%</text>
+        <text x="160" y="226" textAnchor="middle" fill="#f4e2b0" fontSize="15" fontFamily="Georgia, serif">Bigger planet, bigger share.</text>
       </svg>
-      <figcaption>Bigger planets got more public attention this week. Small is still real — just not the main story.</figcaption>
     </figure>
   )
 }
 
-function CrystalGraphic() {
+function ReadingGraphic() {
   return (
     <figure className="welcome-graphic">
-      <h3>The views inside</h3>
-      <svg viewBox="0 0 320 118" role="img" aria-labelledby="crystal-graphic-title">
-        <title id="crystal-graphic-title">A planet opens into a cube. The longest, darkest spike is the most common view</title>
-        <circle cx="58" cy="56" r="26" fill="#7ee0d8" />
-        <circle cx="48" cy="46" r="9" fill="rgba(255,255,255,0.2)" />
-        <text x="58" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Planet</text>
-        <path d="M96 56 H132" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
-        <path d="M124 50 L134 56 L124 62" fill="none" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
-        <polygon points="176,34 244,34 244,78 176,78" fill="#1a3d3c" stroke="rgba(126,224,216,0.7)" />
-        <polygon points="210,18 226,40 194,40" fill="#2f6e6c" />
-        <polygon points="244,40 262,56 244,72" fill="#7ee0d8" />
-        <polygon points="194,78 226,78 210,96" fill="#d8f6f3" />
-        <text x="210" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Opinions</text>
-        <text x="268" y="22" fill="#7ee0d8" fontSize="11">Majority</text>
+      <svg viewBox="0 0 320 240" role="img" aria-labelledby="reading-graphic-title">
+        <title id="reading-graphic-title">Bars, then the summary</title>
+        <rect x="28" y="8" width="264" height="224" rx="22" fill="#0c0e16" stroke="rgba(239,238,247,0.2)" />
+        <rect x="44" y="22" width="150" height="16" rx="8" fill="#f4c14e" />
+        <rect x="44" y="44" width="104" height="16" rx="8" fill="#4aa3e6" />
+        <rect x="44" y="66" width="68" height="16" rx="8" fill="#e25a2b" />
+        <text x="204" y="35" fill="#efeef7" fontSize="12" fontFamily="system-ui, sans-serif">42%</text>
+        <text x="158" y="57" fill="#efeef7" fontSize="12" fontFamily="system-ui, sans-serif">28%</text>
+        <text x="122" y="79" fill="#efeef7" fontSize="12" fontFamily="system-ui, sans-serif">18%</text>
+        <text x="48" y="112" fill="#f4e2b0" fontSize="13" fontFamily="Georgia, serif">Summary</text>
+        <rect x="48" y="124" width="196" height="6" rx="3" fill="rgba(239,238,247,0.82)" />
+        <rect x="48" y="138" width="168" height="6" rx="3" fill="rgba(239,238,247,0.55)" />
+        <rect x="48" y="152" width="124" height="6" rx="3" fill="rgba(239,238,247,0.32)" />
+        <rect x="44" y="176" width="232" height="40" rx="10" fill="#10131c" stroke="rgba(239,238,247,0.1)" />
+        <rect x="56" y="188" width="180" height="5" rx="2" fill="rgba(239,238,247,0.28)" />
+        <rect x="56" y="200" width="132" height="5" rx="2" fill="rgba(239,238,247,0.16)" />
       </svg>
-      <figcaption>Tap a planet and it opens into a cube. The longest, darkest spike is the most common view — loudest, not truest. A dashed face has no perspective.</figcaption>
     </figure>
   )
 }
@@ -83,28 +106,13 @@ export default function WelcomeModal({ open, onClose }) {
         tabIndex={-1}
       >
         <header className="welcome-head">
-          <p className="eyebrow">Welcome</p>
           <h2 id="welcome-title">Perspectiverse</h2>
           <p className="welcome-tagline">{SITE_TAGLINE}</p>
         </header>
         <div className="welcome-body">
-          <p>
-            A week of public conversation as a solar system — not your feed. Step out of an
-            echo chamber: is this topic widely discussed, and are you the majority or a minority?
-          </p>
-
-          <section>
-            <h3>What to do</h3>
-            <ol>
-              <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
-              <li>Tap a planet to open its opinions. The darkest spike is the most common view, lighter spikes are smaller views, and a dashed face has no perspective. Tap a face to read its core arguments and posts.</li>
-              <li>Use <strong>Filter topics</strong> to open a newspaper section — World, Politics, Business, Technology, Sports, and the rest. All topics stays the week&rsquo;s largest planets.</li>
-            </ol>
-          </section>
-
           <div className="welcome-graphics">
-            <SizeGraphic />
-            <CrystalGraphic />
+            <PlanetSizeGraphic />
+            <ReadingGraphic />
           </div>
         </div>
         <footer className="welcome-foot">

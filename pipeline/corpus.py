@@ -8,6 +8,7 @@ sample is random within the fetch, not ranked by likes.
 
 from __future__ import annotations
 
+import math
 import random
 from datetime import datetime, timedelta, timezone
 
@@ -111,6 +112,56 @@ def keep_claims(posts: list[dict], target: int, rng: random.Random) -> list[dict
 
 def claim_count(posts: list[dict]) -> int:
     return sum(1 for post in posts if post.get("is_claim") is True)
+
+
+def refresh_floor(target: int) -> int:
+    """Minimum new posts each morning: one seventh of the threshold, rounded up."""
+    size = max(int(target), 0)
+    if size == 0:
+        return 0
+    return math.ceil(size / 7)
+
+
+def counted_posts(posts: list[dict]) -> list[dict]:
+    """Claims fill the threshold. Unlabeled posts all count. Non-claims do not."""
+    if any(post.get("is_claim") is not None for post in posts):
+        return [post for post in posts if post.get("is_claim") is True]
+    return list(posts)
+
+
+def within_window(posts: list[dict], now: datetime, window_hours: int) -> list[dict]:
+    """Posts whose timestamp is still inside the rolling window."""
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    cutoff = now.astimezone(timezone.utc) - timedelta(hours=window_hours)
+    return [post for post in posts if parse_created(post.get("created_at") or "") >= cutoff]
+
+
+def retire_oldest(
+    posts: list[dict],
+    *,
+    now: datetime,
+    window_hours: int,
+    target: int,
+) -> list[dict]:
+    """Drop posts older than 7 days, then the oldest counted posts down to ``target``.
+
+    The oldest go even when they are younger than 7 days. Non-claims stay and
+    do not fill a slot. Call this only after a fetch that actually returned posts.
+    """
+    kept = within_window(posts, now, window_hours)
+    limit = max(int(target), 0)
+    counted = counted_posts(kept)
+    if len(counted) <= limit:
+        return kept
+    ordered = sorted(counted, key=lambda post: parse_created(post.get("created_at") or "").timestamp())
+    drop = {post.get("uri") for post in ordered[: len(counted) - limit]}
+    labeled = any(post.get("is_claim") is not None for post in kept)
+    return [
+        post
+        for post in kept
+        if post.get("uri") not in drop or (labeled and post.get("is_claim") is not True)
+    ]
 
 
 def posts_on_utc_date(posts: list[dict], utc_date: str) -> bool:

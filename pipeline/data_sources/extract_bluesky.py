@@ -48,6 +48,7 @@ def extract_posts(
     now: datetime | None = None,
     rng: random.Random | None = None,
     per_query: int = 100,
+    skip_uris: set[str] | None = None,
 ) -> list[dict]:
     """Return up to ``sample_size`` normalized posts inside the rolling window."""
     moment = now or datetime.now(timezone.utc)
@@ -57,7 +58,7 @@ def extract_posts(
     getter = fetch or _default_fetch
     chooser = rng or random.Random()
     collected: list[dict] = []
-    seen: set[str] = set()
+    seen: set[str] = set(skip_uris or ())
 
     for query in queries:
         cursor = None

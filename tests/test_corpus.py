@@ -4,10 +4,13 @@ from datetime import datetime, timedelta, timezone
 from pipeline.corpus import (
     CLAIM_TARGET,
     cap_sample,
+    counted_posts,
     keep_claims,
     posts_on_utc_date,
     quality_score,
+    refresh_floor,
     retain_window,
+    retire_oldest,
     scale_quotas,
     select_quality,
 )
@@ -100,6 +103,35 @@ def test_uncapped_retain_keeps_posts_past_the_old_ceiling():
         cap=False,
     )
     assert len(kept) == 5
+
+
+def test_refresh_floor_is_one_seventh_rounded_up():
+    assert refresh_floor(10000) == 1429
+    assert refresh_floor(7) == 1
+    assert refresh_floor(8) == 2
+    assert refresh_floor(0) == 0
+
+
+def test_retire_drops_the_eighth_day_and_then_the_oldest_surplus():
+    posts = []
+    for index in range(12):
+        post = _post(f"at://p-{index}", hours_ago=index + 1)
+        post["is_claim"] = True
+        posts.append(post)
+    stale = _post("at://stale", hours_ago=200)
+    stale["is_claim"] = True
+    posts.append(stale)
+    aside = _post("at://aside", hours_ago=2)
+    aside["is_claim"] = False
+    posts.append(aside)
+    kept = retire_oldest(posts, now=NOW, window_hours=168, target=10)
+    uris = {post["uri"] for post in kept}
+    assert "at://stale" not in uris
+    assert "at://aside" in uris
+    assert "at://p-11" not in uris
+    assert "at://p-10" not in uris
+    assert "at://p-0" in uris
+    assert len(counted_posts(kept)) == 10
 
 
 def test_scale_quotas_keeps_a_ten_post_floor():

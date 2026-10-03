@@ -29,6 +29,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/r2.py` | Download and upload `live_corpus.db` to private Cloudflare R2 |
 | `pipeline/generate_demo_data.py` | Synthetic 10×6 universe (not what the site ships) |
 | `pipeline/live.py` | Rotate corpus, cluster, label, write `data.json` |
+| `pipeline/briefs.py` | Short and long summaries for planets and perspectives, plus the weekly email |
 | `pipeline/schema.py` | Shared `data.json` contract |
 | `pipeline/settings.py` | YAML config loader |
 | `pipeline/cleaning.py` | URL, handle, and spam cleaning |
@@ -92,6 +93,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `Historical Solar Systems and Topic Continuity.md` | Dated solar systems, trending vs stock, matching topic names across days |
 | `Pipeline Audit 2026-09-28.md` | What was synthetic vs live, and why the daily job was failing |
 | `Handoff DeepInfra and Bluesky Auth.md` | Prompt for a follow-up agent: DeepInfra labels + Bluesky app password |
+| `Improvement Requests.md` | Living log of requested changes. Not implemented until the list is closed |
 
 ## Scripts & CI/CD
 

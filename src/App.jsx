@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Observatory from './components/Observatory'
-import Sidebar from './components/Sidebar'
+import ReadingScreen from './components/ReadingScreen'
 import SiteChrome from './components/SiteChrome'
 import SiteMenu from './components/SiteMenu'
 import SitePage from './components/SitePage'
@@ -25,6 +25,8 @@ export default function App() {
   const [page, setPage] = useState(boot.page)
   const [menuOpen, setMenuOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(false)
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [highlightedTopicId, setHighlightedTopicId] = useState(boot.topicId)
   const isMobile = useIsMobile()
   const shellRef = useRef(null)
 
@@ -61,6 +63,10 @@ export default function App() {
     () => selectedTopic?.perspectives.find((face) => face.id === selectedPerspectiveId) ?? null,
     [selectedTopic, selectedPerspectiveId],
   )
+  const highlighted = useMemo(
+    () => visibleTopics.find((topic) => topic.id === highlightedTopicId) ?? visibleTopics[0] ?? null,
+    [visibleTopics, highlightedTopicId],
+  )
 
   const commitSelection = (next, mode = 'push') => {
     setCategory(next.category)
@@ -71,6 +77,14 @@ export default function App() {
   }
 
   const selectTopic = (topicId) => {
+    setHighlightedTopicId(topicId)
+    setEmailOpen(false)
+    commitSelection({ category, topicId, perspectiveId: null, page: null })
+  }
+
+  const openTopic = (topicId) => {
+    setHighlightedTopicId(topicId)
+    setEmailOpen(false)
     commitSelection({ category, topicId, perspectiveId: null, page: null })
   }
 
@@ -168,6 +182,7 @@ export default function App() {
   const sitePage = pageById(page)
   const drilled = Boolean(selectedTopic) || Boolean(sitePage)
   const showObservatory = !sitePage && !(isMobile && selectedTopic)
+  const showReading = !sitePage && (!isMobile || selectedTopic)
   const chromeTitle = sitePage?.title
     ?? selectedPerspective?.title
     ?? selectedTopic?.name
@@ -188,7 +203,7 @@ export default function App() {
   return (
     <div
       ref={shellRef}
-      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
+      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${isMobile && !sitePage && !selectedTopic ? 'is-orbits' : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
     >
       <SiteChrome
         drilled={drilled}
@@ -215,19 +230,25 @@ export default function App() {
           onClearSelection={clearSelection}
         />
       )}
-      {!sitePage && (
-        <Sidebar
+      {showReading && (
+        <ReadingScreen
           data={data}
           topics={visibleTopics}
           categories={CATEGORIES}
           category={category}
           selectedTopic={selectedTopic}
           selectedPerspective={selectedPerspective}
+          highlightedTopicId={highlighted?.id ?? null}
           isMobile={isMobile}
-          onSelectTopic={selectTopic}
+          emailOpen={emailOpen}
+          onOpenTopic={openTopic}
           onSelectPerspective={selectPerspective}
-          onClearSelection={clearSelection}
+          onBack={() => {
+            setEmailOpen(false)
+            commitSelection({ category, topicId: null, perspectiveId: null, page: null })
+          }}
           onCategory={changeCategory}
+          onToggleEmail={() => setEmailOpen((value) => !value)}
         />
       )}
       <SiteMenu

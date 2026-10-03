@@ -202,9 +202,7 @@ export default function Observatory({
     canvas.addEventListener('webglcontextlost', onLost)
   }, [])
 
-  const hint = selectedTopicId
-    ? 'Drag to turn this planet · Scroll to zoom · Tap a face to read its arguments'
-    : 'Drag to look around · Pinch or scroll to zoom · Tap a planet to open its views'
+  const hint = 'Drag to look around'
 
   return (
     <section className="observatory">
@@ -247,16 +245,14 @@ export default function Observatory({
       )}
       <div className="observatory-chrome">
         <p>{hint}</p>
-        {!selectedTopicId && (
-          <button
-            type="button"
-            className={`orbit-toggle ${showOrbits ? 'is-on' : ''}`}
-            aria-pressed={showOrbits}
-            onClick={() => setShowOrbits((value) => !value)}
-          >
-            {showOrbits ? 'Hide orbit lines' : 'Show orbit lines'}
-          </button>
-        )}
+        <button
+          type="button"
+          className={`orbit-toggle ${showOrbits ? 'is-on' : ''}`}
+          aria-pressed={showOrbits}
+          onClick={() => setShowOrbits((value) => !value)}
+        >
+          {showOrbits ? 'Hide orbit lines' : 'Show orbit lines'}
+        </button>
       </div>
     </section>
   )
