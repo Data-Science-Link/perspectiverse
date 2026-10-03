@@ -2,6 +2,8 @@
 
 Living log of requested changes. Nothing in this file is implemented. Keep adding requests until told the list is done.
 
+The same list is on GitHub: https://github.com/Data-Science-Link/perspectiverse/issues/35
+
 ## 1. Morning Bluesky quantity loop
 
 The north star for how many Bluesky posts we keep is the threshold: **10,000**.
