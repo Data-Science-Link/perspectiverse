@@ -18,6 +18,253 @@ def test_prompt_demands_json_only():
     assert "JSON only" in prompt
     assert "arguments" in prompt
     assert "paraphrase" in prompt
+    assert "Anti Republican" in prompt
+    assert "insult" in prompt.lower()
+
+
+def test_weak_term_does_not_become_the_face_title():
+    posts = [
+        {"text": "AI evangelists are morally unequipped to oversee this technology.", "likes": 9},
+        {"text": "Those AI evangelists keep shipping it without consent.", "likes": 4},
+    ]
+    calls = {"n": 0}
+
+    def generate(prompt):
+        calls["n"] += 1
+        if "not publishable" in prompt:
+            return json.dumps(
+                {
+                    "title": "Unfit Evangelists",
+                    "summary": "The posts say AI evangelists are morally unequipped to govern the technology.",
+                    "arguments": [
+                        "AI evangelists are morally unequipped to oversee this technology.",
+                        "Those AI evangelists keep shipping it without consent.",
+                    ],
+                }
+            )
+        return json.dumps(
+            {
+                "title": "AI Criticism",
+                "summary": "These posts share various concerns about the tools.",
+                "arguments": [
+                    "AI evangelists are morally unequipped to oversee this technology.",
+                    "Those AI evangelists keep shipping it without consent.",
+                ],
+            }
+        )
+
+    labeled = label_perspective(posts, ["most"], generate=generate)
+    assert calls["n"] >= 2
+    assert labeled["title"] not in {"Most", "AI Criticism", "Mixed remarks"}
+    assert "evangelist" in labeled["title"].lower()
+    assert "various concerns" not in labeled["summary"].lower()
+    assert "evangelists" in labeled["summary"].lower()
+
+
+def test_a_shared_commodity_counts_as_one_subject():
+    from pipeline.label import specific_shared_words
+
+    diesel = [
+        {
+            "title": "Diesel Export",
+            "representative_posts": [{"text": "The president will not ban diesel exports this week."}],
+        },
+        {
+            "title": "Oil Release",
+            "representative_posts": [{"text": "Allies will release diesel from emergency stockpiles."}],
+        },
+    ]
+    courts = [
+        {
+            "title": "Judicial Compliance",
+            "representative_posts": [{"text": "Nothing happens when officials defy a judge's order."}],
+        },
+        {
+            "title": "No Prosecution",
+            "representative_posts": [{"text": "The department will not reopen the renovation investigation."}],
+        },
+    ]
+    assert "diesel" in specific_shared_words(diesel)
+    assert specific_shared_words(courts) == set()
+    cornell = [
+        {
+            "title": "Rape Culture",
+            "representative_posts": [{"text": "Trump sympathizes with the rapists at that college."}],
+        },
+        {
+            "title": "Cornell Rape Case",
+            "representative_posts": [{"text": "The Cornell rape suspects were students at that college."}],
+        },
+    ]
+    politicians = [
+        {
+            "title": "Female Candidate",
+            "representative_posts": [{"text": "AOC will move the field and Angie Nixon belongs in America."}],
+        },
+        {
+            "title": "Susan Collins",
+            "representative_posts": [{"text": "Susan Collins was caught taking bribes with no consequences."}],
+        },
+    ]
+    assert specific_shared_words(cornell)
+    assert specific_shared_words(politicians) == set()
+    once = [
+        {
+            "title": "Outrage Over Issues",
+            "summary": "Online discussions prioritize outrage over serious issues.",
+            "representative_posts": [
+                {"text": "Social media posts spark outrage about discrimination and debate."},
+                {"text": "People are furious about a trans man in the Odyssey and the casting."},
+                {"text": "The grooming meme treats misconduct allegations like a fandom war."},
+            ],
+        },
+        {
+            "title": "Hate Groups",
+            "summary": "Hate groups are promoting misogyny.",
+            "representative_posts": [
+                {"text": "Elliot Rodger fans are evil violent misogynists."},
+                {"text": "The incel movement is alive and well among these accounts."},
+                {"text": "This trend is misogyny invented by incels and aimed at trans people."},
+            ],
+        },
+    ]
+    repeated = [
+        {
+            "title": "Rape Culture",
+            "summary": "Rapists are being sympathized with.",
+            "representative_posts": [
+                {"text": "Any college fostering rape culture needs to be dismantled."},
+                {"text": "The rape apologists are out in full force today."},
+                {"text": "Too many people still sympathize with rapists."},
+            ],
+        },
+        {
+            "title": "Cornell Rape Case",
+            "summary": "Trump supports Cornell rape suspects.",
+            "representative_posts": [
+                {"text": "Trump was asked about the Cornell rape case and dodged it."},
+                {"text": "Trump said he feels badly for the Cornell rape suspects."},
+                {"text": "The adjudicated rapist president supports the Cornell rape suspects."},
+            ],
+        },
+    ]
+    titled = [
+        {
+            "title": "Trans Rights",
+            "summary": "Trans people should keep their rights.",
+            "representative_posts": [
+                {"text": "Trans rights are not up for debate in this election."},
+                {"text": "Hospitals should provide care without political interference."},
+                {"text": "The bill restricts medical treatment for minors."},
+            ],
+        },
+        {
+            "title": "Trans Advantage",
+            "summary": "Some sports see a trans advantage.",
+            "representative_posts": [
+                {"text": "A trans athlete should not compete in the women's category."},
+                {"text": "Fairness in sport matters more than inclusion here."},
+                {"text": "The league changed its eligibility rules last season."},
+            ],
+        },
+    ]
+    assert specific_shared_words(once) == set()
+    assert specific_shared_words(repeated)
+    assert specific_shared_words(titled)
+    courts = [
+        {
+            "representative_posts": [
+                {"text": "Judge blocks border wall construction in Big Bend."},
+                {"text": "The Justice Department will not prosecute Jerome Powell."},
+                {"text": "The criminal investigation into Powell remains closed."},
+            ],
+        },
+        {
+            "representative_posts": [
+                {"text": "The race for attorney general is about who will fight for you."},
+                {"text": "A prosecutor is somebody doing their legal job."},
+                {"text": "Congress can't appoint a special prosecutor or counsel."},
+            ],
+        },
+    ]
+    assert specific_shared_words(courts) == set()
+
+
+def test_faces_that_share_no_subject_word_are_different_stories():
+    from pipeline.label import faces_share_vocabulary
+
+    judicial = {
+        "title": "Judicial Compliance",
+        "summary": "Judges' orders are being ignored.",
+        "representative_posts": [
+            {"text": "Nothing happens when officials defy a judge's order and skip the hearing."}
+        ],
+    }
+    powell = {
+        "title": "No Prosecution",
+        "summary": "The department will not charge the former chair.",
+        "representative_posts": [
+            {"text": "The Justice Department will not reopen the Powell renovation investigation."}
+        ],
+    }
+    death = {
+        "title": "Death Penalty",
+        "summary": "The execution of Christa Pike was torture.",
+        "representative_posts": [{"text": "Christa Pike survived a botched execution in Tennessee."}],
+    }
+    needle = {
+        "title": "Lethal Injection",
+        "summary": "Lethal injection made Christa Pike suffer.",
+        "representative_posts": [{"text": "Christa Pike suffered during the botched execution."}],
+    }
+    assert faces_share_vocabulary([judicial, powell]) is False
+    assert faces_share_vocabulary([death, needle]) is True
+
+
+def test_different_stories_are_not_one_subject():
+    from pipeline.label import perspectives_share_subject
+
+    faces = [
+        {"title": "Pentagon Religion", "summary": "The defense secretary opened a religious affairs office."},
+        {"title": "Church Alliance", "summary": "A church is partnering with artists on outreach."},
+    ]
+    assert perspectives_share_subject(faces, backend="heuristic") is True
+    assert (
+        perspectives_share_subject(
+            faces,
+            backend="openai",
+            generate=lambda _prompt: '{"same": false}',
+        )
+        is False
+    )
+    assert (
+        perspectives_share_subject(
+            faces,
+            backend="openai",
+            generate=lambda _prompt: "not json",
+        )
+        is True
+    )
+
+
+def test_camp_title_is_replaced_with_the_claim_terms():
+    posts = [{"text": "The rent increase on my block is the whole story tonight.", "likes": 4}]
+    labeled = label_perspective(
+        posts,
+        ["rent", "increase"],
+        generate=lambda _prompt: json.dumps(
+            {
+                "title": "Anti Landlord",
+                "summary": "The rent increase on the block is the story.",
+                "arguments": [
+                    "The rent increase on the block is the whole story.",
+                    "The rent increase tonight is what the block is talking about.",
+                ],
+            }
+        ),
+    )
+    assert labeled["title"] == "Rent Increase"
+    assert "Astra" not in labeled["summary"]
 
 
 def test_invented_entity_is_dropped_and_a_paraphrase_is_kept():
@@ -48,6 +295,28 @@ def test_duplicate_titles_get_a_suffix():
     seen: set[str] = set()
     assert unique_label("Anti Trump", seen) == "Anti Trump"
     assert unique_label("Anti Trump", seen) == "Anti Trump 2"
+
+
+def test_titles_alike_catches_a_numbered_copy_and_not_a_different_claim():
+    from pipeline.label import titles_alike
+
+    assert titles_alike("Pro Ukraine", "Pro Ukraine 2")
+    assert titles_alike("AI Criticism", "AI Critique")
+    assert titles_alike("Ukraine War", "Ukraine War Updates")
+    assert not titles_alike("Pro Ukraine", "Oil Crisis")
+    assert not titles_alike("Iran War", "Iran Conflict")
+    assert not titles_alike("Death Penalty", "Lethal Injection")
+
+
+def test_heuristic_summary_uses_a_shown_sentence():
+    from pipeline.label import heuristic_label
+
+    labeled = heuristic_label(
+        ["rent"],
+        [{"text": "Half my paycheck is rent and the lease still went up.", "likes": 4}],
+    )
+    assert "paycheck" in labeled["summary"]
+    assert "concentrate on" not in labeled["summary"]
 
 
 def test_parse_label_accepts_wrapped_json():

@@ -143,6 +143,7 @@ const BUILDERS = {
 }
 
 const CUBE_SPIKE_FACES = {
+  1: [0],
   2: [0, 1],
   3: [0, 2, 4],
   4: [0, 1, 2, 3],
@@ -150,14 +151,20 @@ const CUBE_SPIKE_FACES = {
   6: [0, 1, 2, 3, 4, 5],
 }
 
+function clampSpikeCount(count) {
+  const value = Number(count)
+  if (!Number.isFinite(value)) return 1
+  return Math.min(MAX_FACES, Math.max(1, Math.round(value)))
+}
+
 export function polyhedron(count) {
   return BUILDERS[clampFaceCount(count)]()
 }
 
 export function cubeSpikeFaces(count) {
-  return CUBE_SPIKE_FACES[clampFaceCount(count)]
+  return CUBE_SPIKE_FACES[clampSpikeCount(count)]
 }
 
 export function faceHeight(volumePercent) {
-  return 0.22 + (Number(volumePercent) / 100) * 1.2
+  return 0.46 + (Number(volumePercent) / 100) * 0.9
 }

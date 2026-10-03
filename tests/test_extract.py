@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from pipeline.data_sources.extract_bluesky import extract_posts, normalize_post
+from pipeline.data_sources.extract_bluesky import extract_posts, normalize_post, page_budget
 
 
 def _post(uri, created, text="A sufficiently long English sentence about today."):
@@ -44,6 +44,11 @@ def test_extract_keeps_window_and_samples():
     assert posts[0]["uri"] in {"at://new-1", "at://new-2"}
     assert posts[0]["author"] == "ada.bsky.social"
     assert posts[0]["likes"] == 4
+
+
+def test_page_budget_grows_with_the_claim_window():
+    assert page_budget(2, 1) == 8
+    assert page_budget(10000, 6) > 8
 
 
 def test_normalize_post_requires_text_and_time():

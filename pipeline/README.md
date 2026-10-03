@@ -1,6 +1,6 @@
 # Data Engineering Pipeline
 
-Daily job: keep a rolling 7-day window of ~1,000 non-spam English Bluesky posts, cluster 10 planets and 2–6 faces, generate names and a short steelman per face, and write `public/data.json`.
+Daily job: keep a rolling 7-day window of up to 10,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check. Non-claims stay in the SQLite file and do not count toward that 10,000. Cluster up to 10 planets and 1–6 faces, generate names and a short steelman per face, and write `public/data.json`. If search cannot fill 10,000 claims, the run keeps the shortfall and logs it.
 
 The 2026-09-28 audit of the synthetic era is in [Pipeline Audit 2026-09-28](../project_documentation/Pipeline%20Audit%202026-09-28.md).
 
@@ -34,7 +34,7 @@ Copy the repo-root `.env.example` to `.env`. The CLI loads it on start without o
   ```
 
   Create the token at https://deepinfra.com/dash. Reuse the `OPENAI_*` names; the client is OpenAI-compatible. Llama 3.3 70B Turbo is about **$0.01 per snapshot** (~$0.30/month daily). Alternatives: `deepseek-ai/DeepSeek-V4-Flash`, `Qwen/Qwen3.5-9B`. `pipeline/http_json.py` allow-lists `api.deepinfra.com` and `api.openai.com`. The daily workflow forwards all three `OPENAI_*` secrets.
-- `TYPESAFE_API_KEY` turns on Jev for per-post spam and newspaper section. `JEV_MODEL` is optional and defaults to `jev-latest`. The workflow forwards both. With no key, the regex and keyword section map run and the job still publishes.
+- `TYPESAFE_API_KEY` turns on Jev for per-post spam, newspaper section, and the public-claim check. `JEV_MODEL` is optional and defaults to `jev-latest`. The workflow forwards both. With no key, sections fall back to the keyword map, and a live Bluesky run stops instead of clustering unlabeled posts. `--fixture` and `--relabel` of an unlabeled file still run.
 
 `.env` is gitignored. Scratch extracts in `pipeline/data/*` stay gitignored. The retained window `pipeline/data/live_corpus.db` is tracked as the seed. When the `R2_*` secrets are set, the daily job uses the private R2 object instead. Copy `pipeline/config/pipeline.example.yaml` to `pipeline/config/pipeline.yaml` for local overrides (also gitignored).
 
@@ -42,7 +42,7 @@ Copy the repo-root `.env.example` to `.env`. The CLI loads it on start without o
 
 | Path | Kind | Contents |
 | --- | --- | --- |
-| `live_corpus.db` → `posts` | retained window | ~1,000 cleaned posts, plus section and spam score when Jev ran |
+| `live_corpus.db` → `posts` | retained window | Up to 10,000 filtered claims, plus non-claims that were fetched with them |
 | `live_corpus.db` → `fetched_days` | ledger | UTC dates already searched, so those days are not pulled again |
 | `live_corpus.db` → `topic_membership` | derived | planet id per kept post |
 | `live_corpus.db` → `perspectives` | derived | face index and centroid distance |
@@ -54,19 +54,19 @@ Re-running BERTopic reads this SQLite file. It does not fetch days that are alre
 
 ## Clustering
 
-`cluster_backend: embedding` (default) uses a local MiniLM model through fastembed (ONNX, no torch). It looks for many tight groups — a long week can have 100 or more — and leaves posts that are not close to a group unlabeled. `catalog_size` then keeps the largest of those groups (10 by default). It does not assign every post to a planet, and it does not split a week until ten orbits are full. The daily job installs fastembed.
+`cluster_backend: embedding` (default) uses a local MiniLM model through fastembed (ONNX, no torch). It looks for many tight groups — a long week can have 100 or more — and leaves posts that are not close to a group unlabeled. The embedding path asks for a few spare groups past `catalog_size` (10 by default) so a mixed planet can be dropped and the next specific group takes its place. It does not assign every post to a planet, and it does not split a week until ten orbits are full. The daily job installs fastembed.
 
 `cluster_backend: lexical` uses numpy TF-IDF and k-means. Pytest uses this path and does not download a model.
 
 `cluster_backend: bertopic` uses BERTopic with `all-MiniLM-L6-v2` when that extra stack is installed (`uv sync` locally).
 
-Anything smaller than `min_cluster_size` is Topic -1. A planet needs at least 6 posts so it can grow two faces. Further faces are cut only when they separate. **Topic -1 is excluded from the volume denominator.**
+Anything smaller than `min_cluster_size` is Topic -1. The live floor is `max(8, claims // 200)`. A planet needs at least 6 posts. Further faces are cut only when the second stance is large. One face is allowed when the posts actually agree. **Topic -1 is excluded from the volume denominator.**
 
-`min_cluster_size` is **8** on the 1,000-post window. Planet ids are 1–10 in descending volume for that snapshot. Names are generated each run and are not a durable key.
+Inside a candidate group, at most 3 posts per author count. Planets are ranked by distinct authors, then by posts. A group whose mean cosine to its centroid is below 0.60 is dropped, so a political mood does not crowd out a specific conversation. Groups closer than cosine 0.72 are merged as one subject. `catalog_size` (10) is a ceiling. Planet ids are 1–N in that rank order for the snapshot. Names are generated each run and are not a durable key.
 
 ## Faces and labels
 
-Each kept planet is split into **2–6 faces**. Representative posts: highest likes first, then nearer the face centroid. Cap is `representative_posts` (12).
+Each kept planet is split into **1–6 faces**. A second face needs at least a fifth of the planet and a centroid cosine below 0.90. That line is higher than the planet-merge line on purpose: two stances of one subject sit above 0.72 on MiniLM, and the old face gate treated them as one view. Representative posts: highest likes first, then nearer the face centroid. Cap is `representative_posts` (12). Two faces with the same or near-same title are merged. Face titles name the claim in a grammatical phrase, not a camp ("Anti Republican"), not an insult, and not two leftover words ("Evangelists Unequipped"). A title or summary that is still a camp, a fragment, a "but" joining a second claim, or an ellipsis is rewritten once. If it is still not one claim, that face is dropped. A face whose title and summary share no subject word is dropped, as is a face that cannot show three posts of its claim. Two faces that share only a one-off word, or only an office word such as prosecutor, are different stories. A face title has to appear in most of the posts it shows. An "and" ending the posts never say is cut off the summary. A planet name that never appears on its faces is replaced with the face's claim. Two faces that are different stories, or whose posts share no subject word, are dropped as a planet, and a spare group fills the slot. Face titles are not numbered to look distinct.
 
 `label_backend: auto` tries, in order:
 
@@ -74,13 +74,13 @@ Each kept planet is split into **2–6 faces**. Representative posts: highest li
 2. An OpenAI-compatible API when `OPENAI_API_KEY` is set (`OPENAI_BASE_URL` defaults to OpenAI, or DeepInfra when pointed at `https://api.deepinfra.com/v1/openai`)
 3. Heuristic names from top terms, plus extractive steelmans from the strongest posts
 
-There is one topic-name call per planet and one face call per perspective (title, summary, 2–4 arguments). Invalid model output is tried once more, then the heuristic is stored. Relabel the retained 1,000 without a Bluesky fetch:
+There is one topic-name call per planet, one face call per perspective (title, summary, 2–4 arguments), a repair call when that label is not publishable, and a same-subject check when a planet has two faces. Invalid model output is tried once more, then the heuristic is stored. The heuristic summary is a complete sentence from a shown post. Relabel the retained corpus without a Bluesky fetch:
 
 ```bash
 python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
 ```
 
-The public dropdown is a newspaper: **World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, Other**. With `TYPESAFE_API_KEY` set, Jev assigns a section to each new post (one `choice` plus a spam `noul` per post). A planet's category is the majority section of its members. Without a key, or when a call fails, the keyword map is the fallback. All topics is still one unsupervised clustering of the whole window. A section filter can show fewer than 10 planets at 1,000 posts. Jev does not name planets and does not replace BERTopic.
+The public dropdown is a newspaper: **World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, Other**. With `TYPESAFE_API_KEY` set, Jev assigns a section to each new post (one `choice` plus a spam `noul` per post). A planet's category is the majority section of its members. Without a key, or when a call fails, the keyword map is the fallback. All topics is still one unsupervised clustering of the whole window. A section filter can show fewer planets than All topics. Jev does not name planets and does not replace the embedder. Spam drops at 0.8. A public claim is kept at 0.5. Non-claims stay in the window and out of the planets.
 
 ## Publish
 
@@ -88,9 +88,11 @@ The daily workflow (06:00 UTC, plus `workflow_dispatch`) runs `--live`. It does 
 
 ## Retained corpus in Cloudflare R2
 
-`public/data.json` stays in git. The SQLite window is a different file. At about 1,000 posts it is ~1 MB. At 100,000 posts the same file is about 100–200 MB, and GitHub rejects blobs over 100 MB. `pipeline/r2.py` is the uploader. It talks to R2 with the S3 API (SigV4, region `auto`). BERTopic still reads a local database. Do not put Postgres in front of it.
+`public/data.json` stays in git. The SQLite window is a different file. A few thousand posts are a few megabytes. At 100,000 posts the same file is about 100–200 MB, and GitHub rejects blobs over 100 MB. `pipeline/r2.py` is the uploader. It talks to R2 with the S3 API (SigV4, region `auto`). The clusterer still reads a local database. Do not put Postgres in front of it.
 
 Until `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_ENDPOINT` are set, the job keeps the git behavior: restore `pipeline/data/live_corpus.db` from `data-snapshot` (or the committed seed) and push it back after a successful run.
+
+`R2_OBJECT_KEY` defaults to `live_corpus.db`. That is the object the daily job downloads and uploads. A preview run can set `R2_OBJECT_KEY=live_corpus_preview.db` and write a second object in the same bucket. Leave the variable unset on the scheduled job.
 
 1. Create a [Cloudflare](https://dash.cloudflare.com/) account and open **R2**.
 2. Create a bucket named `perspectiverse-corpus`. Default region is fine. Leave public access off.
@@ -111,7 +113,7 @@ R2's free tier includes 10 GB. This file stays under a gigabyte.
 
 ## Layout
 
-- `config/pipeline.example.yaml` — window, 1,000-post target, neutral search tokens
+- `config/pipeline.example.yaml` — window, 10,000-claim target, neutral search tokens
 - `settings.py` — loads the example, then `pipeline.yaml` if you created one
 - `data_sources/extract_bluesky.py` — Bluesky extract with host fallback
 - `cleaning.py`, `jev.py`, `corpus.py`, `store.py` — regex, Jev decisions, 7-day window, SQLite

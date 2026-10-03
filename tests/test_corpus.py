@@ -1,7 +1,16 @@
 import random
 from datetime import datetime, timedelta, timezone
 
-from pipeline.corpus import cap_sample, posts_on_utc_date, quality_score, retain_window, scale_quotas, select_quality
+from pipeline.corpus import (
+    CLAIM_TARGET,
+    cap_sample,
+    keep_claims,
+    posts_on_utc_date,
+    quality_score,
+    retain_window,
+    scale_quotas,
+    select_quality,
+)
 
 NOW = datetime(2026, 9, 28, tzinfo=timezone.utc)
 
@@ -61,6 +70,36 @@ def test_quality_prefers_liked_argumentative_posts():
     strong = _post("at://strong", 1, likes=40, text="The league changed the playoff format and the players are furious about it.")
     assert quality_score(strong) > quality_score(weak)
     assert select_quality([weak, strong], 1)[0]["uri"] == "at://strong"
+
+
+def test_keep_claims_ignores_non_claims_and_caps_the_rest():
+    posts = []
+    for index in range(5):
+        post = _post(f"at://claim-{index}", hours_ago=1)
+        post["is_claim"] = True
+        posts.append(post)
+    aside = _post("at://aside", hours_ago=1)
+    aside["is_claim"] = False
+    posts.append(aside)
+    kept = keep_claims(posts, 3, random.Random(0))
+    assert sum(1 for post in kept if post.get("is_claim") is True) == 3
+    assert any(post["uri"] == "at://aside" for post in kept)
+    assert CLAIM_TARGET == 10000
+
+
+def test_uncapped_retain_keeps_posts_past_the_old_ceiling():
+    existing = [_post("at://keep", hours_ago=10)]
+    incoming = [_post(f"at://new-{index}", hours_ago=1) for index in range(4)]
+    kept = retain_window(
+        existing,
+        incoming,
+        now=NOW,
+        window_hours=168,
+        target=2,
+        rng=random.Random(0),
+        cap=False,
+    )
+    assert len(kept) == 5
 
 
 def test_scale_quotas_keeps_a_ten_post_floor():

@@ -32,11 +32,11 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/schema.py` | Shared `data.json` contract |
 | `pipeline/settings.py` | YAML config loader |
 | `pipeline/cleaning.py` | URL, handle, and spam cleaning |
-| `pipeline/jev.py` | Jev spam noul and newspaper section |
-| `pipeline/corpus.py` | 1,000-post rolling 7-day window |
+| `pipeline/jev.py` | Jev spam (drop at 0.8), public-claim (keep at 0.5), newspaper section |
+| `pipeline/corpus.py` | Rolling 7-day window of up to 10,000 filtered claims |
 | `pipeline/store.py` | SQLite posts, fetched days, and derived membership |
-| `pipeline/topics.py` | 10 planets (lexical or BERTopic) |
-| `pipeline/perspectives.py` | 2–6 faces and representative posts |
+| `pipeline/topics.py` | Up to 10 planets (MiniLM, lexical, or BERTopic), author cap, cohesion gate |
+| `pipeline/perspectives.py` | 1–6 faces and representative posts |
 | `pipeline/label.py` | Ollama, OpenAI-compatible (DeepInfra), or heuristic titles |
 | `pipeline/assemble.py` | Writes `public/data.json` |
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
@@ -67,9 +67,9 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `src/lib/pages.js` | Site page ids, labels, and neighbor links |
 | `src/lib/solarSettings.js` | Desktop vs mobile render budget |
 | `src/lib/categories.js` | Category list and filter helper |
-| `src/lib/colors.js` | Planet and spike palette |
-| `src/lib/faces.js` | 2–6 spike layouts and shape names |
-| `src/lib/polyhedra.js` | Cube, tetrahedron, pyramid, prism, diamond solids |
+| `src/lib/colors.js` | Planet color and opaque face shades (darker means more common) |
+| `src/lib/faces.js` | Cube spike layout for 1–6 occupied faces |
+| `src/lib/polyhedra.js` | Cube used by the crystal; older solids remain for the clamp helper |
 | `src/lib/planets.js` | Solar-system order and body metadata |
 | `src/lib/planetTextures.js` | Cached canvas skins for Sun through Pluto |
 | `src/lib/navigation.js` | Query-string selection, site pages, and scroll reset |
@@ -99,7 +99,8 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | --- | --- |
 | `scripts/security_check.sh` | Local Bandit and pip-audit |
 | `scripts/check_categories.mjs` | Category filter helper check |
-| `scripts/check_planets.mjs` | Solar-system order and selection URLs |
+| `scripts/check_planets.mjs` | Solar-system order, selection URLs, and face shades |
+| `scripts/check_spikes.mjs` | Pencil spikes, opaque shades, and dashed empty faces |
 | `scripts/check_solar.mjs` | Mobile/desktop render budget and tagline |
 | `scripts/check_pages.mjs` | Site page ids and `?page=` URLs |
 | `scripts/check_data_contract.mjs` | Asserts the built `dist/data.json` contract |

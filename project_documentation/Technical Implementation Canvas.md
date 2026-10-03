@@ -9,18 +9,20 @@ The public solar system stays in that shape. Conversational LLM engagement, on-d
 * **IDE:** Cursor  
 * **Version Control:** Git / GitHub  
 * **Python Manager:** uv (for ultra-fast virtual environments and dependency management)  
-* **LLM Engine:** Ollama (running locally to avoid all API costs and rate limits)  
-* **Frontend:** Vite \+ React \+ React Three Fiber (compiles to static HTML/JS for GitHub Pages)
+* **Labels:** Ollama locally, or DeepInfra through the OpenAI-compatible client. Heuristic sentence if neither answers.  
+* **Cluster:** local MiniLM (fastembed) on the daily job. TF-IDF in pytest.  
+* **Frontend:** Vite + React 18 + React Three Fiber + Three.js. Tailwind is loaded; layout is `src/index.css`. Static HTML/JS for GitHub Pages.
 
 ### **Directory Structure**
 
 perspectiverse/  
 ├── project_documentation/ \# Architecture, roadmap notes, canvases  
 ├── ROADMAP.md            \# Living sequence and maintain-cost  
+├── pyproject.toml        \# Python project, managed with uv  
+├── uv.lock               \# Locked Python dependencies  
 ├── pipeline/             \# Python backend code  
 │   ├── data/             \# Local storage (SQLite / raw JSONs)  
-│   ├── run\_pipeline.py   \# Main orchestrator script  
-│   └── requirements.txt  \# Managed via uv  
+│   └── run\_pipeline.py   \# Main orchestrator script  
 ├── public/               \# Static web assets  
 │   ├── index.html  
 │   └── data.json         \# THE BRIDGE: Output of pipeline, input for frontend  

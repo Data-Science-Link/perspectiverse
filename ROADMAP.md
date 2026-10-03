@@ -1,6 +1,6 @@
 # Perspectiverse roadmap
 
-This is the product and architecture roadmap. It is written against the system that actually ships today: a **once-per-day job**, a **small English Bluesky sample**, a **static `public/data.json`**, and a **cheap 3D render**. Near-zero cost is not an accident. It is the constraint that keeps the public observatory public.
+This is the product and architecture roadmap. It is written against the system that actually ships today: a **once-per-day job**, a **rolling week of up to 10,000 filtered Bluesky claims**, a **static `public/data.json`**, and a **cheap 3D render**. Near-zero cost is not an accident. It is the constraint that keeps the public observatory public.
 
 Related design notes:
 
@@ -12,7 +12,7 @@ Related design notes:
 
 ## Audience
 
-The civic surface is for people who already think they know the argument — self-confident readers, debaters, operators, and anyone who treats their feed as a census. The product motion is **anti-echo chamber**, but the public solar system does that with **geometry**, not a chatbot: tilt to see every perspective, read planet size as public interest, and see whether your view is the gold majority face or a shorter minority one. Sometimes the thing you care about is not a planet at all.
+The civic surface is for people who already think they know the argument — self-confident readers, debaters, operators, and anyone who treats their feed as a census. The product motion is **anti-echo chamber**, but the public solar system does that with **geometry**, not a chatbot: tilt to see every perspective, read planet size as public interest, and see whether your view is the long dark spike or a shorter lighter one. Sometimes the thing you care about is not a planet at all.
 
 That last case is the feature. Query-shaped tools cannot deliver it, because they only search inside the noun you already named.
 
@@ -22,16 +22,17 @@ A second, paid surface can invert the starting question: *generate a universe fr
 
 | Item | What we actually pay |
 | --- | --- |
-| Bluesky public search | $0 |
+| Bluesky search (app password) | $0 |
 | GitHub Actions daily job + Pages | $0 inside the free tier |
-| Snapshot in git (`public/data.json` or `data-snapshot`) | git storage of a small JSON file |
-| Runner SQLite (`pipeline/data/posts.db`) | ephemeral; discarded when the job ends |
-| Face labels | $0 with heuristic or local Ollama; a few cents per snapshot if `gpt-4o-mini` is on |
+| Snapshot in git (`data-snapshot`) | git storage of one JSON file |
+| Retained window (`live_corpus.db` on private R2) | inside R2's free tier at this size |
+| Face labels | $0 with heuristic or local Ollama; about a cent per snapshot on DeepInfra |
+| Jev spam, claim, and section | one decision per fetched post when `TYPESAFE_API_KEY` is set |
 | Frontend render | $0 — static fetch, no server |
 
-We do **not** currently retain a 7-day Bluesky firehose. The "7 days" in the product is a **search window**, then a subsample (default 200 posts; 10k is the commented target). After clustering, the published snapshot keeps **at most 12 representative posts per face**. The rest of the sample dies with the runner.
+We do **not** retain a Bluesky firehose. The "7 days" in the product is a **rolling search window** of up to **10,000 posts that passed cleaning, dedup, spam, and the public-claim check**. Non-claims stay in the SQLite file and do not count. After clustering, the published snapshot keeps **at most 12 representative posts per face**. The rest of the window stays in `live_corpus.db`.
 
-Honest current burn: **$0–$1 / month**.
+Honest current burn: **about $1 / month** before Jev volume. Jev is the line that grows with the fetch.
 
 Everything below is priced as *steady-state maintain*, not build time. Agents do not estimate calendar weeks.
 
@@ -43,8 +44,10 @@ These stay inside today's architecture. No new vendor, no GPU, no chat API.
 
 | Item | Status | Cost to maintain |
 | --- | --- | --- |
-| 10-planet observatory, 2–6 faces, solar skins, mobile drill-down | Shipped | $0 |
-| Daily lexical pipeline + optional Ollama/OpenAI labels | Shipped | $0–$1 / month |
+| Up to 10 planets, 1–6 opaque spikes, dashed empty faces, solar skins, mobile drill-down | Shipped | $0 |
+| Daily MiniLM pipeline; TF-IDF in pytest; optional Ollama or DeepInfra labels | Shipped | about $1 / month, plus Jev |
+| Rolling 168-hour window of up to 10,000 filtered claims, retained in R2 | Shipped | R2 free tier |
+| Author cap, cohesion gate, one face when there is one stance, merged duplicate titles | Shipped | $0 |
 | Welcome tour + tagline (how to read size, tilt, and the crystal) | Shipped | $0 |
 | **`--query` live extract** — operator can pull a brand-shaped sample and write a solar system | Shipped | $0 (your laptop / Actions minutes) |
 
@@ -60,18 +63,15 @@ It still uses public Bluesky search and the same 10-planet job. It does not reta
 
 ---
 
-## Next — live corpus, spam, and a job that actually publishes
+## Next — still inside the static job
 
-The 2026-09-28 audit is in [Pipeline Audit 2026-09-28](project_documentation/Pipeline%20Audit%202026-09-28.md). The observatory was a schema-compatible demo. The live job was written and failing (Bluesky 403 from Actions; 200-post samples that could not mint 10 planets). This list is the conversion, in order.
+The [2026-09-28 audit](project_documentation/Pipeline%20Audit%202026-09-28.md) describes the synthetic era. The conversion it asked for has shipped: retained SQLite, a rolling 168-hour window, neutral search, Jev spam and public-claim checks, newspaper sections, MiniLM on the daily job, and a 10,000-claim target. The checked-in `public/data.json` is still the 2026-09-30 snapshot until the next scheduled run replaces `data-snapshot`.
 
-1. **Spam filter as a quality gate, not a four-line regex.** Drop gm-only, follow-for-follow, link dumps, crypto/giveaway bait, near-duplicates, and the old short/hashtag/scam rules. The first rendition is **1,000 non-spam English Bluesky posts** through the door and sitting in retained SQLite (`pipeline/data/live_corpus.db`), not thrown away with the runner.
-2. **Daily rotate ~1/7 of that corpus.** Drop the oldest seventh, fetch yesterday’s quality posts, merge back to ~1,000. If Bluesky 403s, **do not drop** — rebuild the snapshot from the retained 1,000 so the job still publishes.
-3. **Ten unsupervised planets** from that corpus. Autogenerate planet names, face titles, and a short synthesis (core arguments) for each perspective. LLM when `OPENAI_API_KEY` or Ollama is present; heuristic/extractive otherwise. Lexical clustering on CI; BERTopic when the extra stack is installed.
-4. **Three public groupings** for the dropdown: Sports, Geopolitics, AI. Seed the fetch so each grouping has at least ten quality posts. The other demo categories stay in the synthetic writer only.
-5. **Raise `sample_size` toward 10,000** only after the 1,000-post job is green and labels look stable. A 10k BERTopic embed on a GitHub runner is the thing that starts to cost time. Stay lexical on CI.
-6. **Ship more evidence per face** (20–50 posts, plus top terms) so a future LLM clerk has enough words. `data.json` grows from tens of KB to a few hundred KB. Pages will not notice.
-7. **Optional local LLM in the sidebar** for people who run [Ollama](https://ollama.com/) — same allow-list the pipeline already uses. The site stays static; the browser talks to `localhost`. Cost: $0. Quality: good on a laptop, useless on a phone.
-8. **Keep dated copies of `data.json`** instead of only overwriting `data-snapshot`. Cost: git/Pages, still $0. A date picker can load `solar systems/YYYY-MM-DD.json`. That is time-travel, not trending: planet names and rank ids still churn. Matching, week-over-week, and a database are Horizon C, not this list.
+What is left on this architecture:
+
+1. **Ship more evidence per face** (20–50 posts, plus top terms) so a future LLM clerk has enough words. `data.json` grows from tens of KB to a few hundred KB. Pages will not notice.
+2. **Optional local LLM in the sidebar** for people who run [Ollama](https://ollama.com/) — same allow-list the pipeline already uses. The site stays static; the browser talks to `localhost`. Cost: $0. Quality: good on a laptop, useless on a phone.
+3. **Keep dated copies of `data.json`** instead of only overwriting `data-snapshot`. Cost: git/Pages, still $0. A date picker can load `solar systems/YYYY-MM-DD.json`. That is time-travel, not trending: planet names and rank ids still churn. Matching, week-over-week, and a database are Horizon C, not this list.
 
 Stop here if the goal is a public civic observatory that stays free.
 
@@ -124,7 +124,7 @@ Details: [Planet Engagement Architecture](project_documentation/Planet%20Engagem
 
 **Job:** Someone types a brand, a claim, or a paragraph. They get *their* 10-planet solar system, not this week's public one. A Google / Chrome plugin is the distribution: highlight text on a page, or type a brand, and open a generated universe.
 
-**Why today's architecture is not enough.** Custom solar systems are **query-shaped** and **on-demand**. The public job is **week-shaped** and **batch**. You cannot filter a 200-post general sample into a meaningful Nike universe. You also cannot call `api.bsky.app` from the Pages origin (no CORS, no secrets, no quota isolation).
+**Why today's architecture is not enough.** Custom solar systems are **query-shaped** and **on-demand**. The public job is **week-shaped** and **batch**. You cannot filter a 10,000-claim general sample into a meaningful Nike universe. You also cannot call `api.bsky.app` from the Pages origin (no CORS, no secrets, no quota isolation).
 
 The architecture that does it, without pretending we store "all of Bluesky" for free:
 
@@ -137,7 +137,7 @@ hot index (FTS, maybe embeddings on a subset)
         ↓
 POST /universes { query | brand | highlighted text }
         ↓
-filter → same 10 × 2–6 clusterer → snapshot JSON
+filter → same clusterer (up to 10 planets, 1–6 faces) → snapshot JSON
         ↓
 plugin or /u/:id observatory
 ```
@@ -179,7 +179,7 @@ The public site stays the unsupervised week. Custom solar systems are a **second
 
 **Job:** A visitor rewinds the observatory to last Tuesday, or asks whether a neighborhood grew, entered the top ten, or flipped its majority face. "What changed?" is a different question from "what is this week?"
 
-**Why today's architecture is not enough.** The daily job **overwrites** `public/data.json`. Planet `id` is volume rank 1–10 *inside that file*. Live names are the top salient terms (`Housing Rent Crisis`), reminted every run. Faces get LLM titles that paraphrase. Clustering starts from scratch (lexical on CI; BERTopic is optional and also a fresh `fit_transform`). The 7-day windows overlap, then independently subsample, and member URIs never land in the snapshot. Consecutive solar systems are not a panel dataset. String-joining `"Housing"` across days will invent births and deaths.
+**Why today's architecture is not enough.** The daily job **overwrites** the snapshot on `data-snapshot`. Planet `id` is rank order *inside that file* (distinct authors, then size, at most 10). Names come from the labeler and are reminted every run; the fallback is the top salient terms. Faces get titles that paraphrase one stance. Clustering starts from scratch (MiniLM on the daily job; TF-IDF in tests). The window rolls forward 24 hours; it is not an independent 200-post draw. Member URIs never land in the snapshot. Consecutive solar systems are not a panel dataset. String-joining `"Housing"` across days will invent births and deaths.
 
 **Postgres vs files.** A date picker that loads Tuesday's solar system is `GET /snapshots/2026-09-23.json`. Putting the same blob in Postgres and `SELECT`ing by day is the same product plus an application server. Do not buy a database to replace a folder. Keep dated output files (git branch, Pages tree, or object store). Add a matcher sidecar (`lineage.json`) so charts have a **canonical id** that names and rank ids do not provide. Postgres starts to win when a box already exists for Horizon A/B, or when you need SQL over membership — not for "load whatever day they select."
 
@@ -193,7 +193,7 @@ The public site stays the unsupervised week. Custom solar systems are a **second
 | --- | --- | --- |
 | Dated snapshot JSON (tens–hundreds of KB/day) | git or Pages, **$0** | object store, still ~$0 |
 | Matcher on 10×10 (TF-IDF cosine) | same daily job, **$0** | — |
-| MiniLM on ~120 representative posts | extra minute; **breaks the lean runner** (model download) | only if we already run BERTopic |
+| MiniLM on representative posts | already on the daily runner via fastembed | — |
 | Grade 1 membership (URIs, centroids) | **$0–$2 / month** (shared with Horizon B) | same |
 | History API + Postgres | skip | **$5–$20 / month** when we already need a box |
 
@@ -216,7 +216,7 @@ Details: [Historical Solar Systems and Topic Continuity](project_documentation/H
 
 ## Suggested sequence
 
-1. Use the public solar system: tilt, open a planet, see whether you are the gold face. If the discomfort lands, thicken the snapshot (more posts, terms, briefing cards).
+1. Use the public solar system: tilt, open a planet, see whether you are the long dark spike. If the discomfort lands, thicken the snapshot (more posts, terms, briefing cards).
 2. Run **`--query`** locally for a few brands. If those solar systems are readable, that is the premium prototype — still $0.
 3. **Stop overwriting yesterday's solar system** (Horizon C, step 1): dated JSON + manifest. A date picker can follow with no database. Match names later, not first.
 4. Only then add a clerk API (Horizon A) or a retained index (Horizon B). Buy the first billable thing when a human is hitting a wall the snapshot cannot answer, not before. Grade 1 membership, when it lands, also makes topic matching honest.

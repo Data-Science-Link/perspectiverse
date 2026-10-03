@@ -653,6 +653,48 @@ h3 {
   opacity: 0.18;
 }
 
+.spike-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08rem;
+  min-width: 3.4rem;
+  padding: 0.28rem 0.5rem 0.32rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 10px;
+  background: rgba(8, 10, 16, 0.88);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  color: #f7f4ee;
+  text-align: center;
+  pointer-events: none;
+}
+
+.spike-label strong {
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.spike-label em {
+  max-width: 8.5rem;
+  overflow: hidden;
+  color: rgba(247, 244, 238, 0.78);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spike-label.is-selected {
+  background: rgba(12, 14, 22, 0.94);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+}
+
 .planet-hover {
   padding: 0.15rem 0.55rem;
   border: 1px solid rgba(255, 255, 255, 0.22);

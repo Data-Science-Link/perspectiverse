@@ -26,20 +26,20 @@ function CrystalGraphic() {
     <figure className="welcome-graphic">
       <h3>The views inside</h3>
       <svg viewBox="0 0 320 118" role="img" aria-labelledby="crystal-graphic-title">
-        <title id="crystal-graphic-title">A planet opens into a cube. The longest, most solid spike is the majority view</title>
+        <title id="crystal-graphic-title">A planet opens into a cube. The longest, darkest spike is the most common view</title>
         <circle cx="58" cy="56" r="26" fill="#7ee0d8" />
         <circle cx="48" cy="46" r="9" fill="rgba(255,255,255,0.2)" />
         <text x="58" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Planet</text>
         <path d="M96 56 H132" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
         <path d="M124 50 L134 56 L124 62" fill="none" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
         <polygon points="176,34 244,34 244,78 176,78" fill="#1a3d3c" stroke="rgba(126,224,216,0.7)" />
-        <polygon points="210,18 226,40 194,40" fill="#7ee0d8" />
-        <polygon points="244,40 262,56 244,72" fill="rgba(126,224,216,0.55)" />
-        <polygon points="194,78 226,78 210,96" fill="rgba(126,224,216,0.32)" />
+        <polygon points="210,18 226,40 194,40" fill="#2f6e6c" />
+        <polygon points="244,40 262,56 244,72" fill="#7ee0d8" />
+        <polygon points="194,78 226,78 210,96" fill="#d8f6f3" />
         <text x="210" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Opinions</text>
         <text x="268" y="22" fill="#7ee0d8" fontSize="11">Majority</text>
       </svg>
-      <figcaption>Tap a planet and it opens into a cube with two to six spikes. The longest, most solid spike is the majority — loudest, not truest.</figcaption>
+      <figcaption>Tap a planet and it opens into a cube. The longest, darkest spike is the most common view — loudest, not truest. A dashed face has no perspective.</figcaption>
     </figure>
   )
 }
@@ -97,7 +97,7 @@ export default function WelcomeModal({ open, onClose }) {
             <h3>What to do</h3>
             <ol>
               <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
-              <li>Tap a planet to open its opinions, then tap a face to read its core arguments and posts.</li>
+              <li>Tap a planet to open its opinions. The darkest spike is the most common view, lighter spikes are smaller views, and a dashed face has no perspective. Tap a face to read its core arguments and posts.</li>
               <li>Use <strong>Filter topics</strong> to open a newspaper section — World, Politics, Business, Technology, Sports, and the rest. All topics stays the week&rsquo;s largest planets.</li>
             </ol>
           </section>

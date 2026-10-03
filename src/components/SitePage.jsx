@@ -27,11 +27,11 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What does the longest spike mean?',
-    a: 'The loudest opinion on that planet — the majority of the posts we kept for that topic. The spike keeps the planet&apos;s color at full strength. Loudest is not truest. Shorter, more transparent spikes are real minority views.',
+    a: 'The most common opinion on that planet — the largest share of the posts we kept for that topic. That spike is the longest and the darkest shade of the planet color. A smaller view is shorter and lighter. A dashed face has no perspective. Loudest is not truest.',
   },
   {
     q: 'Why only ten planets?',
-    a: 'So the solar system stays readable. The ten largest topics after noise is dropped. Posts that fit no planet are left out of the percentages.',
+    a: 'So the solar system stays readable. The job keeps the largest tight groups and stops at ten. It does not invent planets to fill the orbits. Posts that fit no planet are left out of the percentages.',
   },
   {
     q: 'How often does it update?',
@@ -112,11 +112,11 @@ function VisionPage({ onOpenPage }) {
         </article>
         <article className="vision-point">
           <strong>Public opinion</strong>
-          <p>The views that showed up, loud and quiet. The longest, most solid spike is the majority. It is not a verdict on who is right.</p>
+          <p>The views that showed up, common and rare. The longest, darkest spike is the most common. It is not a verdict on who is right.</p>
         </article>
         <article className="vision-point">
           <strong>Multiple perspectives</strong>
-          <p>Most topics are not two-sided. A planet holds two to six real takes. Yours might be the long face, a short one, or missing.</p>
+          <p>Most topics are not two-sided. A planet holds one to six real takes. Yours might be the long face, a short one, or missing. A dashed face has no perspective.</p>
         </article>
       </div>
 
@@ -194,9 +194,10 @@ function AboutPage({ data, onOpenPage }) {
         <h2>What you are looking at</h2>
         <p>
           The largest topic sits in the center as the sun. The next nine orbit around it.
-          Open a planet and it becomes a cube with two to six spikes — one per real
-          perspective. The longest, most solid spike is the loudest opinion, in that
-          planet&apos;s color. Quieter views fade.
+          Open a planet and it becomes a cube. Each real perspective is a spike in
+          that planet&apos;s color: darkest for the most common view, the planet color
+          for a middle view, and lighter for a smaller one. A dashed face has no
+          perspective.
         </p>
       </section>
       <section>
@@ -220,7 +221,7 @@ function AboutPage({ data, onOpenPage }) {
         <ol className="page-list is-numbered">
           <li>Drag, pinch, or tilt. Planets keep turning so every side comes into view.</li>
           <li>Bigger planet = more talk this week, not more importance.</li>
-          <li>Tap a planet, then a spike. The longest, most solid one is the majority — loudest, not truest.</li>
+          <li>Tap a planet, then a spike. The longest, darkest one is the most common view — loudest, not truest. A dashed face has no perspective.</li>
         </ol>
         <div className="text-links">
           <button type="button" className="text-link" onClick={() => onOpenPage('vision')}>
@@ -300,8 +301,8 @@ function MethodologyPage() {
   return (
     <>
       <p className="lede">
-        One daily job reads a week of public posts, finds ten topics and a few opinions
-        each, and writes a file. The site is that file, drawn as a solar system.
+        One daily job reads a week of public posts, finds up to ten topics and the
+        opinions that differ, and writes a file. The site is that file, drawn as a solar system.
       </p>
 
       <section>
@@ -370,7 +371,7 @@ function DonatePage() {
         <h2>What support is for</h2>
         <ul className="page-list">
           <li>Keep the civic homepage query-free and ad-free.</li>
-          <li>Thicken the snapshot: more example posts, better labels, a larger sample.</li>
+          <li>Thicken what a face can show: more example posts, clearer labels, a longer archive.</li>
           <li>Time to explain the method in public, not hide it in a dashboard.</li>
         </ul>
       </section>

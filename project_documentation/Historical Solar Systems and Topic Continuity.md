@@ -13,7 +13,7 @@ Four product questions get bundled as "trending" and they do not share an archit
 | **A. Time-travel the solar system** | "Show me last Tuesday." | One `data.json` per day | Almost nothing. Fetch the file. Planet *ids* will not mean the same thing as today. |
 | **B. Topic trajectory** | "Has Housing grown since August?" | A **stable identity** across days, plus a volume per day | Matching (or incremental clustering). Names will not do it. |
 | **C. Birth / death / rank change** | "What became a planet this week?" | Identity plus the top-10 cutoff | Matching, plus an honest rule for "fell out of the solar system" vs "the conversation ended." |
-| **D. Face drift** | "Did the gold face on AI flip from optimism to safety?" | Identity at **planet and face** grain | Harder matching. LLM titles drift more than cluster geometry. |
+| **D. Face drift** | "Did the majority face on AI flip from optimism to safety?" | Identity at **planet and face** grain | Harder matching. LLM titles drift more than cluster geometry. |
 
 "Trending" in the Google Trends sense is closest to **B + C with a velocity**, not A. A date picker on the solar system is A, and A is the cheap one.
 
@@ -23,16 +23,16 @@ Do not build B by stuffing solar systems into Postgres and hoping `WHERE name = 
 
 Ground this in the code that ships, not the canvas.
 
-- The daily job writes **one** `public/data.json` and **overwrites** it. `.github/workflows/pipeline.yml` commits that file onto `data-snapshot`. Pages overlays it at build time. Git history of that branch is a crude archive of whole files, not a product.
+- The daily job writes **one** `data.json` onto `data-snapshot` and overwrites that branch's file. Pages overlays it at build time. Git history of that branch is a crude archive of whole files, not a product.
 - Actions **artifacts** keep `data.json` for **14 days**. After that the runner copy is gone.
-- Runner SQLite (`pipeline/data/posts.db`) is ephemeral. Membership dies with the job. See [Planet Engagement](Planet%20Engagement%20Architecture.md) for the table of what survives.
-- `topics.id` is **1–10 in descending volume for that snapshot**. Pipeline README: *stable inside the file and recomputed on the next run.* Today's Sun is "largest cluster today," not "the same neighborhood as yesterday's Sun."
-- Live planet **names** are not BERTopic's pretty labels and not an LLM title. `assemble.topic_name` joins the top three salient terms (`Housing Rent Crisis`). BERTopic, when used, only supplies those terms via `get_topic`. Faces get the LLM (or heuristic) titles.
-- Clustering is **independent every day**. Default is lexical TF-IDF + k-means (`cluster_backend: lexical`). BERTopic is optional and is not what CI or the scheduled job installs. Either way, `fit_transform` starts from scratch. Topic numbers from the model are remapped to 0…9 by size, then `+ 1` for the JSON.
-- The window is **168 hours, overlapping**. Consecutive days share six calendar days of *search window*, then independently subsample (`sample_size` default 200). Post-URI overlap between Tuesday's sample and Wednesday's sample can be tiny even when the weeks look similar.
+- The retained window is `live_corpus.db` (private R2 when configured, otherwise `data-snapshot`). It is the current 168 hours, not a dated archive. Membership for the latest run is in that file. See [Planet Engagement](Planet%20Engagement%20Architecture.md) for what the public snapshot still omits.
+- `topics.id` is **rank order inside that snapshot** (distinct authors, then size, at most 10). Today's Sun is "largest group today," not "the same neighborhood as yesterday's Sun."
+- Planet **names** come from the labeler (DeepInfra or Ollama) when a key is present. The fallback, `assemble.topic_name`, joins the top three salient terms. Faces get the same labeler, or a sentence from a shown post.
+- Clustering is **independent every day**. The scheduled job uses local MiniLM embeddings. Pytest uses TF-IDF. BERTopic is optional and is not what the daily workflow installs. Each run fits from scratch.
+- The window is **168 hours, rolling**. A later day drops posts older than the window and searches the newest day. The target is 10,000 filtered claims, not an independent 200-post draw.
 - Representative posts in the snapshot have `author`, `text`, `likes`. **URIs are not in `data.json`.** Matching on "the same posts" is impossible from the published file alone.
 
-So: we already throw away the two things a serious time series wants — the sample, and a stable key.
+So: the window is kept, and a stable key across days is not.
 
 ## Why names will not line up
 
@@ -168,8 +168,8 @@ Ranked by how much they need from today's pipeline vs Horizon B.
 1. **Top terms (already in the solar system).** Jaccard or overlap of the 3–15 salient terms. Cheap, language-native, fails on paraphrase (`ai` vs `copilot`). Use as one signal, never the only one.
 2. **Category.** Already precomputed. A weak prior (two Politics planets should still compete with each other, not with Sports).
 3. **Representative-post text.** Embed the 12 posts per face (or concatenate and embed the planet). Cosine similarity of planet centroids. Works from `data.json` alone. Quality tracks how representative those posts are. The demo solar system has 3 posts/face; live cap is 12.
-4. **Member-set overlap (gold when you have it).** Jaccard of post URIs (or of `clean_text` hashes) between yesterday's cluster and today's. Requires Grade 1 retention of membership, which `data.json` does not have. The 7-day window helps *if the same posts are resampled*; the independent 200-post subsample works against it. Raise `sample_size` and persist URIs before betting on this.
-5. **Centroid of the full cluster.** TF-IDF or MiniLM mean of all members, not just reps. Best geometry, needs the sample that currently dies on the runner. Persist a 384-d vector per planet (tiny) even if you delete the posts.
+4. **Member-set overlap (best when you have it).** Jaccard of post URIs (or of `clean_text` hashes) between yesterday's cluster and today's. `data.json` does not carry URIs. The current window does, in `live_corpus.db`, but that file is not a dated archive. Persist URIs across days before betting on overlap.
+5. **Centroid of the full cluster.** MiniLM mean of all members, not just reps. Best geometry. The members live in `live_corpus.db` for the current window and are not copied into `data.json`. Persist a 384-d vector per planet (tiny) even if you later drop the posts.
 6. **LLM judge.** "Are these the same conversation?" Last resort, 10×10 = 100 cheap calls/day if you score every pair; or ~10 calls if you only judge Hungarian leftovers. Drift, cost, and non-determinism. Use to *label* a match (`continues` vs `related`), not to invent the graph.
 
 A practical scoring function for v1 matching, still $0:
@@ -216,7 +216,7 @@ continues | splits_into | merges_from | appears | disappears | rank_only
 
 Match **planets first**, then run the same algorithm *inside* a matched pair (2–6 × 2–6). Face titles from the LLM will thrash; use representative-post embeddings. Gold (majority) can move from face A to face C — that is a product moment, not a bug. If the planet match is wrong, face matches are fiction, so never face-match across unmatched planets.
 
-A majority-flip detector: same `canonical_id`, argmax(face volume) changed, and the new gold matches yesterday's non-gold face above τ. Worth a sidebar sentence. Not worth a new database.
+A majority-flip detector: same `canonical_id`, argmax(face volume) changed, and the new majority matches yesterday's smaller face above τ. Worth a sidebar sentence. Not worth a new database.
 
 ### What not to do for identity
 
@@ -239,7 +239,7 @@ If match quality on independent solar systems is poor (you will know after a mon
 
 This preserves identity by construction for the posts that stayed near a centroid. It biases against "the week changed shape." Put it behind a config flag. Compare both methods on the same dated archive before picking one for `/`.
 
-BERTopic-specific tools (`merge_models`, `reduce_topics`, online HDBSCAN) are the same idea on the embedding path. They are unavailable on the GitHub Actions lexical job unless we change the runner. Measure lexical matching first; the default clusterer is lexical.
+BERTopic-specific tools (`merge_models`, `reduce_topics`, online HDBSCAN) are the same idea. They are not installed on the daily job. That job already embeds with MiniLM, so a matcher can reuse those vectors.
 
 ---
 
@@ -356,7 +356,7 @@ History is cheap next to Horizon A tokens and Horizon B ingest. The expensive mi
 
 ## What we will not do (on the free public solar system)
 
-- Promise Google-Trends-style "what's hot" from a 200-post overlapping week without a flow measure.
+- Promise Google-Trends-style "what's hot" from a rolling 168-hour window without a flow measure.
 - Key time series on planet names, face titles, or rank ids.
 - Put the civic homepage on a standing taxonomy so the lines look clean.
 - Stand up Postgres only to serve files we could have written to `public/snapshots/`.

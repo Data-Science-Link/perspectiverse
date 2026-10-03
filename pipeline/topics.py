@@ -17,6 +17,10 @@ from pipeline.cluster_math import cluster_kmeans, salient_terms, vectorize
 _MEMBER_COSINE = 0.50
 # Fragments of one subject land above this. Different subjects do not.
 _MERGE_COSINE = 0.72
+# A group whose members only barely clear the peel is a mood, not a subject.
+# Specific conversations in a live week sit above this; a political grab bag does not.
+_MIN_MEAN_COSINE = 0.60
+_AUTHOR_CAP = 3
 
 
 def cluster_texts(
@@ -28,14 +32,17 @@ def cluster_texts(
     seed: int = 0,
     catalog_size: int = SYSTEM_SIZE,
     embed=None,
+    authors: list[str] | None = None,
+    author_cap: int = _AUTHOR_CAP,
 ) -> dict:
     """Return kept topics and per-post assignments (-1 is noise)."""
+    matrix = None
     if cluster_backend == "bertopic":
         raw_labels, term_lookup = _bertopic_labels(texts, min_cluster_size, embedding_model)
     elif cluster_backend == "lexical":
         raw_labels, term_lookup = _lexical_labels(texts, min_cluster_size, seed)
     elif cluster_backend == "embedding":
-        raw_labels, term_lookup = _embedding_labels(
+        raw_labels, term_lookup, matrix = _embedding_labels(
             texts,
             seed=seed,
             embed=embed,
@@ -44,8 +51,20 @@ def cluster_texts(
         )
     else:
         raise ValueError(f"Unknown cluster_backend {cluster_backend}")
-    # A planet still needs enough posts to grow two faces. catalog_size caps the count.
-    return _keep_top(texts, raw_labels, term_lookup, max(min_cluster_size, 6), keep=catalog_size)
+    if authors is not None:
+        raw_labels = _cap_author_posts(raw_labels, authors, author_cap)
+    # catalog_size caps the count. Fewer groups is allowed.
+    kept = _keep_top(
+        texts,
+        raw_labels,
+        term_lookup,
+        max(min_cluster_size, 6),
+        keep=catalog_size,
+        authors=authors,
+    )
+    if matrix is not None:
+        kept["matrix"] = matrix
+    return kept
 
 
 def _lexical_labels(texts: list[str], min_cluster_size: int, seed: int) -> tuple[list[int], dict[int, list[str]]]:
@@ -65,14 +84,14 @@ def _embedding_labels(
     embed,
     embedding_model: str,
     min_cluster_size: int,
-) -> tuple[list[int], dict[int, list[str]]]:
+):
     if embed is None:
         from pipeline.embed import embed_minilm
 
         embed = lambda batch: embed_minilm(batch, model_name=embedding_model)  # noqa: E731
     matrix = _l2_normalize(embed(texts))
     labels = _labels_by_cohesion(matrix, seed=seed, min_cluster_size=min_cluster_size)
-    return labels, {}
+    return labels, {}, matrix
 
 
 def _l2_normalize(matrix) -> "np.ndarray":
@@ -109,6 +128,7 @@ def _labels_by_cohesion(matrix, *, seed: int, min_cluster_size: int) -> list[int
     _peel_loose(matrix, labels)
     _merge_near_centroids(matrix, labels)
     _peel_loose(matrix, labels)
+    _drop_wide_groups(matrix, labels)
     return [int(label) for label in labels]
 
 
@@ -201,12 +221,46 @@ def _bertopic_labels(
     return [int(label) for label in labels], terms
 
 
+def _cap_author_posts(labels: list[int], authors: list[str], cap: int) -> list[int]:
+    """Leave extra posts from the same author out of a group. They become noise."""
+    limit = max(int(cap), 1)
+    counts: dict[tuple[int, str], int] = {}
+    capped: list[int] = []
+    for label, author in zip(labels, authors):
+        if label < 0:
+            capped.append(label)
+            continue
+        key = (int(label), author or "unknown")
+        counts[key] = counts.get(key, 0) + 1
+        capped.append(-1 if counts[key] > limit else int(label))
+    return capped
+
+
+def _drop_wide_groups(matrix, labels, minimum: float = _MIN_MEAN_COSINE) -> None:
+    """Drop a group whose members are not close to their centroid, on average."""
+    import numpy as np
+
+    for label in sorted({int(item) for item in labels if int(item) >= 0}):
+        members = np.flatnonzero(labels == label)
+        if members.size == 0:
+            continue
+        center = matrix[members].mean(axis=0)
+        norm = float(np.linalg.norm(center))
+        if norm == 0.0:
+            labels[members] = -1
+            continue
+        cosine = matrix[members] @ (center / norm)
+        if float(cosine.mean()) < minimum:
+            labels[members] = -1
+
+
 def _keep_top(
     texts: list[str],
     raw_labels: list[int],
     term_lookup: dict[int, list[str]],
     min_cluster_size: int,
     keep: int = SYSTEM_SIZE,
+    authors: list[str] | None = None,
 ) -> dict:
     labels = [int(label) for label in raw_labels]
     if len(texts) < min_cluster_size:
@@ -214,7 +268,7 @@ def _keep_top(
             f"Need at least {min_cluster_size} posts to form a planet, found {len(texts)} posts."
         )
 
-    ranked = _ranked_clusters(labels)
+    ranked = _ranked_clusters(labels, authors)
     survivors = [(label, members) for label, members in ranked if len(members) >= min_cluster_size]
     if not survivors:
         raise RuntimeError(
@@ -240,13 +294,22 @@ def _keep_top(
     return {"assignments": assignments, "topics": topics, "noise_count": noise_count}
 
 
-def _ranked_clusters(labels: list[int]) -> list[tuple[int, list[int]]]:
+def _ranked_clusters(
+    labels: list[int],
+    authors: list[str] | None = None,
+) -> list[tuple[int, list[int]]]:
     buckets: dict[int, list[int]] = {}
     for index, label in enumerate(labels):
         if label < 0:
             continue
         buckets.setdefault(label, []).append(index)
     ranked = list(buckets.items())
-    ranked.sort(key=lambda item: (-len(item[1]), item[0]))
+
+    def sort_key(item: tuple[int, list[int]]) -> tuple:
+        label, members = item
+        voices = len({authors[index] for index in members}) if authors else 0
+        return (-voices, -len(members), label)
+
+    ranked.sort(key=sort_key)
     return ranked
 

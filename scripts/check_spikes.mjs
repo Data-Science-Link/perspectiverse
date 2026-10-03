@@ -54,10 +54,13 @@ const crystal = buildCrystal(
   { quality: 'high', pigment: '#f4c14e' },
 )
 assert.equal(crystal.faces.length, 6)
+assert.equal(crystal.empty.length, 0)
 assert.ok(crystal.core)
 assert.ok(crystal.faces.every((face) => face.sides === 4))
-assert.ok(crystal.faces.every((face) => face.color === '#f4c14e'))
-assert.ok(crystal.faces[0].opacity > crystal.faces[5].opacity)
+assert.ok(crystal.faces.every((face) => face.opacity === 1))
+assert.notEqual(crystal.faces[0].color, crystal.faces[5].color)
+assert.ok(crystal.faces[0].color !== '#f4c14e')
+assert.ok(crystal.faces[2].color !== crystal.faces[0].color)
 for (const face of crystal.faces) {
   assert.ok(face.extrusion.getAttribute('position').count > 16)
   assert.ok(face.extrusion.getIndex().count > 24)
@@ -73,7 +76,10 @@ const four = buildCrystal(
   { quality: 'low', pigment: '#4aa3e6' },
 )
 assert.equal(four.faces.length, 4)
+assert.equal(four.empty.length, 2)
+assert.ok(four.empty.every((face) => face.fill.getAttribute('position') && face.dashes.getAttribute('position').count >= 8))
 assert.ok(four.faces.every((face) => face.sides === 4))
+assert.ok(four.faces.every((face) => face.opacity === 1))
 
 crystal.core.dispose()
 crystal.faces.forEach((face) => {
@@ -81,6 +87,10 @@ crystal.faces.forEach((face) => {
   face.pick.dispose()
 })
 four.core.dispose()
+four.empty.forEach((face) => {
+  face.fill.dispose()
+  face.dashes.dispose()
+})
 four.faces.forEach((face) => {
   face.extrusion.dispose()
   face.pick.dispose()

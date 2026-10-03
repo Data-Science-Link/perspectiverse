@@ -69,7 +69,7 @@ If you need to know that a customer just complained on Bluesky, use a monitor. I
 **How Perspectiverse differs.**
 
 - **Query-shaped vs week-shaped.** Listening tools are excellent at "everything about Brand X." They are structurally bad at "what mattered this week if I do not name a brand." If housing costs dominate the sample and your query was "AI regulation," housing never appears. Perspectiverse inverts that: unsupervised clustering, then keep the ten largest remaining neighborhoods. Topic -1 (noise) is dropped from the percentages on purpose.
-- **Sentiment line vs six faces.** Listening sentiment is usually positive / negative / neutral, sometimes with emotion tags. That is the binary the architecture canvas is written against. A planet here must show six perspectives. "Financial," "ethical," and "skeptical" can coexist on one cube. A 50% spike is visible as geometry, not a footnote under a pie chart.
+- **Sentiment line vs several faces.** Listening sentiment is usually positive / negative / neutral, sometimes with emotion tags. That is the binary this observatory is written against. A planet shows the stances that differ, from one face to six. A long dark spike is visible as geometry, not a footnote under a pie chart.
 - **Analyst UI vs public observatory.** Listening UIs assume a trained user who will build queries, save dashboards, and export CSVs. Perspectiverse assumes a visitor who will drag the solar system, click a planet, and read posts. The 3D metaphor is the interface, not a novelty skin on a table.
 
 Listening is the category people reach for first, and it is the one this project is most often confused with. The shared ingredient is "cluster social posts and label them." The jobs are opposite: listening *narrows* to a commercial object; Perspectiverse *opens* to the week's objects.
@@ -197,7 +197,7 @@ A **time slider on this observatory** would still be cluster mass in the extract
 
 **How Perspectiverse differs.**
 
-- **Fixed civic schema vs open explorer.** 10 planets × 6 faces is a deliberate reduction. Atlas will happily show you 200 clusters at three depths. That is better for research. It is worse for a public that needs one solar system they can finish.
+- **Fixed civic schema vs open explorer.** Up to 10 planets, each with 1–6 faces, is a deliberate reduction. Atlas will happily show you 200 clusters at three depths. That is better for research. It is worse for a public that needs one solar system they can finish.
 - **Metaphor with a thesis.** An embedding plot does not argue that scale is distorted or that binary sentiment is a lie. The solar system and the spiky cube *are* those arguments. Geometry is the editorial.
 - **Hosted observatory vs BYO corpus.** You do not upload a CSV to read Perspectiverse. The daily job *is* the corpus. That makes it a place, not a lab instrument.
 - **Drill-down to posts in public language.** The sidebar is a reading room: title, sentence, then the actual posts sorted by likes. Many research UIs stop at keywords or coordinates.
@@ -240,7 +240,7 @@ Dashboards can print "12% of posts." Most readers do not feel 12%. They feel wha
 
 ### 3. Force more than two sides
 
-Binary UIs (sentiment, left/right, pro/con) are easy to ship and easy to weaponize. The cube is a constraint: the pipeline *must* cut six faces. Some will be messy. Some will be near-duplicates. The point is the refusal to stop at "people are mad." A visitor who clicks one planet is not allowed to leave with a single story about that topic.
+Binary UIs (sentiment, left/right, pro/con) are easy to ship and easy to weaponize. The cube does not invent a second opinion. One stance stays one spike, and an empty side is dashed. A second face is kept only when it is large and different. The point is the refusal to stop at "people are mad" when the posts actually disagree.
 
 Kialo can also show many sides, but only the sides someone typed into Kialo. Perspectiverse shows the sides that showed up in the wild, weighted by how many posts landed there.
 
@@ -266,9 +266,9 @@ A differentiation note that only lists wins is a brochure. These are the jobs yo
 - **Do not use it as public opinion.** Bluesky English, 7 days, sampled, outliers dropped. Demographic bias is structural.
 - **Do not use it to find the best argument.** Volume ranks faces. A rare, careful comment loses to a common one.
 - **Do not use it to detect coordination, bots, or influence operations.** No social graph.
-- **Do not use it to fact-check.** No claim layer.
+- **Do not use it to fact-check.** The pipeline keeps public claims and drops personal asides. It does not check whether a claim is true.
 - **Do not use it as a news-bias trainer.** It does not rate outlets.
-- **Do not expect real-time or full-platform coverage.** One source today, one snapshot a day, default live sample still small (200 in the example config; 10k is the commented production target).
+- **Do not expect real-time or full-platform coverage.** One source today, one snapshot a day, up to 10,000 filtered claims from the last 168 hours.
 - **Do not treat the six labels as complete.** The LLM sees representative posts, not every post. Minority views inside a face disappear into one sentence. That is documented in the architecture canvas as "margin flattening."
 
 ## A short chooser
@@ -289,7 +289,7 @@ A differentiation note that only lists wins is a brochure. These are the jobs yo
 
 Industry definitions of monitoring vs listening vs brand vs media monitoring are consistent across vendor explainers from [Brand24](https://brand24.com/blog/social-listening-vs-social-monitoring/), [Onclusive](https://onclusive.com/resources/blog/social-media-monitoring-vs-social-listening/), [Hootsuite](https://blog.hootsuite.com/social-media-monitoring-tools/), [Sprinklr](https://www.sprinklr.com/blog/social-media-monitoring/), and [Fullintel](https://fullintel.com/blog/what-is-brand-monitoring-and-why-its-critical-for-modern-brands/). Enterprise splits (volume / audience / risk) follow 2026 buyer guides such as [Pulsar's](https://www.pulsarplatform.com/compare/best-social-media-intelligence-tools-2026). Narrative-intelligence positioning is from [Graphika](https://www.graphika.com/how-it-works) and [Primer](https://www.primer.ai/solutions/narrative-monitoring-and-analysis). Civic tools: [Pol.is](https://pol.is/home), the [Polis methods paper](https://www.e-revistes.uji.es/index.php/recerca/article/view/5516/6558), [Consider.it](https://eu.consider.it/tour), [Kialo](https://en.wikipedia.org/wiki/Kialo), [DebateGraph](https://debategraph.org/). News literacy: [Ground News](https://ground.news/about), [AllSides methods](https://www.allsides.com/about/media-bias-rating-methods). Research corpora and maps: [GDELT](https://gdeltproject.org/), [Nomic Atlas](https://docs.nomic.ai/atlas/datasets/data-maps), [InfraNodus](https://infranodus.com/), [Communalytic](https://communalytic.org/).
 
-Product behavior described here matches this repo: 7-day window, 10 planets, 2–6 faces, static `public/data.json`, Bluesky extract, and the honesty copy in `src/components/Sidebar.jsx`. See also [Project Architecture: Discourse Universe](Project%20Architecture_%20Discourse%20Universe.md), [Planet Engagement Architecture](Planet%20Engagement%20Architecture.md), and [ROADMAP.md](../ROADMAP.md).
+Product behavior described here matches this repo: a 7-day window of up to 10,000 filtered claims, up to 10 planets, 1–6 faces, static `data.json`, a Bluesky extract, and the honesty copy in `src/components/Sidebar.jsx`. See also [pipeline/README.md](../pipeline/README.md) and [ROADMAP.md](../ROADMAP.md).
 
 ## 16. A future query-shaped surface is not this page
 

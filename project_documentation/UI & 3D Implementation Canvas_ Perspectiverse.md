@@ -11,9 +11,9 @@
 * **The Labels:** Floating 3D text (or screen-space HTML) sits slightly above each planet, showing only the 2-word topic name (e.g., "AI Regulation").  
 * **The Opening Camera:** The first view is pulled back so the full ten-planet solar system fits on screen (desktop and mobile). Users can still pinch or scroll to zoom.  
 * **The Geometry (The Spiky Cubes):**  
-  * A standard cube has flat faces. We will modify this so each of the 6 faces acts like the base of a 4-sided pyramid.  
-  * The height (extrusion) of that pyramid's peak is driven directly by the percentage of conversation volume for that perspective.  
-  * *Result:* A perspective with 50% volume creates a massive spike on one side, while the remaining 5 perspectives (10% each) have tiny bumps.
+  * The crystal is always a cube. Occupied faces grow a pencil spike. Empty faces stay the planet color with darker dashes.  
+  * Spike length is that view's share of the planet. Color is a shade of the planet color: darkest for the most common view, the planet color in the middle, lighter for a smaller view. Spikes are opaque.  
+  * A planet can have one spike. It is not forced to six.
 
 ### **The Analytical Sidebar (Right 1/3)**
 
@@ -21,7 +21,7 @@
 * **Topic Selected State (Clicking a Planet):**  
   * The 3D camera smoothly flies to and locks onto the selected planet.  
   * The sidebar updates: Shows an isolated, spinning render of the spiky cube at the top.  
-  * Below it: A list of the 6 perspectives with their full titles, 1-sentence summaries, and a horizontal bar chart showing their volume %.  
+  * Below it: the perspectives that exist, with titles, one-sentence summaries, and a bar for volume. Swatches use the same shade as the spike.  
 * **Perspective Selected State (Clicking a Bar Chart / Face):**  
   * The sidebar drills down further.  
   * It displays the specific perspective details.  

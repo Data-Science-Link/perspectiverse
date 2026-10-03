@@ -1,5 +1,7 @@
 # Handoff: DeepInfra labels + Bluesky app login
 
+Historical handoff from 2026-09-29. Current setup is in the root [README](../README.md) and [pipeline/README.md](../pipeline/README.md). The prompt below is kept so the original steps stay readable.
+
 **Status (2026-09-29):** Code wiring landed on `cursor/bluesky-deepinfra-b667`. `api.deepinfra.com` is allow-listed, `OPENAI_BASE_URL` is forwarded in `pipeline.yml`, `atproto` is installed on the daily job, and `--relabel` rebuilds names from `live_corpus.db` without Bluesky. Secrets were **not** present in that agent run, so the 1,000-post snapshot is still heuristic. Human steps below are still required.
 
 Copy the prompt in the next section into a **new cloud-agent run** only if you still need someone to *use* the secrets after they exist (live fetch + DeepInfra relabel of the saved 1,000). Do not redo the allow-list / workflow work.

@@ -2,11 +2,11 @@
 
 Live mapping the universe of human attention and perspectives.
 
-Perspectiverse turns a week of public conversation into a 3D solar system so you do not live in an echo chamber. Tilt the solar system to see **every** perspective, then check where yours stacks up. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Planet size is share of public attention — whether the general public was talking about that topic. Planets wear solar-system skins. Open one and the sphere dissolves into a **crystal of two to six faces** — one per real perspective, never more than a cube. Face length is that view's share of the conversation. Gold is the majority (loudest) view; shorter faces are minority opinions. Colors always run gold → ember → azure → violet → jade → rose, loudest first.
+Perspectiverse turns a week of public conversation into a 3D solar system so you do not live in an echo chamber. Tilt the solar system to see **every** perspective, then check where yours stacks up. The largest topic sits at the origin as the sun. The next nine topics orbit by volume. Planet size is share of public attention — whether the general public was talking about that topic. Planets wear solar-system skins. Open one and the sphere dissolves into a **cube of one to six spikes** — one per real perspective. Spike length is that view's share of the conversation. The most common view is the longest spike and the darkest shade of the planet color. Smaller views are lighter. A dashed face has no perspective.
 
 The analytical sidebar reacts to the solar system. Filter by category with the **Solar System** dropdown, select a planet to turn its cube, then select a face to read the representative posts. A first-visit welcome explains the metaphor; the menu can reopen it.
 
-This is not social listening, brand monitoring, or a poll. Those tools start from a query, a named entity, or a survey instrument. Perspectiverse starts from a week of public posts and keeps the ten largest topics, each cut into two to six perspectives. [Similar Products and Differentiation](project_documentation/Similar%20Products%20and%20Differentiation.md) maps the neighboring categories — monitoring, listening, civic deliberation, news-literacy, researcher topic maps — and says what this observatory adds.
+This is not social listening, brand monitoring, or a poll. Those tools start from a query, a named entity, or a survey instrument. Perspectiverse starts from a week of public posts and keeps up to ten of the largest topics, each cut into one to six perspectives. [Similar Products and Differentiation](project_documentation/Similar%20Products%20and%20Differentiation.md) maps the neighboring categories — monitoring, listening, civic deliberation, news-literacy, researcher topic maps — and says what this observatory adds.
 
 On a phone the solar system stays up front: tagline, a short prompt, and a rail of planets. Opening a planet jumps to a tight topic page (summary + its perspectives). Opening a perspective turns that face toward you and shows representative posts, always from the top, with a back arrow and the browser back button wired to the same stack. The hamburger opens Vision, About, the author, connect (GitHub and LinkedIn), methodology (with connection diagrams), FAQ, and donate, plus filters and feedback.
 
@@ -14,14 +14,14 @@ Bodies keep solar-system skins in volume order: the largest topic is the Sun, th
 
 ## Current status
 
-The observatory now ships a **live** `public/data.json` built from a retained window of **1,000 non-spam English Bluesky posts**. The public fetch is a neutral 7-day sample, not a sports or AI keyword quota. Each later day drops posts older than seven days and searches only today. Planet names, face titles, and perspective steelmans are generated (LLM when a key is present, heuristic otherwise). The dropdown is a newspaper: World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, and Other.
+The observatory ships a **live** `public/data.json`. The daily job holds a rolling window of up to **10,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check**. Non-claims stay stored and do not count. The public fetch is a neutral 7-day sample, not a sports or AI keyword quota. Each later day drops posts older than seven days and searches only today. Planet names, face titles, and perspective steelmans are generated (LLM when a key is present, heuristic otherwise). The dropdown is a newspaper: World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, and Other.
 
 | Layer | State |
 | --- | --- |
-| Live universe (`public/data.json`, `mode: live`) | First 1,000-post corpus |
-| Retained SQLite (`pipeline/data/live_corpus.db`) | Rolling 7 days; a fetched UTC day is not searched again. Daily job uses private R2 when the `R2_*` secrets are set |
+| Live universe (`public/data.json`, `mode: live`) | Published snapshot; the job target is 10,000 filtered claims |
+| Retained SQLite (`pipeline/data/live_corpus.db`) | Rolling 7 days; a fetched UTC day is not searched again. Daily job uses private R2 object `live_corpus.db` when the `R2_*` secrets are set. `R2_OBJECT_KEY` can point a preview at a second object |
 | Spam filter | Regex, then Jev when `TYPESAFE_API_KEY` is set |
-| Live pipeline (`--live`) | Default command; lexical clustering on CI |
+| Live pipeline (`--live`) | Default command. Daily job embeds with MiniLM; pytest stays lexical |
 | React + R3F observatory | Newspaper-section filters; All topics stays unsupervised |
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
 | Daily refresh | `.github/workflows/pipeline.yml` — publishes even if Bluesky 403s |
@@ -69,7 +69,7 @@ python -m pipeline.run_pipeline --live
 python -m pipeline.run_pipeline --demo
 ```
 
-`--live` is the default. It refreshes `pipeline/data/live_corpus.db` (about 1,000 quality posts), clusters 10 planets, labels planets and faces, synthesizes core arguments, and overwrites `public/data.json`. `--demo` still writes the old synthetic 10-category universe.
+`--live` is the default. It refreshes `pipeline/data/live_corpus.db` toward 10,000 filtered claims, clusters up to 10 planets, labels planets and faces, synthesizes core arguments, and overwrites `public/data.json`. `--demo` still writes the old synthetic 10-category universe. The file committed on `main` stays the last published snapshot until the daily job writes a new one on `data-snapshot`.
 
 Copy `.env.example` to `.env` for secrets. Do not commit `.env`.
 
@@ -85,9 +85,9 @@ OPENAI_MODEL=meta-llama/Llama-3.3-70B-Instruct-Turbo
 
 Same three names as GitHub Actions secrets. About 50 short JSON calls per snapshot (~$0.01, cents/month on the daily job).
 
-**Sections and spam (Jev).** Jev is a decision model, not a writer. When `TYPESAFE_API_KEY` is set, each new post gets a spam probability and one newspaper section. High-confidence spam is dropped. Planet names still come from DeepInfra. With no key, the regex and the keyword section map run and the job still publishes. Add the key as an Actions secret too. `JEV_MODEL` is optional (`jev-latest` if unset).
+**Sections, spam, and claims (Jev).** Jev is a decision model, not a writer. When `TYPESAFE_API_KEY` is set, each new post gets a spam score (drop at 0.8), a public-claim score (keep at 0.5), and one newspaper section. Non-claims stay in SQLite and do not fill the 10,000 or join a planet. Planet names still come from DeepInfra. With no key, a live Bluesky run stops instead of clustering unlabeled posts. `--fixture` and `--relabel` of an unlabeled file still run. Add the key as an Actions secret. `JEV_MODEL` is optional (`jev-latest` if unset).
 
-Relabel the saved 1,000 without refetching Bluesky:
+Relabel the retained corpus without refetching Bluesky:
 
 ```bash
 python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
@@ -141,6 +141,18 @@ Automated scanning still runs on every push and pull request, weekly on Mondays,
 ```
 
 Pytest runs in `.github/workflows/pytest.yml` without downloading the embedding model. The lexical clusterer is what CI executes.
+
+## Stack
+
+| Piece | What runs |
+| --- | --- |
+| Observatory | Vite, React 18, React Three Fiber, Three.js. Tailwind is loaded; the layout lives in `src/index.css` |
+| Daily cluster | Python 3.10+, uv, local MiniLM through fastembed (ONNX, no torch). `catalog_size` 10 is a ceiling |
+| Tests | Pytest on TF-IDF + k-means. No model download |
+| Labels | Ollama, else an OpenAI-compatible API (DeepInfra), else a sentence from a shown post |
+| Decisions | Jev for spam, public-claim, and newspaper section |
+| Window | SQLite `live_corpus.db`, private Cloudflare R2 when the `R2_*` secrets are set |
+| Site | GitHub Actions writes `data.json` on `data-snapshot`. GitHub Pages overlays that file |
 
 ## Project structure
 

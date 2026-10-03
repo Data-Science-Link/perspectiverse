@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { categoryCounts } from '../lib/categories'
 import { SITE_TAGLINE } from '../lib/copy'
-import { faceOpacity, hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
+import { faceShade, hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import MiniCube from './MiniCube'
 import TopicFilter from './TopicFilter'
@@ -56,8 +56,8 @@ function WelcomePanel({
         />
         <p className="mobile-prompt">
           Drag the solar system to look around. Bigger planets are what more people talked
-          about this week. Tap one to open its opinions — the longest, most solid
-          spike is the majority view.
+          about this week. Tap one to open its opinions — the longest, darkest
+          spike is the most common view.
         </p>
         <div className="planet-rail" aria-label="Today's planets">
           {topics.map((topic) => (
@@ -91,8 +91,8 @@ function WelcomePanel({
       )}
       <p className="lede">
         A week of public conversation as a solar system. Bigger planets got more
-        attention. Open one to see the main opinions — the longest, most solid
-        spike is the majority view, shorter faces are minority views. That is
+        attention. Open one to see the main opinions — the longest, darkest
+        spike is the most common view, and lighter faces are smaller views. That is
         where yours stacks up.
       </p>
       <div className="stat-grid">
@@ -172,9 +172,9 @@ function TopicPanel({
       <p className="lede">
         This planet is {formatPercent(topic.total_volume_percent)} of the attention
         among the planets in view — those shares always add up to 100%. That is
-        attention, not importance. Each spike below is a real opinion. Length and
-        solidity show how many posts sat there. The longest, most solid spike is
-        the majority.
+        attention, not importance. Each spike below is a real opinion. Length shows
+        how many posts sat there, and a darker shade is the more common view. A
+        dashed face has no perspective.
       </p>
       <MiniCube
         topic={topic}
@@ -184,7 +184,7 @@ function TopicPanel({
       <div className="perspective-list">
         <h2>Opinions</h2>
         {ranked.map((perspective) => {
-          const tint = hexToRgba(color, faceOpacity(perspective.volume_percent, ranked[0]?.volume_percent))
+          const tint = faceShade(color, ranked.indexOf(perspective), ranked.length)
           return (
             <button
               key={perspective.id}
@@ -220,10 +220,7 @@ function PerspectivePanel({
 }) {
   const planetColor = topicColor(topic.id, topic.body)
   const ranked = rankPerspectives(topic.perspectives)
-  const color = hexToRgba(
-    planetColor,
-    faceOpacity(perspective.volume_percent, ranked[0]?.volume_percent),
-  )
+  const color = faceShade(planetColor, ranked.findIndex((item) => item.id === perspective.id), ranked.length)
   const posts = sortPosts(perspective.representative_posts)
   const argumentsList = (perspective.arguments ?? []).filter((item) => String(item).trim())
 
@@ -255,8 +252,17 @@ function PerspectivePanel({
         className="perspective-stat"
         style={{ borderColor: hexToRgba(planetColor, 0.4), background: hexToRgba(planetColor, 0.08) }}
       >
-        <strong>{formatPercent(perspective.volume_percent)}</strong>
-        <span>of this planet&apos;s conversation — majority if this is the longest, most solid spike, minority if shorter</span>
+        {ranked.length === 1 ? (
+          <>
+            <strong>One view</strong>
+            <span>The posts kept on this planet share this claim. A second spike appears when another large view is actually different.</span>
+          </>
+        ) : (
+          <>
+            <strong>{formatPercent(perspective.volume_percent)}</strong>
+            <span>of this planet&apos;s conversation — darkest and longest if this is the most common view, lighter if fewer posts sat here</span>
+          </>
+        )}
       </div>
       <div className="post-feed">
         <h2>Example posts</h2>

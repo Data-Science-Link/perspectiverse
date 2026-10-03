@@ -1,5 +1,5 @@
 import { BufferAttribute, BufferGeometry, Vector3 } from 'three'
-import { faceOpacity, rankPerspectives } from './colors.js'
+import { faceShade, rankPerspectives } from './colors.js'
 import { cubeSpikeFaces, faceHeight, polyhedron } from './polyhedra.js'
 
 const _from = new Vector3()
@@ -107,6 +107,8 @@ export function buildPencilSpike(verts, centroid, normal, height, { rings, segsP
     }
   }
 
+  const baseIndex = positions.length / 3
+  positions.push(centroid.x, centroid.y, centroid.z)
   _apex.copy(centroid).addScaledVector(normal, height)
   const apexIndex = positions.length / 3
   positions.push(_apex.x, _apex.y, _apex.z)
@@ -127,20 +129,78 @@ export function buildPencilSpike(verts, centroid, normal, height, { rings, segsP
     const b = last + ((i + 1) % radial)
     indices.push(a, b, apexIndex)
   }
+  // Close the base so the spike is a solid, not a hollow shell you can see through.
+  for (let i = 0; i < radial; i += 1) {
+    const a = i
+    const b = (i + 1) % radial
+    indices.push(baseIndex, b, a)
+  }
 
   return geometryFromIndexed(positions, indices)
 }
 
+function buildFlatFace(vertices, loop, normal) {
+  const lifted = loop.map((vertexIndex) => vertices[vertexIndex].clone().addScaledVector(normal, 0.02))
+  const positions = []
+  const triangles = lifted.length === 4
+    ? [[0, 1, 2], [0, 2, 3]]
+    : triangulate(lifted, lifted.map((_, index) => index)).map((triangle) => (
+      triangle.map((vertex) => lifted.indexOf(vertex))
+    ))
+  for (const [a, b, c] of triangles) {
+    for (const index of [a, b, c]) {
+      const vertex = lifted[index]
+      positions.push(vertex.x, vertex.y, vertex.z)
+    }
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+function buildDashLines(vertices, loop, normal) {
+  const lifted = loop.map((vertexIndex) => vertices[vertexIndex].clone().addScaledVector(normal, 0.045))
+  const origin = lifted[0]
+  const edge = lifted[1].clone().sub(origin)
+  const across = lifted[lifted.length - 1].clone().sub(origin)
+  const positions = []
+  const rows = 3
+  const segments = [
+    [0.08, 0.42],
+    [0.58, 0.92],
+  ]
+  for (let row = 1; row <= rows; row += 1) {
+    const acrossAmount = row / (rows + 1)
+    for (const [start, end] of segments) {
+      const a = origin.clone().addScaledVector(across, acrossAmount).addScaledVector(edge, start)
+      const b = origin.clone().addScaledVector(across, acrossAmount).addScaledVector(edge, end)
+      positions.push(a.x, a.y, a.z, b.x, b.y, b.z)
+    }
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
+  return geometry
+}
+
 export function buildCrystal(perspectives, { quality = 'high', pigment = '#f4c14e' } = {}) {
   const ranked = rankPerspectives(perspectives)
-  const loudest = ranked[0]?.volume_percent ?? 0
   const solid = polyhedron(6)
   const spikeFaces = cubeSpikeFaces(ranked.length)
+  const occupied = new Set(spikeFaces)
   const detail = spikeDetail(quality)
   const coreTriangles = []
-  for (const loop of solid.faces) {
+  const empty = []
+  solid.faces.forEach((loop, faceIndex) => {
+    if (!occupied.has(faceIndex)) {
+      empty.push({
+        fill: buildFlatFace(solid.vertices, loop, solid.normals[faceIndex]),
+        dashes: buildDashLines(solid.vertices, loop, solid.normals[faceIndex]),
+      })
+      return
+    }
     coreTriangles.push(...triangulate(solid.vertices, loop))
-  }
+  })
 
   const faces = ranked.map((perspective, index) => {
     const faceIndex = spikeFaces[index]
@@ -162,9 +222,14 @@ export function buildCrystal(perspectives, { quality = 'high', pigment = '#f4c14
       ...perspective,
       index,
       sides: lifted.length,
-      color: pigment,
-      opacity: faceOpacity(perspective.volume_percent, loudest),
+      color: faceShade(pigment, index, ranked.length),
+      opacity: 1,
       direction: [normal.x, normal.y, normal.z],
+      labelAt: [
+        liftedCentroid.x + normal.x * (height + 0.16),
+        liftedCentroid.y + normal.y * (height + 0.16),
+        liftedCentroid.z + normal.z * (height + 0.16),
+      ],
       extrusion: buildPencilSpike(lifted, liftedCentroid, normal, height, detail),
       pick: geometryFromTriangles(pick),
     }
@@ -172,6 +237,7 @@ export function buildCrystal(perspectives, { quality = 'high', pigment = '#f4c14
 
   return {
     core: geometryFromTriangles(coreTriangles),
+    empty,
     faces,
   }
 }

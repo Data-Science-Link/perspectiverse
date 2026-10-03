@@ -2,19 +2,21 @@
 
 **A 3D Gravitational Visualization of Public Sentiment**
 
+The sections below are the original canvas. What ships is a daily Bluesky job, local MiniLM embeddings, up to ten planets, and one to six opaque spikes on a cube. Empty cube sides are dashed. The living description is [ROADMAP.md](../ROADMAP.md) and [pipeline/README.md](../pipeline/README.md).
+
 ## **1\. Executive Summary & Concept**
 
 **Discourse Universe** is a 3D data visualization tool that maps abstract, chaotic human discourse from social media into an intuitive, physical solar system.
 
 * **The Planets (Macro-View):** The top 10 most discussed topics are represented as planets orbiting a central sun (the \#1 most discussed topic). Planet size correlates to the volume of mentions.  
-* **The Cubes (Micro-View):** Instead of spheres, each planet is a 3D cube. The 6 faces of the cube represent the 6 dominant perspectives, themes, or sentiments driving that specific topic, summarized into human-readable labels by an LLM.
+* **The Cubes (Micro-View):** Instead of spheres, each planet is a 3D cube. One to six faces carry the perspectives that are actually different, summarized by an LLM when a key is present. A cube side with no perspective stays the planet color with dashes.
 
 ## **2\. Motivation & Societal Value**
 
 While standard sentiment dashboards (bar charts, line graphs) are built for data analysts, Discourse Universe acts as an "empathy machine" built for the general public. Social listening, brand monitoring, polling, and civic deliberation tools sit in the same neighborhood and optimize for different jobs; the landscape and the gaps are in [Similar Products and Differentiation](Similar%20Products%20and%20Differentiation.md). It solves two major issues with modern media consumption:
 
 1. **Correcting the Distortion of Scale:** Social algorithms often make fringe outrage seem like the most important issue in the world. By utilizing a gravitational physics model, users intuitively grasp scale. A manufactured culture-war asteroid is visually dwarfed by a massive gas-giant representing housing costs.  
-2. **Forcing Nuance:** By requiring every topic to be viewed through 6 distinct faces (e.g., Financial, Ethical, Skeptical), the UI forces users to confront the reality that issues are multi-dimensional, breaking binary "For vs. Against" echo chambers.
+2. **Forcing Nuance:** A planet shows the stances that are actually different, from one face to six. It does not invent a pro and a con. Empty cube sides stay dashed so a missing view is visible.
 
 ## **3\. System Architecture: The 7-Day Rolling Window**
 
@@ -30,9 +32,9 @@ The core challenge is categorizing 100,000+ posts into clean topics and labeling
 
 ### **Phase 1: Traditional NLP (The Sorter)**
 
-* **Technology:** BERTopic utilizing HDBSCAN (Hierarchical Density-Based Spatial Clustering).  
-* **Why HDBSCAN?** Instead of forcing 100,000 posts into 10 buckets (which creates garbage clusters), HDBSCAN finds dense conversational neighborhoods and throws the rest into an "Outlier/Noise" bucket (Topic \-1).  
-* **The Workflow:** We embed the text, cluster it, discard the noise, and extract only the top 10 largest remaining clusters (The Planets). We run a secondary clustering pass on each planet to find its 6 largest sub-clusters (The Faces).
+* **Technology that ships:** local MiniLM embeddings (fastembed) on the daily job. Pytest uses TF-IDF and k-means. BERTopic is optional locally and is not the scheduled path. HDBSCAN is not installed.
+* **Why not force ten buckets?** The job finds tight groups, drops a loose one, and publishes at most ten. Posts that fit none of them stay Topic −1 and out of the percentages.
+* **The Workflow:** Embed the claims, keep groups that are large and cohesive, rank them by distinct authors, then split a planet only when another face is large and far from the ones already kept.
 
 ### **Phase 2: The LLM (The Explainer)**
 
@@ -67,7 +69,7 @@ To maintain analytical integrity, the project must acknowledge the following bli
 
 ## **8. Development Roadmap**
 
-Stages 1–4 below were the Cursor MVP. They are largely shipped: Bluesky extract, lexical clustering (BERTopic optional), 10 planets with 2–6 faces, daily Actions job, static React Three Fiber observatory. The live sample is still small (200 default; 10k is the production target). Face textures and Reddit ingestion are not in the current code.
+Stages 1–4 below were the Cursor MVP. What shipped since: Bluesky extract, MiniLM on the daily job, up to 10 planets with 1–6 faces, a 10,000-claim window, a daily Actions job, and a static React Three Fiber observatory. Face textures and Reddit ingestion are not in the current code.
 
 The living roadmap — including planet-level debate, an LLM clerk, retaining posts, custom brand universes, a Google plugin, historical solar systems, and what those cost to keep alive — is **[ROADMAP.md](../ROADMAP.md)**. Architecture for the newer surfaces:
 
@@ -78,7 +80,7 @@ The living roadmap — including planet-level debate, an LLM clerk, retaining po
 MVP stages (historical):
 
 * **Stage 1: Data Ingestion:** Python scripts to authenticate with Reddit/Bluesky APIs, pull 7 days of data, clean text (regex/spam filtering), and store in SQLite. *(Bluesky path shipped; Reddit not started.)*
-* **Stage 2: The NLP Engine:** BERTopic / HDBSCAN locally; lexical TF-IDF + k-means on CI. Ten topics, two to six faces.
+* **Stage 2: The NLP Engine:** MiniLM on the daily job; TF-IDF in tests. Up to ten topics, one to six faces.
 * **Stage 3: LLM Integration & Automation:** JSON labels from Ollama or a mini model; GitHub Actions daily; fallback titles when neither is present.
 * **Stage 4: 3D Web Frontend:** React Three Fiber observatory, inspect mode, mobile drill-down, representative posts in the sidebar.
 
@@ -88,7 +90,7 @@ The 7-day window and the once-a-day job exist so the public solar system stays u
 
 | Mode | What we keep | Typical monthly maintain |
 | --- | --- | --- |
-| **Today** | `data.json` + ephemeral runner SQLite | **$0–$1** |
+| **Today** | `data.json` on `data-snapshot` + `live_corpus.db` on R2 | **about $1**, plus Jev per fetched post |
 | **Thicker snapshot** | More representative posts, terms, briefing cards | still **~$0–$1** |
 | **Dated solar systems + matcher** | Keep each day's JSON; align topics after the fact | still **~$0–$1** if files stay static |
 | **Planet LLM clerk** | Quote packs + a gated model | **$5–$20** box, then **tokens** ($0 if Ollama; hundreds if public and ungated) |

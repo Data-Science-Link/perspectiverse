@@ -2,7 +2,7 @@
 
 ## Bluesky
 
-`extract_bluesky.py` pulls an English sample. The public job searches neutral tokens over a rolling 7 days, then only the newest day. `--query` still passes operator terms through `extract_posts`.
+`extract_bluesky.py` pulls an English sample. The public job searches neutral tokens until it has inspected enough posts to fill 10,000 filtered claims, or Bluesky runs out. Later days search only the newest day. `--query` still passes operator terms through `extract_posts`.
 
 - No secrets: public AppView search at `https://api.bsky.app` (often HTTP 403 from Actions/cloud IPs).
 - Required for the daily job: `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` (app password) so `_fetch_authenticated` logs in via `atproto`.

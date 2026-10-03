@@ -1,12 +1,13 @@
 # Copy to pipeline/config/pipeline.yaml to override locally (gitignored).
-# First rendition: 1000 non-spam posts in a retained SQLite window.
+# The daily job holds up to 10,000 posts that already passed cleaning, dedup,
+# spam, and the public-claim check. Non-claims stay stored and do not count.
 window_hours: 168
 refresh_hours: 24
-sample_size: 1000
+sample_size: 10000
 
-# Clusters smaller than this become Topic -1. 8 is the floor for a 1000-post
-# window so tiny clumps do not become planets. The clusterer will split large
-# groups if it cannot mint 10 planets.
+# Floor for a small window. The live job raises this with the claim count
+# (max of this value and claims // 200, about 50 at 10,000 claims). Groups
+# under the floor stay unlabeled. catalog_size is a ceiling, not a quota.
 min_cluster_size: 8
 
 # embedding: local MiniLM via fastembed, no torch. lexical: TF-IDF for tests.

@@ -33,7 +33,7 @@ def test_lexical_cluster_drops_noise_and_keeps_ten():
 def test_each_topic_splits_into_two_to_six_faces():
     posts = [post for post in build_tiny_posts() if "zzzznoise" not in post["text"] and post["text"].startswith("climate")]
     split = split_perspectives([post["text"] for post in posts], seed=0)
-    assert 2 <= len(split["faces"]) <= 6
+    assert 1 <= len(split["faces"]) <= 6
     assert all(face["size"] >= 1 for face in split["faces"])
     volumes = to_percents([face["size"] for face in split["faces"]])
     assert abs(sum(volumes) - 100.0) < 0.05
@@ -74,7 +74,29 @@ def test_choose_n_faces_collapses_a_binary_topic():
 
 def test_choose_n_faces_does_not_slice_a_uniform_topic():
     texts = [f"rent rent rent housing housing costs discussion {index}" for index in range(24)]
-    assert choose_n_faces(texts, seed=0) == 2
+    assert choose_n_faces(texts, seed=0) == 1
+
+
+def test_choose_n_faces_splits_two_stances_of_one_subject():
+    """MiniLM puts two stances of one subject well above the planet-merge line."""
+    import numpy as np
+
+    left = np.array([1.0, 0.0])
+    # Cosine 0.82 is the same subject, and a different stance.
+    right = np.array([0.82, (1 - 0.82**2) ** 0.5])
+    matrix = np.vstack([left] * 12 + [right] * 12)
+    texts = ["alpha stance"] * 12 + ["beta stance"] * 12
+    assert choose_n_faces(texts, seed=0, matrix=matrix) == 2
+
+
+def test_choose_n_faces_keeps_a_paraphrase_as_one_face():
+    import numpy as np
+
+    left = np.array([1.0, 0.0])
+    right = np.array([0.96, (1 - 0.96**2) ** 0.5])
+    matrix = np.vstack([left] * 12 + [right] * 12)
+    texts = ["same stance"] * 12 + ["same stance again"] * 12
+    assert choose_n_faces(texts, seed=0, matrix=matrix) == 1
 
 
 def test_lexical_cluster_does_not_mint_a_tenth_planet():
@@ -195,6 +217,45 @@ def test_keep_top_does_not_split_large_clusters_to_fill_ten():
     assert all(topic["size"] >= 6 for topic in clustered["topics"])
     assert clustered["noise_count"] == 8
     assert sum(1 for assignment in clustered["assignments"] if assignment >= 0) == 72
+
+
+def test_author_cap_keeps_three_posts_and_ranks_by_voices():
+    texts = []
+    authors = []
+    labels = []
+    for copy in range(8):
+        texts.append(f"alpha alpha alpha shared topic {copy}")
+        authors.append("solo")
+        labels.append(0)
+    for copy in range(6):
+        texts.append(f"beta beta beta shared topic {copy}")
+        authors.append(f"voice-{copy}")
+        labels.append(1)
+    from pipeline.topics import _cap_author_posts, _keep_top
+
+    capped_labels = _cap_author_posts(labels, authors, 3)
+    assert capped_labels.count(0) == 3
+    assert capped_labels.count(1) == 6
+    kept = _keep_top(texts, capped_labels, {}, min_cluster_size=2, keep=10, authors=authors)
+    assert [topic["size"] for topic in kept["topics"]] == [6, 3]
+
+
+def test_wide_group_is_dropped():
+    import numpy as np
+
+    from pipeline.topics import _drop_wide_groups
+
+    matrix = np.asarray(
+        [
+            [1.0, 0.0],
+            [0.6, 0.8],
+            [0.0, 1.0],
+        ],
+        dtype=float,
+    )
+    labels = np.asarray([0, 0, 0])
+    _drop_wide_groups(matrix, labels, minimum=0.9)
+    assert set(int(item) for item in labels) == {-1}
 
 
 def test_keep_top_rejects_too_few_posts():

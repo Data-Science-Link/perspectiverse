@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-from pipeline.live import run_live
+from pipeline.live import posts_for_planets, run_live
 from pipeline.run_pipeline import main
 from pipeline.schema import validate_payload
 from tests.corpus import build_tiny_posts
@@ -55,6 +55,120 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(topic["name"] for topic in payload["topics"])
 
 
+def test_an_ungrounded_and_tail_is_removed():
+    from pipeline.live import _without_ungrounded_tail
+
+    posts = [{"text": "Rape culture is definitely on the rise and people stay silent."}]
+    assert _without_ungrounded_tail("Rape culture exists and is understudied", posts) == "Rape culture exists"
+    iran = [{"text": "The US may strike Iran and Iran may widen the conflict."}]
+    assert _without_ungrounded_tail("US and Iran may engage in conflict", iran) == "US and Iran may engage in conflict"
+    artists = [{"text": "AI harms artists and creative workers."}]
+    assert _without_ungrounded_tail("AI harms artists and creatives", artists) == "AI harms artists and creatives"
+
+
+def test_a_title_has_to_cover_most_of_its_posts():
+    from pipeline.live import _title_covers_posts
+
+    outrage = [
+        {"text": "Social media posts spark outrage and generate debate about discrimination."},
+        {"text": "People are furious about a trans man in the Odyssey and the casting."},
+        {"text": "The grooming meme treats misconduct allegations like a fandom war."},
+    ]
+    artists = [
+        {"text": "Stop spreading AI-generated slop. Small artists cannot thrive."},
+        {"text": "Artists do get it. Artists love new tools that are not generative slop."},
+        {"text": "AI ripped the passion out of my writing."},
+    ]
+    assert not _title_covers_posts("Outrage Over Issues", outrage)
+    assert _title_covers_posts("Artists Reject AI", artists)
+
+
+def test_planet_name_must_appear_on_a_published_face():
+    from pipeline.live import _name_misses_faces
+
+    racism = [
+        {
+            "title": "Racism Persists",
+            "summary": "Racism is present in society.",
+            "representative_posts": [
+                {"text": "You cannot half-ass destroying racism after this election."},
+                {"text": "A society that still refers to Black people as slaves."},
+            ],
+        }
+    ]
+    cornell = [
+        {
+            "title": "Rape Culture",
+            "summary": "Rapists are being sympathized with.",
+            "representative_posts": [{"text": "Any college fostering rape culture needs to be dismantled."}],
+        },
+        {
+            "title": "Cornell Rape Case",
+            "summary": "Trump supports Cornell rape suspects.",
+            "representative_posts": [{"text": "Trump was asked about the Cornell rape case."}],
+        },
+    ]
+    assert _name_misses_faces("Black Lives", racism)
+    assert not _name_misses_faces("Racism Persists", racism)
+    assert not _name_misses_faces("Cornell Rape Case", cornell)
+
+
+def test_title_and_summary_must_share_a_claim_word():
+    from pipeline.live import _claim_words_overlap
+
+    assert _claim_words_overlap("Death Penalty", "The death penalty is barbaric.")
+    assert _claim_words_overlap("Botched Execution", "The state is inept at legal executions.")
+    assert _claim_words_overlap("Rape Culture", "Trump sympathizes with rapists.")
+    assert _claim_words_overlap("Artists Reject AI", "AI harms artists and creatives.")
+    assert not _claim_words_overlap(
+        "Grooming Help",
+        "Online discussions prioritize outrage over serious issues.",
+    )
+    assert not _claim_words_overlap("Rape Culture", "Men are the problem.")
+
+
+def test_drop_planet_that_admits_no_shared_claim():
+    from pipeline.live import _drop_unshared_planets, _renumber_planets
+
+    mixed = {
+        "id": 9,
+        "name": "Canada",
+        "total_volume_percent": 20,
+        "perspectives": [{"id": "9A", "title": "Canadian Politics", "summary": "These posts share various issues and opinions."}],
+    }
+    solid = {
+        "id": 10,
+        "name": "Taxes",
+        "total_volume_percent": 80,
+        "perspectives": [{"id": "10A", "title": "Tax the Rich", "summary": "Wealth taxes should fund public services."}],
+    }
+    kept = _drop_unshared_planets([mixed, solid])
+    assert [topic["name"] for topic in kept] == ["Taxes"]
+    renumbered, membership, _faces = _renumber_planets(
+        kept,
+        [("at://gone", 9), ("at://kept", 10)],
+        [("at://gone", 9, 0, 0.1), ("at://kept", 10, 0, 0.2)],
+    )
+    assert renumbered[0]["id"] == 1
+    assert renumbered[0]["perspectives"][0]["id"] == "1A"
+    assert membership == [("at://kept", 1)]
+
+
+def test_live_run_refuses_unlabeled_posts():
+    posts = [{"uri": "at://a", "is_claim": None, "clean_text": "hello", "text": "hello"}]
+    try:
+        posts_for_planets(posts, require_claims=True)
+    except RuntimeError as exc:
+        assert "unlabeled" in str(exc).lower() or "Jev" in str(exc)
+    else:
+        raise AssertionError("unlabeled posts should not be clustered")
+    aside = dict(posts[0], is_claim=False)
+    claim = dict(posts[0], uri="at://b", is_claim=True)
+    kept = posts_for_planets([posts[0], aside, claim], require_claims=True)
+    assert [post["uri"] for post in kept] == ["at://b"]
+    assert posts_for_planets(posts, require_claims=False) == posts
+
+
 def test_run_live_function_matches_cli(tmp_path):
     fixture = tmp_path / "posts.json"
     fixture.write_text(json.dumps(build_tiny_posts()), encoding="utf-8")
@@ -62,7 +176,7 @@ def test_run_live_function_matches_cli(tmp_path):
     config.write_text("min_cluster_size: 8\ncluster_backend: lexical\nlabel_backend: heuristic\nseed: 0\n", encoding="utf-8")
     path = run_live(fixture=fixture, output=tmp_path / "out.json", config=config, db_path=tmp_path / "p.db")
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert 2 <= len(payload["topics"][0]["perspectives"]) <= 6
+    assert 1 <= len(payload["topics"][0]["perspectives"]) <= 6
     assert payload["topics"][0]["perspectives"][0]["representative_posts"][0]["likes"] >= 0
 
 
@@ -136,6 +250,11 @@ def test_bluesky_403_does_not_shrink_retained_corpus(monkeypatch, tmp_path):
         raise RuntimeError("HTTP 403 from api.bsky.app")
 
     monkeypatch.setattr("pipeline.live.extract_posts", forbidden)
+
+    def keep_as_claims(posts):
+        return [{**post, "is_claim": True, "section": post.get("section") or "Other"} for post in posts]
+
+    monkeypatch.setattr("pipeline.live.apply_jev", keep_as_claims)
     output = tmp_path / "data.json"
     path = run_live(
         output=output,
