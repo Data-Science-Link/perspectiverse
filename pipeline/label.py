@@ -620,10 +620,7 @@ _TOPIC_GLUE = frozenset(
 )
 
 
-def _face_subject_words(face: dict) -> set[str]:
-    glue = _post_word_glue() | _PERSON_GLUE
-    posts = face.get("representative_posts") or []
-    text = " ".join(str(post.get("text") or "") for post in posts[:6])
+def _stem_bag(text: str, glue: frozenset[str]) -> set[str]:
     stems = set()
     for token in content_tokens(text):
         if len(token) < 4 or token in glue:
@@ -633,6 +630,31 @@ def _face_subject_words(face: dict) -> set[str]:
             continue
         stems.add(stem)
     return stems
+
+
+def _face_subject_words(face: dict) -> set[str]:
+    """Stems this face repeats. A one-off aside does not make two stories one."""
+    glue = _post_word_glue() | _PERSON_GLUE
+    posts = (face.get("representative_posts") or [])[:6]
+    if len(posts) <= 1:
+        return _stem_bag(" ".join(str(post.get("text") or "") for post in posts), glue)
+    counts: dict[str, int] = {}
+    for post in posts:
+        for stem in _stem_bag(str(post.get("text") or ""), glue):
+            counts[stem] = counts.get(stem, 0) + 1
+    title_stems = _stem_bag(
+        " ".join([str(face.get("title") or ""), str(face.get("summary") or "")]),
+        glue,
+    )
+    kept: set[str] = set()
+    for stem, count in counts.items():
+        if len(stem) >= 5:
+            kept.add(stem)
+        elif len(stem) == 4 and (count >= 2 or stem in title_stems):
+            kept.add(stem)
+        elif count >= 2 and count * 2 >= len(posts):
+            kept.add(stem)
+    return kept
 
 
 def _shared_post_words(faces: list[dict]) -> set[str]:
@@ -649,7 +671,7 @@ def specific_shared_words(faces: list[dict]) -> set[str]:
     return {
         word
         for word in _shared_post_words(faces)
-        if len(word) >= 4 and word not in _PERSON_GLUE and word not in _TOPIC_GLUE and word not in _VERB_STEMS
+        if len(word) >= 3 and word not in _PERSON_GLUE and word not in _TOPIC_GLUE and word not in _VERB_STEMS
     }
 
 

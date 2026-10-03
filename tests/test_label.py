@@ -108,6 +108,69 @@ def test_a_shared_commodity_counts_as_one_subject():
     ]
     assert specific_shared_words(cornell)
     assert specific_shared_words(politicians) == set()
+    once = [
+        {
+            "title": "Outrage Over Issues",
+            "summary": "Online discussions prioritize outrage over serious issues.",
+            "representative_posts": [
+                {"text": "Social media posts spark outrage about discrimination and debate."},
+                {"text": "People are furious about a trans man in the Odyssey and the casting."},
+                {"text": "The grooming meme treats misconduct allegations like a fandom war."},
+            ],
+        },
+        {
+            "title": "Hate Groups",
+            "summary": "Hate groups are promoting misogyny.",
+            "representative_posts": [
+                {"text": "Elliot Rodger fans are evil violent misogynists."},
+                {"text": "The incel movement is alive and well among these accounts."},
+                {"text": "This trend is misogyny invented by incels and aimed at trans people."},
+            ],
+        },
+    ]
+    repeated = [
+        {
+            "title": "Rape Culture",
+            "summary": "Rapists are being sympathized with.",
+            "representative_posts": [
+                {"text": "Any college fostering rape culture needs to be dismantled."},
+                {"text": "The rape apologists are out in full force today."},
+                {"text": "Too many people still sympathize with rapists."},
+            ],
+        },
+        {
+            "title": "Cornell Rape Case",
+            "summary": "Trump supports Cornell rape suspects.",
+            "representative_posts": [
+                {"text": "Trump was asked about the Cornell rape case and dodged it."},
+                {"text": "Trump said he feels badly for the Cornell rape suspects."},
+                {"text": "The adjudicated rapist president supports the Cornell rape suspects."},
+            ],
+        },
+    ]
+    titled = [
+        {
+            "title": "Trans Rights",
+            "summary": "Trans people should keep their rights.",
+            "representative_posts": [
+                {"text": "Trans rights are not up for debate in this election."},
+                {"text": "Hospitals should provide care without political interference."},
+                {"text": "The bill restricts medical treatment for minors."},
+            ],
+        },
+        {
+            "title": "Trans Advantage",
+            "summary": "Some sports see a trans advantage.",
+            "representative_posts": [
+                {"text": "A trans athlete should not compete in the women's category."},
+                {"text": "Fairness in sport matters more than inclusion here."},
+                {"text": "The league changed its eligibility rules last season."},
+            ],
+        },
+    ]
+    assert specific_shared_words(once) == set()
+    assert specific_shared_words(repeated)
+    assert specific_shared_words(titled)
 
 
 def test_faces_that_share_no_subject_word_are_different_stories():

@@ -31,6 +31,8 @@ from pipeline.label import (
     subject_stem,
     titles_alike,
     topic_name_is_weak,
+    _is_camp_title,
+    _title_needs_repair,
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
@@ -329,13 +331,14 @@ def _build_topics(
         if (
             planet.get("label_source") == "heuristic"
             or topic_name_is_weak(name, members, terms)
-            or _name_misses_face(name, perspectives[0])
+            or _name_misses_faces(name, perspectives)
         ):
             renamed = name_from_perspectives(members, perspectives, terms, backend=backend, model=model)
-            if renamed:
+            fallback = str(perspectives[0].get("title") or "") if perspectives else ""
+            if renamed and not _name_misses_faces(renamed, perspectives):
                 name = renamed
-            elif perspectives and not topic_name_is_weak(str(perspectives[0].get("title") or ""), members, terms):
-                name = str(perspectives[0]["title"])
+            elif fallback and not _title_needs_repair(fallback) and not _is_camp_title(fallback):
+                name = fallback
         face_volumes = to_percents([item[2] for item in drafted])
         perspectives = []
         for position, ((perspective, rows, _size), volume) in enumerate(zip(drafted, face_volumes)):
@@ -399,18 +402,19 @@ def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> lis
     return claims
 
 
-def _name_misses_face(name: str, face: dict) -> bool:
-    """True when the planet name's words are absent from the largest face."""
+def _name_misses_faces(name: str, faces: list[dict]) -> bool:
+    """True when a long name word never appears on any published face."""
     tokens = [token for token in content_tokens(name) if len(token) >= 5]
-    if not tokens:
+    if not tokens or not faces:
         return False
-    text = " ".join(
-        [
-            str(face.get("title") or ""),
-            str(face.get("summary") or ""),
-            *[str(post.get("text") or "") for post in (face.get("representative_posts") or [])[:6]],
-        ]
-    )
+    parts: list[str] = []
+    for face in faces:
+        parts.append(str(face.get("title") or ""))
+        parts.append(str(face.get("summary") or ""))
+        parts.extend(
+            str(post.get("text") or "") for post in (face.get("representative_posts") or [])[:6]
+        )
+    text = " ".join(parts)
     return any(not shares_claim_word(token, text) for token in tokens)
 
 

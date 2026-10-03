@@ -55,6 +55,36 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(topic["name"] for topic in payload["topics"])
 
 
+def test_planet_name_must_appear_on_a_published_face():
+    from pipeline.live import _name_misses_faces
+
+    racism = [
+        {
+            "title": "Racism Persists",
+            "summary": "Racism is present in society.",
+            "representative_posts": [
+                {"text": "You cannot half-ass destroying racism after this election."},
+                {"text": "A society that still refers to Black people as slaves."},
+            ],
+        }
+    ]
+    cornell = [
+        {
+            "title": "Rape Culture",
+            "summary": "Rapists are being sympathized with.",
+            "representative_posts": [{"text": "Any college fostering rape culture needs to be dismantled."}],
+        },
+        {
+            "title": "Cornell Rape Case",
+            "summary": "Trump supports Cornell rape suspects.",
+            "representative_posts": [{"text": "Trump was asked about the Cornell rape case."}],
+        },
+    ]
+    assert _name_misses_faces("Black Lives", racism)
+    assert not _name_misses_faces("Racism Persists", racism)
+    assert not _name_misses_faces("Cornell Rape Case", cornell)
+
+
 def test_title_and_summary_must_share_a_claim_word():
     from pipeline.live import _claim_words_overlap
 
