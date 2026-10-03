@@ -119,9 +119,9 @@ button {
 
 .observatory {
   position: relative;
-  flex: 1 1 auto;
+  flex: 2 1 0%;
   min-width: 0;
-  min-height: 52vh;
+  min-height: 0;
 }
 
 .observatory-chrome {
@@ -163,8 +163,9 @@ button {
 
 .sidebar,
 .reading-screen {
-  width: min(420px, 36vw);
-  min-width: 320px;
+  flex: 1 1 0%;
+  width: auto;
+  min-width: 0;
   border-left: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(11, 13, 20, 0.96), #080910 70%);
   overflow: hidden;
@@ -1403,7 +1404,7 @@ h3 {
     position: absolute;
     top: 0;
     left: 0;
-    width: calc(100% - min(420px, 36vw));
+    width: 66.666%;
     background: linear-gradient(180deg, rgba(5, 6, 11, 0.78), rgba(5, 6, 11, 0));
     pointer-events: none;
   }
@@ -1413,14 +1414,14 @@ h3 {
   }
 
   .reading-screen {
-    width: min(390px, 34vw);
-    min-width: 320px;
-    height: min(844px, calc(100dvh - 1.25rem));
-    align-self: center;
-    margin-right: 0.75rem;
-    border-radius: 1.35rem;
-    border: 1px solid var(--line);
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+    height: 100%;
+    align-self: stretch;
+    margin: 0;
+    border-radius: 0;
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+    box-shadow: none;
   }
 
   .app-shell.is-page .site-chrome {
@@ -1476,9 +1477,9 @@ h3 {
   }
 
   .observatory {
-    flex: 1 1 auto;
+    flex: 1 1 0%;
     height: auto;
-    min-height: 48vh;
+    min-height: 0;
   }
 
   .sidebar,
@@ -1496,13 +1497,14 @@ h3 {
     align-self: stretch;
   }
 
-  .app-shell.is-orbits .observatory {
+  .app-shell.is-orbits .observatory,
+  .app-shell.is-drilled .reading-screen {
     flex: 1 1 0%;
     height: auto;
     min-height: 0;
   }
 
-  .app-shell.is-orbits .observatory > div,
+  .app-shell.is-orbits .observatory > div:not(.observatory-chrome),
   .app-shell.is-orbits .observatory canvas {
     width: 100% !important;
     height: 100% !important;

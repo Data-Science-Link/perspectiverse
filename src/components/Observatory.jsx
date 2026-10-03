@@ -181,7 +181,6 @@ export default function Observatory({
   onSelectTopic,
   onSelectPerspective,
   onClearSelection,
-  onShowReading = null,
 }) {
   const [epoch, setEpoch] = useState(0)
   const [showOrbits, setShowOrbits] = useState(false)
@@ -254,11 +253,6 @@ export default function Observatory({
         >
           {showOrbits ? 'Hide orbit lines' : 'Show orbit lines'}
         </button>
-        {onShowReading && (
-          <button type="button" className="orbit-toggle" onClick={onShowReading}>
-            Briefing
-          </button>
-        )}
       </div>
     </section>
   )

@@ -26,7 +26,6 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(false)
   const [emailOpen, setEmailOpen] = useState(false)
-  const [orbitsOpen, setOrbitsOpen] = useState(false)
   const [highlightedTopicId, setHighlightedTopicId] = useState(boot.topicId)
   const isMobile = useIsMobile()
   const shellRef = useRef(null)
@@ -80,9 +79,7 @@ export default function App() {
   const selectTopic = (topicId) => {
     setHighlightedTopicId(topicId)
     setEmailOpen(false)
-    if (selectedTopic && selectedTopic.id !== topicId) {
-      commitSelection({ category, topicId, perspectiveId: null, page: null })
-    }
+    commitSelection({ category, topicId, perspectiveId: null, page: null })
   }
 
   const openTopic = (topicId) => {
@@ -184,8 +181,8 @@ export default function App() {
 
   const sitePage = pageById(page)
   const drilled = Boolean(selectedTopic) || Boolean(sitePage)
-  const showObservatory = !sitePage && !(isMobile && !orbitsOpen)
-  const showReading = !sitePage && !(isMobile && orbitsOpen)
+  const showObservatory = !sitePage && !(isMobile && selectedTopic)
+  const showReading = !sitePage && (!isMobile || selectedTopic)
   const chromeTitle = sitePage?.title
     ?? selectedPerspective?.title
     ?? selectedTopic?.name
@@ -206,7 +203,7 @@ export default function App() {
   return (
     <div
       ref={shellRef}
-      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${isMobile && !sitePage ? (orbitsOpen ? 'is-orbits' : 'is-reading') : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
+      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${isMobile && !sitePage && !selectedTopic ? 'is-orbits' : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
     >
       <SiteChrome
         drilled={drilled}
@@ -231,7 +228,6 @@ export default function App() {
           onSelectTopic={selectTopic}
           onSelectPerspective={selectPerspective}
           onClearSelection={clearSelection}
-          onShowReading={isMobile ? () => setOrbitsOpen(false) : null}
         />
       )}
       {showReading && (
@@ -245,8 +241,6 @@ export default function App() {
           highlightedTopicId={highlighted?.id ?? null}
           isMobile={isMobile}
           emailOpen={emailOpen}
-          orbitsOpen={orbitsOpen}
-          onHighlightTopic={selectTopic}
           onOpenTopic={openTopic}
           onSelectPerspective={selectPerspective}
           onBack={() => {
@@ -255,7 +249,6 @@ export default function App() {
           }}
           onCategory={changeCategory}
           onToggleEmail={() => setEmailOpen((value) => !value)}
-          onToggleOrbits={() => setOrbitsOpen((value) => !value)}
         />
       )}
       <SiteMenu

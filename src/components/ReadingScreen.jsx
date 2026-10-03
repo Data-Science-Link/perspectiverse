@@ -120,14 +120,11 @@ export default function ReadingScreen({
   highlightedTopicId,
   isMobile,
   emailOpen,
-  orbitsOpen,
-  onHighlightTopic,
   onOpenTopic,
   onSelectPerspective,
   onBack,
   onCategory,
   onToggleEmail,
-  onToggleOrbits,
 }) {
   const [expanded, setExpanded] = useState(false)
   const counts = useMemo(() => categoryCounts(data?.topics || []), [data])
@@ -172,7 +169,7 @@ export default function ReadingScreen({
       onSelectPerspective(id)
       return
     }
-    onHighlightTopic(id)
+    onOpenTopic(id)
   }
 
   if (emailOpen) {
@@ -201,11 +198,6 @@ export default function ReadingScreen({
           </button>
         )}
         <div className="reading-actions">
-          {isMobile && (
-            <button type="button" className="text-button" onClick={onToggleOrbits}>
-              {orbitsOpen ? 'Briefing' : 'Orbits'}
-            </button>
-          )}
           <button type="button" className="text-button" onClick={onToggleEmail}>
             Email
           </button>

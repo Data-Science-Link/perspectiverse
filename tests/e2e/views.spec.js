@@ -52,11 +52,9 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByText('Test your take')).toHaveCount(0)
     await expect(page.getByText('Anti-echo')).toHaveCount(0)
     await expect(page.locator('.pv-graphic')).toHaveCount(0)
-    await expect(page.getByRole('region', { name: 'This week' })).toBeVisible()
-    await expect(page.getByText('Filter topics', { exact: true }).first()).toBeVisible()
-
-    if (testInfo.project.name === 'mobile') {
-      await page.getByRole('button', { name: 'Orbits' }).click()
+    if (testInfo.project.name !== 'mobile') {
+      await expect(page.getByRole('region', { name: 'This week' })).toBeVisible()
+      await expect(page.getByText('Filter topics', { exact: true }).first()).toBeVisible()
     }
     await expect(page.getByRole('button', { name: 'Show orbit lines' })).toBeVisible()
     const observatoryCanvas = page.locator('.observatory canvas')
@@ -101,11 +99,13 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('button', { name: 'Hide orbit lines' })).toBeVisible()
 
     if (testInfo.project.name === 'mobile') {
-      await page.getByRole('button', { name: 'Briefing' }).click()
+      await page.getByRole('button', { name: 'Artists Reject AI' }).first().click()
     }
     await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
-    await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
+    if (testInfo.project.name !== 'mobile') {
+      await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
+    }
   })
 
   test('respects do not show again and still lets the menu reopen welcome', async ({ page }) => {
@@ -127,7 +127,11 @@ test.describe('Perspectiverse views', () => {
     await page.goto('/')
     await enterSolarSystem(page)
 
-    await page.getByRole('button', { name: 'Perspectives' }).click()
+    if (testInfo.project.name === 'mobile') {
+      await page.getByRole('button', { name: 'Artists Reject AI' }).first().click()
+    } else {
+      await page.getByRole('button', { name: 'Perspectives' }).click()
+    }
     await expect(page.getByRole('button', { name: '← All topics' }).or(page.getByRole('button', { name: '← Back to the solar system' }))).toBeVisible()
     if (testInfo.project.name === 'mobile') {
       await expect(page.getByRole('banner').getByText('Back', { exact: true })).toBeVisible()
@@ -183,11 +187,7 @@ test.describe('Perspectiverse views', () => {
 
     await page.getByRole('button', { name: 'Back to the solar system' }).click()
     await expect(page).not.toHaveURL(/page=/)
-    if (testInfo.project.name === 'mobile') {
-      await expect(page.getByRole('region', { name: 'This week' })).toBeVisible()
-    } else {
-      await expect(page.locator('.observatory canvas')).toBeVisible()
-    }
+    await expect(page.locator('.observatory canvas')).toBeVisible()
   })
 
   test('site pages load from the URL without the welcome tour', async ({ page }) => {
