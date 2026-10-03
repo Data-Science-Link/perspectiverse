@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from pipeline.briefs import apply_level_summaries, assemble_email
 from pipeline.schema import NOISE_POLICY, WINDOW_HOURS, validate_payload
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,6 +28,9 @@ def assemble_payload(
     total_posts: int,
     last_updated: str | None = None,
 ) -> dict[str, Any]:
+    for topic in topics:
+        if not topic.get("brief") or not topic.get("detail"):
+            apply_level_summaries(topic)
     payload = {
         "last_updated": last_updated or datetime.now(timezone.utc).date().isoformat(),
         "total_posts": int(total_posts),
@@ -35,6 +39,7 @@ def assemble_payload(
         "mode": mode,
         "noise_policy": NOISE_POLICY,
         "topics": topics,
+        "digest": assemble_email(topics),
     }
     validate_payload(payload)
     return payload

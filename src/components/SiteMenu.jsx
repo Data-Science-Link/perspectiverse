@@ -93,16 +93,8 @@ export default function SiteMenu({
         <section className="menu-section">
           <h3>About the project</h3>
           <p>
-            A week of public conversation as a solar system, so you can step out of an
-            echo chamber. Bigger planets got more attention. Open one to see the main
-            opinions, then check whether yours is the majority, a minority, or missing.
-          </p>
-          <p>
-            The largest topic sits in the center as the sun. The next nine orbit around
-            it as Mercury through Pluto. Size is share of attention, not importance.
-            When you open a planet, the longest, darkest spike is the most common
-            opinion. Smaller views are the same color, only lighter. A dashed face
-            has no perspective.
+            A week of public conversation as a solar system. The briefing beside it
+            is the same at every depth: bars, a summary, and posts.
           </p>
           {onShowWelcome && (
             <button type="button" className="menu-feedback" onClick={onShowWelcome}>
@@ -114,10 +106,9 @@ export default function SiteMenu({
         <section className="menu-section">
           <h3>How to read this</h3>
           <ul>
-            <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
-            <li>Bigger planet = more people were talking about that topic this week.</li>
-            <li>Tap a planet to open its opinions. Tap a face to read its core arguments and the posts behind them. The longest, darkest spike is the most common view. A dashed face has no perspective.</li>
-            <li>After you open a planet, drag the shape to turn it. Scroll or pinch to zoom.</li>
+            <li>Drag to look around the planets.</li>
+            <li>Tap a bar to read that planet or perspective.</li>
+            <li>Read more opens the longer summary. Example posts sit underneath.</li>
           </ul>
         </section>
 

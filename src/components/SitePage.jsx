@@ -23,15 +23,15 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What does planet size mean?',
-    a: 'Share of attention in this sample. Bigger means more people were talking about that topic this week. Size is not importance, truth, or how much you should care.',
+    a: 'Share of attention in this sample.',
   },
   {
-    q: 'What does the longest spike mean?',
-    a: 'The most common opinion on that planet — the largest share of the posts we kept for that topic. That spike is the longest and the darkest shade of the planet color. A smaller view is shorter and lighter. A dashed face has no perspective. Loudest is not truest.',
+    q: 'What does a longer bar mean?',
+    a: 'A larger share of that conversation.',
   },
   {
     q: 'Why only ten planets?',
-    a: 'So the solar system stays readable. The job keeps the largest tight groups and stops at ten. It does not invent planets to fill the orbits. Posts that fit no planet are left out of the percentages.',
+    a: 'So the solar system stays readable. The job keeps the largest tight groups and stops at ten.',
   },
   {
     q: 'How often does it update?',
@@ -39,7 +39,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Why is my take missing?',
-    a: 'It may be rare in this sample, folded into a nearby face, or in the leftover posts that never became a planet. Opening a face shows a steelman of that view plus example posts — a synthesis, not every disagreement inside it.',
+    a: 'It may be rare in this sample, or in the posts that never became a planet.',
   },
   {
     q: 'Is this social listening or brand monitoring?',
@@ -112,11 +112,11 @@ function VisionPage({ onOpenPage }) {
         </article>
         <article className="vision-point">
           <strong>Public opinion</strong>
-          <p>The views that showed up, common and rare. The longest, darkest spike is the most common. It is not a verdict on who is right.</p>
+          <p>The views that showed up, common and rare.</p>
         </article>
         <article className="vision-point">
           <strong>Multiple perspectives</strong>
-          <p>Most topics are not two-sided. A planet holds one to six real takes. Yours might be the long face, a short one, or missing. A dashed face has no perspective.</p>
+          <p>Most topics are not two-sided. A planet holds one to six takes.</p>
         </article>
       </div>
 
@@ -194,10 +194,8 @@ function AboutPage({ data, onOpenPage }) {
         <h2>What you are looking at</h2>
         <p>
           The largest topic sits in the center as the sun. The next nine orbit around it.
-          Open a planet and it becomes a cube. Each real perspective is a spike in
-          that planet&apos;s color: darkest for the most common view, the planet color
-          for a middle view, and lighter for a smaller one. A dashed face has no
-          perspective.
+          The briefing uses the same screen for planets and for perspectives: bars,
+          a short summary, and example posts.
         </p>
       </section>
       <section>
@@ -221,7 +219,7 @@ function AboutPage({ data, onOpenPage }) {
         <ol className="page-list is-numbered">
           <li>Drag, pinch, or tilt. Planets keep turning so every side comes into view.</li>
           <li>Bigger planet = more talk this week, not more importance.</li>
-          <li>Tap a planet, then a spike. The longest, darkest one is the most common view — loudest, not truest. A dashed face has no perspective.</li>
+          <li>Tap a bar. Read more opens the longer summary. Posts sit under it.</li>
         </ol>
         <div className="text-links">
           <button type="button" className="text-link" onClick={() => onOpenPage('vision')}>

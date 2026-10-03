@@ -200,8 +200,8 @@ export default function Planet({
             coreColor={color}
             selectedPerspectiveId={selectedPerspectiveId}
             dimmed={dimmed}
-            showSpikes={selected}
-            showLabels={selected}
+            showSpikes={false}
+            showLabels={false}
             quality={quality}
             sphereDetail={sphereDetail}
             onSelectPerspective={(perspectiveId) => {

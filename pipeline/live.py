@@ -8,14 +8,17 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from pipeline.assemble import assemble_payload, face_id, topic_name, write_payload
+from pipeline.briefs import apply_level_summaries
 from pipeline.cleaning import clean_posts, drop_near_duplicates
 from pipeline.corpus import (
     TARGET_POSTS,
     claim_count,
-    keep_claims,
+    counted_posts,
     parse_created,
     posts_on_utc_date,
+    refresh_floor,
     retain_window,
+    retire_oldest,
     utc_dates_present,
     window_utc_dates,
 )
@@ -31,7 +34,9 @@ from pipeline.label import (
     subject_stem,
     titles_alike,
     topic_name_is_weak,
+    _generator_for,
     _is_camp_title,
+    _resolve_backend,
     _title_needs_repair,
     unique_label,
 )
@@ -73,7 +78,7 @@ def run_live(
     connection = connect(database)
     try:
         existing = load_posts(connection)
-        cleaned, source = _collect_posts(
+        cleaned, source, refreshed = _collect_posts(
             existing,
             settings,
             fixture,
@@ -84,13 +89,19 @@ def run_live(
         )
         if source == "bluesky" and not relabel:
             cleaned = apply_jev(cleaned)
-            before = claim_count(cleaned)
-            cleaned = keep_claims(cleaned, target, random.Random(int(settings["seed"])))
-            kept = claim_count(cleaned)
-            if kept < target:
-                print(f"Claim shortfall: {kept} of {target} filtered claims. Search did not fill the window.")
-            elif before > kept:
-                print(f"Kept {kept} filtered claims and left {before - kept} extra claims out of the window.")
+            if refreshed:
+                before = len(counted_posts(cleaned))
+                cleaned = retire_oldest(
+                    cleaned,
+                    now=datetime.now(timezone.utc),
+                    window_hours=int(settings["window_hours"]),
+                    target=target,
+                )
+                kept = len(counted_posts(cleaned))
+                if kept < target:
+                    print(f"Claim shortfall: {kept} of {target} filtered claims. Search did not fill the window.")
+                elif before > kept:
+                    print(f"Retired the oldest posts down to {kept} of {target}.")
         if not cleaned:
             raise RuntimeError("No quality posts in the retained corpus or the extract.")
 
@@ -99,6 +110,8 @@ def run_live(
             cleaned,
             require_claims=source == "bluesky" and not relabel,
         )
+        # Full set, from scratch. Yesterday's membership is deleted in write_clusters.
+        print(f"Reclustering {len(planet_posts)} posts from scratch.")
         texts = [post["clean_text"] for post in planet_posts]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
         floor = max(int(settings["min_cluster_size"]), len(planet_posts) // 200)
@@ -148,14 +161,19 @@ def _collect_posts(
     *,
     relabel: bool = False,
     now: datetime | None = None,
-) -> tuple[list[dict], str]:
+) -> tuple[list[dict], str, bool]:
+    """Return posts, source, and whether this morning fetched new posts.
+
+    The third flag is false when the day was already fetched, the fetch failed,
+    or this is a relabel. Retirement runs only after a real fetch.
+    """
     if fixture:
-        return clean_posts(load_fixture(fixture)), "fixture"
+        return clean_posts(load_fixture(fixture)), "fixture", False
     if relabel:
         if not existing:
             raise RuntimeError("Cannot relabel: the retained corpus is empty.")
         print(f"Relabeling {len(existing)} retained posts without fetching Bluesky.")
-        return list(existing), "bluesky"
+        return list(existing), "bluesky", False
 
     moment = now or datetime.now(timezone.utc)
     if moment.tzinfo is None:
@@ -171,7 +189,7 @@ def _collect_posts(
             print(f"Backfilled fetched_days for {len(covered)} dates already in the retained corpus.")
     if not search_queries and today in ledger and posts_on_utc_date(existing, today):
         print(f"UTC day {today} already fetched; keeping {len(existing)} retained posts.")
-        return list(existing), "bluesky"
+        return list(existing), "bluesky", False
 
     window_hours = int(settings["window_hours"])
     refresh_hours = int(settings.get("refresh_hours") or 24)
@@ -185,10 +203,10 @@ def _collect_posts(
         post for post in existing
         if parse_created(post.get("created_at") or "") >= cutoff
     ]
-    deficit = target if refill else max(0, target - claim_count(in_window))
-    # About half of a neutral fetch was a public claim last window, so inspect
-    # two posts for each claim still missing. A full window still checks today.
-    pool = max(deficit * 2, 80)
+    labeled = any(post.get("is_claim") is not None for post in in_window)
+    held = claim_count(in_window) if labeled else len(in_window)
+    gap = 0 if refill else max(0, target - held)
+    quota = target if refill else max(refresh_floor(target), gap)
     if search_queries:
         fetch_queries = search_queries
         hours = window_hours if len(existing) < max(int(target * 0.5), 80) else refresh_hours
@@ -200,32 +218,48 @@ def _collect_posts(
         fetch_queries = neutral
         hours = refresh_hours
 
-    try:
-        incoming = extract_posts(
-            sample_size=pool,
-            window_hours=hours,
-            queries=fetch_queries,
-            rng=rng,
-            now=moment,
-        )
-    except RuntimeError as exc:
-        print(f"Bluesky extract failed ({exc}). Rebuilding from the retained corpus.")
-        incoming = []
+    pulled: list[dict] = []
+    seen = {post.get("uri") for post in existing if post.get("uri")}
+    rounds = 0
+    while len(pulled) < quota and rounds < 6:
+        rounds += 1
+        try:
+            incoming = extract_posts(
+                sample_size=max(quota - len(pulled), 1),
+                window_hours=hours,
+                queries=fetch_queries,
+                rng=rng,
+                now=moment,
+                skip_uris=seen,
+            )
+        except RuntimeError as exc:
+            print(f"Bluesky extract failed ({exc}). Rebuilding from the retained corpus.")
+            incoming = []
+        fresh = []
+        for post in drop_near_duplicates(clean_posts(incoming)):
+            uri = post.get("uri")
+            if not uri or uri in seen:
+                continue
+            seen.add(uri)
+            fresh.append(post)
+        if not fresh:
+            break
+        pulled.extend(fresh)
+        print(f"Morning fetch {rounds}: {len(pulled)} new posts toward {quota}.")
 
-    fresh = drop_near_duplicates(clean_posts(incoming))
-    if not fresh:
+    if not pulled:
         if not existing:
             raise RuntimeError("Bluesky returned no quality posts and no corpus is retained")
         print(f"No new quality posts; keeping {len(existing)} retained posts.")
-        return list(existing), "bluesky"
+        return list(existing), "bluesky", False
 
     if refill:
-        cleaned = list(fresh)
+        cleaned = list(pulled)
         dates = window_utc_dates(moment)
     else:
         cleaned = retain_window(
             existing,
-            fresh,
+            pulled,
             now=moment,
             window_hours=window_hours,
             target=target,
@@ -236,7 +270,7 @@ def _collect_posts(
     cleaned = drop_near_duplicates(cleaned)
     if not search_queries and cleaned:
         record_fetched_days(connection, dates, fetched_at=moment.isoformat(), kept=len(cleaned))
-    return cleaned, "bluesky"
+    return cleaned, "bluesky", True
 
 
 def _build_topics(
@@ -250,6 +284,13 @@ def _build_topics(
     backend = str(settings["label_backend"])
     seed = int(settings["seed"])
     model = str(settings.get("openai_model") or "") or None
+    chosen = _resolve_backend(backend)
+    summary_model = None
+    if chosen != "heuristic":
+        try:
+            summary_model = _generator_for(chosen, model)
+        except Exception as exc:
+            print(f"Level summaries will use the grounded writer ({exc}).")
     built: list[dict] = []
     membership: list[tuple[str, int]] = []
     face_rows: list[tuple[str, int, int, float]] = []
@@ -356,15 +397,15 @@ def _build_topics(
         )
         for post in members:
             membership.append((post["uri"], topic_id))
-        built.append(
-            {
-                "id": topic_id,
-                "name": name,
-                "category": category_for_members(name, terms, member_texts, members),
-                "total_volume_percent": volume,
-                "perspectives": perspectives,
-            }
-        )
+        planet = {
+            "id": topic_id,
+            "name": name,
+            "category": category_for_members(name, terms, member_texts, members),
+            "total_volume_percent": volume,
+            "perspectives": perspectives,
+        }
+        apply_level_summaries(planet, generate=summary_model)
+        built.append(planet)
         _dedupe_labels(built)
     built = _drop_unshared_planets(built)
     if keep is not None:

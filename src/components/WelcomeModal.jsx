@@ -1,45 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SITE_TAGLINE, setWelcomeHidden } from '../lib/copy'
 
-function SizeGraphic() {
+function BarsGraphic() {
   return (
     <figure className="welcome-graphic">
-      <h3>Planet size</h3>
-      <svg viewBox="0 0 320 118" role="img" aria-labelledby="size-graphic-title">
-        <title id="size-graphic-title">A large planet means more public attention than a small one</title>
-        <circle cx="160" cy="58" r="52" fill="none" stroke="rgba(215,222,245,0.12)" />
-        <circle cx="160" cy="58" r="34" fill="none" stroke="rgba(215,222,245,0.08)" />
-        <circle cx="78" cy="60" r="38" fill="#f4c14e" />
-        <circle cx="78" cy="48" r="14" fill="rgba(255,255,255,0.18)" />
-        <text x="78" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">More talk</text>
-        <circle cx="236" cy="74" r="16" fill="#4aa3e6" />
-        <circle cx="230" cy="68" r="5" fill="rgba(255,255,255,0.22)" />
-        <text x="236" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Niche</text>
+      <svg viewBox="0 0 320 240" role="img" aria-labelledby="bars-graphic-title">
+        <title id="bars-graphic-title">Longer bars are the larger shares</title>
+        <rect x="16" y="28" width="248" height="32" rx="8" fill="#8a6a22" />
+        <rect x="16" y="20" width="248" height="32" rx="8" fill="#f4c14e" />
+        <rect x="16" y="20" width="248" height="12" rx="6" fill="#ffe7a3" opacity="0.85" />
+        <rect x="16" y="84" width="168" height="32" rx="8" fill="#1d4e78" />
+        <rect x="16" y="76" width="168" height="32" rx="8" fill="#4aa3e6" />
+        <rect x="16" y="76" width="168" height="12" rx="6" fill="#c5e6ff" opacity="0.8" />
+        <rect x="16" y="140" width="112" height="32" rx="8" fill="#7a2c12" />
+        <rect x="16" y="132" width="112" height="32" rx="8" fill="#e25a2b" />
+        <rect x="16" y="132" width="112" height="12" rx="6" fill="#ffc2a8" opacity="0.75" />
+        <rect x="16" y="196" width="68" height="32" rx="8" fill="#1d6b66" />
+        <rect x="16" y="188" width="68" height="32" rx="8" fill="#7ee0d8" />
+        <rect x="16" y="188" width="68" height="12" rx="6" fill="#e7fffb" opacity="0.8" />
+        <text x="274" y="44" fill="#efeef7" fontSize="16" fontFamily="system-ui, sans-serif">42%</text>
+        <text x="194" y="100" fill="#efeef7" fontSize="16" fontFamily="system-ui, sans-serif">28%</text>
+        <text x="138" y="156" fill="#efeef7" fontSize="16" fontFamily="system-ui, sans-serif">18%</text>
+        <text x="94" y="212" fill="#efeef7" fontSize="16" fontFamily="system-ui, sans-serif">12%</text>
       </svg>
-      <figcaption>Bigger planets got more public attention this week. Small is still real — just not the main story.</figcaption>
     </figure>
   )
 }
 
-function CrystalGraphic() {
+function BandsGraphic() {
   return (
     <figure className="welcome-graphic">
-      <h3>The views inside</h3>
-      <svg viewBox="0 0 320 118" role="img" aria-labelledby="crystal-graphic-title">
-        <title id="crystal-graphic-title">A planet opens into a cube. The longest, darkest spike is the most common view</title>
-        <circle cx="58" cy="56" r="26" fill="#7ee0d8" />
-        <circle cx="48" cy="46" r="9" fill="rgba(255,255,255,0.2)" />
-        <text x="58" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Planet</text>
-        <path d="M96 56 H132" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
-        <path d="M124 50 L134 56 L124 62" fill="none" stroke="rgba(239,238,247,0.55)" strokeWidth="2" />
-        <polygon points="176,34 244,34 244,78 176,78" fill="#1a3d3c" stroke="rgba(126,224,216,0.7)" />
-        <polygon points="210,18 226,40 194,40" fill="#2f6e6c" />
-        <polygon points="244,40 262,56 244,72" fill="#7ee0d8" />
-        <polygon points="194,78 226,78 210,96" fill="#d8f6f3" />
-        <text x="210" y="108" textAnchor="middle" fill="#efeef7" fontSize="12">Opinions</text>
-        <text x="268" y="22" fill="#7ee0d8" fontSize="11">Majority</text>
+      <svg viewBox="0 0 320 240" role="img" aria-labelledby="bands-graphic-title">
+        <title id="bands-graphic-title">Bars, a short summary, then posts</title>
+        <rect x="28" y="8" width="264" height="224" rx="22" fill="#0c0e16" stroke="rgba(239,238,247,0.2)" />
+        <rect x="44" y="24" width="232" height="58" rx="10" fill="#161a28" stroke="rgba(244,193,78,0.7)" />
+        <rect x="58" y="40" width="120" height="26" rx="6" fill="#f4c14e" />
+        <rect x="186" y="40" width="70" height="26" rx="6" fill="#4aa3e6" />
+        <rect x="44" y="94" width="232" height="58" rx="10" fill="#12151f" stroke="rgba(239,238,247,0.16)" />
+        <rect x="58" y="112" width="170" height="8" rx="3" fill="rgba(239,238,247,0.82)" />
+        <rect x="58" y="128" width="124" height="8" rx="3" fill="rgba(239,238,247,0.4)" />
+        <rect x="44" y="164" width="232" height="52" rx="10" fill="#10131c" stroke="rgba(239,238,247,0.1)" />
+        <rect x="58" y="180" width="190" height="7" rx="3" fill="rgba(239,238,247,0.32)" />
+        <rect x="58" y="196" width="146" height="7" rx="3" fill="rgba(239,238,247,0.16)" />
       </svg>
-      <figcaption>Tap a planet and it opens into a cube. The longest, darkest spike is the most common view — loudest, not truest. A dashed face has no perspective.</figcaption>
     </figure>
   )
 }
@@ -83,28 +86,13 @@ export default function WelcomeModal({ open, onClose }) {
         tabIndex={-1}
       >
         <header className="welcome-head">
-          <p className="eyebrow">Welcome</p>
           <h2 id="welcome-title">Perspectiverse</h2>
           <p className="welcome-tagline">{SITE_TAGLINE}</p>
         </header>
         <div className="welcome-body">
-          <p>
-            A week of public conversation as a solar system — not your feed. Step out of an
-            echo chamber: is this topic widely discussed, and are you the majority or a minority?
-          </p>
-
-          <section>
-            <h3>What to do</h3>
-            <ol>
-              <li>Drag, pinch, or tilt to look around. Planets keep turning so every side comes into view.</li>
-              <li>Tap a planet to open its opinions. The darkest spike is the most common view, lighter spikes are smaller views, and a dashed face has no perspective. Tap a face to read its core arguments and posts.</li>
-              <li>Use <strong>Filter topics</strong> to open a newspaper section — World, Politics, Business, Technology, Sports, and the rest. All topics stays the week&rsquo;s largest planets.</li>
-            </ol>
-          </section>
-
           <div className="welcome-graphics">
-            <SizeGraphic />
-            <CrystalGraphic />
+            <BarsGraphic />
+            <BandsGraphic />
           </div>
         </div>
         <footer className="welcome-foot">

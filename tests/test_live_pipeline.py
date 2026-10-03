@@ -53,6 +53,9 @@ def test_live_fixture_writes_contract(tmp_path):
     assert topic_count == 10
     assert all(len(topic["perspectives"][0].get("arguments") or []) >= 2 for topic in payload["topics"])
     assert all(topic["name"] for topic in payload["topics"])
+    assert all(topic.get("brief") and topic.get("detail") for topic in payload["topics"])
+    assert payload["digest"]["planets"]
+    assert payload["digest"]["planets"][0]["disagreement"]
 
 
 def test_an_ungrounded_and_tail_is_removed():
@@ -292,7 +295,7 @@ def test_seeded_corpus_without_ledger_is_not_refilled(monkeypatch, tmp_path):
         raise AssertionError("posts already stored must not be replaced by a 7-day Bluesky refill")
 
     monkeypatch.setattr("pipeline.live.extract_posts", boom)
-    cleaned, source = _collect_posts(
+    cleaned, source, refreshed = _collect_posts(
         [seeded],
         {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the", "and"]},
         None,
@@ -301,6 +304,7 @@ def test_seeded_corpus_without_ledger_is_not_refilled(monkeypatch, tmp_path):
         connection,
         now=datetime(2026, 9, 28, tzinfo=timezone.utc),
     )
+    assert refreshed is False
     assert source == "bluesky"
     assert [post["uri"] for post in cleaned] == ["at://seeded"]
     assert "2026-09-28" in fetched_day_set(connection)
@@ -329,7 +333,7 @@ def test_empty_corpus_still_refills_seven_days(monkeypatch, tmp_path):
         ]
 
     monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
-    cleaned, source = _collect_posts(
+    cleaned, source, refreshed = _collect_posts(
         [],
         {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the", "and"]},
         None,
@@ -338,6 +342,7 @@ def test_empty_corpus_still_refills_seven_days(monkeypatch, tmp_path):
         connection,
         now=datetime(2026, 9, 28, tzinfo=timezone.utc),
     )
+    assert refreshed is True
     assert source == "bluesky"
     assert [post["uri"] for post in cleaned] == ["at://fresh"]
     assert "2026-09-28" in fetched_day_set(connection)
@@ -375,7 +380,7 @@ def test_missing_day_is_a_refresh_not_a_refill(monkeypatch, tmp_path):
         ]
 
     monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
-    cleaned, _source = _collect_posts(
+    cleaned, _source, refreshed = _collect_posts(
         [seeded],
         {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the"]},
         None,
@@ -384,6 +389,7 @@ def test_missing_day_is_a_refresh_not_a_refill(monkeypatch, tmp_path):
         connection,
         now=datetime(2026, 9, 28, tzinfo=timezone.utc),
     )
+    assert refreshed is True
     assert {post["uri"] for post in cleaned} == {"at://seeded", "at://today"}
     assert "2026-09-26" in fetched_day_set(connection)
     assert "2026-09-28" in fetched_day_set(connection)
@@ -413,7 +419,7 @@ def test_recorded_utc_day_skips_bluesky(monkeypatch, tmp_path):
         raise AssertionError("a recorded UTC day must not search Bluesky again")
 
     monkeypatch.setattr("pipeline.live.extract_posts", boom)
-    cleaned, source = _collect_posts(
+    cleaned, source, refreshed = _collect_posts(
         [kept],
         {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the"]},
         None,
@@ -422,9 +428,71 @@ def test_recorded_utc_day_skips_bluesky(monkeypatch, tmp_path):
         connection,
         now=datetime(2026, 9, 28, 18, tzinfo=timezone.utc),
     )
+    assert refreshed is False
     assert source == "bluesky"
     assert [post["uri"] for post in cleaned] == ["at://today"]
     connection.close()
+
+
+def test_morning_loop_fetches_until_the_quota_or_the_source_runs_out(monkeypatch, tmp_path):
+    from datetime import datetime, timezone
+
+    from pipeline.live import _collect_posts
+    from pipeline.store import connect
+
+    connection = connect(tmp_path / "live.db")
+    calls = {"n": 0}
+
+    def fake_extract(**kwargs):
+        calls["n"] += 1
+        assert kwargs["window_hours"] == 168
+        index = calls["n"]
+        return [
+            {
+                "uri": f"at://batch-{index}",
+                "author": "new",
+                "text": f"People were arguing about rent increase number {index} on my block again today.",
+                "likes": 2,
+                "created_at": "2026-09-28T12:00:00Z",
+            }
+        ]
+
+    monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
+    cleaned, _source, refreshed = _collect_posts(
+        [],
+        {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the"]},
+        None,
+        None,
+        3,
+        connection,
+        now=datetime(2026, 9, 28, tzinfo=timezone.utc),
+    )
+    connection.close()
+    assert refreshed is True
+    assert calls["n"] == 3
+    assert {post["uri"] for post in cleaned} == {"at://batch-1", "at://batch-2", "at://batch-3"}
+
+
+def test_recluster_is_called_with_every_retained_post(monkeypatch, tmp_path):
+    from pipeline import live as live_module
+
+    fixture = tmp_path / "posts.json"
+    fixture.write_text(json.dumps(build_tiny_posts()), encoding="utf-8")
+    seen = {}
+    real = live_module.cluster_texts
+
+    def spy(texts, **kwargs):
+        seen["n"] = len(texts)
+        return real(texts, **kwargs)
+
+    monkeypatch.setattr(live_module, "cluster_texts", spy)
+    run_live(
+        fixture=fixture,
+        output=tmp_path / "data.json",
+        config=_heuristic_config(tmp_path / "pipeline.yaml"),
+        db_path=tmp_path / "posts.db",
+    )
+    assert seen["n"] == len(build_tiny_posts())
 
 
 def test_section_columns_round_trip(tmp_path):

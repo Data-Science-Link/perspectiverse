@@ -39,26 +39,36 @@ test.describe('Perspectiverse views', () => {
 
     const welcome = page.getByRole('dialog', { name: 'Perspectiverse' })
     await expect(welcome).toBeVisible()
-    await expect(welcome).toContainText('echo chamber')
-    await expect(welcome).toContainText('Planet size')
-    await expect(welcome).toContainText('majority')
     await expect(welcome.locator('svg')).toHaveCount(2)
+    await expect(welcome).toContainText('See every perspective')
+    const fitted = await welcome.evaluate((node) => node.scrollHeight <= node.clientHeight + 1)
+    expect(fitted).toBe(true)
     await expect(page.getByLabel("Don't show this again")).toBeVisible()
     await page.getByLabel("Don't show this again").check()
     await page.getByRole('button', { name: 'Enter the solar system' }).click()
     await expect(welcome).toBeHidden()
 
     await expect(page.getByRole('banner').getByText('See every perspective — and where yours stands.')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Show orbit lines' })).toBeVisible()
-    await expect(page.locator('.observatory canvas')).toBeVisible()
     await expect(page.getByText('Test your take')).toHaveCount(0)
     await expect(page.getByText('Anti-echo')).toHaveCount(0)
     await expect(page.locator('.pv-graphic')).toHaveCount(0)
+    await expect(page.getByRole('region', { name: 'This week' })).toBeVisible()
     await expect(page.getByText('Filter topics', { exact: true }).first()).toBeVisible()
 
+    if (testInfo.project.name === 'mobile') {
+      await page.getByRole('button', { name: 'Orbits' }).click()
+    }
+    await expect(page.getByRole('button', { name: 'Show orbit lines' })).toBeVisible()
+    const observatoryCanvas = page.locator('.observatory canvas')
+    await expect(observatoryCanvas).toBeVisible()
+    if (testInfo.project.name === 'mobile') {
+      await expect(page.getByRole('button', { name: 'Artists Reject AI' }).first()).toBeVisible()
+    }
+
+    if (testInfo.project.name !== 'mobile') {
     await expect.poll(async () => {
-      const stats = await observatoryStats(page)
-      return stats.width > 64 && stats.height > 64 && stats.lit > 8
+      const frame = await observatoryStats(page)
+      return frame.width > 64 && frame.height > 64 && frame.lit > 8
     }, { timeout: 20_000 }).toBeTruthy()
 
     await expect.poll(async () => {
@@ -85,21 +95,17 @@ test.describe('Perspectiverse views', () => {
       })
       return sun.r > 150 && sun.g > 120 && sun.r + sun.g > 280
     }, { timeout: 20_000 }).toBeTruthy()
+    }
 
     await page.getByRole('button', { name: 'Show orbit lines' }).click()
     await expect(page.getByRole('button', { name: 'Hide orbit lines' })).toBeVisible()
 
     if (testInfo.project.name === 'mobile') {
-      await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
-      await expect(page.getByText(/Drag the solar system to look around/)).toBeVisible()
-      const rail = page.getByLabel("Today's planets")
-      await expect(rail).toBeVisible()
-      await expect(rail.getByRole('button').first()).toContainText('of attention')
-      await expect(rail).not.toContainText('Mercury')
-    } else {
-      await expect(page.getByRole('heading', { name: 'Perspectiverse' })).toBeVisible()
-      await expect(page.getByText(/Bigger planets got more/)).toBeVisible()
+      await page.getByRole('button', { name: 'Briefing' }).click()
     }
+    await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
+    await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
   })
 
   test('respects do not show again and still lets the menu reopen welcome', async ({ page }) => {
@@ -121,29 +127,24 @@ test.describe('Perspectiverse views', () => {
     await page.goto('/')
     await enterSolarSystem(page)
 
-    const firstPlanet = page.getByRole('button', { name: /of attention|% of/ }).first()
-    if (await firstPlanet.count()) {
-      await firstPlanet.click()
-    } else {
-      await page.locator('.panel button').first().click()
-    }
-    await expect(page.getByRole('heading', { name: 'Opinions' })).toBeVisible()
-    await expect(page.getByLabel('View colors, loudest first')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Perspectives' }).click()
+    await expect(page.getByRole('button', { name: '← All topics' }).or(page.getByRole('button', { name: '← Back to the solar system' }))).toBeVisible()
     if (testInfo.project.name === 'mobile') {
-      await expect(page.getByRole('button', { name: '← Back to the solar system' })).toBeVisible()
       await expect(page.getByRole('banner').getByText('Back', { exact: true })).toBeVisible()
-    } else {
-      await expect(page.getByRole('button', { name: '← All topics' })).toBeVisible()
     }
-
-    await page.locator('.perspective-card').first().click()
+    await page.locator('.bar-name').nth(0).click()
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
+    await page.getByRole('button', { name: 'Read more …' }).click()
+    await expect(page.locator('.reading-detail p').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Email' }).click()
+    await expect(page.getByRole('article', { name: 'Weekly email' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /This week/ })).toBeVisible()
     await expect(page.locator('.caveat')).toHaveCount(0)
     await expect(page.getByText(/shorter name/)).toHaveCount(0)
     await expect(page.getByText(/third reply/)).toHaveCount(0)
   })
 
-  test('hamburger opens site pages with methodology graphics', async ({ page }) => {
+  test('hamburger opens site pages with methodology graphics', async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('perspectiverse.hide-welcome', '1')
     })
@@ -182,7 +183,11 @@ test.describe('Perspectiverse views', () => {
 
     await page.getByRole('button', { name: 'Back to the solar system' }).click()
     await expect(page).not.toHaveURL(/page=/)
-    await expect(page.locator('.observatory canvas')).toBeVisible()
+    if (testInfo.project.name === 'mobile') {
+      await expect(page.getByRole('region', { name: 'This week' })).toBeVisible()
+    } else {
+      await expect(page.locator('.observatory canvas')).toBeVisible()
+    }
   })
 
   test('site pages load from the URL without the welcome tour', async ({ page }) => {
