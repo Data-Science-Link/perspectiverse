@@ -55,6 +55,23 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(topic["name"] for topic in payload["topics"])
 
 
+def test_a_title_has_to_cover_most_of_its_posts():
+    from pipeline.live import _title_covers_posts
+
+    outrage = [
+        {"text": "Social media posts spark outrage and generate debate about discrimination."},
+        {"text": "People are furious about a trans man in the Odyssey and the casting."},
+        {"text": "The grooming meme treats misconduct allegations like a fandom war."},
+    ]
+    artists = [
+        {"text": "Stop spreading AI-generated slop. Small artists cannot thrive."},
+        {"text": "Artists do get it. Artists love new tools that are not generative slop."},
+        {"text": "AI ripped the passion out of my writing."},
+    ]
+    assert not _title_covers_posts("Outrage Over Issues", outrage)
+    assert _title_covers_posts("Artists Reject AI", artists)
+
+
 def test_planet_name_must_appear_on_a_published_face():
     from pipeline.live import _name_misses_faces
 

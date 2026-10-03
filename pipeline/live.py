@@ -289,7 +289,9 @@ def _build_topics(
             focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
             representatives = _align_representatives(representatives, focus)
             summary = str(label.get("summary") or "")
-            if content_tokens(title) and not _claim_words_overlap(title, summary):
+            if content_tokens(title) and (
+                not _claim_words_overlap(title, summary) or not _title_covers_posts(title, representatives)
+            ):
                 label = {
                     "title": "Mixed remarks",
                     "summary": "These posts do not share a claim.",
@@ -423,6 +425,22 @@ def _claim_words_overlap(left: str, right: str) -> bool:
     left_stems = {subject_stem(token) for token in content_tokens(left)}
     right_stems = {subject_stem(token) for token in content_tokens(right)}
     return bool(left_stems & right_stems)
+
+
+def _title_covers_posts(title: str, posts: list[dict]) -> bool:
+    """True when the claim is what most of the shown posts are about."""
+    title_stems = {subject_stem(token) for token in content_tokens(title)}
+    title_stems = {stem for stem in title_stems if len(stem) >= 3}
+    shown = posts[:6]
+    if len(shown) < 2 or not title_stems:
+        return True
+    hits = 0
+    for post in shown:
+        text = str(post.get("text") or post.get("clean_text") or "")
+        stems = {subject_stem(token) for token in content_tokens(text)}
+        if title_stems & stems:
+            hits += 1
+    return hits >= 2 and hits * 2 >= len(shown)
 
 
 def _word_bags_overlap(left: set[str], right: set[str]) -> bool:

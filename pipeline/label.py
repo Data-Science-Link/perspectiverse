@@ -323,6 +323,9 @@ def titles_alike(left: str | None, right: str | None) -> bool:
         overlap = len(a_tokens & b_tokens) / len(a_tokens | b_tokens)
         if overlap >= 0.67:
             return True
+        small, large = (a_tokens, b_tokens) if len(a_tokens) <= len(b_tokens) else (b_tokens, a_tokens)
+        if small <= large:
+            return True
     shared = a_tokens & b_tokens
     only_a = a_tokens - b_tokens
     only_b = b_tokens - a_tokens
@@ -620,6 +623,24 @@ _TOPIC_GLUE = frozenset(
 )
 
 
+# A job title is not a case. "Prosecutor" glues a border-wall ruling to a campaign ad.
+_OFFICE_GLUE = frozenset(
+    {
+        "attorney",
+        "counsel",
+        "court",
+        "general",
+        "judg",
+        "judge",
+        "justice",
+        "lawyer",
+        "prosecut",
+        "prosecution",
+        "prosecutor",
+    }
+)
+
+
 def _stem_bag(text: str, glue: frozenset[str]) -> set[str]:
     stems = set()
     for token in content_tokens(text):
@@ -671,7 +692,13 @@ def specific_shared_words(faces: list[dict]) -> set[str]:
     return {
         word
         for word in _shared_post_words(faces)
-        if len(word) >= 3 and word not in _PERSON_GLUE and word not in _TOPIC_GLUE and word not in _VERB_STEMS
+        if (
+            len(word) >= 3
+            and word not in _PERSON_GLUE
+            and word not in _TOPIC_GLUE
+            and word not in _VERB_STEMS
+            and word not in _OFFICE_GLUE
+        )
     }
 
 

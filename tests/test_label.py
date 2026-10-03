@@ -171,6 +171,23 @@ def test_a_shared_commodity_counts_as_one_subject():
     assert specific_shared_words(once) == set()
     assert specific_shared_words(repeated)
     assert specific_shared_words(titled)
+    courts = [
+        {
+            "representative_posts": [
+                {"text": "Judge blocks border wall construction in Big Bend."},
+                {"text": "The Justice Department will not prosecute Jerome Powell."},
+                {"text": "The criminal investigation into Powell remains closed."},
+            ],
+        },
+        {
+            "representative_posts": [
+                {"text": "The race for attorney general is about who will fight for you."},
+                {"text": "A prosecutor is somebody doing their legal job."},
+                {"text": "Congress can't appoint a special prosecutor or counsel."},
+            ],
+        },
+    ]
+    assert specific_shared_words(courts) == set()
 
 
 def test_faces_that_share_no_subject_word_are_different_stories():
@@ -285,7 +302,10 @@ def test_titles_alike_catches_a_numbered_copy_and_not_a_different_claim():
 
     assert titles_alike("Pro Ukraine", "Pro Ukraine 2")
     assert titles_alike("AI Criticism", "AI Critique")
+    assert titles_alike("Ukraine War", "Ukraine War Updates")
     assert not titles_alike("Pro Ukraine", "Oil Crisis")
+    assert not titles_alike("Iran War", "Iran Conflict")
+    assert not titles_alike("Death Penalty", "Lethal Injection")
 
 
 def test_heuristic_summary_uses_a_shown_sentence():
