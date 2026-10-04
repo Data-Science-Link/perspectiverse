@@ -211,6 +211,7 @@ def _perspective_prompt(face: dict, rivals: list[str]) -> str:
         "Write the reading-screen copy for one perspective.\n"
         "Return JSON only: {\"brief\": \"...\", \"detail\": \"...\"}\n"
         "brief is 3 to 5 sentences. It states the claim in the posts' own terms.\n"
+        "Do not paste a post. Paraphrase the claim.\n"
         "detail is exactly 3 paragraphs separated by a blank line: the claim in full, "
         "then how the posts defend it, then the disagreement with the other views.\n"
         "Do not add a fact, number, or name that is not below. Do not explain percentages.\n"
@@ -222,6 +223,27 @@ def _perspective_prompt(face: dict, rivals: list[str]) -> str:
     )
 
 
+_DANGLING = re.compile(r"\b(?:and|or|but|actually|because)\.?$", re.IGNORECASE)
+
+
+def _usable_argument(text: str) -> bool:
+    """Drop a fragment that is not a claim, such as a sentence ending 'and actually'."""
+    cleaned = _clean(text).rstrip(".").strip()
+    if len(cleaned.split()) < 3:
+        return False
+    return _DANGLING.search(cleaned) is None
+
+
+def _quotes_a_post(brief: str, posts: list[dict]) -> bool:
+    """True when the short summary pastes a post instead of stating the claim."""
+    text = _clean(brief).lower()
+    for post in posts:
+        quote = _clean(_quote(post, limit=180)).lower()
+        if len(quote) >= 40 and quote[:40] in text:
+            return True
+    return False
+
+
 def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = None) -> dict:
     """Fill brief and detail on the planet and on every perspective."""
     perspectives = list(topic.get("perspectives") or [])
@@ -231,13 +253,19 @@ def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = N
             for other in perspectives
             if other is not face and other.get("title") and other.get("title") != face.get("title")
         ]
-        arguments = [str(item) for item in (face.get("arguments") or []) if str(item).strip()]
+        arguments = [
+            str(item)
+            for item in (face.get("arguments") or [])
+            if _usable_argument(str(item))
+        ]
+        if len(arguments) >= 2:
+            face["arguments"] = arguments[:6]
+        else:
+            face.pop("arguments", None)
+            arguments = []
         posts = list(face.get("representative_posts") or [])
         lead = str(face.get("summary") or face.get("title") or "")
-        post_lines = []
-        for post in posts[:4]:
-            post_lines.extend(sentences(_quote(post))[:1])
-        brief = complete_brief(lead, *arguments, *post_lines, title=str(face.get("title") or ""))
+        brief = complete_brief(lead, *arguments, title=str(face.get("title") or ""))
         detail = detail_from(
             brief=brief,
             arguments=arguments,
@@ -247,7 +275,7 @@ def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = N
         )
         if generate is not None:
             written = _ask_model(generate, _perspective_prompt(face, rivals))
-            if written:
+            if written and not _quotes_a_post(written["brief"], posts):
                 brief = written["brief"]
                 detail = written["detail"]
         face["brief"] = brief or complete_brief(lead, title=str(face.get("title") or ""))

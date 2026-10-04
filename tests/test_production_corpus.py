@@ -83,6 +83,8 @@ def test_production_corpus_builds_a_snapshot(tmp_path: Path) -> None:
     assert topics, "production clustering published no planets"
     counts = [int(topic["post_count"]) for topic in topics]
     assert len(set(counts)) > 1, "every planet was given the same post count"
+    biggest = max(topics, key=lambda topic: int(topic["post_count"]))
+    assert biggest["total_volume_percent"] == max(topic["total_volume_percent"] for topic in topics)
     assert all(count > 0 and count != payload["total_posts"] for count in counts)
     assert sum(counts) <= payload["total_posts"]
     multi = 0

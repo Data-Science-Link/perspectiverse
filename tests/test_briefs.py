@@ -50,6 +50,31 @@ def test_level_summaries_are_three_to_five_sentences_and_three_paragraphs():
     assert "is the claim these posts repeat" not in blob
 
 
+def test_short_brief_does_not_paste_a_post():
+    topic = {
+        "name": "Voting",
+        "perspectives": [
+            {
+                "title": "Voting Issues",
+                "summary": "Voting process is flawed",
+                "arguments": ["The claim centers on reinforcement and actually."],
+                "representative_posts": [
+                    {
+                        "author": "ada",
+                        "text": "More to add because this election season is completely unlike the summary itself.",
+                        "likes": 3,
+                    }
+                ],
+            }
+        ],
+    }
+    apply_level_summaries(topic)
+    brief = topic["perspectives"][0]["brief"]
+    assert "completely unlike" not in brief
+    assert "and actually" not in brief
+    assert "Voting process is flawed" in brief
+
+
 def test_email_lists_planets_with_arguments_and_the_disagreement():
     digest = assemble_email([_topic()])
     planet = digest["planets"][0]

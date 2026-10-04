@@ -421,12 +421,21 @@ def _build_topics(
     built = _drop_unshared_planets(built)
     if keep is not None:
         built = built[: max(int(keep), 1)]
-    if built:
-        # Volumes were shares of the pre-drop set. Rebalance after a mixed planet leaves.
-        sizes = [max(topic.get("total_volume_percent") or 0, 0.1) for topic in built]
-        for topic, volume in zip(built, to_percents(sizes)):
-            topic["total_volume_percent"] = volume
+    publish_volumes(built)
     return _renumber_planets(built, membership, face_rows)
+
+
+def publish_volumes(topics: list[dict]) -> None:
+    """Planet size is the posts still on the planet.
+
+    A mixed face can leave a cluster, and the old share of that larger cluster
+    must not keep a four-post planet the same size as one with dozens.
+    """
+    if not topics:
+        return
+    sizes = [max(int(topic.get("post_count") or 0), 1) for topic in topics]
+    for topic, volume in zip(topics, to_percents(sizes)):
+        topic["total_volume_percent"] = volume
 
 
 def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> list[dict]:

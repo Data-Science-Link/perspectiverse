@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-from pipeline.live import posts_for_planets, run_live
+from pipeline.live import posts_for_planets, publish_volumes, run_live
 from pipeline.run_pipeline import main
 from pipeline.schema import validate_payload
 from tests.corpus import build_tiny_posts
@@ -532,4 +532,14 @@ def test_section_columns_round_trip(tmp_path):
     assert loaded[0]["section"] == "World"
     assert loaded[0]["section_confidence"] == 0.81
     assert loaded[0]["spam_score"] == 0.05
+
+
+def test_planet_volume_follows_the_posts_still_on_it():
+    topics = [
+        {"name": "Small", "post_count": 4, "total_volume_percent": 14.1},
+        {"name": "Large", "post_count": 84, "total_volume_percent": 6.2},
+    ]
+    publish_volumes(topics)
+    assert topics[1]["total_volume_percent"] > topics[0]["total_volume_percent"]
+    assert abs(sum(topic["total_volume_percent"] for topic in topics) - 100) < 0.15
 
