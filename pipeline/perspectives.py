@@ -150,8 +150,11 @@ def split_perspectives(
     }
 
 
-def select_representatives(posts: list[dict], distances: list[float], limit: int = 12) -> list[dict]:
-    """Highest likes first. Equal likes break toward the centroid."""
+def select_representatives(posts: list[dict], distances: list[float], limit: int = 36) -> list[dict]:
+    """Highest likes first. Equal likes break toward the centroid.
+
+    ``limit`` matches ``EXAMPLE_POST_CAP`` in pipeline.settings.
+    """
     order = sorted(
         range(len(posts)),
         key=lambda index: (-int(posts[index].get("likes") or 0), distances[index], index),

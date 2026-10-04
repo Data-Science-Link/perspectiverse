@@ -25,7 +25,7 @@ label_backend: auto
 ollama_model: llama3.2
 openai_model: gpt-4o-mini
 
-representative_posts: 12
+representative_posts: 36
 language: en
 seed: 0
 catalog_size: 10

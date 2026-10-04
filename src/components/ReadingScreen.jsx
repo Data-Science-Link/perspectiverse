@@ -9,13 +9,38 @@ function paragraphs(text) {
     .filter(Boolean)
 }
 
+const MOBILE_POST_PREVIEW = 3
+
 function examplePosts(topic, perspective) {
   if (perspective) return sortPosts(perspective.representative_posts || [])
   const posts = []
+  const seen = new Set()
   for (const face of topic?.perspectives || []) {
-    posts.push(...(face.representative_posts || []))
+    for (const post of face.representative_posts || []) {
+      const key = `${post.author}\n${post.text}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      posts.push(post)
+    }
   }
-  return sortPosts(posts).slice(0, 8)
+  return sortPosts(posts)
+}
+
+function PostCards({ posts }) {
+  return (
+    <>
+      {posts.map((post) => (
+        <article key={`${post.author}-${post.likes}-${post.text?.slice(0, 24)}`} className="post-card">
+          <header>
+            <span>@{post.author}</span>
+            <span>{formatNumber(post.likes || 0)} likes</span>
+          </header>
+          <p>{post.text}</p>
+        </article>
+      ))}
+      {posts.length === 0 && <p className="reading-brief">No example posts.</p>}
+    </>
+  )
 }
 
 function emailPlain(digest, updated) {
@@ -124,6 +149,7 @@ export default function ReadingScreen({
   onToggleEmail,
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [sheet, setSheet] = useState(null)
   const highlighted = topics.find((topic) => topic.id === highlightedTopicId) ?? topics[0] ?? null
   const topic = selectedTopic
   const perspective = selectedPerspective
@@ -160,7 +186,19 @@ export default function ReadingScreen({
 
   useEffect(() => {
     setExpanded(false)
+    setSheet(null)
   }, [selectionKey])
+
+  const mobilePlanet = Boolean(isMobile && topic)
+  const previewPosts = mobilePlanet ? posts.slice(0, MOBILE_POST_PREVIEW) : posts
+
+  const openSummary = () => {
+    if (mobilePlanet) {
+      setSheet('summary')
+      return
+    }
+    setExpanded((value) => !value)
+  }
 
   const chooseBar = (id) => {
     if (topic) {
@@ -179,20 +217,49 @@ export default function ReadingScreen({
   }
 
   return (
-    <section className="reading-screen" aria-label="This week">
+    <section className={`reading-screen ${sheet ? 'is-sheet' : ''}`} aria-label="This week">
       <header className="reading-toolbar">
-        {topic && (
+        {sheet ? (
+          <button type="button" className="back-link" onClick={() => setSheet(null)}>
+            ← Back to the planet
+          </button>
+        ) : topic ? (
           <button type="button" className="back-link" onClick={onBack}>
             {isMobile ? '← Back to the solar system' : '← All topics'}
           </button>
-        )}
+        ) : null}
         <div className="reading-actions">
           <button type="button" className="text-button" onClick={onToggleEmail}>
             Email
           </button>
         </div>
       </header>
-      {topics.length === 0 ? (
+      {sheet === 'summary' && (
+        <div className="reading-sheet">
+          <p className="eyebrow">
+            {perspective ? topic.name : topic.category}
+            {postCount ? ` · ${formatNumber(postCount)} posts` : ''}
+          </p>
+          <h1>{title}</h1>
+          {brief && <p className="reading-brief">{brief}</p>}
+          <div className="reading-detail">
+            {paragraphs(detail).map((part) => (
+              <p key={part} className={part.includes('“') ? 'is-quote' : undefined}>
+                {part}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+      {sheet === 'posts' && (
+        <div className="reading-sheet">
+          <h1>Example posts</h1>
+          <div className="reading-sheet-posts">
+            <PostCards posts={posts} />
+          </div>
+        </div>
+      )}
+      {!sheet && (topics.length === 0 ? (
         <div className="reading-empty">
           <h1>Nothing in {category}</h1>
           <button type="button" className="text-button" onClick={() => onCategory('all')}>
@@ -212,8 +279,8 @@ export default function ReadingScreen({
             <h1>{title}</h1>
             {brief && <p className="reading-brief">{brief}</p>}
             <div className="reading-actions">
-              <button type="button" className="text-button" onClick={() => setExpanded((value) => !value)}>
-                {expanded ? 'Show less' : 'Read more …'}
+              <button type="button" className="text-button" onClick={openSummary}>
+                {expanded && !mobilePlanet ? 'Show less' : 'Read more …'}
               </button>
               {!topic && highlighted && (
                 <button type="button" className="text-button is-strong" onClick={() => onOpenTopic(highlighted.id)}>
@@ -232,22 +299,20 @@ export default function ReadingScreen({
             )}
           </div>
           <div className="reading-band reading-posts">
-            <h2>Example posts</h2>
+            <div className="posts-head">
+              <h2>Example posts</h2>
+              {mobilePlanet && posts.length > 0 && (
+                <button type="button" className="text-button" onClick={() => setSheet('posts')}>
+                  See all posts
+                </button>
+              )}
+            </div>
             <div className="post-scroller">
-              {posts.map((post) => (
-                <article key={`${post.author}-${post.likes}-${post.text?.slice(0, 24)}`} className="post-card">
-                  <header>
-                    <span>@{post.author}</span>
-                    <span>{formatNumber(post.likes || 0)} likes</span>
-                  </header>
-                  <p>{post.text}</p>
-                </article>
-              ))}
-              {posts.length === 0 && <p className="reading-brief">No example posts.</p>}
+              <PostCards posts={previewPosts} />
             </div>
           </div>
         </div>
-      )}
+      ))}
     </section>
   )
 }

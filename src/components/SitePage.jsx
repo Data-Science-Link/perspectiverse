@@ -55,7 +55,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Do you keep the posts?',
-    a: 'The published snapshot keeps a handful of example posts per perspective. About a thousand cleaned posts sit in a retained SQLite window so tomorrow’s job can drop the oldest seventh and add yesterday’s posts. That is not a firehose archive.',
+    a: 'The published snapshot keeps up to three dozen example posts per perspective. About a thousand cleaned posts sit in a retained SQLite window so tomorrow’s job can drop the oldest seventh and add yesterday’s posts. That is not a firehose archive.',
   },
   {
     q: 'How do I get in touch?',

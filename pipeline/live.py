@@ -24,6 +24,7 @@ from pipeline.corpus import (
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
+from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
     content_tokens,
     label_perspective,
@@ -408,7 +409,7 @@ def _build_topics(
         }
         apply_level_summaries(planet, generate=summary_model)
         built.append(planet)
-        _dedupe_labels(built)
+        _dedupe_labels(built, limit)
     built = _drop_unshared_planets(built)
     if keep is not None:
         built = built[: max(int(keep), 1)]
@@ -620,14 +621,14 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
     return kept
 
 
-def _dedupe_labels(topics: list[dict]) -> None:
+def _dedupe_labels(topics: list[dict], post_limit: int = EXAMPLE_POST_CAP) -> None:
     seen: set[str] = set()
     for topic in topics:
         topic["name"] = unique_label(str(topic.get("name") or ""), seen)
-        _merge_alike_faces(topic)
+        _merge_alike_faces(topic, post_limit)
 
 
-def _merge_alike_faces(topic: dict) -> None:
+def _merge_alike_faces(topic: dict, post_limit: int = EXAMPLE_POST_CAP) -> None:
     """Fold a second face into the larger one when the titles are the same stance.
 
     Numbering a duplicate ("Pro Ukraine 2") was presenting one view as two.
@@ -652,7 +653,7 @@ def _merge_alike_faces(topic: dict) -> None:
             posts.append(post)
             seen_text.add(str(post.get("text") or ""))
         posts.sort(key=lambda post: -int(post.get("likes") or 0))
-        match["representative_posts"] = posts[:12]
+        match["representative_posts"] = posts[: max(int(post_limit), 1)]
     topic_id = int(topic["id"])
     topic["perspectives"] = [
         {**face, "id": face_id(topic_id, position)}

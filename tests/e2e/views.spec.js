@@ -159,6 +159,18 @@ test.describe('Perspectiverse views', () => {
     await page.getByRole('button', { name: 'Read more …' }).click()
     await expect(page.locator('.reading-detail p')).toHaveCount(3)
     await expect(page.locator('.reading-brief')).toBeVisible()
+    if (testInfo.project.name === 'mobile') {
+      await expect(page.getByRole('button', { name: 'Back to the planet' })).toBeVisible()
+      await expect(page.locator('.reading-band')).toHaveCount(0)
+      await page.getByRole('button', { name: 'Back to the planet' }).click()
+      await expect(page.locator('.reading-band')).toHaveCount(3)
+      const previewCount = await page.locator('.reading-band .post-card').count()
+      await page.getByRole('button', { name: 'See all posts' }).click()
+      await expect(page.getByRole('button', { name: 'Back to the planet' })).toBeVisible()
+      await expect.poll(async () => page.locator('.reading-sheet .post-card').count()).toBeGreaterThanOrEqual(previewCount)
+      await page.getByRole('button', { name: 'Back to the planet' }).click()
+      await expect(page.locator('.reading-band')).toHaveCount(3)
+    }
     await page.getByRole('button', { name: 'Email' }).click()
     await expect(page.getByRole('article', { name: 'Weekly email' })).toBeVisible()
     await expect(page.getByRole('heading', { name: /This week/ })).toBeVisible()
