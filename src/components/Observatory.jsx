@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
-import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutSolarSystem, orbitElements, topicScale } from '../lib/layout'
+import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutLinear, layoutSolarSystem, orbitElements, topicScale } from '../lib/layout'
+import TopicFilter from './TopicFilter'
 import { solarSettings } from '../lib/solarSettings'
 import { OrbitRing, default as Planet } from './Planet'
 import TwinklingStars from './TwinklingStars'
 
-function homeView(isMobile, planetCount = 10, layoutExtent = null) {
-  return homeLookAt(isMobile, planetCount, layoutExtent)
+function homeView(isMobile, planetCount = 10, layoutExtent = null, linear = false) {
+  return homeLookAt(isMobile, planetCount, layoutExtent, { linear })
 }
 // camera-controls ACTION bits: ROTATE 1, TRUCK 2, DOLLY 16, TOUCH_ROTATE 64,
 // TOUCH_TRUCK 128, TOUCH_DOLLY 1024, TOUCH_DOLLY_TRUCK 4096. NONE is 0.
@@ -25,18 +26,19 @@ function FocusCamera({
   planetCount = 10,
   volumeMax = 100,
   layoutExtent = null,
+  linear = false,
 }) {
   const lastId = useRef(null)
   const booted = useRef(false)
 
   useEffect(() => {
     booted.current = false
-  }, [isMobile, planetCount, layoutExtent])
+  }, [isMobile, planetCount, layoutExtent, linear])
 
   useFrame(() => {
     const controls = controlsRef.current
     if (!controls) return
-    const home = homeView(isMobile, planetCount, layoutExtent)
+    const home = homeView(isMobile, planetCount, layoutExtent, linear)
 
     if (!selectedTopic) {
       if (!booted.current || lastId.current !== null) {
@@ -77,14 +79,15 @@ function Universe({
   onSelectPerspective,
   showOrbits = false,
   volumeMax = 100,
-  layout = { radii: [], extent: null },
+  layout = { radii: [], extent: null, positions: null },
+  linear = false,
   settings,
 }) {
   const controlsRef = useRef()
   const anchors = useRef({})
   const selectedTopic = topics.find((topic) => topic.id === selectedTopicId) ?? null
   const inspecting = Boolean(selectedTopic)
-  const maxDistance = homeMaxDistance(isMobile, topics.length, layout.extent)
+  const maxDistance = homeMaxDistance(isMobile, topics.length, layout.extent, { linear })
 
   useEffect(() => {
     return () => {
@@ -112,7 +115,7 @@ function Universe({
         />
       )}
       <TwinklingStars count={settings.twinkleStars} radius={110} />
-      {showOrbits && topics.slice(1).map((topic, index) => {
+      {showOrbits && !linear && topics.slice(1).map((topic, index) => {
         const orbit = orbitElements(index + 1, false, topic.id, layout.radii[index + 1])
         return (
           <OrbitRing
@@ -137,7 +140,8 @@ function Universe({
           onSelectPerspective={onSelectPerspective}
           isMobile={isMobile}
           volumeMax={volumeMax}
-          orbitRadius={layout.radii[index]}
+          orbitRadius={linear ? null : layout.radii[index]}
+          anchor={linear ? layout.positions[index] : null}
           quality={settings.textureQuality}
           sphereDetail={settings.sphereDetail}
           haloDetail={settings.haloDetail}
@@ -161,6 +165,7 @@ function Universe({
         planetCount={topics.length}
         volumeMax={volumeMax}
         layoutExtent={layout.extent}
+        linear={linear}
       />
       {settings.bloom && !inspecting && (
         <EffectComposer disableNormalPass>
@@ -176,20 +181,27 @@ export default function Observatory({
   selectedTopicId,
   selectedPerspectiveId,
   category,
+  categories = [],
+  counts = {},
   isMobile = false,
   volumeMax = 100,
   onSelectTopic,
   onSelectPerspective,
   onClearSelection,
+  onCategory,
 }) {
   const [epoch, setEpoch] = useState(0)
   const [showOrbits, setShowOrbits] = useState(false)
+  const [linear, setLinear] = useState(false)
   const remounts = useRef(0)
   const settings = useMemo(() => solarSettings(isMobile), [isMobile])
-  const layout = useMemo(() => layoutSolarSystem(topics, volumeMax), [topics, volumeMax])
+  const layout = useMemo(
+    () => (linear ? layoutLinear(topics, volumeMax) : layoutSolarSystem(topics, volumeMax)),
+    [linear, topics, volumeMax],
+  )
   const home = useMemo(
-    () => homeLookAt(isMobile, topics.length, layout.extent),
-    [isMobile, topics.length, layout.extent],
+    () => homeLookAt(isMobile, topics.length, layout.extent, { linear }),
+    [isMobile, topics.length, layout.extent, linear],
   )
   const onCreated = useCallback(({ gl }) => {
     const canvas = gl.domElement
@@ -235,6 +247,7 @@ export default function Observatory({
           showOrbits={showOrbits}
           volumeMax={volumeMax}
           layout={layout}
+          linear={linear}
           settings={settings}
         />
       </Canvas>
@@ -244,15 +257,37 @@ export default function Observatory({
         </div>
       )}
       <div className="observatory-chrome">
-        <p>{hint}</p>
-        <button
-          type="button"
-          className={`orbit-toggle ${showOrbits ? 'is-on' : ''}`}
-          aria-pressed={showOrbits}
-          onClick={() => setShowOrbits((value) => !value)}
-        >
-          {showOrbits ? 'Hide orbit lines' : 'Show orbit lines'}
-        </button>
+        {onCategory && (
+          <TopicFilter
+            id="solar-topic-filter"
+            categories={categories}
+            category={category}
+            counts={counts}
+            onCategory={onCategory}
+          />
+        )}
+        <div className="observatory-chrome-row">
+          <p>{linear ? 'Largest to smallest' : hint}</p>
+          <div className="observatory-actions">
+            <button
+              type="button"
+              className={`orbit-toggle ${linear ? 'is-on' : ''}`}
+              aria-pressed={linear}
+              onClick={() => setLinear((value) => !value)}
+            >
+              {linear ? 'Orbits' : 'Linear'}
+            </button>
+            <button
+              type="button"
+              className={`orbit-toggle ${showOrbits ? 'is-on' : ''}`}
+              aria-pressed={showOrbits}
+              disabled={linear}
+              onClick={() => setShowOrbits((value) => !value)}
+            >
+              {showOrbits ? 'Hide orbit lines' : 'Show orbit lines'}
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   )

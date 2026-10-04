@@ -1,4 +1,4 @@
-from pipeline.briefs import apply_level_summaries, assemble_email, at_most_four, sentences
+from pipeline.briefs import apply_level_summaries, assemble_email, sentences
 
 
 def _topic():
@@ -36,15 +36,15 @@ def _topic():
     }
 
 
-def test_level_summaries_stay_within_four_sentences_and_name_the_split():
+def test_level_summaries_are_three_to_five_sentences_and_three_paragraphs():
     topic = apply_level_summaries(_topic())
-    assert 1 <= len(sentences(topic["brief"])) <= 4
-    assert "\n\n" in topic["detail"]
+    assert 3 <= len(sentences(topic["brief"])) <= 5
+    assert len([part for part in topic["detail"].split("\n\n") if part.strip()]) == 3
     assert "Oil Release" in topic["detail"]
     face = topic["perspectives"][0]
-    assert len(sentences(face["brief"])) <= 4
+    assert 3 <= len(sentences(face["brief"])) <= 5
+    assert len([part for part in face["detail"].split("\n\n") if part.strip()]) == 3
     assert "Gulf Coast" in face["detail"]
-    assert at_most_four(face["brief"]) == face["brief"]
 
 
 def test_email_lists_planets_with_arguments_and_the_disagreement():

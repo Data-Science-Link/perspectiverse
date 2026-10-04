@@ -84,6 +84,21 @@ button {
   letter-spacing: 0.04em;
 }
 
+.chrome-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+
+.chrome-universe {
+  width: auto;
+  padding: 0 0.7rem;
+  color: #f4e2b0;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
 .site-chrome-copy {
   min-width: 0;
   flex: 1;
@@ -128,16 +143,41 @@ button {
   pointer-events: none;
   position: absolute;
   z-index: 20;
-  left: 1.25rem;
-  right: 1.25rem;
-  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  color: rgba(239, 238, 247, 0.62);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.observatory-chrome .topic-filter {
+  pointer-events: auto;
+  width: min(100%, 280px);
+}
+
+.observatory-chrome-row {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 0.75rem;
-  color: rgba(239, 238, 247, 0.62);
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+}
+
+.observatory-actions {
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.orbit-toggle:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .orbit-toggle {
@@ -1551,6 +1591,10 @@ h3 {
   flex: 0 0 auto;
   padding: 0.4rem 0.65rem;
   border-bottom: 1px solid var(--line);
+}
+
+.reading-toolbar .reading-actions {
+  margin-left: auto;
 }
 
 .reading-toolbar .topic-filter {

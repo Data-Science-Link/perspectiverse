@@ -33,7 +33,7 @@ def test_lexical_cluster_drops_noise_and_keeps_ten():
 def test_each_topic_splits_into_two_to_six_faces():
     posts = [post for post in build_tiny_posts() if "zzzznoise" not in post["text"] and post["text"].startswith("climate")]
     split = split_perspectives([post["text"] for post in posts], seed=0)
-    assert 1 <= len(split["faces"]) <= 6
+    assert 2 <= len(split["faces"]) <= 6
     assert all(face["size"] >= 1 for face in split["faces"])
     volumes = to_percents([face["size"] for face in split["faces"]])
     assert abs(sum(volumes) - 100.0) < 0.05
@@ -87,6 +87,13 @@ def test_choose_n_faces_splits_two_stances_of_one_subject():
     matrix = np.vstack([left] * 12 + [right] * 12)
     texts = ["alpha stance"] * 12 + ["beta stance"] * 12
     assert choose_n_faces(texts, seed=0, matrix=matrix) == 2
+
+
+def test_choose_n_faces_keeps_a_far_minority():
+    """One different post is a perspective, not a reason to publish a single 100% bar."""
+    texts = [f"openai safety launch postponed astra model {index}" for index in range(11)]
+    texts.append("chatgpt school shooters are the safety failure nobody is counting")
+    assert choose_n_faces(texts, seed=0) == 2
 
 
 def test_choose_n_faces_keeps_a_paraphrase_as_one_face():

@@ -54,6 +54,11 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(len(topic["perspectives"][0].get("arguments") or []) >= 2 for topic in payload["topics"])
     assert all(topic["name"] for topic in payload["topics"])
     assert all(topic.get("brief") and topic.get("detail") for topic in payload["topics"])
+    assert all(topic.get("post_count", 0) > 0 for topic in payload["topics"])
+    assert all(
+        sum(face.get("post_count", 0) for face in topic["perspectives"]) == topic["post_count"]
+        for topic in payload["topics"]
+    )
     assert payload["digest"]["planets"]
     assert payload["digest"]["planets"][0]["disagreement"]
 

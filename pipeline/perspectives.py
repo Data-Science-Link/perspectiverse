@@ -1,9 +1,10 @@
-"""Split one planet into one to six faces.
+"""Split one planet into two to six faces.
 
 The live path picks a face count from the conversation. A second face is kept
-only when it is large and is a different stance, not a paraphrase. One stance
-stays one face. Representative posts are ordered by likes, then by distance
-to the face centroid. A lopsided topic is valid: volumes are renormalized to 100.
+when it is a different wording, not a paraphrase of the same sentence. A
+uniform pile stays one face. Representative posts are ordered by likes, then
+by distance to the face centroid. A lopsided topic is valid: volumes are
+renormalized to 100.
 """
 
 from __future__ import annotations
@@ -11,8 +12,9 @@ from __future__ import annotations
 from pipeline.cluster_math import cluster_inertia, cluster_kmeans, distances_to_centers, salient_terms, vectorize
 from pipeline.schema import MAX_FACES, MIN_FACES
 
-# A second face has to be about a fifth of the planet. A short tail is not a view.
-MIN_FACE_SHARE = 0.20
+# Six equal faces are about a sixth of the planet. A short tail is not a view,
+# but a first unbalanced cut must not hide a cleaner split at a higher k.
+MIN_FACE_SHARE = 0.15
 # MiniLM leaves two stances of one subject close together. A cut that explains
 # a few percent of the scatter is a real second view; TF-IDF paraphrases fail
 # the share test before this bar matters.
@@ -51,6 +53,10 @@ def _centroids_are_far(matrix, labels) -> bool:
     return True
 
 
+def _face_sizes(labels, k: int) -> list[int]:
+    return [int(sum(1 for label in labels if int(label) == index)) for index in range(k)]
+
+
 def choose_n_faces(
     texts: list[str],
     *,
@@ -59,7 +65,11 @@ def choose_n_faces(
     max_faces: int = MAX_FACES,
     matrix=None,
 ) -> int:
-    """Pick a face count from how the posts separate. One face is allowed."""
+    """Pick a face count from how the posts separate.
+
+    Two to six faces when the posts form distinct groups. One face stays only
+    when every cut is a paraphrase or an empty slice of a uniform pile.
+    """
     count = len(texts) if matrix is None else int(matrix.shape[0])
     if count < max(min_faces, 1):
         raise ValueError(f"Need at least {max(min_faces, 1)} posts to cut faces, found {count}")
@@ -67,23 +77,33 @@ def choose_n_faces(
     values = _as_matrix(texts, matrix)
     if count < 2 or upper < 2:
         return 1
-    best_k = 1
     labels, _centers = cluster_kmeans(values, 1, seed=seed)
-    prev = cluster_inertia(values, labels)
+    base = cluster_inertia(values, labels)
+    if base <= 1e-4:
+        return 1
+    best_k = 1
+    prev = base
     for k in range(2, upper + 1):
-        if prev <= 1e-4:
-            break
         trial, _centers = cluster_kmeans(values, k, seed=seed)
-        sizes = [int(sum(1 for label in trial if int(label) == index)) for index in range(k)]
-        if min(sizes) / count < MIN_FACE_SHARE:
-            break
+        sizes = _face_sizes(trial, k)
+        if min(sizes) < 2 or min(sizes) / count < MIN_FACE_SHARE:
+            continue
         if not _centroids_are_far(values, trial):
-            break
+            continue
         inertia = cluster_inertia(values, trial)
         if prev <= 1e-4 or (prev - inertia) / prev < _FACE_GAIN:
-            break
+            continue
         best_k = k
         prev = inertia
+    if best_k == 1 and count >= 4:
+        # A far minority is still its own perspective. Stopping at one bar of
+        # 100% hid that view whenever the first cut was smaller than a fifth.
+        trial, _centers = cluster_kmeans(values, 2, seed=seed)
+        sizes = _face_sizes(trial, 2)
+        inertia = cluster_inertia(values, trial)
+        gain = (base - inertia) / base if base > 1e-4 else 0.0
+        if min(sizes) >= 1 and _centroids_are_far(values, trial) and gain >= _FACE_GAIN:
+            return 2
     return best_k
 
 

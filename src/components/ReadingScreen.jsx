@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { categoryCounts } from '../lib/categories'
 import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import BarChart from './BarChart'
-import TopicFilter from './TopicFilter'
 
 function paragraphs(text) {
   return String(text || '')
@@ -113,7 +111,6 @@ function EmailView({ data, onClose }) {
 export default function ReadingScreen({
   data,
   topics,
-  categories,
   category,
   selectedTopic,
   selectedPerspective,
@@ -127,7 +124,6 @@ export default function ReadingScreen({
   onToggleEmail,
 }) {
   const [expanded, setExpanded] = useState(false)
-  const counts = useMemo(() => categoryCounts(data?.topics || []), [data])
   const highlighted = topics.find((topic) => topic.id === highlightedTopicId) ?? topics[0] ?? null
   const topic = selectedTopic
   const perspective = selectedPerspective
@@ -158,6 +154,8 @@ export default function ReadingScreen({
   const brief = subject?.brief || subject?.summary || ''
   const detail = subject?.detail || brief
   const posts = examplePosts(topic || highlighted, perspective)
+  const countSubject = perspective || topic || highlighted
+  const postCount = countSubject?.post_count ?? data?.total_posts ?? 0
   const selectionKey = `${depth}:${topic?.id ?? 'system'}:${perspective?.id ?? 'planet'}:${highlighted?.id ?? ''}`
 
   useEffect(() => {
@@ -183,15 +181,6 @@ export default function ReadingScreen({
   return (
     <section className="reading-screen" aria-label="This week">
       <header className="reading-toolbar">
-        {!topic && (
-          <TopicFilter
-            id="reading-topic-filter"
-            categories={categories}
-            category={category}
-            counts={counts}
-            onCategory={onCategory}
-          />
-        )}
         {topic && (
           <button type="button" className="back-link" onClick={onBack}>
             {isMobile ? '← Back to the solar system' : '← All topics'}
@@ -218,10 +207,10 @@ export default function ReadingScreen({
           <div className="reading-band reading-copy">
             <p className="eyebrow">
               {perspective ? topic.name : topic ? topic.category : highlighted?.category}
-              {data?.total_posts ? ` · ${formatNumber(data.total_posts)} posts` : ''}
+              {postCount ? ` · ${formatNumber(postCount)} posts` : ''}
             </p>
             <h1>{title}</h1>
-            {!expanded && <p className="reading-brief">{brief}</p>}
+            {brief && <p className="reading-brief">{brief}</p>}
             <div className="reading-actions">
               <button type="button" className="text-button" onClick={() => setExpanded((value) => !value)}>
                 {expanded ? 'Show less' : 'Read more …'}

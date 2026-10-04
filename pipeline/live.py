@@ -340,7 +340,7 @@ def _build_topics(
                     "label_source": "heuristic",
                 }
                 arguments = []
-            elif len(representatives) < 3 or not _posts_share_a_subject(representatives):
+            elif len(representatives) < 2 or not _posts_share_a_subject(representatives):
                 label = {
                     "title": "Mixed remarks",
                     "summary": "These posts do not share a claim.",
@@ -387,6 +387,7 @@ def _build_topics(
         perspectives = []
         for position, ((perspective, rows, _size), volume) in enumerate(zip(drafted, face_volumes)):
             perspective["volume_percent"] = volume
+            perspective["post_count"] = int(_size)
             perspective["id"] = face_id(topic_id, position)
             perspectives.append(perspective)
             for uri, _topic_id, _position, distance in rows:
@@ -402,6 +403,7 @@ def _build_topics(
             "name": name,
             "category": category_for_members(name, terms, member_texts, members),
             "total_volume_percent": volume,
+            "post_count": sum(int(item[2]) for item in drafted),
             "perspectives": perspectives,
         }
         apply_level_summaries(planet, generate=summary_model)
@@ -611,6 +613,9 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
             print(f"Dropping {topic.get('name')}: the posts do not share a claim.")
             continue
         topic["perspectives"] = faces
+        counts = [int(face.get("post_count") or 0) for face in faces]
+        if any(counts):
+            topic["post_count"] = sum(counts)
         kept.append(topic)
     return kept
 
@@ -638,6 +643,7 @@ def _merge_alike_faces(topic: dict) -> None:
             kept.append(face)
             continue
         match["volume_percent"] = float(match.get("volume_percent") or 0) + float(face.get("volume_percent") or 0)
+        match["post_count"] = int(match.get("post_count") or 0) + int(face.get("post_count") or 0)
         seen_text = {str(post.get("text") or "") for post in match.get("representative_posts") or []}
         posts = list(match.get("representative_posts") or [])
         for post in face.get("representative_posts") or []:

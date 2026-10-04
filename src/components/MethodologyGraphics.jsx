@@ -18,7 +18,7 @@ export function OverviewGraphic() {
         <title id="overview-graphic-title">How Perspectiverse connects public talk to a solar system you can look around</title>
         <desc id="overview-graphic-desc">
           Public posts from a week of conversation are clustered once a day into up to ten topics.
-          Each topic keeps one to six opinions that are actually different. You open the solar system and check where you stand.
+          Each topic keeps two to six opinions that are actually different. You open the solar system and check where you stand.
         </desc>
         <rect x="12" y="10" width="296" height="78" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
         <circle cx="46" cy="40" r="7" fill="#6ea8ff" />
@@ -46,7 +46,7 @@ export function OverviewGraphic() {
         <circle cx="88" cy="278" r="9" fill="#4aa3e6" />
         <text x="112" y="258" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">Up to ten planets</text>
         <text x="112" y="280" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Size is share of attention</text>
-        <text x="112" y="298" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Darkest spike = most common</text>
+        <text x="112" y="298" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Longest bar = most common</text>
 
         <path d="M160 312 v22" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
         <path d="M154 328 l6 10 6-10" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
@@ -95,8 +95,8 @@ const STAGES = [
         detail: 'The largest tight groups become the solar system, and the job stops at ten. Size is share of kept posts, not importance.',
       },
       {
-        name: '1–6 faces',
-        detail: 'One stance stays one spike. Another face is added only when it is large and different. Length is share. Darker is more common. An empty cube side is dashed.',
+        name: '2–6 perspectives',
+        detail: 'One stance stays one perspective. Another is added only when it is large and different. Bar length is that view’s share of the planet.',
       },
     ],
   },
@@ -107,7 +107,7 @@ const STAGES = [
     nodes: [
       {
         name: 'Ollama, then API, then fallback',
-        detail: 'One short prompt per planet and per face, never one per post. If no model answers, the summary is a sentence from a shown post.',
+        detail: 'One short prompt per planet and per perspective, never one per post. If no model answers, the summary is a sentence from a shown post.',
       },
     ],
   },
@@ -118,7 +118,7 @@ const STAGES = [
     nodes: [
       {
         name: 'data.json',
-        detail: 'One snapshot: topics, faces, a few example posts. This is the whole public solar system.',
+        detail: 'One snapshot: topics, perspectives, a few example posts. This is the whole public solar system.',
       },
       {
         name: 'GitHub Pages',
@@ -140,7 +140,7 @@ export function TechnicalMapGraphic() {
         <title id="tech-map-title">Detailed path from Bluesky through the daily job to the static observatory</title>
         <desc id="tech-map-desc">
           Bluesky search feeds a GitHub Actions job that cleans posts, clusters up to ten planets
-          and one to six faces, labels them, and writes data.json. GitHub Pages serves a
+          and two to six perspectives, labels them, and writes data.json. GitHub Pages serves a
           React and Three.js observatory that only fetches that file.
         </desc>
         <text x="160" y="22" textAnchor="middle" fill="#f4c14e" fontSize="11" letterSpacing="2" fontFamily="Instrument Sans, Segoe UI, sans-serif">OUTSIDE THE BROWSER</text>
@@ -166,7 +166,7 @@ export function TechnicalMapGraphic() {
         <text x="86" y="254" textAnchor="middle" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">MiniLM embeddings</text>
 
         <rect x="166" y="206" width="136" height="70" rx="14" fill="#10131c" stroke="rgba(199,125,255,0.5)" />
-        <text x="234" y="234" textAnchor="middle" fill="#efeef7" fontSize="13" fontFamily="Instrument Sans, Segoe UI, sans-serif">Label faces</text>
+        <text x="234" y="234" textAnchor="middle" fill="#efeef7" fontSize="13" fontFamily="Instrument Sans, Segoe UI, sans-serif">Label views</text>
         <text x="234" y="254" textAnchor="middle" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Ollama / API / terms</text>
 
         <path d="M86 276 v18" fill="none" stroke="rgba(244,193,78,0.45)" strokeWidth="2" />
@@ -177,7 +177,7 @@ export function TechnicalMapGraphic() {
 
         <rect x="18" y="314" width="284" height="58" rx="14" fill="rgba(244,193,78,0.08)" stroke="rgba(244,193,78,0.55)" />
         <text x="160" y="338" textAnchor="middle" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">public/data.json</text>
-        <text x="160" y="358" textAnchor="middle" fill="#f4e2b0" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">≤10 planets · 1–6 faces · example posts</text>
+        <text x="160" y="358" textAnchor="middle" fill="#f4e2b0" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">≤10 planets · 2–6 views · example posts</text>
 
         <path d="M160 372 v20" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
         <path d="M154 386 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />

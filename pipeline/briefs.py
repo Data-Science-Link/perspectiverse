@@ -69,26 +69,29 @@ def _lower_leading(text: str) -> str:
 
 
 def brief_from(*parts: str) -> str:
-    """At most four sentences. Later fragments are paired so a list does not eat the cap."""
+    """Up to five sentences. Callers pad a short brief to three."""
     found: list[str] = []
     for part in parts:
         found.extend(sentences(part))
-    found = _dedupe(found)
-    if not found:
-        return ""
-    packed = [found[0]]
-    rest = found[1:]
-    index = 0
-    while index < len(rest) and len(packed) < 4:
-        current = _clause(rest[index])
-        nxt = _clause(rest[index + 1]) if index + 1 < len(rest) else ""
-        if nxt and len(current) + len(nxt) < 180:
-            packed.append(f"{current}; {nxt}.")
-            index += 2
-        else:
-            packed.append(f"{current}.")
-            index += 1
-    return " ".join(packed[:4])
+    return " ".join(_dedupe(found)[:5])
+
+
+def complete_brief(*parts: str, title: str = "") -> str:
+    """Three to five sentences. Extra lines are only added when the posts are short."""
+    found = _dedupe([sentence for part in parts for sentence in sentences(part)])
+    fillers = []
+    if title:
+        fillers.append(f"That is the position in the posts about {title}.")
+        fillers.append(f"{title} is the claim these posts repeat.")
+    else:
+        fillers.append("The posts gathered here are making that case.")
+        fillers.append("The same claim shows up again across the posts.")
+    for filler in fillers:
+        if len(found) >= 3:
+            break
+        if not any(_clean(item).rstrip(".").lower() == _clean(filler).rstrip(".").lower() for item in found):
+            found.append(filler)
+    return " ".join(found[:5])
 
 
 def _quote(post: dict, limit: int = 280) -> str:
@@ -125,6 +128,13 @@ def _defense(title: str, clauses: list[str]) -> str:
     return " ".join(lines)
 
 
+def _three(paragraphs: list[str], fallback: str) -> str:
+    cleaned = [_clean(part) for part in paragraphs if _clean(part)]
+    while len(cleaned) < 3:
+        cleaned.append(fallback or "These posts are making that case.")
+    return "\n\n".join(cleaned[:3])
+
+
 def detail_from(
     *,
     brief: str,
@@ -133,28 +143,42 @@ def detail_from(
     rivals: list[str],
     title: str = "",
 ) -> str:
-    """Longer copy: the position in full, then a post, then the other view."""
-    paragraphs: list[str] = []
-    claim = sentences(brief)[:1]
+    """Three paragraphs: the position, the posts that defend it, then the disagreement."""
+    claim = sentences(brief)
     argument_sentences = [sentence for argument in arguments for sentence in sentences(argument)]
-    ordered = _dedupe([*claim, *argument_sentences]) if argument_sentences else sentences(brief)
+    ordered = _dedupe([*claim, *argument_sentences]) if argument_sentences else claim
     clauses = [_clause(sentence) for sentence in ordered if _clause(sentence)]
     if title and clauses:
-        paragraphs.append(_defense(title, clauses[:4]))
+        first = _defense(title, clauses[:6])
     elif clauses:
-        paragraphs.append(" ".join(f"{item}." for item in clauses[:4]))
-    chosen = _best_post(posts)
-    if chosen:
-        post, quote = chosen
+        first = " ".join(f"{item}." for item in clauses[:6])
+    else:
+        first = brief or f"{title or 'This view'} is the position in these posts."
+    spoken: list[str] = []
+    ranked = sorted(posts, key=lambda post: -int(post.get("likes") or 0))
+    for post in ranked[:3]:
+        quote = _quote(post)
+        if not quote:
+            continue
         author = _clean(post.get("author") or "")
-        speaker = f"@{author}: " if author else ""
-        paragraphs.append(f"{speaker}“{quote}”")
+        speaker = f"@{author} " if author else ""
+        spoken.append(f"{speaker}writes, “{quote}”")
+    if spoken:
+        second = "The posts defend it in their own words. " + " ".join(spoken)
+    else:
+        second = f"The posts gathered under {title or 'this view'} are the defense of that claim."
     if rivals:
-        shown = ", ".join(rivals[:4])
-        paragraphs.append(f"The other view in this conversation is {shown}.")
-    if not paragraphs:
-        paragraphs.append(brief)
-    return "\n\n".join(paragraphs)
+        shown = ", ".join(str(item) for item in rivals[:4] if str(item).strip())
+        third = (
+            f"Other views in this conversation are {shown}. "
+            f"They are arguing a different claim from {title or 'this one'}."
+        )
+    else:
+        third = (
+            f"Inside {title or 'this view'}, the posts are arguing one position "
+            "rather than a stack of unrelated claims."
+        )
+    return _three([first, second, third], brief or title or "These posts are making that case.")
 
 
 def _ask_model(generate: Callable[[str], str], prompt: str) -> dict | None:
@@ -174,11 +198,13 @@ def _ask_model(generate: Callable[[str], str], prompt: str) -> dict | None:
         return None
     if not isinstance(data, dict):
         return None
-    brief = at_most_four(str(data.get("brief") or ""))
-    detail = _clean(str(data.get("detail") or ""))
-    if not brief or len(sentences(brief)) > 4 or len(detail) < 40:
+    brief_sentences = sentences(str(data.get("brief") or ""))
+    brief = " ".join(brief_sentences[:5])
+    detail = str(data.get("detail") or "").replace("\\n", "\n").strip()
+    paragraphs = [part.strip() for part in detail.split("\n\n") if part.strip()]
+    if not (3 <= len(sentences(brief)) <= 5) or len(paragraphs) != 3:
         return None
-    return {"brief": brief, "detail": detail.replace("\\n", "\n")}
+    return {"brief": brief, "detail": "\n\n".join(paragraphs)}
 
 
 def _perspective_prompt(face: dict, rivals: list[str]) -> str:
@@ -190,9 +216,9 @@ def _perspective_prompt(face: dict, rivals: list[str]) -> str:
     return (
         "Write the reading-screen copy for one perspective.\n"
         "Return JSON only: {\"brief\": \"...\", \"detail\": \"...\"}\n"
-        "brief is at most 4 sentences. It states the claim in the posts' own terms.\n"
-        "detail is 2 or 3 paragraphs separated by a blank line: the claim, then a defense "
-        "that paraphrases the posts, then the disagreement if another view is listed.\n"
+        "brief is 3 to 5 sentences. It states the claim in the posts' own terms.\n"
+        "detail is exactly 3 paragraphs separated by a blank line: the claim in full, "
+        "then how the posts defend it, then the disagreement with the other views.\n"
         "Do not add a fact, number, or name that is not below. Do not explain percentages.\n"
         f"Title: {face.get('title')}\n"
         f"Claim: {face.get('summary')}\n"
@@ -214,7 +240,10 @@ def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = N
         arguments = [str(item) for item in (face.get("arguments") or []) if str(item).strip()]
         posts = list(face.get("representative_posts") or [])
         lead = str(face.get("summary") or face.get("title") or "")
-        brief = brief_from(lead, *arguments)
+        post_lines = []
+        for post in posts[:4]:
+            post_lines.extend(sentences(_quote(post))[:1])
+        brief = complete_brief(lead, *arguments, *post_lines, title=str(face.get("title") or ""))
         detail = detail_from(
             brief=brief,
             arguments=arguments,
@@ -227,7 +256,7 @@ def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = N
             if written:
                 brief = written["brief"]
                 detail = written["detail"]
-        face["brief"] = brief or at_most_four(lead)
+        face["brief"] = brief or complete_brief(lead, title=str(face.get("title") or ""))
         face["detail"] = detail or face["brief"]
 
     face_lines = [
@@ -242,11 +271,14 @@ def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = N
         topic["detail"] = perspectives[0].get("detail") or planet_brief
         return topic
     else:
-        planet_brief = brief_from(
-            *[
-                str(face.get("summary") or face.get("title") or "")
-                for face in perspectives
-            ]
+        view_lines = []
+        for face in perspectives:
+            claim = _lower_article(_clause(str(face.get("summary") or face.get("title") or "")))
+            view_lines.append(f"{face.get('title')} says {claim}.")
+        planet_brief = complete_brief(
+            f"{topic.get('name')} is the conversation these views share.",
+            *view_lines,
+            title=str(topic.get("name") or ""),
         )
     planet_posts: list[dict] = []
     defenses: list[str] = []
@@ -280,13 +312,14 @@ def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = N
             else:
                 split.append(f"{face.get('title')} ({_percent(share)}) says {claim}.")
         paragraphs.append(" ".join(split))
-    planet_detail = "\n\n".join(paragraphs) or planet_brief
+    planet_detail = _three(paragraphs, planet_brief)
     if generate is not None and perspectives:
         prompt = (
             "Write the reading-screen copy for one planet.\n"
             "Return JSON only: {\"brief\": \"...\", \"detail\": \"...\"}\n"
-            "brief is at most 4 sentences naming the subject and each view.\n"
-            "detail is 2 or 3 paragraphs: the subject, the defense of each view, and where they disagree.\n"
+            "brief is 3 to 5 sentences naming the subject and each view.\n"
+            "detail is exactly 3 paragraphs separated by a blank line: the subject, "
+            "the defense of each view, and where they disagree.\n"
             "Use only the claims below.\n"
             f"Planet: {topic.get('name')}\n"
             f"Views:\n" + "\n".join(f"- {line}" for line in face_lines)
