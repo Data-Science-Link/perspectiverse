@@ -294,7 +294,11 @@ function diversifyFace(face) {
         id: '',
         title,
         summary: summary || title,
-        representative_posts: [...groupPosts].sort((a, b) => (b.likes || 0) - (a.likes || 0)),
+        representative_posts: [...groupPosts].sort((a, b) => {
+          const delta = (Number(b.match) || 0) - (Number(a.match) || 0)
+          if ((a.match != null || b.match != null) && delta !== 0) return delta
+          return (b.likes || 0) - (a.likes || 0)
+        }),
       }
       if (argumentsKept.length >= 2) perspective.arguments = argumentsKept.slice(0, 6)
       return perspective

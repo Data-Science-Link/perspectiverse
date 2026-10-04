@@ -2,14 +2,21 @@
 
 The live path picks a face count from the conversation. A second face is kept
 when it is a different wording, not a paraphrase of the same sentence. A
-uniform pile stays one face. Representative posts are ordered by likes, then
-by distance to the face centroid. A lopsided topic is valid: volumes are
+uniform pile stays one face. Representative posts are the closest rows to that face's embedding.
+Likes break a tie. A lopsided topic is valid: volumes are
 renormalized to 100.
 """
 
 from __future__ import annotations
 
-from pipeline.cluster_math import cluster_inertia, cluster_kmeans, distances_to_centers, salient_terms, vectorize
+from pipeline.cluster_math import (
+    cluster_inertia,
+    cluster_kmeans,
+    cosines_to_centers,
+    distances_to_centers,
+    salient_terms,
+    vectorize,
+)
 from pipeline.schema import MAX_FACES, MIN_FACES
 
 # Six equal faces are about a sixth of the planet. A short tail is not a view,
@@ -131,6 +138,7 @@ def split_perspectives(
     matrix = values
     labels, centers = cluster_kmeans(matrix, n_faces, seed=seed)
     distances = distances_to_centers(matrix, labels, centers)
+    cosines = cosines_to_centers(matrix, labels, centers)
     faces = []
     for face_index in range(n_faces):
         members = [index for index, label in enumerate(labels) if int(label) == face_index]
@@ -146,27 +154,39 @@ def split_perspectives(
     return {
         "assignments": [int(label) for label in labels],
         "distances": distances,
+        "cosines": cosines,
         "faces": faces,
     }
 
 
-def select_representatives(posts: list[dict], distances: list[float], limit: int = 36) -> list[dict]:
-    """Highest likes first. Equal likes break toward the centroid.
+def select_representatives(
+    posts: list[dict],
+    distances: list[float],
+    limit: int = 36,
+    matches: list[float] | None = None,
+) -> list[dict]:
+    """Closest embedding first. Likes break a tie.
 
-    ``limit`` matches ``EXAMPLE_POST_CAP`` in pipeline.settings.
+    ``matches`` are cosines to the face centroid from the matrix already used
+    to cluster. ``limit`` matches ``EXAMPLE_POST_CAP`` in pipeline.settings.
     """
-    order = sorted(
-        range(len(posts)),
-        key=lambda index: (-int(posts[index].get("likes") or 0), distances[index], index),
-    )
+    scores = list(matches) if matches is not None and len(matches) == len(posts) else None
+
+    def sort_key(index: int) -> tuple:
+        likes = int(posts[index].get("likes") or 0)
+        if scores is not None:
+            return (-float(scores[index]), -likes, index)
+        return (float(distances[index]), -likes, index)
+
     chosen = []
-    for index in order[:limit]:
+    for index in sorted(range(len(posts)), key=sort_key)[:limit]:
         post = posts[index]
-        chosen.append(
-            {
-                "author": post.get("author") or "unknown",
-                "text": post.get("clean_text") or post.get("text") or "",
-                "likes": int(post.get("likes") or 0),
-            }
-        )
+        record = {
+            "author": post.get("author") or "unknown",
+            "text": post.get("clean_text") or post.get("text") or "",
+            "likes": int(post.get("likes") or 0),
+        }
+        if scores is not None:
+            record["match"] = round(float(scores[index]), 3)
+        chosen.append(record)
     return chosen

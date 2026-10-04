@@ -59,6 +59,13 @@ def test_live_fixture_writes_contract(tmp_path):
         sum(face.get("post_count", 0) for face in topic["perspectives"]) == topic["post_count"]
         for topic in payload["topics"]
     )
+    for topic in payload["topics"]:
+        for face in topic["perspectives"]:
+            shown = face["representative_posts"]
+            assert shown
+            assert all(post.get("match") is not None for post in shown)
+            matches = [post["match"] for post in shown]
+            assert matches == sorted(matches, reverse=True)
     assert payload["digest"]["planets"]
     assert payload["digest"]["planets"][0]["disagreement"]
 

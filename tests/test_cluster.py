@@ -43,15 +43,25 @@ def test_each_topic_splits_into_two_to_six_faces():
     assert max(lopsided) > 70
 
 
-def test_representatives_prefer_likes_then_centroid():
+def test_representatives_put_the_closest_embedding_first():
     posts = [
         {"author": "low", "text": "a", "clean_text": "low likes", "likes": 1},
         {"author": "high", "text": "b", "clean_text": "high likes", "likes": 9},
-        {"author": "tie-far", "text": "c", "clean_text": "tied far", "likes": 9},
+        {"author": "close", "text": "c", "clean_text": "closest", "likes": 2},
     ]
-    chosen = select_representatives(posts, [0.2, 0.4, 0.1], limit=2)
-    assert [post["author"] for post in chosen] == ["tie-far", "high"]
-    assert "likes" in chosen[0]
+    chosen = select_representatives(posts, [0.2, 0.4, 0.1], limit=2, matches=[0.5, 0.2, 0.95])
+    assert [post["author"] for post in chosen] == ["close", "low"]
+    assert chosen[0]["match"] == 0.95
+    assert chosen[0]["likes"] == 2
+
+
+def test_equal_cosine_breaks_toward_likes():
+    posts = [
+        {"author": "quiet", "text": "a", "clean_text": "quiet", "likes": 1},
+        {"author": "loud", "text": "b", "clean_text": "loud", "likes": 9},
+    ]
+    chosen = select_representatives(posts, [0.2, 0.2], limit=1, matches=[0.8, 0.8])
+    assert chosen[0]["author"] == "loud"
 
 
 def test_checked_in_fixture_matches_builder():

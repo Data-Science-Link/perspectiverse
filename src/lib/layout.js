@@ -255,5 +255,13 @@ export function withSharePercents(topics = []) {
 }
 
 export function sortPosts(posts = []) {
-  return [...posts].sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0))
+  return [...posts].sort((a, b) => {
+    const aMatch = a.match == null ? null : Number(a.match)
+    const bMatch = b.match == null ? null : Number(b.match)
+    if (aMatch != null || bMatch != null) {
+      const delta = (bMatch ?? -1) - (aMatch ?? -1)
+      if (delta !== 0) return delta
+    }
+    return (b.likes ?? 0) - (a.likes ?? 0)
+  })
 }

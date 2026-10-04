@@ -317,17 +317,25 @@ def _build_topics(
         for position, (face, face_volume) in enumerate(ordered_faces):
             face_posts = [members[index] for index in face["member_indices"]]
             face_distances = [split["distances"][index] for index in face["member_indices"]]
-            representatives = select_representatives(face_posts, face_distances, limit=limit)
+            face_cosines = [split["cosines"][index] for index in face["member_indices"]]
+            representatives = select_representatives(
+                face_posts, face_distances, limit=limit, matches=face_cosines
+            )
             label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
             arguments = label.get("arguments") or []
             title = str(label.get("title") or "")
             on_claim = [
-                post
-                for post in face_posts
+                (post, score)
+                for post, score in zip(face_posts, face_cosines)
                 if shares_claim_word(str(post.get("text") or post.get("clean_text") or ""), title)
             ]
             if len(on_claim) >= 3:
-                representatives = select_representatives(on_claim, [0.0] * len(on_claim), limit=limit)
+                representatives = select_representatives(
+                    [post for post, _score in on_claim],
+                    [0.0] * len(on_claim),
+                    limit=limit,
+                    matches=[score for _post, score in on_claim],
+                )
             focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
             representatives = _align_representatives(representatives, focus)
             summary = _without_ungrounded_tail(str(label.get("summary") or ""), representatives)
@@ -555,14 +563,16 @@ def _posts_share_a_subject(posts: list[dict]) -> bool:
 
 
 def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
-    """Show posts that use the claim's words. Likes break a tie."""
+    """Show posts that use the claim's words. Closest embedding, then likes."""
     from pipeline.label import content_tokens
 
     focus_tokens = content_tokens(focus)
 
     def sort_key(post: dict) -> tuple:
         overlap = len(content_tokens(str(post.get("text") or "")) & focus_tokens)
-        return (-overlap, -int(post.get("likes") or 0))
+        match = post.get("match")
+        match_key = -float(match) if match is not None else 0.0
+        return (match_key, -overlap, -int(post.get("likes") or 0))
 
     ranked = sorted(posts, key=sort_key)
     matched = [post for post in ranked if shares_claim_word(str(post.get("text") or ""), focus)]
@@ -652,7 +662,12 @@ def _merge_alike_faces(topic: dict, post_limit: int = EXAMPLE_POST_CAP) -> None:
                 continue
             posts.append(post)
             seen_text.add(str(post.get("text") or ""))
-        posts.sort(key=lambda post: -int(post.get("likes") or 0))
+        posts.sort(
+            key=lambda post: (
+                -(float(post["match"]) if post.get("match") is not None else 0.0),
+                -int(post.get("likes") or 0),
+            )
+        )
         match["representative_posts"] = posts[: max(int(post_limit), 1)]
     topic_id = int(topic["id"])
     topic["perspectives"] = [
