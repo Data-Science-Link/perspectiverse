@@ -77,20 +77,13 @@ def brief_from(*parts: str) -> str:
 
 
 def complete_brief(*parts: str, title: str = "") -> str:
-    """Three to five sentences. Extra lines are only added when the posts are short."""
+    """Up to five sentences from the claim, the arguments, and the posts.
+
+    A short pile stays short. Stock lines are not added to pad the count.
+    """
     found = _dedupe([sentence for part in parts for sentence in sentences(part)])
-    fillers = []
-    if title:
-        fillers.append(f"That is the position in the posts about {title}.")
-        fillers.append(f"{title} is the claim these posts repeat.")
-    else:
-        fillers.append("The posts gathered here are making that case.")
-        fillers.append("The same claim shows up again across the posts.")
-    for filler in fillers:
-        if len(found) >= 3:
-            break
-        if not any(_clean(item).rstrip(".").lower() == _clean(filler).rstrip(".").lower() for item in found):
-            found.append(filler)
+    if not found and title:
+        found = sentences(title) or [f"{_clean(title)}."]
     return " ".join(found[:5])
 
 
@@ -130,8 +123,9 @@ def _defense(title: str, clauses: list[str]) -> str:
 
 def _three(paragraphs: list[str], fallback: str) -> str:
     cleaned = [_clean(part) for part in paragraphs if _clean(part)]
-    while len(cleaned) < 3:
-        cleaned.append(fallback or "These posts are making that case.")
+    spare = _clean(fallback)
+    if len(cleaned) < 3 and spare and spare not in cleaned:
+        cleaned.append(spare)
     return "\n\n".join(cleaned[:3])
 
 

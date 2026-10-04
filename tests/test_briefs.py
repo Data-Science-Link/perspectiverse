@@ -45,6 +45,9 @@ def test_level_summaries_are_three_to_five_sentences_and_three_paragraphs():
     assert 3 <= len(sentences(face["brief"])) <= 5
     assert len([part for part in face["detail"].split("\n\n") if part.strip()]) == 3
     assert "Gulf Coast" in face["detail"]
+    blob = f"{topic['brief']} {face['brief']} {topic['detail']}"
+    assert "That is the position" not in blob
+    assert "is the claim these posts repeat" not in blob
 
 
 def test_email_lists_planets_with_arguments_and_the_disagreement():
