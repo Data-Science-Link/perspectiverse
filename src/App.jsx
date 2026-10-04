@@ -9,6 +9,7 @@ import { CATEGORIES, categoryCounts, solarMaxVolume, solarTopics } from './lib/c
 import { SITE_TAGLINE, isWelcomeHidden } from './lib/copy'
 import { readSelectionFromURL, resetScroll, writeSelectionToURL } from './lib/navigation'
 import { pageById } from './lib/pages'
+import { presentSnapshot } from './lib/present'
 import { useIsMobile } from './lib/useMediaQuery'
 
 function initialSelection() {
@@ -43,7 +44,7 @@ export default function App() {
         const topics = [...(payload.topics ?? [])].sort(
           (a, b) => b.total_volume_percent - a.total_volume_percent,
         )
-        setData({ ...payload, topics })
+        setData(presentSnapshot({ ...payload, topics }))
         if (!isWelcomeHidden() && !boot.page) setWelcomeOpen(true)
       })
       .catch((err) => setError(err.message))
@@ -110,6 +111,13 @@ export default function App() {
   }
 
   const clearSelection = () => {
+    commitSelection({ category, topicId: null, perspectiveId: null, page: null })
+  }
+
+  const goUniverse = () => {
+    setEmailOpen(false)
+    setMenuOpen(false)
+    setWelcomeOpen(false)
     commitSelection({ category, topicId: null, perspectiveId: null, page: null })
   }
 
@@ -213,6 +221,7 @@ export default function App() {
         backLabel={backLabel}
         onBack={stepBack}
         onOpenMenu={() => setMenuOpen(true)}
+        onUniverse={goUniverse}
       />
       {sitePage && (
         <SitePage pageId={sitePage.id} data={data} onOpenPage={openPage} />
@@ -223,18 +232,20 @@ export default function App() {
           selectedTopicId={selectedTopicId}
           selectedPerspectiveId={selectedPerspectiveId}
           category={category}
+          categories={CATEGORIES}
+          counts={categoryCounts(data.topics)}
           isMobile={isMobile}
           volumeMax={volumeMax}
           onSelectTopic={selectTopic}
           onSelectPerspective={selectPerspective}
           onClearSelection={clearSelection}
+          onCategory={changeCategory}
         />
       )}
       {showReading && (
         <ReadingScreen
           data={data}
           topics={visibleTopics}
-          categories={CATEGORIES}
           category={category}
           selectedTopic={selectedTopic}
           selectedPerspective={selectedPerspective}

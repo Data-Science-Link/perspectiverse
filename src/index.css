@@ -84,6 +84,21 @@ button {
   letter-spacing: 0.04em;
 }
 
+.chrome-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+
+.chrome-universe {
+  width: auto;
+  padding: 0 0.7rem;
+  color: #f4e2b0;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
 .site-chrome-copy {
   min-width: 0;
   flex: 1;
@@ -128,16 +143,41 @@ button {
   pointer-events: none;
   position: absolute;
   z-index: 20;
-  left: 1.25rem;
-  right: 1.25rem;
-  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  color: rgba(239, 238, 247, 0.62);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.observatory-chrome .topic-filter {
+  pointer-events: auto;
+  width: min(100%, 280px);
+}
+
+.observatory-chrome-row {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 0.75rem;
-  color: rgba(239, 238, 247, 0.62);
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+}
+
+.observatory-actions {
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.orbit-toggle:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .orbit-toggle {
@@ -1553,6 +1593,10 @@ h3 {
   border-bottom: 1px solid var(--line);
 }
 
+.reading-toolbar .reading-actions {
+  margin-left: auto;
+}
+
 .reading-toolbar .topic-filter {
   margin: 0;
   min-width: 0;
@@ -1607,6 +1651,46 @@ h3 {
   padding-left: 0.55rem;
   border-left: 2px solid rgba(244, 193, 78, 0.55);
   color: var(--muted);
+}
+
+.reading-screen.is-sheet {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.reading-sheet {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 0.9rem 1.6rem;
+}
+
+.reading-sheet h1 {
+  margin: 0.15rem 0 0.35rem;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.reading-sheet .reading-brief,
+.reading-sheet .reading-detail p {
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.reading-sheet-posts .post-card {
+  margin-bottom: 0.75rem;
+}
+
+.posts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.posts-head h2 {
+  min-width: 0;
 }
 
 .reading-posts h2,
@@ -1724,8 +1808,15 @@ h3 {
     0 0 0 1px var(--bar-color);
 }
 
+.reading-posts {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .post-scroller {
-  height: calc(100% - 1.2rem);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   margin-top: 0.35rem;
 }

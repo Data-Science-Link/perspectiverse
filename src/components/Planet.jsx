@@ -7,6 +7,7 @@ import { faceLayout } from '../lib/faces'
 import { bodySpin, formatPercent, orbitElements, setOrbitPosition, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
 
+const _desired = new Vector3()
 const _world = new Vector3()
 const _toCamera = new Vector3()
 const _look = new Vector3()
@@ -28,6 +29,7 @@ export default function Planet({
   isMobile = false,
   volumeMax = 100,
   orbitRadius: orbitDistance = null,
+  anchor = null,
   quality = 'high',
   sphereDetail = [48, 36],
   haloDetail = [32, 32],
@@ -46,6 +48,7 @@ export default function Planet({
   const spin = useMemo(() => bodySpin(topic.id, index), [topic.id, index])
   const spinAxis = useMemo(() => new Vector3(...spin.axis), [spin])
   const angle = useRef(orbit.phase)
+  const placed = useRef(Boolean(anchor))
   const scale = topicScale(topic.total_volume_percent, volumeMax)
   const color = topicColor(topic.id, body)
   const ranked = useMemo(
@@ -56,21 +59,25 @@ export default function Planet({
   const focusIndex = ranked.findIndex((face) => face.id === selectedPerspectiveId)
 
   useFrame((state, delta) => {
-    if (!isSun && !selected) {
+    const linear = Boolean(anchor)
+    if (!linear && !isSun && !selected) {
       angle.current += delta * orbit.speed
     }
 
     if (group.current) {
-      if (isSun) {
-        group.current.position.set(0, 0, 0)
+      if (linear) {
+        _desired.set(anchor[0], anchor[1], anchor[2])
+      } else if (isSun) {
+        _desired.set(0, 0, 0)
       } else {
-        setOrbitPosition(
-          group.current.position,
-          orbit.radius,
-          angle.current,
-          orbit.inclination,
-          orbit.node,
-        )
+        setOrbitPosition(_desired, orbit.radius, angle.current, orbit.inclination, orbit.node)
+      }
+      if (placed.current !== linear) {
+        const blend = 1 - Math.exp(-delta * 4.5)
+        group.current.position.lerp(_desired, blend)
+        if (group.current.position.distanceTo(_desired) < 0.05) placed.current = linear
+      } else {
+        group.current.position.copy(_desired)
       }
       if (anchors?.current) {
         anchors.current[topic.id] = group.current.position.clone()

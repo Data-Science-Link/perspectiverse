@@ -55,7 +55,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Do you keep the posts?',
-    a: 'The published snapshot keeps a handful of example posts per face. About a thousand cleaned posts sit in a retained SQLite window so tomorrow’s job can drop the oldest seventh and add yesterday’s posts. That is not a firehose archive.',
+    a: 'The published snapshot keeps up to three dozen example posts per perspective. About a thousand cleaned posts sit in a retained SQLite window so tomorrow’s job can drop the oldest seventh and add yesterday’s posts. That is not a firehose archive.',
   },
   {
     q: 'How do I get in touch?',
@@ -261,7 +261,7 @@ function AuthorPage({ onOpenPage }) {
         <p>
           Feeds flatten argument into a For/Against scroll, and they hide scale. A loud
           fight can look like the whole solar system. This project puts attention and disagreement
-          in space: planet size for how widely something was discussed, faces for the
+          in space: planet size for how widely something was discussed, bars for the
           actual views inside it.
         </p>
       </section>
@@ -326,7 +326,7 @@ function MethodologyPage() {
       <section>
         <h2>What we do not claim</h2>
         <ul className="page-list">
-          <li>A face title is a summary of a cluster, not a person.</li>
+          <li>A perspective title is a summary of a cluster, not a person.</li>
           <li>Percentages ignore leftover posts that never became a planet.</li>
           <li>Bluesky is not the world. Demo mode is not a live feed.</li>
         </ul>
@@ -369,7 +369,7 @@ function DonatePage() {
         <h2>What support is for</h2>
         <ul className="page-list">
           <li>Keep the civic homepage query-free and ad-free.</li>
-          <li>Thicken what a face can show: more example posts, clearer labels, a longer archive.</li>
+          <li>Thicken what a perspective can show: more example posts, clearer labels, a longer archive.</li>
           <li>Time to explain the method in public, not hide it in a dashboard.</li>
         </ul>
       </section>

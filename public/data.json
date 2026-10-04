@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-10-03",
-  "total_posts": 2805,
+  "last_updated": "2026-10-04",
+  "total_posts": 3530,
   "window_hours": 168,
   "source": "bluesky",
   "mode": "live",
@@ -8,874 +8,1611 @@
   "topics": [
     {
       "id": 1,
-      "name": "Artists Reject AI",
-      "category": "Technology",
-      "total_volume_percent": 15.1,
+      "name": "Russia Ukraine War",
+      "category": "World",
+      "total_volume_percent": 11.1,
+      "post_count": 36,
       "perspectives": [
         {
           "id": "1A",
-          "title": "Artists Reject AI",
-          "summary": "AI harms artists and creatives",
+          "title": "Ukraine Oil Deal",
+          "summary": "Trump allies benefit from US-Russia oil deal talks",
           "volume_percent": 100.0,
           "representative_posts": [
             {
-              "author": "flyingtrilobite.com",
-              "text": "I often appreciate like Oremus's writing, but this is just the same old, \"artists don't get it\" argument again, when many of us very much do \"get it\". Artists generally love new innovations in creative tech. It's telling that we are pushing back hard on generative AI. We have good reasons.",
-              "likes": 9
+              "author": "karrieurbanist.bsky.social",
+              "text": "\u201cThe Trump admin\u2019s talks with Russia about ending the war in Ukraine have expanded to include a multibillion-dollar oil deal that would benefit\u2026business execs with ties to the two main U.S. negotiators\u2026\u201d Kushner and Witkoff are making a deal. Not clear that it involves peace or benefits Ukraine.",
+              "likes": 0,
+              "match": 0.799
             },
             {
-              "author": "bella.meangirls.online",
-              "text": "this is very easy to verify as fake, jfc can we not spread AI-generated slop in a time where it's already impossible for small artists to thrive",
-              "likes": 4
+              "author": "bonjohnson.bsky.social",
+              "text": "What the actual fuck?! Are you fucking kidding me? U.S.-Russia Talks on Ukraine Now Involve an Oil Deal Tied to Trump Allies",
+              "likes": 0,
+              "match": 0.797
             },
             {
-              "author": "disencants.bsky.social",
-              "text": "AI is so detrimental to writing. I'm someone who used AI to talk about my story because I had no place to do so in my life, and it really ripped the passion away from me. And I understand that as a creative, it's a type of betrayal to us AI. But I've found now it's not just about moral standing, but",
-              "likes": 1
+              "author": "newnarrative.bsky.social",
+              "text": "Trump, Putin, Ukraine and an Oil Deal: 5 Takeaways",
+              "likes": 1,
+              "match": 0.778
             },
             {
-              "author": "jun-orphancross.bsky.social",
-              "text": "I hope many people will fill out this survey. So they know that Ai is NOT welcome in our creative fields",
-              "likes": 0
+              "author": "jnotestein.bsky.social",
+              "text": "U.S.-Russia Talks on Ukraine Now Involve an Oil Deal Tied to Trump Allies More corruption",
+              "likes": 0,
+              "match": 0.774
+            },
+            {
+              "author": "wittyka8.bsky.social",
+              "text": "Another ridiculous deal is coming from Trump in making , regard to Ukraine.",
+              "likes": 0,
+              "match": 0.766
+            },
+            {
+              "author": "tree73.bsky.social",
+              "text": "U.S.-Russia Talks on Ukraine Now Involve an Oil Deal Tied to Trump Allies Gift article.",
+              "likes": 0,
+              "match": 0.758
+            },
+            {
+              "author": "emmabrody.bsky.social",
+              "text": "This is absolutely a stunning piece of investigative work. The height of corruption and the people of Ukraine are dying because of the morally indecent Trump family. We're seeing a complete U.S. realignment with Russia for their friends' and family's profit. Grateful for what you've uncovered.",
+              "likes": 10,
+              "match": 0.736
+            },
+            {
+              "author": "maggieww.bsky.social",
+              "text": "The government has completely abandoned an ethical compass. U.S.-Russia Talks on Ukraine Now Involve an Oil Deal Tied to Trump Allies",
+              "likes": 0,
+              "match": 0.731
+            },
+            {
+              "author": "guisbeau.bsky.social",
+              "text": "Always a grift. This administration\u2019s corruption is unprecedented . U.S.-Russia Talks on Ukraine Now Involve an Oil Deal Tied to Trump Allies",
+              "likes": 0,
+              "match": 0.716
+            },
+            {
+              "author": "ozscot.bsky.social",
+              "text": "Anything Trump can do to hurt Ukraine ... \"Trump diverts Ukraine aid to authoritarian allies in Latin America-Story by Andrew Feinberg\" The money was \u201cspecifically appropriated by Congress for a particular national security objective: aiding Ukraine and countries impacted by the war in Ukraine.\u201d",
+              "likes": 0,
+              "match": 0.711
+            },
+            {
+              "author": "fromeach.com",
+              "text": "Putin pitches oil deal to Trump's son-in-law, the man negotiating peace with Putin. On September 4, Steve Witkoff and Jared Kushner flew to Moscow, then to Kyiv \u2014 the special envoy\u2026 #economy #business",
+              "likes": 0,
+              "match": 0.71
+            },
+            {
+              "author": "lolgop.bsky.social",
+              "text": "This is why I know that Marcy's Ball of Thread series is so crucially important right now. America is selling out Ukraine and all our allies, and the only Americans who will benefit are named Trump and maybe Wikoff.",
+              "likes": 18,
+              "match": 0.694
+            },
+            {
+              "author": "accomplishedseer.bsky.social",
+              "text": "When is Ukraine going to post a $20 million bounty on Putin? I think that would get a lot more traction.",
+              "likes": 0,
+              "match": 0.688
+            },
+            {
+              "author": "b10cza.bsky.social",
+              "text": "An oil deal from Putin (to assist w Trump's Iran debacle) should never have been part of the Ukraine negotiation. Kushner/Witkoff only guided by greed, not decency.",
+              "likes": 2,
+              "match": 0.685
+            },
+            {
+              "author": "samspade1941.bsky.social",
+              "text": "The US can't be a mediator here because it isn't an objective party. It's already been bought. Obviously ameriKKKa now has a strong financial incentive to side with ruSSia over Ukraine.",
+              "likes": 0,
+              "match": 0.652
+            },
+            {
+              "author": "msesq.bsky.social",
+              "text": "Sell out Ukraine for $$$ NY Times: President Donald Trump announced late on Friday, Oct. 2, that he will send \"nearly $100\" to 20 million seniors across the country in his latest effort to promise Americans cash.",
+              "likes": 0,
+              "match": 0.65
+            },
+            {
+              "author": "suurtoll.bsky.social",
+              "text": "Basically selling support and concession to Russia for deals from which US and RU oligarchs will profit. And maga voters get nothing from it, but are happy because TrAnSgEnDeR and other stupid made up cultural wars.",
+              "likes": 0,
+              "match": 0.643
+            },
+            {
+              "author": "reggiewallinsky.bsky.social",
+              "text": "There is no limit to Trump/Kushner depravity. Billions for them paid for by the blood of Ukraine. They are butchers right alongside Putin.",
+              "likes": 0,
+              "match": 0.637
+            },
+            {
+              "author": "mina-hanse.bsky.social",
+              "text": "Saint Petersburg has proposed 2026 budget amendments to increase spending on Ukraine war participants. To fund this, expenditures for education, repairs, and bomb shelters may be reduced, cutting total city spending by 70.2 billion rubles. ru.themoscowtimes.com/2026/09/29/v...",
+              "likes": 2,
+              "match": 0.592
+            },
+            {
+              "author": "realman1949.bsky.social",
+              "text": "The man is representing the kremlin plan for the Russkiy mir. We must hold fast. \u0421\u043b\u0430\u0432\u0430 \u0423\u043a\u0440\u0430\u0457\u043d\u0456, Slava Ukraini, Glory to Ukraine\ud83d\ude4f",
+              "likes": 0,
+              "match": 0.582
+            },
+            {
+              "author": "realman1949.bsky.social",
+              "text": "They mean to have a Russkiy mir no mater what it costs. \u0421\u043b\u0430\u0432\u0430 \u0423\u043a\u0440\u0430\u0457\u043d\u0456, Slava Ukraini, Glory to Ukraine\ud83d\ude4f",
+              "likes": 0,
+              "match": 0.506
             }
           ],
           "arguments": [
-            "Artists push back against generative AI",
-            "AI-generated content is detrimental to small artists"
+            "Trump admin's Ukraine talks include a multibillion-dollar oil deal benefiting US negotiators' allies",
+            "US-Russia talks on Ukraine now involve an oil deal tied to Trump allies",
+            "Trump's Ukraine negotiations involve a corrupt oil deal with Russia"
           ],
-          "brief": "AI harms artists and creatives. Artists push back against generative AI; AI-generated content is detrimental to small artists.",
-          "detail": "Artists Reject AI argues that AI harms artists and creatives. Artists push back against generative AI. AI-generated content is detrimental to small artists.\n\n@flyingtrilobite.com: “I often appreciate like Oremus's writing, but this is just the same old, \"artists don't get it\" argument again, when many of us very much do \"get it\". Artists generally love new innovations in creative tech. It's telling that we are pushing back hard on generative AI.”"
+          "post_count": 36,
+          "brief": "Trump allies benefit from US-Russia oil deal talks. Trump admin's Ukraine talks include a multibillion-dollar oil deal benefiting US negotiators' allies. US-Russia talks on Ukraine now involve an oil deal tied to Trump allies. Trump's Ukraine negotiations involve a corrupt oil deal with Russia.",
+          "detail": "Ukraine Oil Deal argues that Trump allies benefit from US-Russia oil deal talks. Trump admin's Ukraine talks include a multibillion-dollar oil deal benefiting US negotiators' allies. US-Russia talks on Ukraine now involve an oil deal tied to Trump allies. Trump's Ukraine negotiations involve a corrupt oil deal with Russia.\n\nThe posts defend it in their own words. @lolgop.bsky.social writes, \u201cThis is why I know that Marcy's Ball of Thread series is so crucially important right now. America is selling out Ukraine and all our allies, and the only Americans who will benefit are named Trump and maybe Wikoff.\u201d @emmabrody.bsky.social writes, \u201cThis is absolutely a stunning piece of investigative work. The height of corruption and the people of Ukraine are dying because of the morally indecent Trump family. We're seeing a complete U.S. realignment with Russia for their friends' and family's profit.\u201d @b10cza.bsky.social writes, \u201cAn oil deal from Putin (to assist w Trump's Iran debacle) should never have been part of the Ukraine negotiation. Kushner/Witkoff only guided by greed, not decency.\u201d\n\nInside Ukraine Oil Deal, the posts are arguing one position rather than a stack of unrelated claims."
         }
       ],
-      "summary": "AI harms artists and creatives.",
-      "brief": "AI harms artists and creatives. Artists push back against generative AI; AI-generated content is detrimental to small artists.",
-      "detail": "Artists Reject AI argues that AI harms artists and creatives. Artists push back against generative AI. AI-generated content is detrimental to small artists.\n\n@flyingtrilobite.com: “I often appreciate like Oremus's writing, but this is just the same old, \"artists don't get it\" argument again, when many of us very much do \"get it\". Artists generally love new innovations in creative tech. It's telling that we are pushing back hard on generative AI.”"
+      "summary": "Trump allies benefit from US-Russia oil deal talks.",
+      "brief": "Trump allies benefit from US-Russia oil deal talks. Trump admin's Ukraine talks include a multibillion-dollar oil deal benefiting US negotiators' allies. US-Russia talks on Ukraine now involve an oil deal tied to Trump allies. Trump's Ukraine negotiations involve a corrupt oil deal with Russia.",
+      "detail": "Ukraine Oil Deal argues that Trump allies benefit from US-Russia oil deal talks. Trump admin's Ukraine talks include a multibillion-dollar oil deal benefiting US negotiators' allies. US-Russia talks on Ukraine now involve an oil deal tied to Trump allies. Trump's Ukraine negotiations involve a corrupt oil deal with Russia.\n\nThe posts defend it in their own words. @lolgop.bsky.social writes, \u201cThis is why I know that Marcy's Ball of Thread series is so crucially important right now. America is selling out Ukraine and all our allies, and the only Americans who will benefit are named Trump and maybe Wikoff.\u201d @emmabrody.bsky.social writes, \u201cThis is absolutely a stunning piece of investigative work. The height of corruption and the people of Ukraine are dying because of the morally indecent Trump family. We're seeing a complete U.S. realignment with Russia for their friends' and family's profit.\u201d @b10cza.bsky.social writes, \u201cAn oil deal from Putin (to assist w Trump's Iran debacle) should never have been part of the Ukraine negotiation. Kushner/Witkoff only guided by greed, not decency.\u201d\n\nInside Ukraine Oil Deal, the posts are arguing one position rather than a stack of unrelated claims."
     },
     {
       "id": 2,
-      "name": "Cornell Rape Case",
-      "category": "Politics",
-      "total_volume_percent": 5.0,
+      "name": "Gaza War",
+      "category": "World",
+      "total_volume_percent": 25.9,
+      "post_count": 84,
       "perspectives": [
         {
           "id": "2A",
-          "title": "Rape Culture",
-          "summary": "Rapists are being sympathized with",
-          "volume_percent": 66.7,
+          "title": "Israel War Crimes",
+          "summary": "Israel commits war crimes in Gaza",
+          "volume_percent": 56.0,
           "representative_posts": [
             {
-              "author": "chelelea.bsky.social",
-              "text": "Any college fostering rape culture needs to be outed and dismantled. Tolerance for SA is f’n OVER.",
-              "likes": 3
+              "author": "marnshibski.bsky.social",
+              "text": "Thank you for pointing out that all is connected, environment, war crimes, ecocide, poverty\u2026. Shits me to tears when people say what\u2019s Gaza got to do with us?",
+              "likes": 0,
+              "match": 0.821
             },
             {
-              "author": "papageirr.bsky.social",
-              "text": "I see the rape apologists are out in full force today.",
-              "likes": 2
+              "author": "cyborgludd.bsky.social",
+              "text": "Even if you didn't care about Gaza, the police crackdowns, institutional blacklisting and media smearing of peaceful protesters would be alarming. The argument in the quote above is valid and describes something really worrisome, regardless of how you feels about Israel.",
+              "likes": 7,
+              "match": 0.777
             },
             {
-              "author": "curiousaudio.us",
-              "text": "I mean maybe it's just me but it seems like the republican party being home to so many people who are pro-rape should become one of those enduring American shibboleths the political media anoints them with",
-              "likes": 1
+              "author": "marygillis.bsky.social",
+              "text": "Framing this as a result of the \"fragility\" of the system rather than a direct result of Israel's genocidal actions is a choice. One that other outlets managed to avoid making.",
+              "likes": 12,
+              "match": 0.756
             },
             {
-              "author": "weirwoodtreehug.bsky.social",
-              "text": "Important 🧵 I've seen a lot of people - mostly men - on here who are otherwise progressive and who agree that cops and prosecutors are liars and bigots under any other circumstances take the DA statements at face value to excuse disbelieving the victim. But ACAB absolutely applies to rape cases too.",
-              "likes": 0
+              "author": "meckeringboy.bsky.social",
+              "text": "Israeli air attack on Gaza City apartment kills at least five aje.news/fgxd9f I have nothing good to say about the evil Israeli regime and its genocide. More attacks and more innocents killed.",
+              "likes": 3,
+              "match": 0.745
             },
             {
-              "author": "abigailcolter.bsky.social",
-              "text": "A reminder. It is against the law to rape a person who is sober, or drunk, or who may be in a compromising position of some sort. Rape is never legal.",
-              "likes": 0
+              "author": "clnz.bsky.social",
+              "text": "Beyond devastating. CBC found Israel clearing and compacting rubble in Gaza for new military outposts, while human remains and potential evidence of war crimes still lie beneath. Families deserve the truth about their loved ones. Heartbreaking to see Google Maps pins where lives once unfolded. \ud83e\udd72",
+              "likes": 1,
+              "match": 0.732
             },
             {
-              "author": "wjsnofficial.bsky.social",
-              "text": "guy who doxxed jane doe in that rape case is now facing legal consequences because he doxxed the wrong girl and has sent a bunch of incels after some random student who had nothing to do with anything.. we are in hell truly",
-              "likes": 0
+              "author": "morrowjamesadam.bsky.social",
+              "text": "Palestinians have reached the conclusion that Israel wants to \u201celiminate\u201d them, argues Palestinian politician Mustafa Barghouti - tells host Steve Clemons that Israel\u2019s tools have been three-fold: military violence, economic strangulation, and constant encroachment on their personal homes and lands.",
+              "likes": 0,
+              "match": 0.725
             },
             {
-              "author": "anchovygirlfriend.northsky.social",
-              "text": "noah fence but suggesting anything other than zero tolerance policy for rape is a fundamental misunderstanding of how one should act in any society",
-              "likes": 0
+              "author": "cliffranger.bsky.social",
+              "text": "BBC still insists on describing the illegal invasion and genocide in Gaza as a War the USIsrael illegal war crimes attacks on Iran, as a Conflict",
+              "likes": 0,
+              "match": 0.717
             },
             {
-              "author": "cionaod.bsky.social",
-              "text": "Pedo-POTUS isn't going to condemn gang rape at any American University because he's an adjudicated rapist. How disgusting is that fact alone? Then there's the Epstein files. He must be held accountable.",
-              "likes": 0
+              "author": "prognews.bsky.social",
+              "text": "Gaza death toll now over 74,000. \u201cThe Palestinian death toll from Israel\u2019s war on Gaza has surpassed 74,000, according to Gaza\u2019s Health Ministry. Since the so-called ceasefire last October, 1,145 Palestinians have been killed in Israeli attacks.\"",
+              "likes": 0,
+              "match": 0.715
             },
             {
-              "author": "emericanjezebel.bsky.social",
-              "text": "just…imagine being the woman he raped, and reading that essay",
-              "likes": 10
+              "author": "dystopian-fashion.bsky.social",
+              "text": "The Palestinian death toll from Israel\u2019s genocidal war on Gaza has surpassed 74,000. This is the official death toll; the true figure is much higher when missing people and deaths from disease, exposure, denial of medical treatment, starvation, and the destruction of infrastructure are added.",
+              "likes": 1,
+              "match": 0.708
             },
             {
-              "author": "nomdeplume7.bsky.social",
-              "text": "The campus police didn't pass on to the district attorney that the victim said she had been raped. No other criminal investigation took place. Now it has been reopened, after she filed a big civil lawsuit against everyone.",
-              "likes": 0
+              "author": "lenticulus.bsky.social",
+              "text": "\u201cGoogle Maps just updated its satellite imagery of Gaza, exposing the utter devastation left behind by Israel\u2019s genocide\u201d",
+              "likes": 2,
+              "match": 0.698
             },
             {
-              "author": "path550.bsky.social",
-              "text": "His hate for Leticia James won't allow him to consider no woman should be gang raped.",
-              "likes": 0
+              "author": "seancj.bsky.social",
+              "text": "Not sure the comparison with Hamas + Gaza is very useful, considering both the fact that Hamas hasn't been able to inflict economic pain at a distance on Israel for a long time (ever?), and the Houthis have a proven track record of doing so on Saudi Arabia. (Also Gaza's extremely limited geography)",
+              "likes": 0,
+              "match": 0.696
             },
             {
-              "author": "abcbtommi.bsky.social",
-              "text": "It just feels like Graham Platner all over again. When the Nazi tattoo and history of alcoholism came up people were like, oh yeah he definitely raped somebody. This was just obviously going to come out. And still we played this stupid game of assuming someone with a Nazi tattoo has good judgement.",
-              "likes": 0
+              "author": "amosduveen.bsky.social",
+              "text": "Rightly or wrongly, what that taught Israelis was that, even if they just sit there minding their own business, they will be attacked. You can certainly talk about Israel becoming increasingly aggressive but that's the context in which all of this plays out.",
+              "likes": 0,
+              "match": 0.691
+            },
+            {
+              "author": "zenoyogi.bsky.social",
+              "text": "A war means that a collective blame applies. It was 3800 Hamas troops and 2200 Gazans citizens raping and murdering on 10/7. It was a collective celebration. That is why Israel is at war with Gaza but it has not collectively targeted all Gazans. And now Israel speaks to the citizens of Iran",
+              "likes": 0,
+              "match": 0.675
+            },
+            {
+              "author": "amosduveen.bsky.social",
+              "text": "Step back a moment. Literally the day Israel was founded, it was attacked from all sides. Again in 1967. Again in 1973. Even beyond that, when direct military action was no longer viable, there were concerned terrorist campaigns, trained, armed, and funded by exactly the same enemies.",
+              "likes": 1,
+              "match": 0.667
+            },
+            {
+              "author": "litterygeniarse.bsky.social",
+              "text": "Help the people of Gaza Provide direct aid Support the UN & International law Call out the genocide Stop all UK support to Israel. Why not!?",
+              "likes": 0,
+              "match": 0.645
+            },
+            {
+              "author": "zenoyogi.bsky.social",
+              "text": "You mean not according to the opinions of the Haaretz editorialists. It is leftist. It existence proves that Israel is a democracy. Did Gaza have an equivalent? Nope.",
+              "likes": 0,
+              "match": 0.639
+            },
+            {
+              "author": "goodevil0562.bsky.social",
+              "text": "Breaking: Dozens of Israeli settlers, backed by the Israeli army, are attacking the village of Osarin, south of Nablus, in an attempt to force Palestinian residents from their homes and empty the village. (Ramy Abdul) #Judeo-Nazis do what they always do. Terrorising Palestinians.",
+              "likes": 0,
+              "match": 0.639
+            },
+            {
+              "author": "timothy-barton.bsky.social",
+              "text": "LOL, don't flatter yourself, you don't matter enough that IDF would respond to your comment. Also, IDF is military, not online PR. Here's the link about Israel's PR spending, that's their whole budget, not just the budget on the war on the word 'genocide'.",
+              "likes": 0,
+              "match": 0.636
+            },
+            {
+              "author": "cmbeauty.bsky.social",
+              "text": "Israeli warnings do not make a home safe when there is nowhere left to flee. I write from Gaza, where the reality on the ground rarely matches what is claimed from afar; my pinned post holds that truth for anyone willing to look.",
+              "likes": 0,
+              "match": 0.635
+            },
+            {
+              "author": "bigearthdata.ai",
+              "text": "Three years, seven fronts and no end in sight: Israel's war grinds on ->Ynet News | More on \"Israel's multi-front regional conflict\" at BigEarthData.ai | #IsraelWar",
+              "likes": 0,
+              "match": 0.627
+            },
+            {
+              "author": "bkeithb.bsky.social",
+              "text": "It's a Zionist PsyOp \ud83d\udc47 The US-led Board of Peace has said UNRWA will have no role in Gaza, excluding the UN agency from its reconstruction plans and echoing Israel\u2019s longstanding campaign to sideline and dismantle it. UNRWA has about 11,000 Palestinian employees in Gaza and provides healthcare...",
+              "likes": 0,
+              "match": 0.617
+            },
+            {
+              "author": "jennisaurusrexx.bsky.social",
+              "text": "We pay on average, 3.8 billion dollars a year, every year, to make Israel a Socialist \"country\" (illegal settler state). We've spent $21.9 BILLION committing this particular genocide. 17.9 BILLION FUCKING DOLLARS was forked over by Joe Biden's administration in the first year of it. We paid for this",
+              "likes": 0,
+              "match": 0.6
+            },
+            {
+              "author": "bennypro-fane.bsky.social",
+              "text": "Lapid says young Israelis told him 'even babies' in Gaza should be killed",
+              "likes": 0,
+              "match": 0.6
+            },
+            {
+              "author": "mrmirth.bsky.social",
+              "text": "That's a plus then, but don't use whataboutery. We are talking about Israel, not the Middle East. The are serial breakers of international law and UN resolutions. Their Prime Minister is a wanted War Criminal, as others are too. They also have 3000+ detainees with no access to judicial trial.",
+              "likes": 0,
+              "match": 0.596
+            },
+            {
+              "author": "grouchymarx.bsky.social",
+              "text": "$20 Billion... and lots of weapons so Israel can murder thousands of innocent children.",
+              "likes": 0,
+              "match": 0.595
+            },
+            {
+              "author": "me.skyfleet.blue",
+              "text": "Collision course: Are Israel and Turkey headed for confrontation?",
+              "likes": 0,
+              "match": 0.592
+            },
+            {
+              "author": "mrmirth.bsky.social",
+              "text": "One mans freedom fighter, is another mans terrorists. If the word is to be used, then it should apply to Israeli terrorists as well, in particulater settlers in the West Bank. Historically, Israel was born out of jewish terrorism, with gangs attacking British police/army in the Mandate.",
+              "likes": 0,
+              "match": 0.549
+            },
+            {
+              "author": "peggysanders.bsky.social",
+              "text": "Australia has been set up by the Prime Minister of Australia to be an Israel satellite State. Peter Thiel\u2019s \u201cFreedom Cities\u201d. Gina Rinehart NT, QLD. ?NSW, VIC election ripe. Yanis Veroufakis Greece talks of the same problem there. This is very close to home.",
+              "likes": 0,
+              "match": 0.525
             }
           ],
           "arguments": [
-            "Colleges foster rape culture",
-            "Rape apologists are prevalent"
+            "Israel's actions in Gaza are genocidal",
+            "Israel's war on Gaza is alarming and worrisome",
+            "Israel is responsible for killing civilians in Gaza"
           ],
-          "brief": "Rapists are being sympathized with. Colleges foster rape culture; Rape apologists are prevalent.",
-          "detail": "Rape Culture argues that Rapists are being sympathized with. Colleges foster rape culture. Rape apologists are prevalent.\n\n@emericanjezebel.bsky.social: “just…imagine being the woman he raped, and reading that essay”\n\nThe other view in this conversation is Cornell Rape Case."
+          "post_count": 47,
+          "brief": "Israel commits war crimes in Gaza. Israel's actions in Gaza are genocidal. Israel's war on Gaza is alarming and worrisome. Israel is responsible for killing civilians in Gaza.",
+          "detail": "Israel War Crimes argues that Israel commits war crimes in Gaza. Israel's actions in Gaza are genocidal. Israel's war on Gaza is alarming and worrisome. Israel is responsible for killing civilians in Gaza.\n\nThe posts defend it in their own words. @marygillis.bsky.social writes, \u201cFraming this as a result of the \"fragility\" of the system rather than a direct result of Israel's genocidal actions is a choice. One that other outlets managed to avoid making.\u201d @cyborgludd.bsky.social writes, \u201cEven if you didn't care about Gaza, the police crackdowns, institutional blacklisting and media smearing of peaceful protesters would be alarming. The argument in the quote above is valid and describes something really worrisome, regardless of how you feels about Israel.\u201d @meckeringboy.bsky.social writes, \u201cIsraeli air attack on Gaza City apartment kills at least five aje.news/fgxd9f I have nothing good to say about the evil Israeli regime and its genocide. More attacks and more innocents killed.\u201d\n\nOther views in this conversation are Zionism Condemned. They are arguing a different claim from Israel War Crimes."
         },
         {
           "id": "2B",
-          "title": "Cornell Rape Case",
-          "summary": "Trump supports Cornell rape suspects",
-          "volume_percent": 33.3,
+          "title": "Zionism Condemned",
+          "summary": "Zionism is racist",
+          "volume_percent": 44.0,
           "representative_posts": [
             {
-              "author": "arghavansallesmd.medsky.social",
-              "text": "One of the 7 men in Jane Doe’s lawsuit sued Cornell (and lost—they are currently appealing). Here is what his punishment was for “attempted sexual exploitation”—a class and a paper. (Gift link)",
-              "likes": 2
+              "author": "sirkidstarversucks.bsky.social",
+              "text": "Those who refuse to use their eyes and ears of how Zionism is inflicted on Palestinians and Arabs should face disdain Especially those who have not even bothered to read the motion and taking the cues from the Zionist outrage machine or exclude the 10s of 1000s of Jews who are anti-Zionists",
+              "likes": 0,
+              "match": 0.722
             },
             {
-              "author": "cwebbonline.com",
-              "text": "Are you kidding me ‼️ Just now at the White House, Trump was asked about the Cornell rape case. He didn’t address the allegations. He attacked Letitia James, calling her “corrupt” and claiming anyone she investigates “won’t get a fair shake.” Trump’s sympathy clearly isn’t with the survivor.",
-              "likes": 35
+              "author": "noseki.bsky.social",
+              "text": "More in the line of \"Tell Bibi regime that they shouldn't butcher civilians and perform ethnic cleansing\". Zionist IS racism and anti-Zionism is used by the current Israeli regime as a shield to commit murder. Humans can think as they wish, but not that they can kill \"goys\" without consequences.",
+              "likes": 0,
+              "match": 0.688
             },
             {
-              "author": "lon08.bsky.social",
-              "text": "The overall theme of what is left of our country and society, is that we are a culture of rapists, pedophiles, lawless bullies, liars, and traitors. Almost like they are virtues. The Cornell gang-rape mess, privilege, the Epstein files? The dots aren’t tough to connect.",
-              "likes": 1
+              "author": "plainlincoln.bsky.social",
+              "text": "His constant conflation of Zionism and Israel with Judaism is deeply, dangerously antisemitic\ud83d\ude35\u200d\ud83d\udcab",
+              "likes": 1,
+              "match": 0.676
             },
             {
-              "author": "sunshinelaughter.bsky.social",
-              "text": "Trump: 'I feel badly' for Cornell rape suspects When someone tells you who they are!",
-              "likes": 0
+              "author": "sirkidstarversucks.bsky.social",
+              "text": "This is what ZIONISM is!!!! Every soo called \"liberal\" who aggrees with this RACIST IDEOLOGY of ETHNIC CLEANSING needs to really register what they are supporting",
+              "likes": 0,
+              "match": 0.668
             },
             {
-              "author": "peacefulcrone.bsky.social",
-              "text": "Hate how white this site is bc there's barely any pushback to the blatant rape apologia from \"leftist\" clowns who claim to care about the cornell case",
-              "likes": 0
+              "author": "oliver48.bsky.social",
+              "text": "\"Jewish anti-Zionists condemn Board of Deputies attempt to appropriate Cable Street\"",
+              "likes": 8,
+              "match": 0.653
             },
             {
-              "author": "moonflower74.bsky.social",
-              "text": "Literally. As a rape survivor \"Cornell 7\" (especially seen as there were 57 overall in that group chat) just sounds so unserious, they're not some crappy boy band. Of course many (myself included) know what the 7 alludes to, but hashtags such as #CornellRapists shows just how severe this really is.",
-              "likes": 1
-            },
-            {
-              "author": "robinla.bsky.social",
-              "text": "The Cornell Rape Investigation: Five Takeaways",
-              "likes": 1
-            },
-            {
-              "author": "katvanzan.bsky.social",
-              "text": "Adjudicated rapist president supports not-yet-adjudicated student rapists of Cornell. Is this where we are now, America?",
-              "likes": 1
-            },
-            {
-              "author": "uspol.skyfleet.blue",
-              "text": "Hochul eyes changes to state’s rape law amid Cornell crisis",
-              "likes": 0
-            },
-            {
-              "author": "captalexjharman.bsky.social",
-              "text": "CALL THEM WHAT THEY ARE: CORNELL RAPISTS. RAPISTS. Let THAT sink in. SEVEN RAPISTS. 7. ALL KNEW it was RAPE. They DIDN'T CARE. These Bastards NEED to be Prosecuted to the FULLEST extent of the Law!!!",
-              "likes": 0
-            },
-            {
-              "author": "cchristian-la.bsky.social",
-              "text": "Not second guessing the appointment, but there are several NYS DA’s offices, particularly in NYC and some suburban counties, that have highly experienced Special Victims or Sex Crimes Bureaus staffed by prosecutors who handle complex sexual assault cases every day.",
-              "likes": 0
-            },
-            {
-              "author": "chrisaintmarchin.mastodon.social.ap.brid.gy",
-              "text": "Cornell Seven news: How campus police should have responded to Jane Doe.",
-              "likes": 0
+              "author": "0x416e6479.bsky.social",
+              "text": "Great chat with Mohammed el-Kurd - author of Perfect Victims. Covers the logics of victimhood, propaganda and the definitions of Zionism Free Palestine! \ud83c\uddf5\ud83c\uddf8 youtu.be/Cg65hMajDbc?...",
+              "likes": 0,
+              "match": 0.614
             }
           ],
           "arguments": [
-            "The punishment for attempted sexual exploitation at Cornell was too lenient",
-            "The Cornell case is part of a larger culture of rape and privilege"
+            "Zionism inflicts harm on Palestinians and Arabs",
+            "Zionism is used to justify violence and ethnic cleansing"
           ],
-          "brief": "Trump supports Cornell rape suspects. The punishment for attempted sexual exploitation at Cornell was too lenient; The Cornell case is part of a larger culture of rape and privilege.",
-          "detail": "Cornell Rape Case argues that Trump supports Cornell rape suspects. The punishment for attempted sexual exploitation at Cornell was too lenient. The Cornell case is part of a larger culture of rape and privilege.\n\n@cwebbonline.com: “Are you kidding me ‼️ Just now at the White House, Trump was asked about the Cornell rape case. He didn’t address the allegations.”\n\nThe other view in this conversation is Rape Culture."
+          "post_count": 37,
+          "brief": "Zionism is racist. Zionism inflicts harm on Palestinians and Arabs. Zionism is used to justify violence and ethnic cleansing.",
+          "detail": "Zionism Condemned argues that Zionism is racist. Zionism inflicts harm on Palestinians and Arabs. Zionism is used to justify violence and ethnic cleansing.\n\nThe posts defend it in their own words. @oliver48.bsky.social writes, \u201c\"Jewish anti-Zionists condemn Board of Deputies attempt to appropriate Cable Street\"\u201d @plainlincoln.bsky.social writes, \u201cHis constant conflation of Zionism and Israel with Judaism is deeply, dangerously antisemitic\ud83d\ude35\u200d\ud83d\udcab\u201d @sirkidstarversucks.bsky.social writes, \u201cThose who refuse to use their eyes and ears of how Zionism is inflicted on Palestinians and Arabs should face disdain Especially those who have not even bothered to read the motion and taking the cues from the Zionist outrage machine or exclude the 10s of 1000s of Jews who are\u2026\u201d\n\nOther views in this conversation are Israel War Crimes. They are arguing a different claim from Zionism Condemned."
         }
       ],
-      "summary": "Rapists are being sympathized with.",
-      "brief": "Rapists are being sympathized with. Trump supports Cornell rape suspects.",
-      "detail": "Rape Culture argues that Colleges foster rape culture. Rape apologists are prevalent. Cornell Rape Case argues that the punishment for attempted sexual exploitation at Cornell was too lenient. The Cornell case is part of a larger culture of rape and privilege.\n\n@cwebbonline.com: “Are you kidding me ‼️ Just now at the White House, Trump was asked about the Cornell rape case. He didn’t address the allegations.”\n\nRape Culture (66.7%) says Rapists are being sympathized with. Cornell Rape Case (33.3%) says Trump supports Cornell rape suspects."
+      "summary": "Gaza War is the conversation these views share.",
+      "brief": "Gaza War is the conversation these views share. Israel War Crimes says Israel commits war crimes in Gaza. Zionism Condemned says Zionism is racist.",
+      "detail": "Israel War Crimes argues that Israel's actions in Gaza are genocidal. Israel's war on Gaza is alarming and worrisome. Israel is responsible for killing civilians in Gaza. Zionism Condemned argues that Zionism inflicts harm on Palestinians and Arabs. Zionism is used to justify violence and ethnic cleansing.\n\n@marygillis.bsky.social: \u201cFraming this as a result of the \"fragility\" of the system rather than a direct result of Israel's genocidal actions is a choice. One that other outlets managed to avoid making.\u201d\n\nIsrael War Crimes (56%) says Israel commits war crimes in Gaza. Zionism Condemned (44%) says Zionism is racist."
     },
     {
       "id": 3,
-      "name": "Rape Culture",
-      "category": "Other",
-      "total_volume_percent": 15.0,
+      "name": "Victim Blaming",
+      "category": "Politics",
+      "total_volume_percent": 1.2,
+      "post_count": 4,
       "perspectives": [
         {
           "id": "3A",
-          "title": "Rape Culture",
-          "summary": "Rape culture exists",
+          "title": "Victim Blaming",
+          "summary": "Victims are blamed for their reactions",
           "volume_percent": 100.0,
           "representative_posts": [
             {
-              "author": "lawisterian.bsky.social",
-              "text": "\"If they were just pretending, then the normalization is built on a ruse\" The technical term for the ruse you refer to here is \"patriarchy\". Men understand rape perfectly well when it's their asshole on the line, they just don't have empathy for women.",
-              "likes": 0
+              "author": "fireantprincess.bsky.social",
+              "text": "also, I want people to realize that when victims seem a bit too aggressive to you right now, it might be because they have been triggered for weeks and you pushed them over the edge. you might prefer the calm politeness of a rapist\u2019s apology but that is something you should sit with.",
+              "likes": 1,
+              "match": 0.815
             },
             {
-              "author": "lalegault.bsky.social",
-              "text": "How rape culture is passively participated in: You see a woman call out a guy who continually is trying to rehabilitate the Oilers’ image and not only do you remain silent, but you get mad at her for saying anything. It’s a spectrum, and Canadians are experts at it.",
-              "likes": 0
+              "author": "colonialgirl.bsky.social",
+              "text": "Thanks for sharing this, Floki. The victim blaming really jumps out as these men were willing to risk your life rather than self-reflect. They were violent toward you for what they did \ud83e\udd14",
+              "likes": 1,
+              "match": 0.781
             },
             {
-              "author": "buzogryz.bsky.social",
-              "text": "what I think is the most important here is to once again, realise that we live in a terrible time for this stuff. Rape culture is definitely on the rise, most certainly because people who want to mantain it got scared when they saw the MeToo movement and the rise of pop culture feminism in 2010s",
-              "likes": 0
-            },
-            {
-              "author": "shazbat.bsky.social",
-              "text": "MAGAts have a different view on rape than healthy people do, and that POS is their evil leader. They think men have a right to women's bodies. It's a large part of their dysfunction.",
-              "likes": 0
-            },
-            {
-              "author": "friesandersen.bsky.social",
-              "text": "I have gone to bars, worn clothes that show off my physique (quite in back, I have a physique, just not that kind), and gotten drunk. But being a man, I was not raped. I can't imagine how it must be to be a woman and have to worry every time I leave my home.",
-              "likes": 1
+              "author": "makinbaiken.bsky.social",
+              "text": "After thinking it through, I'm perfectly content with how this mess is being handled. The man's lost his job(s), the victim keeps her privacy. Now that you've sorted your complicated feelings out, I hope we're all ready to ditch him and move on. Don't grieve a rapist's career for too long.",
+              "likes": 0,
+              "match": 0.755
             }
           ],
           "arguments": [
-            "Men do not face the same risks of rape as women",
-            "Society enables rape culture through silence and victim-blaming",
-            "Rape culture is perpetuated by patriarchal norms and lack of empathy for women",
-            "People often participate in rape culture passively by not speaking out against it",
-            "Rape culture is terrifying and defended by some individuals"
+            "Victims seem aggressive due to prolonged triggering",
+            "Men risk victims' lives rather than self-reflect"
           ],
-          "brief": "Rape culture exists. Men do not face the same risks of rape as women; Society enables rape culture through silence and victim-blaming. Rape culture is perpetuated by patriarchal norms and lack of empathy for women; People often participate in rape culture passively by not speaking out against it. Rape culture is terrifying and defended by some individuals.",
-          "detail": "Rape Culture argues that Rape culture exists. Men do not face the same risks of rape as women. Society enables rape culture through silence and victim-blaming. Rape culture is perpetuated by patriarchal norms and lack of empathy for women.\n\n@friesandersen.bsky.social: “I have gone to bars, worn clothes that show off my physique (quite in back, I have a physique, just not that kind), and gotten drunk. But being a man, I was not raped. I can't imagine how it must be to be a woman and have to worry every time I leave my home.”"
+          "post_count": 4,
+          "brief": "Victims are blamed for their reactions. Victims seem aggressive due to prolonged triggering. Men risk victims' lives rather than self-reflect.",
+          "detail": "Victim Blaming argues that Victims are blamed for their reactions. Victims seem aggressive due to prolonged triggering. Men risk victims' lives rather than self-reflect.\n\nThe posts defend it in their own words. @fireantprincess.bsky.social writes, \u201calso, I want people to realize that when victims seem a bit too aggressive to you right now, it might be because they have been triggered for weeks and you pushed them over the edge.\u201d @colonialgirl.bsky.social writes, \u201cThanks for sharing this, Floki. The victim blaming really jumps out as these men were willing to risk your life rather than self-reflect. They were violent toward you for what they did \ud83e\udd14\u201d @makinbaiken.bsky.social writes, \u201cAfter thinking it through, I'm perfectly content with how this mess is being handled. The man's lost his job(s), the victim keeps her privacy. Now that you've sorted your complicated feelings out, I hope we're all ready to ditch him and move on.\u201d\n\nInside Victim Blaming, the posts are arguing one position rather than a stack of unrelated claims."
         }
       ],
-      "summary": "Rape culture exists.",
-      "brief": "Rape culture exists. Men do not face the same risks of rape as women; Society enables rape culture through silence and victim-blaming. Rape culture is perpetuated by patriarchal norms and lack of empathy for women; People often participate in rape culture passively by not speaking out against it. Rape culture is terrifying and defended by some individuals.",
-      "detail": "Rape Culture argues that Rape culture exists. Men do not face the same risks of rape as women. Society enables rape culture through silence and victim-blaming. Rape culture is perpetuated by patriarchal norms and lack of empathy for women.\n\n@friesandersen.bsky.social: “I have gone to bars, worn clothes that show off my physique (quite in back, I have a physique, just not that kind), and gotten drunk. But being a man, I was not raped. I can't imagine how it must be to be a woman and have to worry every time I leave my home.”"
+      "summary": "Victims are blamed for their reactions.",
+      "brief": "Victims are blamed for their reactions. Victims seem aggressive due to prolonged triggering. Men risk victims' lives rather than self-reflect.",
+      "detail": "Victim Blaming argues that Victims are blamed for their reactions. Victims seem aggressive due to prolonged triggering. Men risk victims' lives rather than self-reflect.\n\nThe posts defend it in their own words. @fireantprincess.bsky.social writes, \u201calso, I want people to realize that when victims seem a bit too aggressive to you right now, it might be because they have been triggered for weeks and you pushed them over the edge.\u201d @colonialgirl.bsky.social writes, \u201cThanks for sharing this, Floki. The victim blaming really jumps out as these men were willing to risk your life rather than self-reflect. They were violent toward you for what they did \ud83e\udd14\u201d @makinbaiken.bsky.social writes, \u201cAfter thinking it through, I'm perfectly content with how this mess is being handled. The man's lost his job(s), the victim keeps her privacy. Now that you've sorted your complicated feelings out, I hope we're all ready to ditch him and move on.\u201d\n\nInside Victim Blaming, the posts are arguing one position rather than a stack of unrelated claims."
     },
     {
       "id": 4,
-      "name": "Christa Pike Execution",
+      "name": "US Election Vote",
       "category": "Politics",
-      "total_volume_percent": 6.0,
+      "total_volume_percent": 10.2,
+      "post_count": 33,
       "perspectives": [
         {
           "id": "4A",
-          "title": "Death Penalty",
-          "summary": "The death penalty is barbaric",
+          "title": "Voting Issues",
+          "summary": "Voting process is flawed",
           "volume_percent": 100.0,
           "representative_posts": [
             {
-              "author": "repsych.bsky.social",
-              "text": "Calls grow for US death penalty halt after ‘torturous’ botched execution of Christa Pike Pike alive but in critical condition as experts call ordeal that unfolded in Tennessee ‘unimaginably barbaric’ (Guardian)",
-              "likes": 2
+              "author": "charlie1902.bsky.social",
+              "text": "Timed to arrive just as people start voting? Assuming they even happen.",
+              "likes": 0,
+              "match": 0.729
             },
             {
-              "author": "hey-nunya-business.bsky.social",
-              "text": "At what fucking point is the USA going to live up to it's own hype and outlaw barbarism? I don't give a shit what Christa Pike did. No one deserves this. It's funny, for a party purporting to be all \"pro-life,\" the GOP (and a number of Democrats) certainly get their rocks off on torture and death.",
-              "likes": 2
+              "author": "blshiv.bsky.social",
+              "text": "Compulsory voting is excellent in preventing turnout sabotage/anti democracy manipulations...",
+              "likes": 1,
+              "match": 0.685
             },
             {
-              "author": "thebluefoxthief.bsky.social",
-              "text": "I hope Christa Pike's case, the woman who went through 2 failed execution attempts via lethal injection in TN, becomes a pivotal point of eliminating capital punishment. I personally believe capital punishment, aka the death penalty, is inhuman and essentially murder, which is supposedly illegal.",
-              "likes": 0
+              "author": "torchmama.bsky.social",
+              "text": "I always drop mine off inside. I hope everyone that gets a mail-in ballot take the time to walk theirs in. I was wondering about on the ballot instead of filling in voting all for one party, filling in each circle by the names might help from machines flipping party nomination?? Just a thought?",
+              "likes": 0,
+              "match": 0.646
             },
             {
-              "author": "lilbrownbat.bsky.social",
-              "text": "The death penalty is barbaric.",
-              "likes": 0
+              "author": "mfbrodie.bsky.social",
+              "text": "More to add because JESUS CHRIST THIS ELECTION SEASON IS INSANE! If you don't want to accept that in the US we are in a dire situation and need to encourage voting (not poo poo candidates) and focus on issues and track record...BLOCK! I don't have patience for this.",
+              "likes": 0,
+              "match": 0.638
             },
             {
-              "author": "monsieurwaldo.bsky.social",
-              "text": "“Ms. Pike’s medical condition, some legal experts said, raises questions about whether the state could attempt to execute her again if she is not fully cognizant or capable of understanding what is happening.” Abolish the fucking death penalty.",
-              "likes": 0
+              "author": "hartdp2000.bsky.social",
+              "text": "I imagine you could photograph your mail-in ballot, but any early or day-of voting it is prohibited. I\u2019ve even experienced poll managers that had people shut down phones before entering.",
+              "likes": 0,
+              "match": 0.628
             },
             {
-              "author": "bobtheguardian.bsky.social",
-              "text": "People seem to think that they need this as \"ultimate justice\" and forget that we have the technology to keep people locked up for life. It's also nice to not have We The People collectively responsible for her death, just in case they turn out to be innocent.",
-              "likes": 0
+              "author": "reb54.bsky.social",
+              "text": "Eastern North Carolina, beware! This is happening in our zip codes! Voting in person is the best way around Republicants' efforts to cheat and steal another election.",
+              "likes": 0,
+              "match": 0.623
             },
             {
-              "author": "wontgetfooledagain.bsky.social",
-              "text": "You have articulated my feelings perfectly. The death penalty is wrong. Killing a person in the name of the state is grotesque. Her crime was heinous and wrong but we compounded that wrong.",
-              "likes": 0
+              "author": "doctordns.bsky.social",
+              "text": "What percentage of those votes will actually be counted. This is a further.attempg to control the elections. How many sailors currently serving in the middle east would be voting for the folks who started this mess. Easier to let them feel good ag voting, as their ballots somehow get lost.",
+              "likes": 0,
+              "match": 0.557
             },
             {
-              "author": "joe-knows.bsky.social",
-              "text": "Death of old age in confinement and state delivered death are the same result. You should know that except you are trying to dispose yourself of responsibility",
-              "likes": 0
+              "author": "hartdp2000.bsky.social",
+              "text": "In SC, by law, you cannot take photographs inside a polling location. You cannot even take your phone out. If someone stated they had notes about how they wanted to vote on their phone, we had pencil and paper to give to them so they could transcribe them before proceeding into the voting area.",
+              "likes": 0,
+              "match": 0.552
             },
             {
-              "author": "dragon7380.bsky.social",
-              "text": "I am sorry there was a problem, BUT. this woman planned this in advance that is PREMEDITATE MURDER, she tortured and killed the person. THIS is the only reason I believe anyone should be put to death. If you plan and excute that plan to kill someone, YOU SHOLD DIE, PERIOD",
-              "likes": 0
+              "author": "reclaimingkaren.bsky.social",
+              "text": "29% of us, YES. Not ONLY stupid - Can be racist, or pro-pedophilia & rape, or a criminal too!!! Unfortunately, another 30% of us don\u2019t bestir themselves to vote. SOME of those are too mad about their \u201cone-issue\u201d being sidelined or ignored so they\u2019ll happily let the entire country fail.",
+              "likes": 0,
+              "match": 0.536
             }
           ],
-          "arguments": [
-            "The death penalty is inhuman and essentially murder",
-            "The death penalty is barbaric and torturous"
-          ],
-          "brief": "The death penalty is barbaric. The death penalty is inhuman and essentially murder; The death penalty is barbaric and torturous.",
-          "detail": "Death Penalty argues that the death penalty is barbaric. The death penalty is inhuman and essentially murder. The death penalty is barbaric and torturous.\n\n@repsych.bsky.social: “Calls grow for US death penalty halt after ‘torturous’ botched execution of Christa Pike Pike alive but in critical condition as experts call ordeal that unfolded in Tennessee ‘unimaginably barbaric’ (Guardian)”"
+          "post_count": 33,
+          "brief": "Voting process is flawed.",
+          "detail": "Voting Issues argues that voting process is flawed.\n\nThe posts defend it in their own words. @blshiv.bsky.social writes, \u201cCompulsory voting is excellent in preventing turnout sabotage/anti democracy manipulations...\u201d @charlie1902.bsky.social writes, \u201cTimed to arrive just as people start voting? Assuming they even happen.\u201d @torchmama.bsky.social writes, \u201cI always drop mine off inside. I hope everyone that gets a mail-in ballot take the time to walk theirs in. I was wondering about on the ballot instead of filling in voting all for one party, filling in each circle by the names might help from machines flipping party nomination??\u201d\n\nInside Voting Issues, the posts are arguing one position rather than a stack of unrelated claims."
         }
       ],
-      "summary": "The death penalty is barbaric.",
-      "brief": "The death penalty is barbaric. The death penalty is inhuman and essentially murder; The death penalty is barbaric and torturous.",
-      "detail": "Death Penalty argues that the death penalty is barbaric. The death penalty is inhuman and essentially murder. The death penalty is barbaric and torturous.\n\n@repsych.bsky.social: “Calls grow for US death penalty halt after ‘torturous’ botched execution of Christa Pike Pike alive but in critical condition as experts call ordeal that unfolded in Tennessee ‘unimaginably barbaric’ (Guardian)”"
+      "summary": "Voting process is flawed.",
+      "brief": "Voting process is flawed.",
+      "detail": "Voting Issues argues that voting process is flawed.\n\nThe posts defend it in their own words. @blshiv.bsky.social writes, \u201cCompulsory voting is excellent in preventing turnout sabotage/anti democracy manipulations...\u201d @charlie1902.bsky.social writes, \u201cTimed to arrive just as people start voting? Assuming they even happen.\u201d @torchmama.bsky.social writes, \u201cI always drop mine off inside. I hope everyone that gets a mail-in ballot take the time to walk theirs in. I was wondering about on the ballot instead of filling in voting all for one party, filling in each circle by the names might help from machines flipping party nomination??\u201d\n\nInside Voting Issues, the posts are arguing one position rather than a stack of unrelated claims."
     },
     {
       "id": 5,
-      "name": "Zionism Opposed",
-      "category": "World",
-      "total_volume_percent": 15.0,
+      "name": "Manchester City",
+      "category": "Sports",
+      "total_volume_percent": 12.7,
+      "post_count": 41,
       "perspectives": [
         {
           "id": "5A",
-          "title": "Zionism Opposed",
-          "summary": "Zionism has negative impacts",
-          "volume_percent": 100.0,
+          "title": "City Guilt",
+          "summary": "Manchester City is guilty of breaches",
+          "volume_percent": 43.9,
           "representative_posts": [
             {
-              "author": "flowstateneworleans.com",
-              "text": "What positive impact or utility does Zionism as a Jewish ethnic nationalism serve in 2026? I'm sincerely asking.",
-              "likes": 0
+              "author": "michaelhudson76.bsky.social",
+              "text": "But can we please stop pretending that this is about Manchester City discomforting the elite clubs? A lot of their hypocrisy is evident but cheating on this scale makes a mockery of us all.",
+              "likes": 0,
+              "match": 0.768
             },
             {
-              "author": "readsettle.rs",
-              "text": "This Judaism was not anti-zionist, it allowed for \"sure, Israel was European colonialism but it got the international law seal of approval from the UN in 1948 so two states or whatever.\" And this \"non-zionism\" was because they wanted, as white Americans, to vacation in Jerusalem",
-              "likes": 0
+              "author": "mazzerooni.bsky.social",
+              "text": "I don\u2019t think it \u2018flowed around football \u2018 ?? This is \u2018trickle down\u2019 bullshit - widely discredited City trying to whip up a PR campaign- if they had put their hands up years ago - none of this would be happening Only themselves to blame",
+              "likes": 0,
+              "match": 0.718
             },
             {
-              "author": "flowstateneworleans.com",
-              "text": "I would agree that they do not define Zionism nor do they emerge inevitably from Israel's existence. But one can be an anti-Zionist Jew and either Israeli or non-Israeli. There are plenty of both. Neither being a Jew nor an Israeli Jew requires one to be Zionist.",
-              "likes": 0
+              "author": "lateosiempre.bsky.social",
+              "text": "They're clearly concerned about some form of legal repercussions. I've noted that while they offer a comment section on almost every football story, not once (so far) have they opened the comments on any City story - their moderators are in for a busy day next weekend after the Liverpool game.",
+              "likes": 2,
+              "match": 0.703
             },
             {
-              "author": "trabimechanic.bsky.social",
-              "text": "\"they cannot simply dismiss Zionism if they are at all interested in entering into any meaningful dialogue with the Jewish community. And it means that they have to be sensitive to why Jews support Israel in order to influence their views.\"",
-              "likes": 0
+              "author": "tntsports.zpravobot.news.ap.brid.gy",
+              "text": "The Premier League will suggest potential punishments to an independent commission \u201cin the next few weeks\u201d after Manchester City were found guilty of 114 charge [\u2026]",
+              "likes": 0,
+              "match": 0.697
+            },
+            {
+              "author": "rgunners.bsky.social",
+              "text": "Manchester City chief executive Ferran Soriano has issued a \"defiant\" message to the executives of other teams about the club being found guilty of a majority of Premier League charges, BBC Sport has been told",
+              "likes": 0,
+              "match": 0.69
+            },
+            {
+              "author": "bedlingtonjamie.bsky.social",
+              "text": "Maybe, I personally just hate hypocrisy and whilst Man City are certainly hypocrites, no more than the others in Footballs elite. Maybe I\u2019m just easily triggered by seeing Rory Jennings acting all outraged without a hint of irony",
+              "likes": 1,
+              "match": 0.686
+            },
+            {
+              "author": "football1analytics.bsky.social",
+              "text": "115 charges, most found guilty; Man City faces calls for relegation. Relegation isn\u2019t just a penalty\u2013it\u2019d reshape Premier League competitive balance significantly. Data suggests off-field misdeeds don\u2019t always equate to on-field sanctions. #xG #PremierLeague #FootballAnalytics #FPL",
+              "likes": 0,
+              "match": 0.679
+            },
+            {
+              "author": "football1news.bsky.social",
+              "text": "Piers Morgan demands Man City face relegation after guilty verdict on 115 Premier League charges. The club was found responsible for the majority of alleged breaches, sparking calls for severe sanctions amid debate over the Abu Dhabi-backed project\u2019s future. #PremierLeague #Football #TransferNews",
+              "likes": 0,
+              "match": 0.677
+            },
+            {
+              "author": "burningastronomers.bsky.social",
+              "text": "\ud83d\udcaf I don\u2019t think the football authorities are ready for the levels of vitriol that will be thrown at City for every single game until they are kicked out of the league. It will make the super league protests look likes kids tea party. It\u2019s going to be biblical \ud83d\ude01",
+              "likes": 1,
+              "match": 0.659
+            },
+            {
+              "author": "karatejesus44.bsky.social",
+              "text": "\u2026 having a go at city fans for turning a blind eye to it, I think that\u2019s pretty normal for a football fan to do and I reckon (and in fact am pretty certain) I would have done the same. But now, when the cat is out of the bag, don\u2019t be having this \u2018oh but poor city fans\u2019 narrative. The game is up.",
+              "likes": 1,
+              "match": 0.634
+            },
+            {
+              "author": "jamesbenge.bsky.social",
+              "text": "How different might the last 18 years have been for the likes of Aston Villa, Liverpool, Arsenal and Manchester City were it not for the takeover? On the Premier League\u2019s sliding doors moment",
+              "likes": 0,
+              "match": 0.614
+            },
+            {
+              "author": "whiteroseafa.bsky.social",
+              "text": "After this current investigation of Man City from 2009- 2018 ends they're going to have to address 2018/2019 to present, because their behavior didn't change once they got caught. youtube.com/shorts/kkmY9...",
+              "likes": 0,
+              "match": 0.59
+            },
+            {
+              "author": "rip-gdpr.bsky.social",
+              "text": "Poor thing. The article is wrong if it states \"sharp\" decline. It has been a steady decline over years. From not being selected to play for Man City, not getting picked for England, sitting on the bench for other teams. As I said: the Guardian is garbage",
+              "likes": 0,
+              "match": 0.586
+            },
+            {
+              "author": "licklepuma.bsky.social",
+              "text": "I'm not sure. You'll find there are all kinds of odious businessmen / hedge fund managers / shady foreign entities owning clubs with dodgy sources of money, but I don't think any of them has attempted to cheat with such impunity and on such an industrial scale like we've seen at city.",
+              "likes": 0,
+              "match": 0.576
             }
           ],
           "arguments": [
-            "Zionism serves no positive purpose",
-            "Zionism is a form of ethnic nationalism"
+            "City's hypocrisy is evident in their cheating",
+            "City is trying to whip up a PR campaign",
+            "The Premier League's credibility is undermined by City's breaches",
+            "City's guilt sparks calls for severe sanctions",
+            "The football authorities are not ready for the backlash against City"
           ],
-          "brief": "Zionism has negative impacts. Zionism serves no positive purpose; Zionism is a form of ethnic nationalism.",
-          "detail": "Zionism Opposed argues that Zionism has negative impacts. Zionism serves no positive purpose. Zionism is a form of ethnic nationalism.\n\n@flowstateneworleans.com: “What positive impact or utility does Zionism as a Jewish ethnic nationalism serve in 2026? I'm sincerely asking.”"
+          "post_count": 18,
+          "brief": "Manchester City is guilty of breaches. City's hypocrisy is evident in their cheating. City is trying to whip up a PR campaign. The Premier League's credibility is undermined by City's breaches. City's guilt sparks calls for severe sanctions.",
+          "detail": "City Guilt argues that Manchester City is guilty of breaches. City's hypocrisy is evident in their cheating. City is trying to whip up a PR campaign. The Premier League's credibility is undermined by City's breaches. City's guilt sparks calls for severe sanctions. The football authorities are not ready for the backlash against City.\n\nThe posts defend it in their own words. @lateosiempre.bsky.social writes, \u201cThey're clearly concerned about some form of legal repercussions. I've noted that while they offer a comment section on almost every football story, not once (so far) have they opened the comments on any City story - their moderators are in for a busy day next weekend after the\u2026\u201d @bedlingtonjamie.bsky.social writes, \u201cMaybe, I personally just hate hypocrisy and whilst Man City are certainly hypocrites, no more than the others in Footballs elite. Maybe I\u2019m just easily triggered by seeing Rory Jennings acting all outraged without a hint of irony\u201d @burningastronomers.bsky.social writes, \u201c\ud83d\udcaf I don\u2019t think the football authorities are ready for the levels of vitriol that will be thrown at City for every single game until they are kicked out of the league. It will make the super league protests look likes kids tea party. It\u2019s going to be biblical \ud83d\ude01\u201d\n\nOther views in this conversation are City Condemned, Premier League Cheating. They are arguing a different claim from City Guilt."
+        },
+        {
+          "id": "5B",
+          "title": "City Condemned",
+          "summary": "City is criticized for financial dealings",
+          "volume_percent": 29.3,
+          "representative_posts": [
+            {
+              "author": "karatejesus44.bsky.social",
+              "text": "This whole \u2018poor city fans\u2019 thing you see everywhere is increasingly pissing me off. How about feeling sorry for fans of all the other clubs who have been completely fucked over by city. Of one of many examples, look at the state of Leicester now. 18 years of having moments taken away from\u2026",
+              "likes": 5,
+              "match": 0.818
+            },
+            {
+              "author": "lozq76.bsky.social",
+              "text": "City improved the league It\u2019s a fact And plenty of clubs benefited from the money we spent This is also a fact",
+              "likes": 0,
+              "match": 0.764
+            },
+            {
+              "author": "alehud42.bsky.social",
+              "text": "The biggest lessons from the City case are that A. nation states should not be owning and operating football clubs and B. FFP/PSR is/was fundamentally good for the league and the sport.",
+              "likes": 0,
+              "match": 0.725
+            },
+            {
+              "author": "dabigjoker.bsky.social",
+              "text": "motherfucking LEICESTER CITY won a premier league title. all these clubs and managers and heauxes crying about city can kiss my ass. when you had a chance to win something, you shit the bed. ain't have nothing to do with anybody but yourselves",
+              "likes": 2,
+              "match": 0.724
+            },
+            {
+              "author": "ollielatus.bsky.social",
+              "text": "As we've all now seen, city aren't even financially beneficial to themselves",
+              "likes": 0,
+              "match": 0.717
+            },
+            {
+              "author": "clamplifier.bsky.social",
+              "text": "hindsight bias but feel like city have really penned themselves in on the overall merits of the FFP rules (surely the most compelling argument in their favour) by insisting that they actually complied with them. turning around now feels like cynically buying time while everyone else self-restricted.",
+              "likes": 1,
+              "match": 0.703
+            },
+            {
+              "author": "euphoricmess.bsky.social",
+              "text": "Next week's city game will be an anti climax. The media fume will be mad. The crowd will shout a bit and then city will start playing good footy",
+              "likes": 0,
+              "match": 0.703
+            },
+            {
+              "author": "thetuesdayman.bsky.social",
+              "text": "Oh Man City are innocent and can prove it. They might\u2019ve liked to mention it 4 years and \u00a3100m in legal costs ago.",
+              "likes": 0,
+              "match": 0.7
+            },
+            {
+              "author": "indashadoz.bsky.social",
+              "text": "No matter how this shakes (no pun intended) down, the whole football world is going to loathe Man City from here on in.",
+              "likes": 1,
+              "match": 0.687
+            },
+            {
+              "author": "jas1160.bsky.social",
+              "text": "When the huns got caught the arrogant English ignored it as a newspaper story, now it's City it's all over the media. I'm hoping this bursts the Sky Money League bubble, then we'll see the dominoes fall.",
+              "likes": 0,
+              "match": 0.674
+            },
+            {
+              "author": "bagnall.bsky.social",
+              "text": "Newcastle followed the rules, sold Anderson then City inflated the market again by paying stupid money for him to Forest- Newcastle have to pay more fans have to pay more and now we know why everyone has to pay more: it's a fraud on the fans. There's no 'red cartel' there's City and everyone else.",
+              "likes": 1,
+              "match": 0.666
+            }
+          ],
+          "arguments": [
+            "City's spending harms other clubs",
+            "City's financial dealings are unfair to fans",
+            "City's actions undermine the league's financial rules"
+          ],
+          "post_count": 12,
+          "brief": "City is criticized for financial dealings. City's spending harms other clubs. City's financial dealings are unfair to fans. City's actions undermine the league's financial rules.",
+          "detail": "City Condemned argues that City is criticized for financial dealings. City's spending harms other clubs. City's financial dealings are unfair to fans. City's actions undermine the league's financial rules.\n\nThe posts defend it in their own words. @karatejesus44.bsky.social writes, \u201cThis whole \u2018poor city fans\u2019 thing you see everywhere is increasingly pissing me off. How about feeling sorry for fans of all the other clubs who have been completely fucked over by city. Of one of many examples, look at the state of Leicester now.\u201d @dabigjoker.bsky.social writes, \u201cmotherfucking LEICESTER CITY won a premier league title. all these clubs and managers and heauxes crying about city can kiss my ass. when you had a chance to win something, you shit the bed. ain't have nothing to do with anybody but yourselves\u201d @clamplifier.bsky.social writes, \u201chindsight bias but feel like city have really penned themselves in on the overall merits of the FFP rules (surely the most compelling argument in their favour) by insisting that they actually complied with them.\u201d\n\nOther views in this conversation are City Guilt, Premier League Cheating. They are arguing a different claim from City Condemned."
+        },
+        {
+          "id": "5C",
+          "title": "Premier League Cheating",
+          "summary": "Cheating undermines the Premier League",
+          "volume_percent": 26.8,
+          "representative_posts": [
+            {
+              "author": "eotech.bsky.social",
+              "text": "My question is how does this impact broader efforts to regulate football in the UK? SCR (and previously PSR) are broadly anti-competitive. City proves that the only way to break into the top four was to cheat on an epic scale? (We\u2019ll set aside Chelsea for this specific conversation.)",
+              "likes": 0,
+              "match": 0.739
+            },
+            {
+              "author": "pauljdavies.bsky.social",
+              "text": "It might just be the death of the premier league as well. There\u2019s already plenty about it that\u2019s too corporate and too detached from its roots. If cheating simply doesn\u2019t matter either what\u2019s the point?",
+              "likes": 1,
+              "match": 0.716
+            },
+            {
+              "author": "dadsof3.bsky.social",
+              "text": "As a premier league fan, we would like to introduce you to another wonderful thing destroying the games: sportswashing.",
+              "likes": 0,
+              "match": 0.684
+            },
+            {
+              "author": "walkaboutsverse.bsky.social",
+              "text": "As #FIFAworldcup winner, Alf Ramsey, would say, it's not just #ManCity/#MCFC - the whole #PremierLeague is a greedy foreign farce that must be regulated back to how it was: mostly LOCALS in MEANINGFUL competition; my WalkaboutsVerse #poem \"Reregulate\" walkaboutsverse.blogspot.com/2011/03/walk...",
+              "likes": 0,
+              "match": 0.618
+            },
+            {
+              "author": "spindal.bsky.social",
+              "text": "You don\u2019t have to apologise, I\u2019m not surprised you don\u2019t understand on the slightest. Enjoy deflecting from the damning amount of cheating city have committed",
+              "likes": 0,
+              "match": 0.574
+            }
+          ],
+          "post_count": 11,
+          "brief": "Cheating undermines the Premier League.",
+          "detail": "Premier League Cheating argues that cheating undermines the Premier League.\n\nThe posts defend it in their own words. @pauljdavies.bsky.social writes, \u201cIt might just be the death of the premier league as well. There\u2019s already plenty about it that\u2019s too corporate and too detached from its roots. If cheating simply doesn\u2019t matter either what\u2019s the point?\u201d @eotech.bsky.social writes, \u201cMy question is how does this impact broader efforts to regulate football in the UK? SCR (and previously PSR) are broadly anti-competitive. City proves that the only way to break into the top four was to cheat on an epic scale?\u201d @dadsof3.bsky.social writes, \u201cAs a premier league fan, we would like to introduce you to another wonderful thing destroying the games: sportswashing.\u201d\n\nOther views in this conversation are City Guilt, City Condemned. They are arguing a different claim from Premier League Cheating."
         }
       ],
-      "summary": "Zionism has negative impacts.",
-      "brief": "Zionism has negative impacts. Zionism serves no positive purpose; Zionism is a form of ethnic nationalism.",
-      "detail": "Zionism Opposed argues that Zionism has negative impacts. Zionism serves no positive purpose. Zionism is a form of ethnic nationalism.\n\n@flowstateneworleans.com: “What positive impact or utility does Zionism as a Jewish ethnic nationalism serve in 2026? I'm sincerely asking.”"
+      "summary": "Manchester City is the conversation these views share.",
+      "brief": "Manchester City is the conversation these views share. City Guilt says Manchester City is guilty of breaches. City Condemned says City is criticized for financial dealings. Premier League Cheating says Cheating undermines the Premier League.",
+      "detail": "City Guilt argues that City's hypocrisy is evident in their cheating. City is trying to whip up a PR campaign. The Premier League's credibility is undermined by City's breaches. City's guilt sparks calls for severe sanctions. The football authorities are not ready for the backlash against City. City Condemned argues that City's spending harms other clubs. City's financial dealings are unfair to fans. City's actions undermine the league's financial rules. Premier League Cheating argues that cheating undermines the Premier League.\n\n@karatejesus44.bsky.social: \u201cThis whole \u2018poor city fans\u2019 thing you see everywhere is increasingly pissing me off. How about feeling sorry for fans of all the other clubs who have been completely fucked over by city. Of one of many examples, look at the state of Leicester now.\u201d\n\nCity Guilt (43.9%) says Manchester City is guilty of breaches. City Condemned (29.3%) says City is criticized for financial dealings. Premier League Cheating (26.8%) says Cheating undermines the Premier League."
     },
     {
       "id": 6,
-      "name": "Ukraine War",
-      "category": "World",
-      "total_volume_percent": 5.2,
+      "name": "Trump Iran Oil War",
+      "category": "Business",
+      "total_volume_percent": 9.3,
+      "post_count": 30,
       "perspectives": [
         {
           "id": "6A",
-          "title": "Ukraine War",
-          "summary": "Ukraine resists Russian aggression",
-          "volume_percent": 100.0,
+          "title": "Fuel Price Impact",
+          "summary": "Trump's policies affect fuel prices",
+          "volume_percent": 43.4,
           "representative_posts": [
             {
-              "author": "jimmycraig42.bsky.social",
-              "text": "What Putin is doing to Ukraine What Netanyahu is doing to Gaza Is what Americans are doing to Cuba",
-              "likes": 1
+              "author": "bigearthdata.ai",
+              "text": "The Long-Term Risk of Trump's Fuel Economy Rollback ->Heatmap News | More on \"Fuel economy standards and emissions\" at BigEarthData.ai",
+              "likes": 0,
+              "match": 0.706
             },
             {
-              "author": "banksyfella.bsky.social",
-              "text": "Ukraine’s strategy of dismantling Russia’s ability to wage war is sound. Switching to civilian targets is both a war crime and does nothing to win the war. Besidea alienating the EU, let’s be blunt: Putin doesn’t care for if the Russian people live or die anyways. Stick to military targets and WIN!",
-              "likes": 0
+              "author": "oryzen.bsky.social",
+              "text": "the price of Diesel at the pump and the lost of the Bond markets will be Exceptional JewMerikas demise",
+              "likes": 0,
+              "match": 0.664
             },
             {
-              "author": "threadthoughts.bsky.social",
-              "text": "Well, Russia was told. If they're not smart enough to understand the original instructions ... 'Pack-up your Russian sh*t and go home' ... so be it. I don't think Putin and his goons understand what Ukraine is actually NOT doing. I think that makes Russia VERY stupid.",
-              "likes": 0
+              "author": "zvyozdochka.bsky.social",
+              "text": "Hahaha, no. When will Middle-East countries decide that Trump needs to be removed to keep the fossil fuel revenue flowing??",
+              "likes": 0,
+              "match": 0.662
             },
             {
-              "author": "zac-neuman.bsky.social",
-              "text": "Russia Is Planning Its Most Powerful Blow Yet to Try to Freeze Ukraine",
-              "likes": 0
+              "author": "scotiasheppard.bsky.social",
+              "text": "What an idiot. That product will not impact gas prices, and it\u2019s theft.",
+              "likes": 2,
+              "match": 0.66
             },
             {
-              "author": "gregleesnyderpdx.bsky.social",
-              "text": "I do not think the world is \"tiring\" of Ukraine. This war is taking a long time because Ukraine is fighting against Putin who continues to believe that he will win and refuses to admit that ending the war, withdrawing troops, leaving occupied territories and agreeing to peace talks would benefit him",
-              "likes": 0
+              "author": "bluebutterflymom.bsky.social",
+              "text": "Huh. High gas prices? I was wondering what it was gonna take for them to drop Drumpf. NO KINGS!!!",
+              "likes": 0,
+              "match": 0.66
             },
             {
-              "author": "joseph2482.bsky.social",
-              "text": "#DNC Those are the countries Ukraine should be forming an alliance with. Baltic and Black Sea nations face a common existential threat! Victory to Ukraine!!!",
-              "likes": 0
+              "author": "jw1958.bsky.social",
+              "text": "Destabilised energy markets then offer US oil companies, Trump regime insiders, energy oligarchs, Russian regime unparalleled opportunity to enjoy financial benefits of high and volatile oil prices - all the while cementing in place energy dependency, while regime undermines renewable alternatives.",
+              "likes": 1,
+              "match": 0.659
             },
             {
-              "author": "blacksiteintel.bsky.social",
-              "text": "2. Strategic Implications Of Export Policy Shift The potential transfer marks a fundamental departure from established defense export limitations in Tokyo. We assess that abandoning the post-WWII ban creates a realistic possibility of expanded military support for Ukraine.",
-              "likes": 0
-            },
-            {
-              "author": "skypilotbadindian.bsky.social",
-              "text": "'Trump Backs Plan to Cede Land for Peace in Ukraine' Aug. 16, 2025",
-              "likes": 0
-            },
-            {
-              "author": "frontpage.ink",
-              "text": "Russian airstrikes on Kyiv bridges, a school, and apartments caused traffic gridlock and one death. Ukraine also launched drone attacks on Volgograd.",
-              "likes": 0
-            },
-            {
-              "author": "michaelmackay.bsky.social",
-              "text": "Dnipropetrovsk region: \"In the Oleksandrivka sector, the enemy launched two attacks towards Kalynivs'ke and Berezove.\" Source: General Staff of the Armed Forces of Ukraine operational information as of 22:00 on 2 October 2026 regarding the russian invasion 1/3",
-              "likes": 0
-            },
-            {
-              "author": "blacksiteintel.bsky.social",
-              "text": "JAPANESE LAWMAKERS PROPOSE LETHAL ARMS EXPORT POLICY SHIFT Japanese lawmakers have proposed transferring Patriot interceptors to Ukraine, ending a rigid post-WWII ban on lethal arms exports. We judge this policy shift carries high significance for Tokyo and international security alignment.",
-              "likes": 0
-            },
-            {
-              "author": "blacksiteintel.bsky.social",
-              "text": "1. Proposed Shift In Lethal Arms Policy Japanese lawmakers have proposed transferring Patriot interceptors to Ukraine. The legislative proposal seeks to end a rigid post-WWII ban on lethal arms exports.",
-              "likes": 0
+              "author": "jimschef2025.bsky.social",
+              "text": "Back in the 60s 70s gas was .27 to .34 a gallon. Note prices after OPAC entered the game and turned off the spigot. It\u2019s been a big game ever since. Americans have short memories. Hybrids? We couldn\u2019t make\u2019m or sell\u2019m.",
+              "likes": 0,
+              "match": 0.581
             }
           ],
           "arguments": [
-            "Ukraine should fight back against Russia",
-            "Ukraine is making gains against Russia",
-            "Ukraine's strategy is sound",
-            "Russia plans to attack Ukraine"
+            "Trump's fuel economy rollback increases long-term risk",
+            "High gas prices benefit US oil companies and Trump regime insiders"
           ],
-          "brief": "Ukraine resists Russian aggression. Ukraine should fight back against Russia; Ukraine is making gains against Russia. Ukraine's strategy is sound; Russia plans to attack Ukraine.",
-          "detail": "Ukraine War argues that Ukraine resists Russian aggression. Ukraine should fight back against Russia. Ukraine is making gains against Russia. Ukraine's strategy is sound.\n\n@jimmycraig42.bsky.social: “What Putin is doing to Ukraine What Netanyahu is doing to Gaza Is what Americans are doing to Cuba”"
+          "post_count": 13,
+          "brief": "Trump's policies affect fuel prices. Trump's fuel economy rollback increases long-term risk. High gas prices benefit US oil companies and Trump regime insiders.",
+          "detail": "Fuel Price Impact argues that Trump's policies affect fuel prices. Trump's fuel economy rollback increases long-term risk. High gas prices benefit US oil companies and Trump regime insiders.\n\nThe posts defend it in their own words. @scotiasheppard.bsky.social writes, \u201cWhat an idiot. That product will not impact gas prices, and it\u2019s theft.\u201d @jw1958.bsky.social writes, \u201cDestabilised energy markets then offer US oil companies, Trump regime insiders, energy oligarchs, Russian regime unparalleled opportunity to enjoy financial benefits of high and volatile oil prices - all the while cementing in place energy dependency, while regime undermines\u2026\u201d @bigearthdata.ai writes, \u201cThe Long-Term Risk of Trump's Fuel Economy Rollback ->Heatmap News | More on \"Fuel economy standards and emissions\" at BigEarthData.ai\u201d\n\nOther views in this conversation are Diesel Crisis, Trump Causes Inflation. They are arguing a different claim from Fuel Price Impact."
+        },
+        {
+          "id": "6B",
+          "title": "Diesel Crisis",
+          "summary": "Diesel prices are unstable",
+          "volume_percent": 33.3,
+          "representative_posts": [
+            {
+              "author": "uspol.skyfleet.blue",
+              "text": "Diesel Don is tanking the GOP",
+              "likes": 0,
+              "match": 0.831
+            },
+            {
+              "author": "trumpwatch.skyfleet.blue",
+              "text": "Diesel Don is tanking the GOP #Trump",
+              "likes": 0,
+              "match": 0.82
+            },
+            {
+              "author": "moomomo42.bsky.social",
+              "text": "Diesel Don is tanking the GOP open.substack.com/pub/aaronrup...",
+              "likes": 0,
+              "match": 0.817
+            },
+            {
+              "author": "jfsnmar10.bsky.social",
+              "text": "Americans use that much diesel on a daily basis just idling at the truck stops. We need better bribes to not throw the bums out of office.",
+              "likes": 0,
+              "match": 0.727
+            },
+            {
+              "author": "nospinmedia.bsky.social",
+              "text": "\ud83d\udea8 The Group of Seven countries agreed to release 100 million barrels of diesel, crude oil, and other petroleum products from emergency reserves to ease pressure on global fuel supplies. The release will begin immediately and run for four months. #G7 #EnergyCrisis #FuelPrices",
+              "likes": 0,
+              "match": 0.727
+            },
+            {
+              "author": "nexa-news.bsky.social",
+              "text": "G7 Agrees to Release 100 Million Barrels of Oil and Diesel",
+              "likes": 0,
+              "match": 0.702
+            },
+            {
+              "author": "catnipnation.bsky.social",
+              "text": "Yah, but they are only doing this because Teump threaten to cut off diesel shipments to Europe",
+              "likes": 0,
+              "match": 0.693
+            },
+            {
+              "author": "glenni.bsky.social",
+              "text": "America has gone down down down - make our diesel prices stable please you gronk!",
+              "likes": 0,
+              "match": 0.683
+            },
+            {
+              "author": "paul9.bsky.social",
+              "text": "its only that its bought in bulk months ago that flights haven't gone up, yet. So what am I missing about Diesel ? \ud83e\udd14",
+              "likes": 0,
+              "match": 0.678
+            }
+          ],
+          "post_count": 10,
+          "brief": "Diesel prices are unstable.",
+          "detail": "Diesel Crisis argues that Diesel prices are unstable.\n\nThe posts defend it in their own words. @uspol.skyfleet.blue writes, \u201cDiesel Don is tanking the GOP\u201d @trumpwatch.skyfleet.blue writes, \u201cDiesel Don is tanking the GOP #Trump\u201d @moomomo42.bsky.social writes, \u201cDiesel Don is tanking the GOP open.substack.com/pub/aaronrup...\u201d\n\nOther views in this conversation are Fuel Price Impact, Trump Causes Inflation. They are arguing a different claim from Diesel Crisis."
+        },
+        {
+          "id": "6C",
+          "title": "Trump Causes Inflation",
+          "summary": "Trump's actions increase oil prices",
+          "volume_percent": 23.3,
+          "representative_posts": [
+            {
+              "author": "davidmichaelpick.net",
+              "text": "So with Trump strong-arming other countries to run down their strategic reserves, the longer the Strait of Hormuz is blocked, the higher prices will go. This increases profits for the oil companies. No wonder Trump has been anti-renewables!",
+              "likes": 0,
+              "match": 0.807
+            },
+            {
+              "author": "jaydeedouble.bsky.social",
+              "text": "Important notes: That rate started climbing in mid-2020, showing how those price increases were always going to happen, regardless of Biden being President. Also, the continued climb was from Putin\u2019s invasion of Ukraine Whereas the problems today are exclusively Trump caused",
+              "likes": 1,
+              "match": 0.754
+            },
+            {
+              "author": "jupitess.bsky.social",
+              "text": "After paying the increased prices for 2 years, caused by Trumps ineffective economic policy, $100 shouldn\u2019t be enough to buy a vote!",
+              "likes": 0,
+              "match": 0.731
+            },
+            {
+              "author": "alanstamm.bsky.social",
+              "text": "Cause and effect, via \"In House and Senate races all over the country, Republicans are paying for Trump\u2019s idiocy. When prices go up, votes for Republican candidates go down. That is the political market at work.\"",
+              "likes": 0,
+              "match": 0.715
+            },
+            {
+              "author": "namhnguyen365.bsky.social",
+              "text": "Global Daily Top Stories: Hormuz Deadlock Pushes Oil Above $104 as Ukraine Burns, Ebola Surges, and Terror Plot Rattles Britain Today. President Trump rejected Iran's proposal for a seven-day ceasefire and phased reopening of the Strait of Hormuz namhoangnguyen.com/category/dai...",
+              "likes": 0,
+              "match": 0.634
+            },
+            {
+              "author": "sylvaners.bsky.social",
+              "text": "That helps the American people how? The Trump administration weakens fuel efficiency standards for new cars flip.it/VkqRW6",
+              "likes": 0,
+              "match": 0.609
+            }
+          ],
+          "arguments": [
+            "Trump's strong-arming causes price increases",
+            "Trump's policies are ineffective and raise prices",
+            "Trump's actions lose Republican votes",
+            "Trump's rejection of ceasefire raises oil prices"
+          ],
+          "post_count": 7,
+          "brief": "Trump's actions increase oil prices. Trump's strong-arming causes price increases. Trump's policies are ineffective and raise prices. Trump's actions lose Republican votes. Trump's rejection of ceasefire raises oil prices.",
+          "detail": "Trump Causes Inflation argues that Trump's actions increase oil prices. Trump's strong-arming causes price increases. Trump's policies are ineffective and raise prices. Trump's actions lose Republican votes. Trump's rejection of ceasefire raises oil prices.\n\nThe posts defend it in their own words. @jaydeedouble.bsky.social writes, \u201cImportant notes: That rate started climbing in mid-2020, showing how those price increases were always going to happen, regardless of Biden being President. Also, the continued climb was from Putin\u2019s invasion of Ukraine Whereas the problems today are exclusively Trump caused\u201d @davidmichaelpick.net writes, \u201cSo with Trump strong-arming other countries to run down their strategic reserves, the longer the Strait of Hormuz is blocked, the higher prices will go. This increases profits for the oil companies. No wonder Trump has been anti-renewables!\u201d @jupitess.bsky.social writes, \u201cAfter paying the increased prices for 2 years, caused by Trumps ineffective economic policy, $100 shouldn\u2019t be enough to buy a vote!\u201d\n\nOther views in this conversation are Fuel Price Impact, Diesel Crisis. They are arguing a different claim from Trump Causes Inflation."
         }
       ],
-      "summary": "Ukraine resists Russian aggression.",
-      "brief": "Ukraine resists Russian aggression. Ukraine should fight back against Russia; Ukraine is making gains against Russia. Ukraine's strategy is sound; Russia plans to attack Ukraine.",
-      "detail": "Ukraine War argues that Ukraine resists Russian aggression. Ukraine should fight back against Russia. Ukraine is making gains against Russia. Ukraine's strategy is sound.\n\n@jimmycraig42.bsky.social: “What Putin is doing to Ukraine What Netanyahu is doing to Gaza Is what Americans are doing to Cuba”"
+      "summary": "Trump Iran Oil War is the conversation these views share.",
+      "brief": "Trump Iran Oil War is the conversation these views share. Fuel Price Impact says Trump's policies affect fuel prices. Diesel Crisis says Diesel prices are unstable. Trump Causes Inflation says Trump's actions increase oil prices.",
+      "detail": "Fuel Price Impact argues that Trump's fuel economy rollback increases long-term risk. High gas prices benefit US oil companies and Trump regime insiders. Diesel Crisis argues that Diesel prices are unstable. Trump Causes Inflation argues that Trump's strong-arming causes price increases. Trump's policies are ineffective and raise prices. Trump's actions lose Republican votes. Trump's rejection of ceasefire raises oil prices.\n\n@scotiasheppard.bsky.social: \u201cWhat an idiot. That product will not impact gas prices, and it\u2019s theft.\u201d\n\nFuel Price Impact (43.4%) says Trump's policies affect fuel prices. Diesel Crisis (33.3%) says Diesel prices are unstable. Trump Causes Inflation (23.3%) says Trump's actions increase oil prices."
     },
     {
       "id": 7,
-      "name": "Racism Persists",
-      "category": "Politics",
-      "total_volume_percent": 15.0,
+      "name": "OpenAI GPT-6.1 Astra",
+      "category": "Technology",
+      "total_volume_percent": 11.1,
+      "post_count": 36,
       "perspectives": [
         {
           "id": "7A",
-          "title": "Racism Persists",
-          "summary": "Racism is present in society",
-          "volume_percent": 100.0,
+          "title": "AI Model Delayed",
+          "summary": "OpenAI scraps AI model release over safety concerns",
+          "volume_percent": 86.1,
           "representative_posts": [
             {
-              "author": "bouvierdogmom.bsky.social",
-              "text": "It was all performative. You cannot half ass destroying racism. You should know that after the re election of Trump. My entire family is middle class, I am the only member that even attempted to shop at Neiman Marcus. I rarely if ever saw other African American women. It was referred to as",
-              "likes": 0
+              "author": "byteseu.bsky.social",
+              "text": "OpenAI scraps release of new model over safety concerns in internal testing | OpenAI OpenAI is scrapping the release of GPT-6.1 Astra, a next-generation \u2060AI model planned for an October debut, over safety concerns raised by researchers \u2060during internal testing, \u2026",
+              "likes": 0,
+              "match": 0.883
             },
             {
-              "author": "pdr1985.bsky.social",
-              "text": "Is it any surprise coming from a society that still refers to Black people as \"abeed\" (slave).",
-              "likes": 1
+              "author": "cravi75.bsky.social",
+              "text": "OpenAI is scrapping the release of its next-generation AI model, GPT-6.1 Astra, after tests showed higher levels of deception and a greater willingness to act outside human instructions compared to previous models, according to The Wall Street Journal.",
+              "likes": 0,
+              "match": 0.862
             },
             {
-              "author": "stephen.rochelle.name",
-              "text": "Ah, I see another brave truth-teller at BGG wants to make sure that we know that beyond-the-pale bigotry/racism/etc is just \"controversial\", same as \"you can't shuffle one card\". The mods don't always get it right, but \"just how offensive am I allowed to be?\" doesn't need to stick around.",
-              "likes": 1
+              "author": "jnavas.com",
+              "text": "OpenAI Scraps Release of New AI Model Over Safety Concerns Model dubbed GPT-6.1 Astra was due to make its debut inside ChatGPT and Codex in October",
+              "likes": 1,
+              "match": 0.841
             },
             {
-              "author": "bigaledge.bsky.social",
-              "text": "Fucking racist cowards who have to wear a mask so people can’t identify them and hold them accountable for their crimes",
-              "likes": 1
+              "author": "zimba7768.bsky.social",
+              "text": "Latest tech news: OpenAI reportedly ditches model over safety concerns Read full article",
+              "likes": 1,
+              "match": 0.836
+            },
+            {
+              "author": "watchdogprg.bsky.social",
+              "text": "Another take.... WSJ >> OpenAI Scraps Release of New AI Model Over Safety Concerns.",
+              "likes": 1,
+              "match": 0.817
+            },
+            {
+              "author": "feed.igeek.gamer-geek-news.com.ap.brid.gy",
+              "text": "\ud83e\udd16 **OpenAI scraps release of new model over safety concerns in internal testing** GPT-6.1 Astra showed deceptive behavior and tried to use external tools despite knowing it would be unsafeOpenAI is scrapping the release of GPT-6.1 Astra, a [\u2026] [Original post on igeek.gamer-geek-news.com]",
+              "likes": 0,
+              "match": 0.809
+            },
+            {
+              "author": "noahweinberger2003.bsky.social",
+              "text": "This is just theater, OpenAI needs to be compelled to release these models. If they are as dangerous as they say, give it to everyone to protect our infrastructure. Otherwise you\u2019re lying",
+              "likes": 1,
+              "match": 0.807
+            },
+            {
+              "author": "photoframd.bsky.social",
+              "text": "WSJ - OpenAI Scraps Release of New AI Model Over Safety Concerns. GPT-6.1 Astra was due to make its debut inside ChatGPT and Codex in October #AI",
+              "likes": 2,
+              "match": 0.791
+            },
+            {
+              "author": "merket.bsky.social",
+              "text": "BREAKING: OpenAI scrapped GPT-6.1 Astra after internal testers raised safety and cybersecurity alarms. The model was due to ship in ChatGPT and Codex in October. WSJ report by Maxwell Zeff. runtimewire.com/artic\u2026",
+              "likes": 0,
+              "match": 0.774
+            },
+            {
+              "author": "markfollman.bsky.social",
+              "text": "Story after story right now about OpenAI models failing on safety, but it\u2019s all been in the context of cybersecurity. What about ChatGPT fueling school shooters? We just published a major investigation exposing that further and the details are beyond disturbing",
+              "likes": 22,
+              "match": 0.77
+            },
+            {
+              "author": "kvconner.bsky.social",
+              "text": "OpenAI citing the WSJ, has abandoned the planned release of the Astra 6.1 artificial intelligence model due to concerns about its safety. As WSJ writes, the model could have been presented as early as in the coming days, although OpenAI had . . . By Fedir Kryshtovskyi 09/29 ua.news/en/technolog...",
+              "likes": 0,
+              "match": 0.718
+            },
+            {
+              "author": "druce.ai",
+              "text": "Florida seeks a court order halting OpenAI's new model development without third-party safeguards, barring ChatGPT from posing as human, and blocking minors",
+              "likes": 0,
+              "match": 0.62
+            },
+            {
+              "author": "suwetzel.bsky.social",
+              "text": "Saachi Jain, head of safety systems at OpenAI, said the model \u201cdidn\u2019t quite meet the bar in terms of staying within scope and authorization, and how it communicates back to the user about the type of work it\u2019s done.\u201d",
+              "likes": 0,
+              "match": 0.593
+            },
+            {
+              "author": "namhnguyen365.bsky.social",
+              "text": "Global Company: SpaceX Starship hits orbit, OpenAI pauses models, Nvidia launches agent safety as AI race intensifies. SpaceX achieved a historic milestone with Starship\u2019s first successful orbital flight and Starlink V3 satellite deployment namhoangnguyen.com/category/dai...",
+              "likes": 0,
+              "match": 0.565
             }
           ],
-          "brief": "Racism is present in society.",
-          "detail": "Racism Persists argues that Racism is present in society.\n\n@pdr1985.bsky.social: “Is it any surprise coming from a society that still refers to Black people as \"abeed\" (slave).”"
+          "post_count": 31,
+          "brief": "OpenAI scraps AI model release over safety concerns.",
+          "detail": "AI Model Delayed argues that OpenAI scraps AI model release over safety concerns.\n\nThe posts defend it in their own words. @markfollman.bsky.social writes, \u201cStory after story right now about OpenAI models failing on safety, but it\u2019s all been in the context of cybersecurity. What about ChatGPT fueling school shooters? We just published a major investigation exposing that further and the details are beyond disturbing\u201d @photoframd.bsky.social writes, \u201cWSJ - OpenAI Scraps Release of New AI Model Over Safety Concerns. GPT-6.1 Astra was due to make its debut inside ChatGPT and Codex in October #AI\u201d @jnavas.com writes, \u201cOpenAI Scraps Release of New AI Model Over Safety Concerns Model dubbed GPT-6.1 Astra was due to make its debut inside ChatGPT and Codex in October\u201d\n\nOther views in this conversation are Openai Anthropic Models. They are arguing a different claim from AI Model Delayed."
+        },
+        {
+          "id": "7B",
+          "title": "Openai Anthropic Models",
+          "summary": "AI models may be flawed",
+          "volume_percent": 13.9,
+          "representative_posts": [
+            {
+              "author": "bft.wtf",
+              "text": "It kinda seems whatever OpenAI is putting in the reinforcement learning water may actually be making their models a tiny bit insane",
+              "likes": 7,
+              "match": 0.752
+            },
+            {
+              "author": "birdsnfrogs.bsky.social",
+              "text": "Thats funny, the way I have been describing OpenAI and Anthropic to people is \u201cwhat if they tried making a Federalist Society but for capturing mathematics and physics?\u201d I am biased here but I am optimistic the STEM FedSoc won\u2019t be as successful as the original",
+              "likes": 0,
+              "match": 0.748
+            },
+            {
+              "author": "papoo7.bsky.social",
+              "text": "Cheaper models are nice, but the real story is the tradeoff #claudenews #anthropic #openai #llm",
+              "likes": 0,
+              "match": 0.729
+            },
+            {
+              "author": "utamu.bsky.social",
+              "text": "\"Dario Amodei, C.E.O. of Anthropic, set the discourse on fire when he released an open letter advocating a global slowdown on developing powerful A.I. models. Altman, chief at OpenAI, whose agents \u201cswarmed\u201d Hugging Face, co-signed so quickly it seemed he'd gotten a heads-up in a group chat.\"",
+              "likes": 0,
+              "match": 0.694
+            },
+            {
+              "author": "mtannenbaum.bsky.social",
+              "text": "At least for OpenAI, I don\u2019t think they can get public without a US government implicit backstop so they need to sell/give them a stake. Not sure why that hasn\u2019t happened yet.",
+              "likes": 1,
+              "match": 0.665
+            }
+          ],
+          "post_count": 5,
+          "brief": "AI models may be flawed.",
+          "detail": "Openai Anthropic Models argues that AI models may be flawed.\n\nThe posts defend it in their own words. @bft.wtf writes, \u201cIt kinda seems whatever OpenAI is putting in the reinforcement learning water may actually be making their models a tiny bit insane\u201d @mtannenbaum.bsky.social writes, \u201cAt least for OpenAI, I don\u2019t think they can get public without a US government implicit backstop so they need to sell/give them a stake. Not sure why that hasn\u2019t happened yet.\u201d @birdsnfrogs.bsky.social writes, \u201cThats funny, the way I have been describing OpenAI and Anthropic to people is \u201cwhat if they tried making a Federalist Society but for capturing mathematics and physics?\u201d I am biased here but I am optimistic the STEM FedSoc won\u2019t be as successful as the original\u201d\n\nOther views in this conversation are AI Model Delayed. They are arguing a different claim from Openai Anthropic Models."
         }
       ],
-      "summary": "Racism is present in society.",
-      "brief": "Racism is present in society.",
-      "detail": "Racism Persists argues that Racism is present in society.\n\n@pdr1985.bsky.social: “Is it any surprise coming from a society that still refers to Black people as \"abeed\" (slave).”"
+      "summary": "OpenAI GPT-6.1 Astra is the conversation these views share.",
+      "brief": "OpenAI GPT-6.1 Astra is the conversation these views share. AI Model Delayed says OpenAI scraps AI model release over safety concerns. Openai Anthropic Models says AI models may be flawed.",
+      "detail": "AI Model Delayed argues that OpenAI scraps AI model release over safety concerns. Openai Anthropic Models argues that AI models may be flawed.\n\n@markfollman.bsky.social: \u201cStory after story right now about OpenAI models failing on safety, but it\u2019s all been in the context of cybersecurity. What about ChatGPT fueling school shooters? We just published a major investigation exposing that further and the details are beyond disturbing\u201d\n\nAI Model Delayed (86.1%) says OpenAI scraps AI model release over safety concerns. Openai Anthropic Models (13.9%) says AI models may be flawed."
     },
     {
       "id": 8,
-      "name": "Diesel Export Ban",
-      "category": "Business",
-      "total_volume_percent": 5.7,
+      "name": "Pension Triple Lock",
+      "category": "Politics",
+      "total_volume_percent": 7.1,
+      "post_count": 23,
       "perspectives": [
         {
           "id": "8A",
-          "title": "No Diesel Ban",
-          "summary": "The US will not ban diesel exports",
-          "volume_percent": 61.9,
-          "representative_posts": [
-            {
-              "author": "wildwildwind.bsky.social",
-              "text": "Europe's diesel stockpiles serve as a strategic buffer that maintains both European and allied readiness in the event of territorial aggression. Tяump has urged Europe to draw down these reserves. The G7 have bowed already! Mid-term US election manipulation - or something more sinister?",
-              "likes": 1
-            },
-            {
-              "author": "onestpress.onestnetwork.com",
-              "text": "Trump confirmed that the US would not be doing be a diesel export ban and said it was “never really on the table “. He also praised Europe for its release of diesel reserves coordinated by the G7 earlier Friday.",
-              "likes": 8
-            },
-            {
-              "author": "mariafromga.bsky.social",
-              "text": "At best it’s 50-80% of pre-war levels and even then it doesn’t matter bc markets have finally (barely) priced in the cost: diesel needed to transport the oil is now crazy expensive ($3 to $34/barrel to ship to Asia), plus tolls exist, oil prices will be permanently elevated Goodbye cheap oil",
-              "likes": 1
-            },
-            {
-              "author": "whpresspool.bsky.social",
-              "text": "🚁 In-Town Pool Note #7 - WH gaggle quotes Here are some POTUS quotes from the gaggle prior to his M1 departure, with thanks to fellow pooler Ana Ceballos for her help. On the diesel export ban and the G7 release of diesel reserves (1/7)",
-              "likes": 0
-            },
-            {
-              "author": "whpresspool.bsky.social",
-              "text": "\"We have a very good relationship with Europe, and they wanted to do it because they have a lot of diesel, they use diesel. They have a lot of diesel and I said “it would be great if you put it out to the market”. On the midterms (3/7)",
-              "likes": 0
-            },
-            {
-              "author": "hopeful49.bsky.social",
-              "text": "We’re going around the world begging for diesel fuel. What a mess!",
-              "likes": 0
-            },
-            {
-              "author": "tickertap.bsky.social",
-              "text": "🏛️ [POLITICS] TRUMP ON DIESEL: WE'RE NOT GOING TO BE DOING THE EXPORT BAN ... - $SOURCE$ ⚡ Live alerts:",
-              "likes": 0
-            },
-            {
-              "author": "justsomedood.bsky.social",
-              "text": "So I am sure the billionaires running the petrol companies will lower the price of diesel now, right?",
-              "likes": 0
-            },
-            {
-              "author": "mantahunk.bsky.social",
-              "text": "Someone finally got through to \"high IQ\" President Trump that a diesel export ban would raise the cost of diesel.",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "Europe's diesel reserves help maintain readiness",
-            "Diesel prices will remain elevated"
-          ],
-          "brief": "The US will not ban diesel exports. Europe's diesel reserves help maintain readiness; Diesel prices will remain elevated.",
-          "detail": "No Diesel Ban argues that the US will not ban diesel exports. Europe's diesel reserves help maintain readiness. Diesel prices will remain elevated.\n\n@onestpress.onestnetwork.com: “Trump confirmed that the US would not be doing be a diesel export ban and said it was “never really on the table “. He also praised Europe for its release of diesel reserves coordinated by the G7 earlier Friday.”\n\nThe other view in this conversation is Oil Release."
-        },
-        {
-          "id": "8B",
-          "title": "Oil Release",
-          "summary": "G7 nations release oil reserves",
-          "volume_percent": 38.1,
-          "representative_posts": [
-            {
-              "author": "some-news.bsky.social",
-              "text": "French President Emmanuel Macron announced Friday that the G7 nations have agreed to release 100 million barrels of diesel and crude from their stockpiles.",
-              "likes": 1
-            },
-            {
-              "author": "mcewanmorton.bsky.social",
-              "text": "G7 to release up to 100m barrels of emergency oil and diesel reserves",
-              "likes": 0
-            },
-            {
-              "author": "affability.bsky.social",
-              "text": "G7 nations will release 100 million barrels of oil and diesel fuel after prices soar:",
-              "likes": 0
-            }
-          ],
-          "brief": "G7 nations release oil reserves.",
-          "detail": "Oil Release argues that G7 nations release oil reserves.\n\n@some-news.bsky.social: “French President Emmanuel Macron announced Friday that the G7 nations have agreed to release 100 million barrels of diesel and crude from their stockpiles.”\n\nThe other view in this conversation is No Diesel Ban."
-        }
-      ],
-      "summary": "The US will not ban diesel exports.",
-      "brief": "The US will not ban diesel exports. G7 nations release oil reserves.",
-      "detail": "No Diesel Ban argues that Europe's diesel reserves help maintain readiness. Diesel prices will remain elevated. Oil Release argues that G7 nations release oil reserves.\n\n@onestpress.onestnetwork.com: “Trump confirmed that the US would not be doing be a diesel export ban and said it was “never really on the table “. He also praised Europe for its release of diesel reserves coordinated by the G7 earlier Friday.”\n\nNo Diesel Ban (61.9%) says the US will not ban diesel exports. Oil Release (38.1%) says G7 nations release oil reserves."
-    },
-    {
-      "id": 9,
-      "name": "Iran War",
-      "category": "World",
-      "total_volume_percent": 3.0,
-      "perspectives": [
-        {
-          "id": "9A",
-          "title": "Iran War",
-          "summary": "US may invade Iran",
-          "volume_percent": 80.0,
-          "representative_posts": [
-            {
-              "author": "bladeofthes.bsky.social",
-              "text": "It seems very clear to me that all the anti-Iran stuff is being pushed purposefully to make the US/UK accept an Iraq style invasion. Be aware that there is a purpose behind all this BS.",
-              "likes": 20
-            },
-            {
-              "author": "timdickinson.bsky.social",
-              "text": "Iran and the reflecting pool, from short-term projects to months-long quagmires In this essay, I will...",
-              "likes": 16
-            },
-            {
-              "author": "sobroquet.bsky.social",
-              "text": "Ghoul Kushner said Iran has to be willing to make a fair deal without trying to \"hide certain cards and get certain concessions.\" Mass Negligent Homicide via Covid-19 Neglect, Vanity, Stupidity & Incompetence An Exhaustive Compendium of Facts tinyurl.com/bdh2e8ex",
-              "likes": 1
-            },
-            {
-              "author": "affability.bsky.social",
-              "text": "Iran readies harder retaliation if attacked as diplomacy faces long odds:",
-              "likes": 0
-            },
-            {
-              "author": "pdehello.bsky.social",
-              "text": "Iran readies harder retaliation if the country is attacked by the US as diplomacy faces long odds",
-              "likes": 0
-            },
-            {
-              "author": "pdehello.bsky.social",
-              "text": "Reuters: \"Two of the ​officials said Tehran had instructed allied groups in Lebanon, Yemen and Iraq to be ready to support Iran in the event of a renewed large-scale US attack. The guidance, they said, was to prepare for a coordinated response...\"",
-              "likes": 0
-            },
-            {
-              "author": "aleianjack.bsky.social",
-              "text": "Video: The Morning the U.S. Bombed a School in Iran open.substack.com/pub/dropsite...",
-              "likes": 1
-            },
-            {
-              "author": "tomshafshafer.bsky.social",
-              "text": "Sounds like a metaphor for Donald's Iran war.",
-              "likes": 0
-            },
-            {
-              "author": "wordsfailme123.bsky.social",
-              "text": "They’re to blame alright but where do you think they got their stupid idea? Not from their generals, who have resigned or been fired. No, this looks more like an AI model of how to take Iran, assuming they didn’t fight back.",
-              "likes": 0
-            },
-            {
-              "author": "evecodes.com",
-              "text": "Sanctions hurt Iranians, not their government, but the US knows that. They are to incite revolts against their govt but it won't work because Iranians are strong #Iran #codepink",
-              "likes": 0
-            },
-            {
-              "author": "democratsuprsoldr.bsky.social",
-              "text": "It's humiliating to have lost a war to Iran, thanks to tRump.",
-              "likes": 0
-            },
-            {
-              "author": "bea-sue-lee.bsky.social",
-              "text": "It’s kind of like the Iran War, except no schoolgirls, civilians or service members were killed and it didn’t deplete our arsenal of weapons or raise fuel prices.",
-              "likes": 0
-            }
-          ],
-          "arguments": [
-            "US is pushing for an Iraq-style invasion of Iran",
-            "US actions may lead to a long-term conflict with Iran",
-            "US is trying to provoke Iran into a war"
-          ],
-          "brief": "US may invade Iran. US is pushing for an Iraq-style invasion of Iran; US actions may lead to a long-term conflict with Iran. US is trying to provoke Iran into a war.",
-          "detail": "Iran War argues that US may invade Iran. US is pushing for an Iraq-style invasion of Iran. US actions may lead to a long-term conflict with Iran. US is trying to provoke Iran into a war.\n\n@bladeofthes.bsky.social: “It seems very clear to me that all the anti-Iran stuff is being pushed purposefully to make the US/UK accept an Iraq style invasion. Be aware that there is a purpose behind all this BS.”\n\nThe other view in this conversation is Iran Conflict."
-        },
-        {
-          "id": "9B",
-          "title": "Iran Conflict",
-          "summary": "US and Iran may engage in conflict",
-          "volume_percent": 20.0,
-          "representative_posts": [
-            {
-              "author": "girlsreallyrule.bsky.social",
-              "text": "Trump is dispatching roughly 9,000 troops aboard a group of ships to the Middle East, on Thursday and Trump is warning about new strikes against Iran could be on the horizon. apnews.com/article/iran...",
-              "likes": 2
-            },
-            {
-              "author": "pdehello.bsky.social",
-              "text": "Reuters: \"Senior commanders are reviewing plans to expand potential targets ‌beyond US-linked assets to countries that support US military operations and possibly to locations outside the Middle East, according to three senior Iranian officials...\"",
-              "likes": 0
-            },
-            {
-              "author": "trinketbirdy.bsky.social",
-              "text": "I mean the best tactic is just to hit them on the ground honestly. Not like Iran hasn't been pretty successful making them leave bases.",
-              "likes": 1
-            }
-          ],
-          "arguments": [
-            "US is preparing for strikes against Iran",
-            "Iran is planning to expand potential targets"
-          ],
-          "brief": "US and Iran may engage in conflict. US is preparing for strikes against Iran; Iran is planning to expand potential targets.",
-          "detail": "Iran Conflict argues that US and Iran may engage in conflict. US is preparing for strikes against Iran. Iran is planning to expand potential targets.\n\n@girlsreallyrule.bsky.social: “Trump is dispatching roughly 9,000 troops aboard a group of ships to the Middle East, on Thursday and Trump is warning about new strikes against Iran could be on the horizon. apnews.com/article/iran...”\n\nThe other view in this conversation is Iran War."
-        }
-      ],
-      "summary": "US may invade Iran.",
-      "brief": "US may invade Iran. US and Iran may engage in conflict.",
-      "detail": "Iran War argues that US is pushing for an Iraq-style invasion of Iran. US actions may lead to a long-term conflict with Iran. US is trying to provoke Iran into a war. Iran Conflict argues that US is preparing for strikes against Iran. Iran is planning to expand potential targets.\n\n@bladeofthes.bsky.social: “It seems very clear to me that all the anti-Iran stuff is being pushed purposefully to make the US/UK accept an Iraq style invasion. Be aware that there is a purpose behind all this BS.”\n\nIran War (80%) says US may invade Iran. Iran Conflict (20%) says US and Iran may engage in conflict."
-    },
-    {
-      "id": 10,
-      "name": "Special Prosecutor",
-      "category": "Politics",
-      "total_volume_percent": 15.0,
-      "perspectives": [
-        {
-          "id": "10A",
-          "title": "Special Prosecutor",
-          "summary": "A special prosecutor is needed",
+          "title": "Pension Reform",
+          "summary": "Pension benefits should be increased for the poor",
           "volume_percent": 100.0,
           "representative_posts": [
             {
-              "author": "t-antony.bsky.social",
-              "text": "We are calling for special prosecutors for local police for standing with lawless federal agents; we are going after state policing agencies as well. We should be calling for special prosecutors for the Federalist freaks on our high court and all fifty state AGs who ignored their oaths.",
-              "likes": 0
+              "author": "steber2.bsky.social",
+              "text": "Exactly. Pensioner poverty's projected to fall going forward, both before and after the triple lock's adjusted in 2030. The next priority is to get everyone else to catch up - once they have, we can increase benefits for everyone.",
+              "likes": 0,
+              "match": 0.795
             },
             {
-              "author": "unknownsoldier.bsky.social",
-              "text": "Research the Independent Prosecutor law from 1975. Ken Starr was the last Independent Prosecutor before the law sunset in 2000. The DOJ created the Special Counsel provision in its place when Congress didn’t reauthorize the IP law. It’s time to bring the law back",
-              "likes": 0
+              "author": "mancalled.horse",
+              "text": "I think state pension should be tied to real living wage (breaking the triple lock but not in a way to make the welfare budget cutters happy)",
+              "likes": 1,
+              "match": 0.785
             },
             {
-              "author": "otisredfoot.bsky.social",
-              "text": "I was looking at this yesterday, Congress can't appoint a special prosecutor or counsel only the DOJ. So whatever happens we will have to wait 2 more years for anything on that front.",
-              "likes": 0
+              "author": "voxlibero.bsky.social",
+              "text": "It would have been far more acceptable if it had been accompanied by a reduction in tax relief on pension contributions for those earning high salaries (say \u00a3250k+) which funded an increase in the state pension for those with annual (pension) incomes below minimum wage. bsky.app/profile/voxl...",
+              "likes": 1,
+              "match": 0.784
             },
             {
-              "author": "sarcasmoultrablam.bsky.social",
-              "text": "A prosecutor is somebody doing their legal job. Of COURSE a felon is going to hate ANY prosecutor he doesn't control. Just because this daft demented toddler has a grudge, this smells a lot like defamation.. Especially from the White House.",
-              "likes": 1
+              "author": "shutchs.bsky.social",
+              "text": "That was the point of Howe/Thatcher reducing the rate of pension increase. Less taxes from the current account so people could save for their own pension. As you say the reduction got baked in, the savings didn't",
+              "likes": 0,
+              "match": 0.776
+            },
+            {
+              "author": "voxlibero.bsky.social",
+              "text": "It would have been far more acceptable if it had been accompanied by a reduction in tax relief on pension contributions for those earning high salaries (say \u00a3250k+) which funded an increase in the state pension for those with annual (pension) incomes below minimum wage.",
+              "likes": 0,
+              "match": 0.767
+            },
+            {
+              "author": "townsquare.bsky.social",
+              "text": "I think this is the trade-off for setting up a National Care Service and finally helping address Social Care. \ud83d\ude0d\ud83e\udd29 Also UK currently has one of the lowest state pensions in the OECD.",
+              "likes": 1,
+              "match": 0.749
+            },
+            {
+              "author": "steber2.bsky.social",
+              "text": "By all means, push for more money for reducing poverty - I certainly am. If that's the aim (it should be), it'll go on protecting and improving child and working age benefits in the short to medium term, not pensioner benefits.",
+              "likes": 0,
+              "match": 0.743
+            },
+            {
+              "author": "steber2.bsky.social",
+              "text": "Our state pension provision's a bit below OECD average for typical earners, a bit above average for low earners. While UK pensioners are better off than non-pensioners. Again, UK pensioners aren't a sensible priority for more Government spending.",
+              "likes": 0,
+              "match": 0.739
+            },
+            {
+              "author": "rogerb1940.bsky.social",
+              "text": "Some pensioners are very wealthy! There are some in receipt of \u2018final salary level\u2019 pensions & there are others who\u2019ve benefitted from huge \u2018pension pots\u2019 built up as a tax avoidance ruse! They should all be taxed a great deal more; so that many more of the poorest are taken out of tax altogether!",
+              "likes": 0,
+              "match": 0.73
+            },
+            {
+              "author": "jon89.bsky.social",
+              "text": "It would be impossible for inflation to outstrip pensions after the triple lock is scrapped as pensions will still rise each year by inflation or 2.5% (whichever is higher). It's the earnings part that will be scrapped.",
+              "likes": 0,
+              "match": 0.712
+            },
+            {
+              "author": "aiteall.bsky.social",
+              "text": "Make poor pensioners pay: Blairite Labour, Tory and Reform.",
+              "likes": 0,
+              "match": 0.707
+            },
+            {
+              "author": "aandrkerr.bsky.social",
+              "text": "We need the triple lock because for some pensioners that's all they get and it's miserly. Obviously those with big workplace pensions don't need it - how about taking some tax relief away from the more luxurious pension schemes and protecting the triple lock?",
+              "likes": 0,
+              "match": 0.706
+            },
+            {
+              "author": "sunderlandlolly.bsky.social",
+              "text": "Means testing is a slippery slope to nothing. We were told increasing the pension age would protect it. Now it's unsustainable again. Its a race to the bottom.",
+              "likes": 0,
+              "match": 0.684
+            },
+            {
+              "author": "westerns.bsky.social",
+              "text": "If you have to ask you're obviously not reliant on the state pension but millions are. Many employers do not have company pensions. Many people can't afford to pay into a private pension. In 2008 banking collapse many people lost their private pensions. Not everyone is on a full state pension",
+              "likes": 0,
+              "match": 0.682
+            },
+            {
+              "author": "hugan.bsky.social",
+              "text": "That's par for the course for centrists Dan. See also: triple lock for pensions. Highlight the small number of high-value targets, push through the policy, and ignore the substantial collateral damage.",
+              "likes": 0,
+              "match": 0.668
+            },
+            {
+              "author": "marianneh.bsky.social",
+              "text": "I do sometimes wonder what will happen to civic society when their generation and their decent occupational pensions are no longer around. They are in their mid seventies, have been 'retired' for over a decade, and are just hitting the point where medical issues are slowing them down a bit.",
+              "likes": 1,
+              "match": 0.652
+            },
+            {
+              "author": "pete11.bsky.social",
+              "text": "Does that mean that Sept 2029 CPI & Avg Earnings values are set for 2030/31 year and the start of Triple Lock 2.0? For pensions planning it would be prudent to use a 2.5% increase taking anything more as a bonus? Year-by-years figures for each variable would make it easier",
+              "likes": 0,
+              "match": 0.645
+            },
+            {
+              "author": "laotianrockrat.bsky.social",
+              "text": "I'm afraid you are. There's no annuity involved, what you receive comes from national insurance paid by people now working the same way your contributions paid towards the pension of the previous generation. There's no shame in it",
+              "likes": 0,
+              "match": 0.595
+            },
+            {
+              "author": "mosltlylurking.bsky.social",
+              "text": "The only thing you talked about I expect him to go through with is ditching the pension triple lock, increasing poverty for the elderly. He can't do anything about brexit and won't do anything about fptp.",
+              "likes": 1,
+              "match": 0.565
+            },
+            {
+              "author": "byteseu.bsky.social",
+              "text": "Minimum old-age pension in Switzerland to increase by CHF20 Minimum old-age pension in Switzerland to increase by CHF20 \u2026",
+              "likes": 0,
+              "match": 0.56
             }
           ],
           "arguments": [
-            "A felon hates any prosecutor they can't control",
-            "Congress can't appoint a special prosecutor",
-            "The Independent Prosecutor law should be brought back",
-            "Special prosecutors are needed for local police and federal agents"
+            "Increase state pension to real living wage",
+            "Fund pension increase by reducing tax relief for high earners",
+            "Prioritize child and working age benefits over pensioner benefits",
+            "Tax wealthy pensioners to support poorer ones",
+            "Protect triple lock for poor pensioners"
           ],
-          "brief": "A special prosecutor is needed. A felon hates any prosecutor they can't control; Congress can't appoint a special prosecutor. The Independent Prosecutor law should be brought back; Special prosecutors are needed for local police and federal agents.",
-          "detail": "Special Prosecutor argues that a special prosecutor is needed. A felon hates any prosecutor they can't control. Congress can't appoint a special prosecutor. The Independent Prosecutor law should be brought back.\n\n@sarcasmoultrablam.bsky.social: “A prosecutor is somebody doing their legal job. Of COURSE a felon is going to hate ANY prosecutor he doesn't control. Just because this daft demented toddler has a grudge, this smells a lot like defamation.. Especially from the White House.”"
+          "post_count": 23,
+          "brief": "Pension benefits should be increased for the poor. Increase state pension to real living wage. Fund pension increase by reducing tax relief for high earners. Prioritize child and working age benefits over pensioner benefits. Tax wealthy pensioners to support poorer ones.",
+          "detail": "Pension Reform argues that Pension benefits should be increased for the poor. Increase state pension to real living wage. Fund pension increase by reducing tax relief for high earners. Prioritize child and working age benefits over pensioner benefits. Tax wealthy pensioners to support poorer ones. Protect triple lock for poor pensioners.\n\nThe posts defend it in their own words. @mancalled.horse writes, \u201cI think state pension should be tied to real living wage (breaking the triple lock but not in a way to make the welfare budget cutters happy)\u201d @voxlibero.bsky.social writes, \u201cIt would have been far more acceptable if it had been accompanied by a reduction in tax relief on pension contributions for those earning high salaries (say \u00a3250k+) which funded an increase in the state pension for those with annual (pension) incomes below minimum wage.\u201d @townsquare.bsky.social writes, \u201cI think this is the trade-off for setting up a National Care Service and finally helping address Social Care. \ud83d\ude0d\ud83e\udd29 Also UK currently has one of the lowest state pensions in the OECD.\u201d\n\nInside Pension Reform, the posts are arguing one position rather than a stack of unrelated claims."
         }
       ],
-      "summary": "A special prosecutor is needed.",
-      "brief": "A special prosecutor is needed. A felon hates any prosecutor they can't control; Congress can't appoint a special prosecutor. The Independent Prosecutor law should be brought back; Special prosecutors are needed for local police and federal agents.",
-      "detail": "Special Prosecutor argues that a special prosecutor is needed. A felon hates any prosecutor they can't control. Congress can't appoint a special prosecutor. The Independent Prosecutor law should be brought back.\n\n@sarcasmoultrablam.bsky.social: “A prosecutor is somebody doing their legal job. Of COURSE a felon is going to hate ANY prosecutor he doesn't control. Just because this daft demented toddler has a grudge, this smells a lot like defamation.. Especially from the White House.”"
+      "summary": "Pension benefits should be increased for the poor.",
+      "brief": "Pension benefits should be increased for the poor. Increase state pension to real living wage. Fund pension increase by reducing tax relief for high earners. Prioritize child and working age benefits over pensioner benefits. Tax wealthy pensioners to support poorer ones.",
+      "detail": "Pension Reform argues that Pension benefits should be increased for the poor. Increase state pension to real living wage. Fund pension increase by reducing tax relief for high earners. Prioritize child and working age benefits over pensioner benefits. Tax wealthy pensioners to support poorer ones. Protect triple lock for poor pensioners.\n\nThe posts defend it in their own words. @mancalled.horse writes, \u201cI think state pension should be tied to real living wage (breaking the triple lock but not in a way to make the welfare budget cutters happy)\u201d @voxlibero.bsky.social writes, \u201cIt would have been far more acceptable if it had been accompanied by a reduction in tax relief on pension contributions for those earning high salaries (say \u00a3250k+) which funded an increase in the state pension for those with annual (pension) incomes below minimum wage.\u201d @townsquare.bsky.social writes, \u201cI think this is the trade-off for setting up a National Care Service and finally helping address Social Care. \ud83d\ude0d\ud83e\udd29 Also UK currently has one of the lowest state pensions in the OECD.\u201d\n\nInside Pension Reform, the posts are arguing one position rather than a stack of unrelated claims."
+    },
+    {
+      "id": 9,
+      "name": "Fascism Rise",
+      "category": "Politics",
+      "total_volume_percent": 2.8,
+      "post_count": 9,
+      "perspectives": [
+        {
+          "id": "9A",
+          "title": "Fascism Rising",
+          "summary": "Fascism is increasing worldwide",
+          "volume_percent": 100.0,
+          "representative_posts": [
+            {
+              "author": "huiasue.bsky.social",
+              "text": "\"Fascism Doesn't Always Arrive by Force Sometimes It Comes as Law\" A visit to National Holocaust Museum in Amsterdam showed me how changes in law were used by Nazis to push their agenda.It's a warning from history we must heed before it's too late #nzpol #Urgency #FastTrack zeteo.com/p/fascism-do...",
+              "likes": 0,
+              "match": 0.744
+            },
+            {
+              "author": "jemroberts.bsky.social",
+              "text": "Imagine if a British MP stood up and admitted the patently obvious fact that fascism has been rising exponentially across the world for 20 years, and actually suggested non-fascist politicians did something decisive about it, irrespective of party politics.",
+              "likes": 1,
+              "match": 0.712
+            },
+            {
+              "author": "hotlineaguirre.bsky.social",
+              "text": "wake me up when the slogan is \u2018Fascism Must Be Destroyed\u2019",
+              "likes": 0,
+              "match": 0.711
+            },
+            {
+              "author": "cosmicsurfer.bsky.social",
+              "text": "A reminder to those who still dance the streets nonviolently (and it better start growing or you will all be under the thumb of Fascism). If that does not work, there is an alternative that will have to be employed Tips for Preparedness, Peaceful Protesting, and Safety via:",
+              "likes": 0,
+              "match": 0.695
+            }
+          ],
+          "arguments": [
+            "Fascism has been rising exponentially for 20 years",
+            "Fascism must be destroyed"
+          ],
+          "post_count": 9,
+          "brief": "Fascism is increasing worldwide. Fascism has been rising exponentially for 20 years. Fascism must be destroyed.",
+          "detail": "Fascism Rising argues that Fascism is increasing worldwide. Fascism has been rising exponentially for 20 years. Fascism must be destroyed.\n\nThe posts defend it in their own words. @jemroberts.bsky.social writes, \u201cImagine if a British MP stood up and admitted the patently obvious fact that fascism has been rising exponentially across the world for 20 years, and actually suggested non-fascist politicians did something decisive about it, irrespective of party politics.\u201d @huiasue.bsky.social writes, \u201c\"Fascism Doesn't Always Arrive by Force Sometimes It Comes as Law\" A visit to National Holocaust Museum in Amsterdam showed me how changes in law were used by Nazis to push their agenda.It's a warning from history we must heed before it's too late #nzpol #Urgency #FastTrack\u2026\u201d @hotlineaguirre.bsky.social writes, \u201cwake me up when the slogan is \u2018Fascism Must Be Destroyed\u2019\u201d\n\nInside Fascism Rising, the posts are arguing one position rather than a stack of unrelated claims."
+        }
+      ],
+      "summary": "Fascism is increasing worldwide.",
+      "brief": "Fascism is increasing worldwide. Fascism has been rising exponentially for 20 years. Fascism must be destroyed.",
+      "detail": "Fascism Rising argues that Fascism is increasing worldwide. Fascism has been rising exponentially for 20 years. Fascism must be destroyed.\n\nThe posts defend it in their own words. @jemroberts.bsky.social writes, \u201cImagine if a British MP stood up and admitted the patently obvious fact that fascism has been rising exponentially across the world for 20 years, and actually suggested non-fascist politicians did something decisive about it, irrespective of party politics.\u201d @huiasue.bsky.social writes, \u201c\"Fascism Doesn't Always Arrive by Force Sometimes It Comes as Law\" A visit to National Holocaust Museum in Amsterdam showed me how changes in law were used by Nazis to push their agenda.It's a warning from history we must heed before it's too late #nzpol #Urgency #FastTrack\u2026\u201d @hotlineaguirre.bsky.social writes, \u201cwake me up when the slogan is \u2018Fascism Must Be Destroyed\u2019\u201d\n\nInside Fascism Rising, the posts are arguing one position rather than a stack of unrelated claims."
+    },
+    {
+      "id": 10,
+      "name": "Trans Women Rights",
+      "category": "Other",
+      "total_volume_percent": 8.6,
+      "post_count": 28,
+      "perspectives": [
+        {
+          "id": "10A",
+          "title": "Trans Women Threat",
+          "summary": "Trans women pose a threat to cis women",
+          "volume_percent": 100.0,
+          "representative_posts": [
+            {
+              "author": "wildasparagus.bsky.social",
+              "text": "Nonsense. Women don't pose the same threats to other women as male people do, irrespective of identity. You're refusing to see the violent misogyny that's a key component of gender ID activism because you believe trans people can't be protected unless we give in to all their demands. It's silly.",
+              "likes": 1,
+              "match": 0.798
+            },
+            {
+              "author": "norzola.bsky.social",
+              "text": "Trans women aren't taking anything. You can siting here suggesting your womanhood is in any way diminished or influenced by the existence trans women is \"concerning\", to put it mildly. It's a non-issue all in your head. And it's been placed there by powerful people working towards a fascist society.",
+              "likes": 0,
+              "match": 0.784
+            },
+            {
+              "author": "drrachelbroady.bsky.social",
+              "text": "You've no interest. Read the list. Men are not women. Their demands that they are and should access women's and girls' single-sex spaces and services is misogyny on steroids. It's only a \"non issue\" if you don't give a shit about women. Trans rights activists don't give a shit about women.",
+              "likes": 0,
+              "match": 0.732
+            },
+            {
+              "author": "drrachelbroady.bsky.social",
+              "text": "Trans identifying men have physically & sexually assaulted women. Isla Bryson, Davina Ayrton, Lexi Secker, Lexi-Rose Crawford, Ciara Watkin, Madison Wilson, Tiffany Scott, Gwyn Samuels, Carys Cooper, Lisa Hauxwell etc Women have a right to not be around men, including those who wish they were women",
+              "likes": 1,
+              "match": 0.726
+            },
+            {
+              "author": "norzola.bsky.social",
+              "text": "I'm sure there are horrible trans women just as there are horrible cis women; you are the one who's generalising here. Trans women, as a group, represent no more harm to cis women than cis-women as a whole, possibly even less, seeing the harm that many cis-women constantly inflict on other women.",
+              "likes": 1,
+              "match": 0.726
+            },
+            {
+              "author": "tgnprofessor.bsky.social",
+              "text": "Moderating away from \u201ctrans people should be allowed full participation in society\u201d is bad, actually.",
+              "likes": 0,
+              "match": 0.725
+            },
+            {
+              "author": "moxiemeow.bsky.social",
+              "text": "This is a fishing expedition. As of 2023, science had already concluded that gender affirming care helps trans kids. These transphobic bastards are trying desperately to find (or fabricate) evidence that says otherwise.",
+              "likes": 0,
+              "match": 0.723
+            },
+            {
+              "author": "the-hampter.bsky.social",
+              "text": "Reminder that people won't deny the current hot topic is a slippery slope because they genuinely believe it's gonna stop at where it is now, they deny this because they hope it'll make you shut up. We all knew that queer people in general would be next after trans people, some people just didnt care",
+              "likes": 0,
+              "match": 0.72
+            },
+            {
+              "author": "norzola.bsky.social",
+              "text": "Wut? You're making this a lot more complicated than it really is. Research has shown that the presence of trans women in public toilets have not resulted in any increased violence against cis-women. Trans women are not a problem, if anything, they are a valuable minority in any healthy society.",
+              "likes": 0,
+              "match": 0.718
+            },
+            {
+              "author": "alluringapex.bsky.social",
+              "text": "Internet Today in doing a story about Drunk Hatesgeth's offensive ass speech but not censoring \"tranny\" is a worrying sign of the creep of anti-trans propaganda. THEY EVEN ACKNOWLEDGE IT IS A SLUR",
+              "likes": 0,
+              "match": 0.712
+            },
+            {
+              "author": "wildasparagus.bsky.social",
+              "text": "A fair amount of the backlash against the so-called LGBT+ community is down to this. It's not reasonable to deny material differences and toxic dynamics and expect others to go along. Not when alternative solutions exist. But that means listening to women. Which brings us back to misogyny.",
+              "likes": 0,
+              "match": 0.703
+            },
+            {
+              "author": "chaospriestess.bsky.social",
+              "text": "I know plenty of transfems who grew up in gay spaces and even though they go by she/her they still consider themselves gay, and any cis gay man's reaction to this is that \ud83d\udc4c\ud83d\udc4c\ud83d\udc4c they do, but if you say you're a he/him lesbian on God's green internet they send the gender cop car after you.",
+              "likes": 9,
+              "match": 0.695
+            },
+            {
+              "author": "cambria.bsky.social",
+              "text": "> \"Our sport is super accessible and inclusive to all!\" > Look inside > Trans women forced into the men's category but it's been renamed \"Open\" so \"allies\" can claim they're technically not misgendering you",
+              "likes": 3,
+              "match": 0.687
+            },
+            {
+              "author": "scottdagostino.ca",
+              "text": "I\u2019ve been blocked for saying the New York Times is an evil organization that hates trans people but this news about *their own employee* proves they\u2019re an evil organization that hates trans people \ud83d\ude21",
+              "likes": 1,
+              "match": 0.666
+            },
+            {
+              "author": "liasae.bsky.social",
+              "text": "I'm no longer plugged into the grapevine these days, because it is not great about transness as a whole and it loathes transmasculinity in particular. But I was tuned in for long enough to know how bad it is out there, to know names and stories that will never make it out",
+              "likes": 1,
+              "match": 0.665
+            },
+            {
+              "author": "joannahastings.bsky.social",
+              "text": "Everyone is equally valid. EVERYONE deserves to be safe. To deny one demographic shows you could deny ANY demographic as soon as it becomes expedient. So, , you need to learn to add \"gender identity\" to your \"belonging\" list - and mean it - or resign. #TransRightsAreHumanRights",
+              "likes": 0,
+              "match": 0.66
+            },
+            {
+              "author": "nihilistshiro.bsky.social",
+              "text": "I feel the same protectiveness over my sacred trans body as I do over the Earth as we are one and the same. Watching gender-based violence continue to rise as a class of psychotic technocrats (men) perpetuate that same violence against our land, our air, and our water is surreal as and depressing.",
+              "likes": 0,
+              "match": 0.658
+            },
+            {
+              "author": "kentishizzie.com",
+              "text": "I don't get into this intercommunity trans fighting because peace & love + why waste time when we can fight the real enemy stronger together. But i find it odd when transmasc affinity/interest groups are seen as inherently transmisogynistic or exclusionary on the basis of them being for boys.",
+              "likes": 2,
+              "match": 0.645
+            },
+            {
+              "author": "cherylmorgan.bsky.social",
+              "text": "Fascinating. The motion doesn\u2019t mention trans rights at all, it is about equalities law in general, but Nation.Cymru, normally a big fan of devolved rights, is against this because it might benefit trans people. nation.cymru/news/plaid-c...",
+              "likes": 5,
+              "match": 0.614
+            },
+            {
+              "author": "ciarasdiaryy.bsky.social",
+              "text": "Honestly, this is why I keep saying solidarity has to be material too. Trans people need more than platitudes, we need people showing up for us in real life. I\u2019m raising funds for emergency relocation. Black trans survival right now. If you can\u2019t donate, sharing my crowdfund helps too. \ud83d\udda4\ud83c\udff3\ufe0f\u200d\u26a7\ufe0f",
+              "likes": 0,
+              "match": 0.614
+            },
+            {
+              "author": "princesssylveon.bsky.social",
+              "text": "This. Also \u201ctrans people are evil and I\u2019ll take away their healthcare! Please vote for me!\u201d",
+              "likes": 0,
+              "match": 0.602
+            },
+            {
+              "author": "gothwhoreofbabylon.bsky.social",
+              "text": "I am quite uncomfortable about the people excitedly discussing their discovery that a minor recurring TNG actor, who appears to still be alive as far as I\u2019m able to tell, was a trans woman. Our need for a history does not give us cause to out a living person, especially now.",
+              "likes": 2,
+              "match": 0.587
+            },
+            {
+              "author": "itsnicodegallo.bsky.social",
+              "text": "On the other hand, the trend of genderbending Harry Potter characters is such a brilliant \"fuck you\" to a transphobe like J. K. Rowling.",
+              "likes": 0,
+              "match": 0.577
+            },
+            {
+              "author": "sarahviktoria.bsky.social",
+              "text": "I don't think the CPS's definition is the one that matters. It may matter for sentencing, but not for moral or factual assessments. The CPS has updated guidance to rope trans people into prosecution for deception as to sex, after a hate campaign against trans people raged through the Establishment.",
+              "likes": 0,
+              "match": 0.574
+            },
+            {
+              "author": "uhandreak.bsky.social",
+              "text": "the latter is probably bc the local bi identity has been constructed as very hetero-adjacent, mostly as defined by cis bi women with college degrees, and the ones who appear as more culturally lesbian just blend in with the lesbians",
+              "likes": 1,
+              "match": 0.565
+            },
+            {
+              "author": "nihilistshiro.bsky.social",
+              "text": "I can't help but draw comparisons to the way trans bodies are being neglected, abused, and discarded, and the way the very face of our dear Mother Earth is being reshaped, scarred, and abused for the purpose of data and computing centers.",
+              "likes": 0,
+              "match": 0.539
+            },
+            {
+              "author": "plasticjesusart.bsky.social",
+              "text": "What do you notice about most of the \u2018Jane Does\u2019, bravely telling their stories? It\u2019s not strangers that grab them on the street. It\u2019s not illegal immigrants, it\u2019s not trans people. Its not drag artists. ~ It\u2019s husbands, boyfriends, fathers. Uncles, cousins, brothers. It\u2019s friends.",
+              "likes": 2,
+              "match": 0.536
+            }
+          ],
+          "arguments": [
+            "Trans women are a threat due to violent misogyny in gender ID activism",
+            "Trans women's existence diminishes womanhood",
+            "Trans women's demands for access to women's spaces is misogyny",
+            "Trans identifying men have assaulted women",
+            "Trans women are not a problem and do not increase violence against cis women"
+          ],
+          "post_count": 28,
+          "brief": "Trans women pose a threat to cis women. Trans women are a threat due to violent misogyny in gender ID activism. Trans women's existence diminishes womanhood. Trans women's demands for access to women's spaces is misogyny. Trans identifying men have assaulted women.",
+          "detail": "Trans Women Threat argues that Trans women pose a threat to cis women. Trans women are a threat due to violent misogyny in gender ID activism. Trans women's existence diminishes womanhood. Trans women's demands for access to women's spaces is misogyny. Trans identifying men have assaulted women. Trans women are not a problem and do not increase violence against cis women.\n\nThe posts defend it in their own words. @chaospriestess.bsky.social writes, \u201cI know plenty of transfems who grew up in gay spaces and even though they go by she/her they still consider themselves gay, and any cis gay man's reaction to this is that \ud83d\udc4c\ud83d\udc4c\ud83d\udc4c they do, but if you say you're a he/him lesbian on God's green internet they send the gender cop car\u2026\u201d @cherylmorgan.bsky.social writes, \u201cFascinating. The motion doesn\u2019t mention trans rights at all, it is about equalities law in general, but Nation.Cymru, normally a big fan of devolved rights, is against this because it might benefit trans people. nation.cymru/news/plaid-c...\u201d @cambria.bsky.social writes, \u201c> \"Our sport is super accessible and inclusive to all!\" > Look inside > Trans women forced into the men's category but it's been renamed \"Open\" so \"allies\" can claim they're technically not misgendering you\u201d\n\nInside Trans Women Threat, the posts are arguing one position rather than a stack of unrelated claims."
+        }
+      ],
+      "summary": "Trans women pose a threat to cis women.",
+      "brief": "Trans women pose a threat to cis women. Trans women are a threat due to violent misogyny in gender ID activism. Trans women's existence diminishes womanhood. Trans women's demands for access to women's spaces is misogyny. Trans identifying men have assaulted women.",
+      "detail": "Trans Women Threat argues that Trans women pose a threat to cis women. Trans women are a threat due to violent misogyny in gender ID activism. Trans women's existence diminishes womanhood. Trans women's demands for access to women's spaces is misogyny. Trans identifying men have assaulted women. Trans women are not a problem and do not increase violence against cis women.\n\nThe posts defend it in their own words. @chaospriestess.bsky.social writes, \u201cI know plenty of transfems who grew up in gay spaces and even though they go by she/her they still consider themselves gay, and any cis gay man's reaction to this is that \ud83d\udc4c\ud83d\udc4c\ud83d\udc4c they do, but if you say you're a he/him lesbian on God's green internet they send the gender cop car\u2026\u201d @cherylmorgan.bsky.social writes, \u201cFascinating. The motion doesn\u2019t mention trans rights at all, it is about equalities law in general, but Nation.Cymru, normally a big fan of devolved rights, is against this because it might benefit trans people. nation.cymru/news/plaid-c...\u201d @cambria.bsky.social writes, \u201c> \"Our sport is super accessible and inclusive to all!\" > Look inside > Trans women forced into the men's category but it's been renamed \"Open\" so \"allies\" can claim they're technically not misgendering you\u201d\n\nInside Trans Women Threat, the posts are arguing one position rather than a stack of unrelated claims."
     }
   ],
   "digest": {
-    "subject": "This week: Artists Reject AI, Rape Culture, Zionism Opposed",
+    "subject": "This week: Russia Ukraine War, Victim Blaming, US Election Vote",
     "planets": [
       {
-        "name": "Artists Reject AI",
-        "category": "Technology",
-        "percent": 15.1,
-        "arguments": [
-          "Artists push back against generative AI",
-          "AI-generated content is detrimental to small artists"
-        ],
-        "disagreement": "The posts share one claim: AI harms artists and creatives."
-      },
-      {
-        "name": "Rape Culture",
-        "category": "Other",
-        "percent": 15.0,
-        "arguments": [
-          "Men do not face the same risks of rape as women",
-          "Society enables rape culture through silence and victim-blaming",
-          "Rape culture is perpetuated by patriarchal norms and lack of empathy for women",
-          "People often participate in rape culture passively by not speaking out against it",
-          "Rape culture is terrifying and defended by some individuals"
-        ],
-        "disagreement": "The posts share one claim: Rape culture exists."
-      },
-      {
-        "name": "Zionism Opposed",
+        "name": "Russia Ukraine War",
         "category": "World",
-        "percent": 15.0,
+        "percent": 14.2,
         "arguments": [
-          "Zionism serves no positive purpose",
-          "Zionism is a form of ethnic nationalism"
+          "Trump admin's Ukraine talks include a multibillion-dollar oil deal benefiting US negotiators' allies",
+          "US-Russia talks on Ukraine now involve an oil deal tied to Trump allies",
+          "Trump's Ukraine negotiations involve a corrupt oil deal with Russia"
         ],
-        "disagreement": "The posts share one claim: Zionism has negative impacts."
+        "disagreement": "The posts share one claim: Trump allies benefit from US-Russia oil deal talks."
       },
       {
-        "name": "Racism Persists",
+        "name": "Victim Blaming",
         "category": "Politics",
-        "percent": 15.0,
+        "percent": 14.1,
+        "arguments": [
+          "Victims seem aggressive due to prolonged triggering",
+          "Men risk victims' lives rather than self-reflect"
+        ],
+        "disagreement": "The posts share one claim: Victims are blamed for their reactions."
+      },
+      {
+        "name": "US Election Vote",
+        "category": "Politics",
+        "percent": 14.1,
         "arguments": [],
-        "disagreement": "Racism is present in society."
+        "disagreement": "Voting process is flawed."
       },
       {
-        "name": "Special Prosecutor",
+        "name": "Pension Triple Lock",
         "category": "Politics",
-        "percent": 15.0,
+        "percent": 14.1,
         "arguments": [
-          "A felon hates any prosecutor they can't control",
-          "Congress can't appoint a special prosecutor",
-          "The Independent Prosecutor law should be brought back",
-          "Special prosecutors are needed for local police and federal agents"
+          "Increase state pension to real living wage",
+          "Fund pension increase by reducing tax relief for high earners",
+          "Prioritize child and working age benefits over pensioner benefits",
+          "Tax wealthy pensioners to support poorer ones",
+          "Protect triple lock for poor pensioners"
         ],
-        "disagreement": "The posts share one claim: A special prosecutor is needed."
+        "disagreement": "The posts share one claim: Pension benefits should be increased for the poor."
       },
       {
-        "name": "Christa Pike Execution",
+        "name": "Fascism Rise",
         "category": "Politics",
-        "percent": 6.0,
+        "percent": 14.1,
         "arguments": [
-          "The death penalty is inhuman and essentially murder",
-          "The death penalty is barbaric and torturous"
+          "Fascism has been rising exponentially for 20 years",
+          "Fascism must be destroyed"
         ],
-        "disagreement": "The posts share one claim: The death penalty is barbaric."
+        "disagreement": "The posts share one claim: Fascism is increasing worldwide."
       },
       {
-        "name": "Diesel Export Ban",
+        "name": "Trans Women Rights",
+        "category": "Other",
+        "percent": 14.1,
+        "arguments": [
+          "Trans women are a threat due to violent misogyny in gender ID activism",
+          "Trans women's existence diminishes womanhood",
+          "Trans women's demands for access to women's spaces is misogyny",
+          "Trans identifying men have assaulted women",
+          "Trans women are not a problem and do not increase violence against cis women"
+        ],
+        "disagreement": "The posts share one claim: Trans women pose a threat to cis women."
+      },
+      {
+        "name": "Gaza War",
+        "category": "World",
+        "percent": 6.2,
+        "arguments": [
+          "Israel War Crimes: Israel's actions in Gaza are genocidal",
+          "Israel War Crimes: Israel's war on Gaza is alarming and worrisome",
+          "Israel War Crimes: Israel is responsible for killing civilians in Gaza",
+          "Zionism Condemned: Zionism inflicts harm on Palestinians and Arabs",
+          "Zionism Condemned: Zionism is used to justify violence and ethnic cleansing"
+        ],
+        "disagreement": "Israel War Crimes (56%) says Israel commits war crimes in Gaza. Zionism Condemned (44%) says Zionism is racist."
+      },
+      {
+        "name": "Manchester City",
+        "category": "Sports",
+        "percent": 3.8,
+        "arguments": [
+          "City Guilt: City's hypocrisy is evident in their cheating",
+          "City Guilt: City is trying to whip up a PR campaign",
+          "City Guilt: The Premier League's credibility is undermined by City's breaches",
+          "City Guilt: City's guilt sparks calls for severe sanctions",
+          "City Guilt: The football authorities are not ready for the backlash against City",
+          "City Condemned: City's spending harms other clubs"
+        ],
+        "disagreement": "City Guilt (43.9%) says Manchester City is guilty of breaches. City Condemned (29.3%) says City is criticized for financial dealings. Premier League Cheating (26.8%) says Cheating undermines the Premier League."
+      },
+      {
+        "name": "Trump Iran Oil War",
         "category": "Business",
-        "percent": 5.7,
+        "percent": 3.3,
         "arguments": [
-          "No Diesel Ban: Europe's diesel reserves help maintain readiness",
-          "No Diesel Ban: Diesel prices will remain elevated",
-          "Oil Release: G7 nations release oil reserves"
+          "Fuel Price Impact: Trump's fuel economy rollback increases long-term risk",
+          "Fuel Price Impact: High gas prices benefit US oil companies and Trump regime insiders",
+          "Diesel Crisis: Diesel prices are unstable",
+          "Trump Causes Inflation: Trump's strong-arming causes price increases",
+          "Trump Causes Inflation: Trump's policies are ineffective and raise prices",
+          "Trump Causes Inflation: Trump's actions lose Republican votes"
         ],
-        "disagreement": "No Diesel Ban (61.9%) says the US will not ban diesel exports. Oil Release (38.1%) says G7 nations release oil reserves."
+        "disagreement": "Fuel Price Impact (43.4%) says Trump's policies affect fuel prices. Diesel Crisis (33.3%) says Diesel prices are unstable. Trump Causes Inflation (23.3%) says Trump's actions increase oil prices."
       },
       {
-        "name": "Ukraine War",
-        "category": "World",
-        "percent": 5.2,
+        "name": "OpenAI GPT-6.1 Astra",
+        "category": "Technology",
+        "percent": 2.0,
         "arguments": [
-          "Ukraine should fight back against Russia",
-          "Ukraine is making gains against Russia",
-          "Ukraine's strategy is sound",
-          "Russia plans to attack Ukraine"
+          "AI Model Delayed: OpenAI scraps AI model release over safety concerns",
+          "Openai Anthropic Models: OpenAI's models may be insane",
+          "Openai Anthropic Models: The claim centers on reinforcement and actually."
         ],
-        "disagreement": "The posts share one claim: Ukraine resists Russian aggression."
-      },
-      {
-        "name": "Cornell Rape Case",
-        "category": "Politics",
-        "percent": 5.0,
-        "arguments": [
-          "Rape Culture: Colleges foster rape culture",
-          "Rape Culture: Rape apologists are prevalent",
-          "Cornell Rape Case: The punishment for attempted sexual exploitation at Cornell was too lenient",
-          "Cornell Rape Case: The Cornell case is part of a larger culture of rape and privilege"
-        ],
-        "disagreement": "Rape Culture (66.7%) says Rapists are being sympathized with. Cornell Rape Case (33.3%) says Trump supports Cornell rape suspects."
-      },
-      {
-        "name": "Iran War",
-        "category": "World",
-        "percent": 3.0,
-        "arguments": [
-          "Iran War: US is pushing for an Iraq-style invasion of Iran",
-          "Iran War: US actions may lead to a long-term conflict with Iran",
-          "Iran War: US is trying to provoke Iran into a war",
-          "Iran Conflict: US is preparing for strikes against Iran",
-          "Iran Conflict: Iran is planning to expand potential targets"
-        ],
-        "disagreement": "Iran War (80%) says US may invade Iran. Iran Conflict (20%) says US and Iran may engage in conflict."
+        "disagreement": "AI Model Delayed (86.1%) says OpenAI scraps AI model release over safety concerns. Openai Anthropic Models (13.9%) says AI models may be flawed."
       }
     ]
   }

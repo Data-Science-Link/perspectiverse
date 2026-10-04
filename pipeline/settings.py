@@ -16,6 +16,9 @@ EXAMPLE_PATH = ROOT / "config" / "pipeline.example.yaml"
 LOCAL_PATH = ROOT / "config" / "pipeline.yaml"
 DEFAULT_DEEPINFRA_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
+# Example posts kept on each perspective in the published snapshot.
+EXAMPLE_POST_CAP = 36
+
 DEFAULTS: dict[str, Any] = {
     "window_hours": 168,
     "refresh_hours": 24,
@@ -26,7 +29,7 @@ DEFAULTS: dict[str, Any] = {
     "label_backend": "auto",
     "ollama_model": "llama3.2",
     "openai_model": "gpt-4o-mini",
-    "representative_posts": 12,
+    "representative_posts": EXAMPLE_POST_CAP,
     "language": "en",
     "seed": 0,
     "catalog_size": 10,

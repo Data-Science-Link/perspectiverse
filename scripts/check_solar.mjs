@@ -5,6 +5,7 @@ import { TEXTURE_QUALITY, textureSize } from '../src/lib/planetTextures.js'
 import {
   bodyExtent,
   homeLookAt,
+  layoutLinear,
   layoutSolarSystem,
   orbitElements,
   orbitRadius,
@@ -76,5 +77,20 @@ for (const isMobile of [false, true]) {
 const tilts = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => orbitElements(index, false, `topic-${index}`).inclination)
 assert.ok(Math.max(...tilts) - Math.min(...tilts) > 0.8, 'orbital planes should not all hug the equator')
 assert.ok(tilts.some((tilt) => Math.abs(tilt - Math.PI / 2) < 0.65), 'at least one orbit should sit near a right angle')
+
+const line = layoutLinear(topics, volumeMax)
+assert.equal(line.mode, 'linear')
+assert.equal(line.positions.length, topics.length)
+for (let index = 1; index < line.positions.length; index += 1) {
+  assert.ok(line.positions[index][0] > line.positions[index - 1][0], 'linear layout runs largest to smallest, left to right')
+  assert.equal(line.positions[index][1], 0)
+  assert.equal(line.positions[index][2], 0)
+}
+assert.ok(line.positions[0][0] < 0 && line.positions[line.positions.length - 1][0] > 0, 'the line is centered on the origin')
+for (const isMobile of [false, true]) {
+  const framed = homeLookAt(isMobile, topics.length, line.extent, { linear: true })
+  const distance = Math.hypot(framed[0], framed[1], framed[2])
+  assert.ok(distance > line.extent * 0.8, `linear camera too close on ${isMobile}`)
+}
 
 console.log('solar system settings, tagline, and texture quality ok')

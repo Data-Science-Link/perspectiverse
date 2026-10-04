@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-from pipeline.live import posts_for_planets, run_live
+from pipeline.live import posts_for_planets, publish_volumes, run_live
 from pipeline.run_pipeline import main
 from pipeline.schema import validate_payload
 from tests.corpus import build_tiny_posts
@@ -54,6 +54,18 @@ def test_live_fixture_writes_contract(tmp_path):
     assert all(len(topic["perspectives"][0].get("arguments") or []) >= 2 for topic in payload["topics"])
     assert all(topic["name"] for topic in payload["topics"])
     assert all(topic.get("brief") and topic.get("detail") for topic in payload["topics"])
+    assert all(topic.get("post_count", 0) > 0 for topic in payload["topics"])
+    assert all(
+        sum(face.get("post_count", 0) for face in topic["perspectives"]) == topic["post_count"]
+        for topic in payload["topics"]
+    )
+    for topic in payload["topics"]:
+        for face in topic["perspectives"]:
+            shown = face["representative_posts"]
+            assert shown
+            assert all(post.get("match") is not None for post in shown)
+            matches = [post["match"] for post in shown]
+            assert matches == sorted(matches, reverse=True)
     assert payload["digest"]["planets"]
     assert payload["digest"]["planets"][0]["disagreement"]
 
@@ -520,4 +532,14 @@ def test_section_columns_round_trip(tmp_path):
     assert loaded[0]["section"] == "World"
     assert loaded[0]["section_confidence"] == 0.81
     assert loaded[0]["spam_score"] == 0.05
+
+
+def test_planet_volume_follows_the_posts_still_on_it():
+    topics = [
+        {"name": "Small", "post_count": 4, "total_volume_percent": 14.1},
+        {"name": "Large", "post_count": 84, "total_volume_percent": 6.2},
+    ]
+    publish_volumes(topics)
+    assert topics[1]["total_volume_percent"] > topics[0]["total_volume_percent"]
+    assert abs(sum(topic["total_volume_percent"] for topic in topics) - 100) < 0.15
 

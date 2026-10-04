@@ -56,8 +56,8 @@ function WelcomePanel({
         />
         <p className="mobile-prompt">
           Drag the solar system to look around. Bigger planets are what more people talked
-          about this week. Tap one to open its opinions — the longest, darkest
-          spike is the most common view.
+          about this week. Tap one to open its opinions — the longest bar
+          is the most common view.
         </p>
         <div className="planet-rail" aria-label="Today's planets">
           {topics.map((topic) => (
@@ -91,8 +91,8 @@ function WelcomePanel({
       )}
       <p className="lede">
         A week of public conversation as a solar system. Bigger planets got more
-        attention. Open one to see the main opinions — the longest, darkest
-        spike is the most common view, and lighter faces are smaller views. That is
+        attention. Open one to see the main opinions — the longest bar
+        is the most common view, and shorter bars are smaller views. That is
         where yours stacks up.
       </p>
       <div className="stat-grid">
@@ -172,9 +172,8 @@ function TopicPanel({
       <p className="lede">
         This planet is {formatPercent(topic.total_volume_percent)} of the attention
         among the planets in view — those shares always add up to 100%. That is
-        attention, not importance. Each spike below is a real opinion. Length shows
-        how many posts sat there, and a darker shade is the more common view. A
-        dashed face has no perspective.
+        attention, not importance. Each bar below is a real opinion. Length shows
+        how many posts sat there. A longer bar is the more common view.
       </p>
       <MiniCube
         topic={topic}
@@ -239,7 +238,7 @@ function PerspectivePanel({
         <section className="argument-card">
           <h2>Core arguments</h2>
           <p className="topic-row-meta">
-            A steelman of this view — the strongest version of what these posts are saying.
+            The strongest version of what these posts are saying.
           </p>
           <ul>
             {argumentsList.map((item) => (
@@ -255,18 +254,18 @@ function PerspectivePanel({
         {ranked.length === 1 ? (
           <>
             <strong>One view</strong>
-            <span>The posts kept on this planet share this claim. A second spike appears when another large view is actually different.</span>
+            <span>The posts kept on this planet share this claim. A second bar appears when another large view is actually different.</span>
           </>
         ) : (
           <>
             <strong>{formatPercent(perspective.volume_percent)}</strong>
-            <span>of this planet&apos;s conversation — darkest and longest if this is the most common view, lighter if fewer posts sat here</span>
+            <span>of this planet&apos;s conversation — longest if this is the most common view, shorter if fewer posts sat here</span>
           </>
         )}
       </div>
       <div className="post-feed">
         <h2>Example posts</h2>
-        <p className="topic-row-meta">Posts from this view, sorted by likes — the raw talk behind the steelman.</p>
+        <p className="topic-row-meta">Posts from this view, sorted by likes — the talk behind the summary.</p>
         {posts.map((post) => (
           <article key={`${post.author}-${post.likes}-${post.text.slice(0, 24)}`} className="post-card">
             <header>

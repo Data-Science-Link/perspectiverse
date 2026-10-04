@@ -306,3 +306,13 @@ def distances_to_centers(matrix: np.ndarray, labels: np.ndarray, centers: np.nda
         delta = matrix[row] - centers[int(label)]
         values.append(float(np.dot(delta, delta)))
     return values
+
+
+def cosines_to_centers(matrix: np.ndarray, labels: np.ndarray, centers: np.ndarray) -> list[float]:
+    """Cosine of each row to its cluster center. Reuses the matrix already clustered."""
+    labels = np.asarray(labels, dtype=int)
+    assigned = centers[labels]
+    numer = np.einsum("ij,ij->i", matrix, assigned)
+    denom = np.linalg.norm(matrix, axis=1) * np.linalg.norm(assigned, axis=1)
+    denom = np.where(denom == 0, 1.0, denom)
+    return [float(value) for value in numer / denom]

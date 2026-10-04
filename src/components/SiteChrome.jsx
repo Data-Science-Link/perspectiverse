@@ -22,6 +22,7 @@ export default function SiteChrome({
   backLabel = 'Back',
   onBack,
   onOpenMenu,
+  onUniverse,
 }) {
   return (
     <header className="site-chrome">
@@ -50,11 +51,16 @@ export default function SiteChrome({
           <p className={`site-chrome-sub ${tagline ? 'is-tagline' : ''}`}>{subtitle}</p>
         )}
       </div>
-      {drilled && (
-        <button type="button" className="icon-btn" onClick={onOpenMenu} aria-label="Open menu">
-          <MenuIcon />
+      <div className="chrome-actions">
+        <button type="button" className="icon-btn chrome-universe" onClick={onUniverse}>
+          Universe
         </button>
-      )}
+        {drilled && (
+          <button type="button" className="icon-btn" onClick={onOpenMenu} aria-label="Open menu">
+            <MenuIcon />
+          </button>
+        )}
+      </div>
     </header>
   )
 }

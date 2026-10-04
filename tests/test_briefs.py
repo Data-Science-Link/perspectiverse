@@ -1,4 +1,4 @@
-from pipeline.briefs import apply_level_summaries, assemble_email, at_most_four, sentences
+from pipeline.briefs import apply_level_summaries, assemble_email, sentences
 
 
 def _topic():
@@ -36,15 +36,43 @@ def _topic():
     }
 
 
-def test_level_summaries_stay_within_four_sentences_and_name_the_split():
+def test_level_summaries_are_three_to_five_sentences_and_three_paragraphs():
     topic = apply_level_summaries(_topic())
-    assert 1 <= len(sentences(topic["brief"])) <= 4
-    assert "\n\n" in topic["detail"]
+    assert 3 <= len(sentences(topic["brief"])) <= 5
+    assert len([part for part in topic["detail"].split("\n\n") if part.strip()]) == 3
     assert "Oil Release" in topic["detail"]
     face = topic["perspectives"][0]
-    assert len(sentences(face["brief"])) <= 4
+    assert 3 <= len(sentences(face["brief"])) <= 5
+    assert len([part for part in face["detail"].split("\n\n") if part.strip()]) == 3
     assert "Gulf Coast" in face["detail"]
-    assert at_most_four(face["brief"]) == face["brief"]
+    blob = f"{topic['brief']} {face['brief']} {topic['detail']}"
+    assert "That is the position" not in blob
+    assert "is the claim these posts repeat" not in blob
+
+
+def test_short_brief_does_not_paste_a_post():
+    topic = {
+        "name": "Voting",
+        "perspectives": [
+            {
+                "title": "Voting Issues",
+                "summary": "Voting process is flawed",
+                "arguments": ["The claim centers on reinforcement and actually."],
+                "representative_posts": [
+                    {
+                        "author": "ada",
+                        "text": "More to add because this election season is completely unlike the summary itself.",
+                        "likes": 3,
+                    }
+                ],
+            }
+        ],
+    }
+    apply_level_summaries(topic)
+    brief = topic["perspectives"][0]["brief"]
+    assert "completely unlike" not in brief
+    assert "and actually" not in brief
+    assert "Voting process is flawed" in brief
 
 
 def test_email_lists_planets_with_arguments_and_the_disagreement():

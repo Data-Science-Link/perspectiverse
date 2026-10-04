@@ -56,11 +56,14 @@ test.describe('Perspectiverse views', () => {
       await expect(page.getByRole('region', { name: 'This week' })).toBeVisible()
       await expect(page.getByText('Filter topics', { exact: true }).first()).toBeVisible()
     }
+    await expect(page.locator('.observatory').getByText('Filter topics', { exact: true })).toBeVisible()
+    await expect(page.locator('.observatory').getByLabel('Choose which topics fill the solar system')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Linear' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Show orbit lines' })).toBeVisible()
     const observatoryCanvas = page.locator('.observatory canvas')
     await expect(observatoryCanvas).toBeVisible()
     if (testInfo.project.name === 'mobile') {
-      await expect(page.getByRole('button', { name: 'Artists Reject AI' }).first()).toBeVisible()
+      await expect(page.locator('.observatory .planet-label').first()).toBeVisible()
     }
 
     if (testInfo.project.name !== 'mobile') {
@@ -97,9 +100,14 @@ test.describe('Perspectiverse views', () => {
 
     await page.getByRole('button', { name: 'Show orbit lines' }).click()
     await expect(page.getByRole('button', { name: 'Hide orbit lines' })).toBeVisible()
+    await page.getByRole('button', { name: 'Linear' }).click()
+    await expect(page.getByRole('button', { name: 'Orbits' })).toBeVisible()
+    await expect(page.getByText('Largest to smallest')).toBeVisible()
+    await page.getByRole('button', { name: 'Orbits' }).click()
+    await expect(page.getByRole('button', { name: 'Linear' })).toBeVisible()
 
     if (testInfo.project.name === 'mobile') {
-      await page.getByRole('button', { name: 'Artists Reject AI' }).first().click()
+      await page.locator('.observatory .planet-label').first().click({ force: true })
     }
     await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
@@ -128,10 +136,32 @@ test.describe('Perspectiverse views', () => {
     await enterSolarSystem(page)
 
     if (testInfo.project.name === 'mobile') {
-      await page.getByRole('button', { name: 'Artists Reject AI' }).first().click()
+      await page.locator('.observatory .planet-label').first().click({ force: true })
     } else {
       await page.getByRole('button', { name: 'Perspectives' }).click()
     }
+    const perspectiveBars = page.locator('.reading-screen .bar-name')
+    await expect.poll(async () => perspectiveBars.count()).toBeGreaterThan(0)
+    const perspectiveCount = await perspectiveBars.count()
+    expect(perspectiveCount).toBeLessThanOrEqual(6)
+    const shares = await perspectiveBars.locator('strong').allInnerTexts()
+    if (perspectiveCount > 1) {
+      expect(shares.some((share) => share !== '100.0%')).toBe(true)
+    }
+    const labels = await page.locator('.reading-screen .bar-label').allInnerTexts()
+    for (const label of labels) {
+      const words = label.toLowerCase().split(/\s+/).filter(Boolean)
+      for (let index = 1; index < words.length; index += 1) {
+        expect(words[index]).not.toBe(words[index - 1])
+      }
+    }
+    await expect(page.locator('.reading-screen')).not.toContainText(/that is the position in the posts/i)
+    await expect(page.locator('.reading-screen')).not.toContainText(/is the claim these posts repeat/i)
+    await expect(page.locator('.reading-screen')).not.toContainText(/hope many people will fill/i)
+    const briefText = await page.locator('.reading-brief').innerText()
+    const briefSentences = briefText.split(/[.!?]+/).map((part) => part.trim()).filter(Boolean)
+    expect(briefSentences.length).toBeGreaterThanOrEqual(1)
+    expect(briefSentences.length).toBeLessThanOrEqual(5)
     await expect(page.getByRole('button', { name: '← All topics' }).or(page.getByRole('button', { name: '← Back to the solar system' }))).toBeVisible()
     if (testInfo.project.name === 'mobile') {
       await expect(page.getByRole('banner').getByText('Back', { exact: true })).toBeVisible()
@@ -139,7 +169,20 @@ test.describe('Perspectiverse views', () => {
     await page.locator('.bar-name').nth(0).click()
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
     await page.getByRole('button', { name: 'Read more …' }).click()
-    await expect(page.locator('.reading-detail p').first()).toBeVisible()
+    await expect(page.locator('.reading-detail p')).toHaveCount(3)
+    await expect(page.locator('.reading-brief')).toBeVisible()
+    if (testInfo.project.name === 'mobile') {
+      await expect(page.getByRole('button', { name: 'Back to the planet' })).toBeVisible()
+      await expect(page.locator('.reading-band')).toHaveCount(0)
+      await page.getByRole('button', { name: 'Back to the planet' }).click()
+      await expect(page.locator('.reading-band')).toHaveCount(3)
+      const previewCount = await page.locator('.reading-band .post-card').count()
+      await page.getByRole('button', { name: 'See all posts' }).click()
+      await expect(page.getByRole('button', { name: 'Back to the planet' })).toBeVisible()
+      await expect.poll(async () => page.locator('.reading-sheet .post-card').count()).toBeGreaterThanOrEqual(previewCount)
+      await page.getByRole('button', { name: 'Back to the planet' }).click()
+      await expect(page.locator('.reading-band')).toHaveCount(3)
+    }
     await page.getByRole('button', { name: 'Email' }).click()
     await expect(page.getByRole('article', { name: 'Weekly email' })).toBeVisible()
     await expect(page.getByRole('heading', { name: /This week/ })).toBeVisible()
@@ -173,6 +216,16 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByText('Bluesky public search')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Sample a week of talk' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Find neighborhoods in the words' })).toBeVisible()
+    await expect(page.getByText('Longest bar = most common')).toBeVisible()
+    await expect(page.locator('.site-page')).not.toContainText(/spike/i)
+    await expect(page.locator('.site-page')).not.toContainText(/steelman/i)
+    await expect(page.locator('.site-page')).not.toContainText(/\bcube\b/i)
+
+    await page.getByRole('banner').getByRole('button', { name: 'Universe' }).click()
+    await expect(page).not.toHaveURL(/page=/)
+    await expect(page.locator('.observatory canvas')).toBeVisible()
+    await page.getByRole('button', { name: 'Open menu' }).click()
+    await page.getByRole('dialog', { name: 'Perspectiverse' }).getByRole('button', { name: /Methodology/ }).click()
 
     await page.getByRole('button', { name: 'Next: FAQ' }).click()
     await expect(page).toHaveURL(/page=faq/)
@@ -188,6 +241,40 @@ test.describe('Perspectiverse views', () => {
     await page.getByRole('button', { name: 'Back to the solar system' }).click()
     await expect(page).not.toHaveURL(/page=/)
     await expect(page.locator('.observatory canvas')).toBeVisible()
+  })
+
+  test('each planet shows its own post count and Universe returns to the solar system', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('perspectiverse.hide-welcome', '1')
+    })
+    await page.goto('/')
+    await enterSolarSystem(page)
+
+    const universe = page.getByRole('banner').getByRole('button', { name: 'Universe' })
+    await expect(universe).toBeVisible()
+    const labels = page.locator('.observatory .planet-label')
+    await expect(labels.nth(1)).toBeVisible()
+    const secondName = (await labels.nth(1).innerText()).trim()
+
+    await labels.nth(0).click({ force: true })
+    const eyebrow = page.locator('.reading-screen .eyebrow')
+    await expect(eyebrow).toBeVisible()
+    const firstCount = (await eyebrow.innerText()).trim()
+    expect(firstCount).toMatch(/\d[\d,]* posts/i)
+    expect(firstCount).not.toMatch(/2,805 posts/i)
+
+    await universe.click()
+    await expect(page).not.toHaveURL(/topic=/)
+    await expect(page.locator('.observatory canvas')).toBeVisible()
+
+    await page.locator('.observatory .planet-label', { hasText: secondName }).first().click({ force: true })
+    const secondCount = (await page.locator('.reading-screen .eyebrow').innerText()).trim()
+    expect(secondCount).toMatch(/\d[\d,]* posts/i)
+    expect(secondCount).not.toEqual(firstCount)
+
+    await universe.click()
+    await expect(page.locator('.observatory canvas')).toBeVisible()
+    await expect(page.locator('.reading-screen .back-link')).toHaveCount(0)
   })
 
   test('site pages load from the URL without the welcome tour', async ({ page }) => {

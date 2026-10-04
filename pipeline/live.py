@@ -24,6 +24,7 @@ from pipeline.corpus import (
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
+from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
     content_tokens,
     label_perspective,
@@ -316,17 +317,25 @@ def _build_topics(
         for position, (face, face_volume) in enumerate(ordered_faces):
             face_posts = [members[index] for index in face["member_indices"]]
             face_distances = [split["distances"][index] for index in face["member_indices"]]
-            representatives = select_representatives(face_posts, face_distances, limit=limit)
+            face_cosines = [split["cosines"][index] for index in face["member_indices"]]
+            representatives = select_representatives(
+                face_posts, face_distances, limit=limit, matches=face_cosines
+            )
             label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
             arguments = label.get("arguments") or []
             title = str(label.get("title") or "")
             on_claim = [
-                post
-                for post in face_posts
+                (post, score)
+                for post, score in zip(face_posts, face_cosines)
                 if shares_claim_word(str(post.get("text") or post.get("clean_text") or ""), title)
             ]
             if len(on_claim) >= 3:
-                representatives = select_representatives(on_claim, [0.0] * len(on_claim), limit=limit)
+                representatives = select_representatives(
+                    [post for post, _score in on_claim],
+                    [0.0] * len(on_claim),
+                    limit=limit,
+                    matches=[score for _post, score in on_claim],
+                )
             focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
             representatives = _align_representatives(representatives, focus)
             summary = _without_ungrounded_tail(str(label.get("summary") or ""), representatives)
@@ -340,7 +349,7 @@ def _build_topics(
                     "label_source": "heuristic",
                 }
                 arguments = []
-            elif len(representatives) < 3 or not _posts_share_a_subject(representatives):
+            elif len(representatives) < 2 or not _posts_share_a_subject(representatives):
                 label = {
                     "title": "Mixed remarks",
                     "summary": "These posts do not share a claim.",
@@ -387,6 +396,7 @@ def _build_topics(
         perspectives = []
         for position, ((perspective, rows, _size), volume) in enumerate(zip(drafted, face_volumes)):
             perspective["volume_percent"] = volume
+            perspective["post_count"] = int(_size)
             perspective["id"] = face_id(topic_id, position)
             perspectives.append(perspective)
             for uri, _topic_id, _position, distance in rows:
@@ -402,20 +412,30 @@ def _build_topics(
             "name": name,
             "category": category_for_members(name, terms, member_texts, members),
             "total_volume_percent": volume,
+            "post_count": sum(int(item[2]) for item in drafted),
             "perspectives": perspectives,
         }
         apply_level_summaries(planet, generate=summary_model)
         built.append(planet)
-        _dedupe_labels(built)
+        _dedupe_labels(built, limit)
     built = _drop_unshared_planets(built)
     if keep is not None:
         built = built[: max(int(keep), 1)]
-    if built:
-        # Volumes were shares of the pre-drop set. Rebalance after a mixed planet leaves.
-        sizes = [max(topic.get("total_volume_percent") or 0, 0.1) for topic in built]
-        for topic, volume in zip(built, to_percents(sizes)):
-            topic["total_volume_percent"] = volume
+    publish_volumes(built)
     return _renumber_planets(built, membership, face_rows)
+
+
+def publish_volumes(topics: list[dict]) -> None:
+    """Planet size is the posts still on the planet.
+
+    A mixed face can leave a cluster, and the old share of that larger cluster
+    must not keep a four-post planet the same size as one with dozens.
+    """
+    if not topics:
+        return
+    sizes = [max(int(topic.get("post_count") or 0), 1) for topic in topics]
+    for topic, volume in zip(topics, to_percents(sizes)):
+        topic["total_volume_percent"] = volume
 
 
 def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> list[dict]:
@@ -552,14 +572,16 @@ def _posts_share_a_subject(posts: list[dict]) -> bool:
 
 
 def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
-    """Show posts that use the claim's words. Likes break a tie."""
+    """Show posts that use the claim's words. Closest embedding, then likes."""
     from pipeline.label import content_tokens
 
     focus_tokens = content_tokens(focus)
 
     def sort_key(post: dict) -> tuple:
         overlap = len(content_tokens(str(post.get("text") or "")) & focus_tokens)
-        return (-overlap, -int(post.get("likes") or 0))
+        match = post.get("match")
+        match_key = -float(match) if match is not None else 0.0
+        return (match_key, -overlap, -int(post.get("likes") or 0))
 
     ranked = sorted(posts, key=sort_key)
     matched = [post for post in ranked if shares_claim_word(str(post.get("text") or ""), focus)]
@@ -611,18 +633,21 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
             print(f"Dropping {topic.get('name')}: the posts do not share a claim.")
             continue
         topic["perspectives"] = faces
+        counts = [int(face.get("post_count") or 0) for face in faces]
+        if any(counts):
+            topic["post_count"] = sum(counts)
         kept.append(topic)
     return kept
 
 
-def _dedupe_labels(topics: list[dict]) -> None:
+def _dedupe_labels(topics: list[dict], post_limit: int = EXAMPLE_POST_CAP) -> None:
     seen: set[str] = set()
     for topic in topics:
         topic["name"] = unique_label(str(topic.get("name") or ""), seen)
-        _merge_alike_faces(topic)
+        _merge_alike_faces(topic, post_limit)
 
 
-def _merge_alike_faces(topic: dict) -> None:
+def _merge_alike_faces(topic: dict, post_limit: int = EXAMPLE_POST_CAP) -> None:
     """Fold a second face into the larger one when the titles are the same stance.
 
     Numbering a duplicate ("Pro Ukraine 2") was presenting one view as two.
@@ -638,6 +663,7 @@ def _merge_alike_faces(topic: dict) -> None:
             kept.append(face)
             continue
         match["volume_percent"] = float(match.get("volume_percent") or 0) + float(face.get("volume_percent") or 0)
+        match["post_count"] = int(match.get("post_count") or 0) + int(face.get("post_count") or 0)
         seen_text = {str(post.get("text") or "") for post in match.get("representative_posts") or []}
         posts = list(match.get("representative_posts") or [])
         for post in face.get("representative_posts") or []:
@@ -645,8 +671,13 @@ def _merge_alike_faces(topic: dict) -> None:
                 continue
             posts.append(post)
             seen_text.add(str(post.get("text") or ""))
-        posts.sort(key=lambda post: -int(post.get("likes") or 0))
-        match["representative_posts"] = posts[:12]
+        posts.sort(
+            key=lambda post: (
+                -(float(post["match"]) if post.get("match") is not None else 0.0),
+                -int(post.get("likes") or 0),
+            )
+        )
+        match["representative_posts"] = posts[: max(int(post_limit), 1)]
     topic_id = int(topic["id"])
     topic["perspectives"] = [
         {**face, "id": face_id(topic_id, position)}

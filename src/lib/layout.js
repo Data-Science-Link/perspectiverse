@@ -61,6 +61,30 @@ export function layoutSolarSystem(topics = [], volumeMax = 100) {
   }
 }
 
+export function layoutLinear(topics = [], volumeMax = 100) {
+  const gap = 1.7
+  const specs = topics.map((topic, index) => {
+    const scale = topicScale(topic.total_volume_percent, volumeMax)
+    const sun = index === 0 || topic.body?.key === 'sun'
+    const rings = Boolean(topic.body?.rings)
+    return { extent: bodyExtent(scale, { sun, rings }) }
+  })
+  let cursor = 0
+  const centers = []
+  for (const spec of specs) {
+    centers.push(cursor + spec.extent)
+    cursor += spec.extent * 2 + gap
+  }
+  const width = Math.max(cursor - gap, 0)
+  const shift = width / 2
+  const positions = centers.map((center) => [center - shift, 0, 0])
+  return {
+    positions,
+    extent: width / 2 + LABEL_PAD,
+    mode: 'linear',
+  }
+}
+
 export function orbitsClear(layout) {
   const { items = [], radii = [] } = layout ?? {}
   for (let i = 0; i < items.length; i += 1) {
@@ -78,18 +102,26 @@ export function systemExtent(planetCount = 10, layoutExtent = null) {
   return orbitRadius(outerIndex, false) + SUN_HALO_RADIUS * 2.3 + LABEL_PAD
 }
 
-export function homeLookAt(isMobile = false, planetCount = 10, layoutExtent = null) {
+export function homeLookAt(isMobile = false, planetCount = 10, layoutExtent = null, options = {}) {
   const extent = systemExtent(planetCount, layoutExtent)
   const fov = isMobile ? 48 : 42
   const half = (fov * Math.PI) / 360
+  if (options.linear) {
+    const aspect = isMobile ? 0.58 : 1.2
+    const horizontalHalf = Math.atan(Math.tan(half) * aspect)
+    const distance = (extent / Math.tan(horizontalHalf)) * (isMobile ? 1.12 : 1.06)
+    const y = distance * 0.22
+    const z = Math.sqrt(Math.max(distance * distance - y * y, 1))
+    return [0, y, z, 0, 0, 0]
+  }
   const distance = (extent / Math.sin(half)) * (isMobile ? 1.04 : 1.0)
   const y = distance * (isMobile ? 0.26 : 0.32)
   const z = Math.sqrt(Math.max(distance * distance - y * y, 1))
   return [0, y, z, 0, 0, 0]
 }
 
-export function homeMaxDistance(isMobile = false, planetCount = 10, layoutExtent = null) {
-  const [x, y, z] = homeLookAt(isMobile, planetCount, layoutExtent)
+export function homeMaxDistance(isMobile = false, planetCount = 10, layoutExtent = null, options = {}) {
+  const [x, y, z] = homeLookAt(isMobile, planetCount, layoutExtent, options)
   return Math.hypot(x, y, z) * 1.35
 }
 
@@ -223,5 +255,13 @@ export function withSharePercents(topics = []) {
 }
 
 export function sortPosts(posts = []) {
-  return [...posts].sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0))
+  return [...posts].sort((a, b) => {
+    const aMatch = a.match == null ? null : Number(a.match)
+    const bMatch = b.match == null ? null : Number(b.match)
+    if (aMatch != null || bMatch != null) {
+      const delta = (bMatch ?? -1) - (aMatch ?? -1)
+      if (delta !== 0) return delta
+    }
+    return (b.likes ?? 0) - (a.likes ?? 0)
+  })
 }
