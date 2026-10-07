@@ -133,3 +133,9 @@ Append-only. Newest at the bottom.
 - **Why:** Keeps the "update onto latest main right before merge" guarantee when the ruleset itself is bypassed.
 - **Alternatives:** Remove the review requirement; a separate bot account to approve.
 - **Revisit when:** PRs come from an account that can be approved, or a merge queue is adopted.
+
+### 2026-10-07 — Pages follows a successful daily pipeline via workflow_run (#70)
+- **Decision:** `pages.yml` triggers on `workflow_run` completion of `Daily Discourse Pipeline`, and the build job runs only when that conclusion is `success` (deploy `needs: build`, so a skip skips the deploy). Checkout stays unset, so a `workflow_run` deploy builds the default branch (`main`), then overlays `public/data.json` from `data-snapshot`. Existing `push`, `workflow_dispatch`, and the `pages` concurrency group stay.
+- **Why:** The pipeline pushes `data-snapshot` with `GITHUB_TOKEN`, which does not start `push` workflows, so new snapshots never auto-deployed. `workflow_run` does run after that, and its `GITHUB_REF` is `main`, which is the only branch the `github-pages` environment allows.
+- **Alternatives:** A final `gh workflow run` step in `pipeline.yml` (touches the pipeline and needs `actions: write`). A PAT push so the `data-snapshot` push trigger fires (that ref is not allowed to deploy to `github-pages`).
+- **Revisit when:** The Pages environment branch policy changes, or the pipeline stops publishing `data-snapshot`.
