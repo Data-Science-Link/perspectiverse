@@ -37,3 +37,15 @@ Append-only. Newest at the bottom.
 - **Why:** Provides a durable, agent-readable process layer without touching product/app code. Agents can orient from `.factory/DOCS.md` → real repo files rather than rediscovering paths each session.
 - **Alternatives:** Keep process in chat only; use a separate process repo.
 - **Revisit when:** The repo gains a second sub-package or a dedicated docs site that changes the path map in `DOCS.md`.
+
+### 2026-10-06 — Liability gates + contributor sketches
+- **Decision:** Add `skills/liability-gates.md` and portable sketches (`CONTRIBUTING.md`, PR template, CODEOWNERS example) under `.factory/sketches/`. Factory-loop must follow liability-gates. Not legal advice; does not eliminate liability.
+- **Why:** Light-review public factories need machine-readable hard stops (secrets, license, CI, over-claims) and copy-paste diligence artifacts.
+- **Alternatives:** Repo-only ad hoc docs; no agent-enforced gates.
+- **Revisit when:** Counsel provides project-specific terms, or CLA is chosen over DCO.
+
+### 2026-10-06 — Always sync latest main before factory work
+- **Decision:** Factory skills require fetching/updating onto the current default branch before branching or continuing work; cloud agents may have a slightly stale main.
+- **Why:** Avoid PRs based on outdated tips and painful rebase conflicts.
+- **Alternatives:** Hope the agent environment is fresh; only sync when conflicts appear.
+- **Revisit when:** Agent harnesses guarantee up-to-date default branch at start.
