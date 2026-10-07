@@ -84,7 +84,18 @@ The public dropdown is a newspaper: **World, Politics, Business, Technology, Spo
 
 ## Publish
 
-The daily workflow (06:00 UTC, plus `workflow_dispatch`) runs `--live`. It does not commit to `main`. It uploads `data.json` and `live_corpus.db` as artifacts. `data.json` is pushed to `data-snapshot`, which Pages overlays at build time. When the R2 secrets are set, `live_corpus.db` is uploaded to the private bucket and removed from that branch. Until the secrets exist, the SQLite file is still committed to `data-snapshot`.
+The daily workflow runs `--live` and publishes a new snapshot. It does not commit to `main`. It uploads `data.json` and `live_corpus.db` as artifacts. `data.json` is pushed to `data-snapshot`, which Pages overlays at build time. When the R2 secrets are set, `live_corpus.db` is uploaded to the private bucket and removed from that branch. Until the secrets exist, the SQLite file is still committed to `data-snapshot`.
+
+### When the pipeline triggers
+
+| Trigger | What happens | LLM spend |
+| --- | --- | --- |
+| Cron 06:00 UTC | Full live pipeline — Bluesky fetch, Jev decisions on new posts only, embed, cluster, label, publish | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
+| Push to `main` — pipeline code changed (`pipeline/**`, `pyproject.toml`, `uv.lock`, `.github/workflows/pipeline.yml`) | Same full live pipeline | Same as cron |
+| Push to `main` — site-only files (frontend, `pipeline/README.md`, `pipeline/data/**`, docs) | `pages.yml` redeploy only — no pipeline run, no LLM spend | None |
+| `workflow_dispatch` | Full live pipeline | Same as cron |
+
+**Same-UTC-day reruns are idempotent on fetching:** `live.py` records each fetched UTC date in `fetched_days` and returns the retained corpus unchanged if that day is already present. **Jev only scores new posts:** `jev.py` skips any post that already has a `section` field, so existing posts are never re-classified. R2 and `data-snapshot` writes are serialised by a workflow-level `concurrency: discourse-pipeline` group (cancel-in-progress: false) so runs never overlap.
 
 ## Retained corpus in Cloudflare R2
 
