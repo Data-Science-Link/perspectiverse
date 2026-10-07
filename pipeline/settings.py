@@ -33,6 +33,10 @@ DEFAULTS: dict[str, Any] = {
     "language": "en",
     "seed": 0,
     "catalog_size": 10,
+    # Planets labeled at once when a network label backend is on.
+    "label_workers": 8,
+    # Minutes the section solar systems may spend after the global system.
+    "section_budget_minutes": 15,
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
 }
 
@@ -58,6 +62,8 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
         settings["cluster_backend"] = os.environ["PERSPECTIVERSE_CLUSTER_BACKEND"]
     if os.getenv("PERSPECTIVERSE_LABEL_BACKEND"):
         settings["label_backend"] = os.environ["PERSPECTIVERSE_LABEL_BACKEND"]
+    if os.getenv("PERSPECTIVERSE_LABEL_WORKERS"):
+        settings["label_workers"] = int(os.environ["PERSPECTIVERSE_LABEL_WORKERS"])
     ollama_model = (os.getenv("OLLAMA_MODEL") or "").strip()
     if ollama_model:
         settings["ollama_model"] = ollama_model
