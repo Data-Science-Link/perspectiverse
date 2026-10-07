@@ -39,8 +39,10 @@ test.describe('Perspectiverse views', () => {
 
     const welcome = page.getByRole('dialog', { name: 'Perspectiverse' })
     await expect(welcome).toBeVisible()
-    await expect(welcome.locator('svg')).toHaveCount(1)
-    await expect(welcome).toContainText('Jev filters')
+    await expect(welcome.locator('.welcome-steps li')).toHaveCount(4)
+    await expect(welcome).toContainText('Each planet is a topic')
+    await expect(welcome).toContainText('See Methodology in the menu')
+    await expect(welcome).not.toContainText('Jev')
     await expect(welcome).toContainText('See every perspective')
     const fitted = await welcome.evaluate((node) => node.scrollHeight <= node.clientHeight + 1)
     expect(fitted).toBe(true)

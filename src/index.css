@@ -671,10 +671,55 @@ h3 {
   letter-spacing: 0.03em;
 }
 
+.welcome-card ol.welcome-steps,
+.welcome-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.welcome-steps li {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(232, 230, 245, 0.16);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.welcome-steps li:nth-child(2) {
+  border-color: rgba(244, 193, 78, 0.4);
+  background: rgba(244, 193, 78, 0.08);
+}
+
+.welcome-steps li:last-child {
+  border-color: rgba(47, 210, 168, 0.45);
+  background: rgba(47, 210, 168, 0.1);
+}
+
+.welcome-steps strong {
+  display: block;
+  color: #efeef7;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.welcome-steps span {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
 .welcome-flow figcaption {
-  flex: 0 0 auto;
-  margin: 0.45rem 0 0;
-  font-size: 0.82rem;
+  display: block;
+  width: 100%;
+  margin: 0.55rem 0 0;
+  font-size: 0.875rem;
   line-height: 1.4;
   text-align: left;
 }
