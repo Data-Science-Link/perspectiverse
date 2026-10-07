@@ -24,7 +24,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Pipeline audit (2026-09-28) | `project_documentation/Pipeline Audit 2026-09-28.md` | Point-in-time audit; useful for understanding known gaps. |
 | Handoff — DeepInfra & Bluesky auth | `project_documentation/Handoff DeepInfra and Bluesky Auth.md` | Credential and API handoff notes. |
 | Improvement requests backlog | `project_documentation/Improvement Requests.md` | Queued ideas; check before filing a duplicate issue. |
-| Formal architecture file | *(not present — create or retarget)* | No standalone `architecture.md` exists at root. Use the project_documentation entries above until one is written. |
+| Formal architecture file | `docs/architecture.md` | Short data-flow entry. Longer notes stay in `project_documentation/`. |
 
 ## Pipeline (Python backend)
 
@@ -68,6 +68,6 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Solar system metaphor (sun, planets, spikes, faces) | `README.md` introduction |
 | "Public claim" / cleaning / spam filter | `README.md` current-status table; `pipeline/cleaning.py`, `pipeline/jev.py` |
 | Discourse universe, perspectives, steelmans | `project_documentation/Project Architecture_ Discourse Universe.md` |
-| Formal domain glossary file | *(not present — create or retarget)* |
+| Formal domain glossary file | `docs/glossary.md` | Terms from the README, pipeline, and frontend. |
 
 Agents: read this map, then open the linked files. Prefer linking over pasting.
