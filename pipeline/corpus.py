@@ -12,8 +12,9 @@ import math
 import random
 from datetime import datetime, timedelta, timezone
 
-# Total posts in the rolling window. Each morning adds roughly 1/7 of this
-# count and the oldest posts are dropped to stay at this ceiling.
+# Public claims in the rolling window. Non-claims are discarded after Jev
+# classification and never written to the DB. Each morning adds roughly 1/7
+# of this count; retire_oldest evicts the oldest to stay at this ceiling.
 CLAIM_TARGET = 10000
 TARGET_POSTS = CLAIM_TARGET
 MIN_GROUP_POSTS = 10

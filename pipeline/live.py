@@ -90,17 +90,19 @@ def run_live(
         )
         if source == "bluesky" and not relabel:
             cleaned = apply_jev(cleaned)
+            # Keep only public claims; non-claims are discarded and not stored.
+            cleaned = [p for p in cleaned if p.get("is_claim") is True]
             if refreshed:
-                before = len(counted_posts(cleaned))
+                before = len(cleaned)
                 cleaned = retire_oldest(
                     cleaned,
                     now=datetime.now(timezone.utc),
                     window_hours=int(settings["window_hours"]),
                     target=target,
                 )
-                kept = len(counted_posts(cleaned))
+                kept = len(cleaned)
                 if kept < target:
-                    print(f"Claim shortfall: {kept} of {target} filtered claims. Search did not fill the window.")
+                    print(f"Claim shortfall: {kept} of {target}. Search did not fill the window.")
                 elif before > kept:
                     print(f"Retired the oldest posts down to {kept} of {target}.")
         if not cleaned:
@@ -533,7 +535,7 @@ def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> lis
         print(f"Jev left {unlabeled} posts unlabeled. They stay out of the planets.")
     print(
         f"Clustering {len(claims)} public claims; "
-        f"{len(posts) - len(claims)} non-claims stay in the window."
+        f"{len(posts) - len(claims)} non-claims excluded."
     )
     return claims
 

@@ -1,7 +1,7 @@
 # Copy to pipeline/config/pipeline.yaml to override locally (gitignored).
-# Total posts kept in the rolling window. Each morning adds ~1/7 of this count
-# and retire_oldest evicts the oldest posts (claims and non-claims alike) until
-# the total is back at this ceiling.
+# Public claims kept in the rolling window. Non-claims are discarded after Jev
+# classification and never stored. Each morning adds ~1/7 of this count and
+# retire_oldest evicts the oldest claims until the total is back at this ceiling.
 window_hours: 168
 refresh_hours: 24
 sample_size: 10000
