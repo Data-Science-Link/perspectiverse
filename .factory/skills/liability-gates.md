@@ -31,6 +31,7 @@ Read this with `factory-loop.md` on every change.
 9. **Scheduled jobs:** check cron workflow runs each session; a failure is filed as a bug issue and reported, never left for a human to discover.
 10. When a human approves in chat (or elsewhere), **update the PR description first** (Factory loop step 7; Human reviewed before merge: yes + who), then merge. Chat approval without a PR-body update is incomplete.
 11. **Right before any merge**, update the PR branch onto the latest default branch if it is behind, and merge only after required CI is green on that new head commit. Never merge a behind branch or on stale-commit CI. Clean catch-up keeps prior approval; conflicts or changes to the PR’s own diff/behavior → resolve, re-verify, tell the human (re-ask the gate for normal/high). Update the branch before handing a PR to the human for review, too.
+12. **Bypass merges:** If you merge with an admin/ruleset bypass, the bypass skips every rule including the up-to-date check, so first verify by hand that the branch is 0 commits behind the default branch and that all required checks are green on the current head SHA; use a merge method the ruleset allows.
 
 ## Risk classes (for PR template)
 

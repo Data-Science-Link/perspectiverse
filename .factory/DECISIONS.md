@@ -121,3 +121,9 @@ Append-only. Newest at the bottom.
 - **Why:** PRs were reaching human review, and could be merged, while out of date with main, so CI results no longer described what would actually land.
 - **Alternatives:** Rely on the start-of-work sync only; merge queue.
 - **Revisit when:** The repo adopts a merge queue or the platform auto-updates branches before merge.
+
+### 2026-10-07 — Bypass merges: verify up-to-date + green by hand
+- **Decision:** Factory PRs authored by the owner's account can't get the ruleset's required approval, so workers merge chat-approved and trivial PRs with the admin bypass. Because a bypass skips every rule, including the up-to-date check, the worker first verifies by hand that the branch is 0 commits behind the default branch and all required checks are green on the current head SHA, and uses a merge method the ruleset allows. The review rule and bypass actors stay unchanged.
+- **Why:** Keeps the "update onto latest main right before merge" guarantee when the ruleset itself is bypassed.
+- **Alternatives:** Remove the review requirement; a separate bot account to approve.
+- **Revisit when:** PRs come from an account that can be approved, or a merge queue is adopted.
