@@ -29,6 +29,7 @@ Closes #
 ## AI disclosure
 
 - Tools used (factory worker / Cursor agent / both):
+- Model(s) used (per `.factory/MODEL_ROUTING.md`; note any escalation):
 - Approx. share AI-authored: [ ] little [ ] mixed [ ] mostly
 - Human reviewed before merge: [ ] yes [ ] no — who: <!-- worker: set yes + name when chat/issue gate is given, BEFORE merge -->
 
