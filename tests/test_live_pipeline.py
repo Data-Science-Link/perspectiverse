@@ -191,7 +191,7 @@ def test_run_live_function_matches_cli(tmp_path):
     config.write_text("min_cluster_size: 8\ncluster_backend: lexical\nlabel_backend: heuristic\nseed: 0\n", encoding="utf-8")
     path = run_live(fixture=fixture, output=tmp_path / "out.json", config=config, db_path=tmp_path / "p.db")
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert 1 <= len(payload["topics"][0]["perspectives"]) <= 6
+    assert 2 <= len(payload["topics"][0]["perspectives"]) <= 6
     assert payload["topics"][0]["perspectives"][0]["representative_posts"][0]["likes"] >= 0
 
 

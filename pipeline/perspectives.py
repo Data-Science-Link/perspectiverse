@@ -19,12 +19,12 @@ from pipeline.cluster_math import (
 )
 from pipeline.schema import MAX_FACES, MIN_FACES
 
-# Six equal faces are about a sixth of the planet. A short tail is not a view,
-# but a first unbalanced cut must not hide a cleaner split at a higher k.
-MIN_FACE_SHARE = 0.15
-# MiniLM leaves two stances of one subject close together. A cut that explains
-# a few percent of the scatter is a real second view; TF-IDF paraphrases fail
-# the share test before this bar matters.
+# A face this small is noise, not a perspective. Set low enough that a tight
+# minority of ~5 % (a few posts in a typical planet) is kept rather than
+# silently merged into the majority face.
+MIN_FACE_SHARE = 0.05
+# Inertia improvement used as a tiebreaker when comparing valid k values; it
+# cannot veto a split that already cleared the centroid-distance gate.
 _FACE_GAIN = 0.035
 # Planet merge treats 0.72 as the same subject. Two stances of that subject
 # usually land between 0.75 and 0.88, so the face line has to sit higher.
@@ -89,28 +89,23 @@ def choose_n_faces(
     if base <= 1e-4:
         return 1
     best_k = 1
-    prev = base
+    best_gain = 0.0
     for k in range(2, upper + 1):
         trial, _centers = cluster_kmeans(values, k, seed=seed)
         sizes = _face_sizes(trial, k)
-        if min(sizes) < 2 or min(sizes) / count < MIN_FACE_SHARE:
+        # Every face needs at least one post and a share above the noise floor.
+        if min(sizes) < 1 or min(sizes) / count < MIN_FACE_SHARE:
             continue
+        # Centroid-distance gate is the hard gate: paraphrases of the same
+        # stance do not count as distinct perspectives.
         if not _centroids_are_far(values, trial):
             continue
-        inertia = cluster_inertia(values, trial)
-        if prev <= 1e-4 or (prev - inertia) / prev < _FACE_GAIN:
-            continue
-        best_k = k
-        prev = inertia
-    if best_k == 1 and count >= 4:
-        # A far minority is still its own perspective. Stopping at one bar of
-        # 100% hid that view whenever the first cut was smaller than a fifth.
-        trial, _centers = cluster_kmeans(values, 2, seed=seed)
-        sizes = _face_sizes(trial, 2)
+        # Passed all hard gates. Inertia gain is a tiebreaker, not a veto.
         inertia = cluster_inertia(values, trial)
         gain = (base - inertia) / base if base > 1e-4 else 0.0
-        if min(sizes) >= 1 and _centroids_are_far(values, trial) and gain >= _FACE_GAIN:
-            return 2
+        if gain >= best_gain:
+            best_k = k
+            best_gain = gain
     return best_k
 
 
