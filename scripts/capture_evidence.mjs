@@ -33,8 +33,11 @@ async function capture(viewport, prefix) {
   await shot(page, `${prefix}-landing.png`)
 
   await page.getByRole('button', { name: 'Open menu' }).click()
+  await page.locator('.menu-drawer').waitFor({ state: 'visible' })
+  await page.waitForTimeout(280)
   await shot(page, `${prefix}-menu-open.png`)
   await page.keyboard.press('Escape')
+  await page.locator('.menu-layer').waitFor({ state: 'hidden' })
 
   await page.getByRole('banner').getByRole('button', { name: 'Email' }).click()
   await page.getByRole('article', { name: 'Weekly email' }).waitFor({ state: 'visible' })
@@ -50,6 +53,7 @@ async function capture(viewport, prefix) {
   await page.goto(baseURL)
   const welcome = page.getByRole('dialog', { name: 'Perspectiverse' })
   await welcome.waitFor({ state: 'visible' })
+  await page.waitForTimeout(100)
   await shot(page, `${prefix}-welcome.png`)
 
   await browser.close()

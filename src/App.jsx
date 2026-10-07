@@ -220,7 +220,7 @@ export default function App() {
   return (
     <div
       ref={shellRef}
-      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${isMobile && !sitePage && !selectedTopic ? 'is-orbits' : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
+      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${menuOpen ? 'is-menu-open' : ''} ${isMobile && !sitePage && !selectedTopic ? 'is-orbits' : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
     >
       <SiteChrome
         drilled={drilled}
