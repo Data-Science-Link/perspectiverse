@@ -83,8 +83,12 @@ def test_choose_n_faces_collapses_a_binary_topic():
 
 
 def test_choose_n_faces_does_not_slice_a_uniform_topic():
+    """A uniform pile has no second view. None means: do not publish, do not pad (#53)."""
     texts = [f"rent rent rent housing housing costs discussion {index}" for index in range(24)]
-    assert choose_n_faces(texts, seed=0) == 1
+    assert choose_n_faces(texts, seed=0) is None
+    split = split_perspectives(texts, seed=0)
+    assert split["faces"] == []
+    assert "no 2-6 face split" in split["reason"]
 
 
 def test_choose_n_faces_splits_two_stances_of_one_subject():
@@ -100,10 +104,18 @@ def test_choose_n_faces_splits_two_stances_of_one_subject():
 
 
 def test_choose_n_faces_keeps_a_far_minority():
-    """One different post is a perspective, not a reason to publish a single 100% bar."""
+    """A small far group is a perspective, not a reason to publish a single 100% bar."""
+    texts = [f"openai safety launch postponed astra model {index}" for index in range(10)]
+    texts.append("chatgpt school shooters are the safety failure nobody is counting")
+    texts.append("chatgpt school shooters show the safety failure nobody counts")
+    assert choose_n_faces(texts, seed=0) == 2
+
+
+def test_one_post_is_not_a_face():
+    """MIN_FACE_POSTS: a lone remark is not a group holding a view."""
     texts = [f"openai safety launch postponed astra model {index}" for index in range(11)]
     texts.append("chatgpt school shooters are the safety failure nobody is counting")
-    assert choose_n_faces(texts, seed=0) == 2
+    assert choose_n_faces(texts, seed=0) is None
 
 
 def test_choose_n_faces_keeps_a_paraphrase_as_one_face():
@@ -113,7 +125,7 @@ def test_choose_n_faces_keeps_a_paraphrase_as_one_face():
     right = np.array([0.96, (1 - 0.96**2) ** 0.5])
     matrix = np.vstack([left] * 12 + [right] * 12)
     texts = ["same stance"] * 12 + ["same stance again"] * 12
-    assert choose_n_faces(texts, seed=0, matrix=matrix) == 1
+    assert choose_n_faces(texts, seed=0, matrix=matrix) is None
 
 
 def test_lexical_cluster_does_not_mint_a_tenth_planet():
