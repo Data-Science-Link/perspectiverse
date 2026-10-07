@@ -42,6 +42,18 @@ Also follow `liability-gates.md` on every change.
 
 If unsure → **normal** (wait for human). Behavior changes (e.g. clustering thresholds, defaults users feel) are **normal**, not trivial.
 
+### Record the human gate on the PR (required)
+
+When a human gives product-gate (or similar) approval in **chat**, on the issue, or elsewhere:
+
+1. **Edit the PR description before you merge** — do not merge on chat approval alone.
+2. Check **Factory loop step 7 (Product gate)** as done.
+3. Set **AI disclosure → Human reviewed before merge: yes** and name who (e.g. Michael / @User).
+4. Update any other matching fields (spec gate, safety “did not auto-merge”, Notes) so the PR body matches reality.
+5. Then merge per risk class.
+
+The PR body is the durable audit trail. Chat is ephemeral relative to GitHub.
+
 ## Ship & feed back
 
 - Merge only when the table above allows.

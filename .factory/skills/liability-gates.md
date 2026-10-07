@@ -16,6 +16,7 @@ Read this with `factory-loop.md` on every change.
 8. Over-claim safety, medical, security, or compliance outcomes in README/docs/marketing copy.
 9. Relicense the project or strip third-party notices because “AI rewrote it.”
 10. Mark a UI/frontend/website/pages PR ready without **screenshots in the PR Evidence section** (thread-only comments do not count).
+11. Merge after a chat/issue product-gate approval **without first editing the PR description** to record that gate (step 7 + Human reviewed before merge).
 
 ## Always
 
@@ -27,6 +28,7 @@ Read this with `factory-loop.md` on every change.
 6. Document limitations and non-goals instead of adding compliance theater.
 7. Leave work pick-uppable: issue + PR explain what changed and what still needs a human.
 8. **After merge:** monitor deploy / pages / CD on the default branch; if it fails, fix promptly and report on the issue.
+9. When a human approves in chat (or elsewhere), **update the PR description first** (Factory loop step 7; Human reviewed before merge: yes + who), then merge. Chat approval without a PR-body update is incomplete.
 
 ## Risk classes (for PR template)
 

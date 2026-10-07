@@ -17,7 +17,7 @@ Closes #
 - [ ] **4. Build** — synced latest default branch; branch + PR linked to issue; scope matches
 - [ ] **5. Review** — agent self-review vs issue outcome + `.factory/skills/liability-gates.md`
 - [ ] **6. Verify** — required CI green (or N/A + reason); evidence below; **UI → screenshots in Evidence section of this PR body** (not only a comment)
-- [ ] **7. Product gate** — human approved (**required** for normal/high) / N/A trivial only
+- [ ] **7. Product gate** — human approved (**required** for normal/high) / N/A trivial only — **when approved in chat, check this and update Human reviewed below before merge**
 - [ ] **8. Ship + monitor** — merge only per risk class; after merge watch deploy/pages and fix if red
 
 ## Risk class
@@ -30,7 +30,7 @@ Closes #
 
 - Tools used (factory worker / Cursor agent / both):
 - Approx. share AI-authored: [ ] little [ ] mixed [ ] mostly
-- Human reviewed before merge: [ ] yes [ ] no — who:
+- Human reviewed before merge: [ ] yes [ ] no — who: <!-- worker: set yes + name when chat/issue gate is given, BEFORE merge -->
 
 ## Safety checklist
 
