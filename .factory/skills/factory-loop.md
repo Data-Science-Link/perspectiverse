@@ -22,7 +22,8 @@ Also follow `liability-gates.md` on every change.
 - Branch from default; open a PR that references the issue.
 - Stay inside issue scope. Lasting choices → `.factory/DECISIONS.md`.
 - Follow repo conventions via `.factory/DOCS.md` and any repo-specific skills here.
-- Fill the PR template (AI disclosure, risk class, checklist).
+- **Fill the whole PR template**, especially the **Factory loop** section (steps 1–8). That checklist is how humans audit process adherence — leave it blank only if a step is truly N/A, with a one-line note.
+- Fill risk class, AI disclosure, safety checklist, and evidence.
 - **UI / frontend / website / pages:** attach screenshots on the PR (before/after when practical). No screenshots → do not treat the PR as ready.
 
 ## Review & verify

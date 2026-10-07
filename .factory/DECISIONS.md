@@ -73,3 +73,9 @@ Append-only. Newest at the bottom.
 - **Why:** Green PR CI is not the same as a healthy deployment; walking away after merge leaves broken sites.
 - **Alternatives:** Rely only on humans noticing Pages failures; separate deploy-only bot.
 - **Revisit when:** Deploy notifications are automatic and always routed to the worker.
+
+### 2026-10-07 — Factory-loop section required on every factory PR
+- **Decision:** The GitHub PR template includes a succinct **Factory loop** checklist (intake → triage → spec gate → build → review → verify → product gate → ship/monitor). Factory workers and Cursor agents must fill it on every factory PR so humans can audit process adherence from the PR alone.
+- **Why:** Hard to tell from chat whether workers followed the playbook; PR is the durable, multiplayer surface.
+- **Alternatives:** Chat-only status updates; separate process ticket per change.
+- **Revisit when:** Checklist becomes noise or steps change.

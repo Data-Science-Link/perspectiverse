@@ -21,7 +21,7 @@ Read this with `factory-loop.md` on every change.
 
 1. Sync to the latest default branch (`git fetch` + update from `main`/default) before branching or continuing a stale agent checkout.
 2. Open a PR linked to the issue; put evidence on the PR (CI, tests, screenshots).
-3. Fill the PR template: risk class, AI disclosure, secrets/license checklist, UI screenshot checkbox when applicable.
+3. Fill the PR template completely — especially the **Factory loop** (steps 1–8), risk class, AI disclosure, safety checklist, and UI screenshots when applicable. Blank factory-loop steps without an N/A note = incomplete PR.
 4. Request **human** review when: risk class is **normal** or **high**; or touching auth, crypto, payments, PII, safety-related behavior, `.github/workflows`, CODEOWNERS, Dependabot, LICENSE/NOTICE, security docs.
 5. Prefer deps from an allowlisted set when the repo defines one (e.g. MIT, Apache-2.0, BSD-2/3).
 6. Document limitations and non-goals instead of adding compliance theater.

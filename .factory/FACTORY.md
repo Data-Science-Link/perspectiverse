@@ -24,7 +24,7 @@ If there is no separate worker yet, the coordinator may run `factory-loop` thems
 3. **Spec gate (human)** — approve, or skip if trivial.
 4. **Build** — sync latest default branch first (agents often have a stale tip), then branch + PR linked to the issue.
 5. **Review** — agent first; human on risk and product (see merge authority below + `skills/liability-gates.md`).
-6. **Verify** — CI + evidence on the PR (screenshots required for UI); never merge on red/skipped required checks.
+6. **Verify** — CI + evidence on the PR (screenshots required for UI); fill the **Factory loop** section of the PR template so adherence is auditable; never merge on red/skipped required checks.
 7. **Product gate (human)** — required for **normal** and **high** work; skipped only for **trivial**.
 8. **Ship → monitor deploy → feed back** — merge only when authority allows; watch post-merge deploy CI; fix if red; lessons → issues/skills.
 
