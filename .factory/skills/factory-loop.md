@@ -1,6 +1,6 @@
 # Skill: factory-loop
 
-Run when an **open GitHub issue** should move through the factory.
+Run when an **open GitHub issue** should move through the factory — including after a coordinator handoff (`intake-from-coordinator.md`).
 
 ## Before you start
 

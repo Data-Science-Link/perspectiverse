@@ -10,16 +10,16 @@ Work enters as a GitHub issue. Agents triage → (specs if hard) → build → r
 
 | Trigger | What happens |
 |---|---|
-| **New / open GitHub issue** | Valid factory work item. An agent with repo access should pick it up using `skills/factory-loop.md`. |
-| **Chat with project chief of staff** | Valid *request*. CoS uses `skills/intake-from-cos.md` to file or refine a GitHub issue, then stops. The **issue** is what the factory runs on — not the chat thread. |
+| **New / open GitHub issue** | Valid factory work item. The repo's **factory worker** (or any agent with repo access) runs `skills/factory-loop.md`. |
+| **Message to project coordinator** | Valid start of the **production line**. Coordinator = chief of staff, project lead bot, or any designated intake agent — not chat-as-queue. They run `skills/intake-from-coordinator.md`: file/refine a GitHub issue, then **hand off to the factory worker** to start the loop. |
 
-Chat alone is not a queue. If it isn't an issue yet, it isn't in the factory yet.
+Chat alone is never the work item. The issue is. Messaging the coordinator is how a human (or another agent) **kicks the line**: issue + explicit handoff to the worker.
 
-**"Automatic" means:** once an issue exists (and your agent/routines watch that repo), the loop applies. Filing from CoS chat is deliberate; pickup depends on whoever is assigned to watch issues (you, a routine, or a coding agent) — not silent magic with no watcher.
+If there is no separate worker yet, the coordinator may run `factory-loop` themselves after filing — still issue-first.
 
 ## Loop
 
-1. **Intake** — GitHub issue with a clear outcome.
+1. **Intake** — GitHub issue with a clear outcome (from coordinator handoff or native issue).
 2. **Triage** — easy → build; hard → product + tech specs on the issue.
 3. **Spec gate (human)** — approve, or skip if trivial.
 4. **Build** — branch + PR linked to the issue.
@@ -32,12 +32,12 @@ Chat alone is not a queue. If it isn't an issue yet, it isn't in the factory yet
 
 ```
 .factory/
-  FACTORY.md           ← this playbook (keep thin)
-  DECISIONS.md         ← append-only decisions for this repo
-  DOCS.md              ← map to repo docs (pointers only, no copies)
+  FACTORY.md                      ← this playbook (keep thin)
+  DECISIONS.md                    ← append-only decisions for this repo
+  DOCS.md                         ← map to repo docs (pointers only, no copies)
   skills/
-    factory-loop.md    ← run the loop on an issue
-    intake-from-cos.md ← CoS: chat → GitHub issue
+    factory-loop.md               ← run the loop on an issue
+    intake-from-coordinator.md    ← coordinator/CoS: chat → issue → hand off to worker
     (add repo-specific skills here)
 ```
 
