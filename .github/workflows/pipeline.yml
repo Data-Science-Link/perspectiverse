@@ -4,7 +4,20 @@ on:
   schedule:
     # Once per day. This runs the live path, not the demo writer.
     - cron: "0 6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "pipeline/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/pipeline.yml"
+      - "!pipeline/README.md"
+      - "!pipeline/data/**"
   workflow_dispatch:
+
+concurrency:
+  group: discourse-pipeline
+  cancel-in-progress: false
 
 permissions:
   contents: write

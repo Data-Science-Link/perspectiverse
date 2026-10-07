@@ -24,7 +24,7 @@ The observatory ships a **live** `public/data.json`. The daily job holds a rolli
 | Live pipeline (`--live`) | Default command. Daily job embeds with MiniLM; pytest stays lexical |
 | React + R3F observatory | Newspaper-section filters; All topics stays unsupervised |
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
-| Daily refresh | `.github/workflows/pipeline.yml` — publishes even if Bluesky 403s |
+| Daily refresh | `.github/workflows/pipeline.yml` — cron 06:00 UTC daily, on pipeline-code merges to `main`, and on `workflow_dispatch`. Site-only merges (no pipeline files changed) only redeploy Pages (`pages.yml`), no LLM spend. |
 | DeepInfra / OpenAI-compatible labels | Wired (`OPENAI_API_KEY` + `OPENAI_BASE_URL`); heuristic until a token is set |
 | Conversational LLM on a planet | Roadmap only (Horizon A) |
 | Custom solar system from `--query` | Ready for operators; not a public form |
@@ -128,6 +128,17 @@ The workflow builds with `base: /perspectiverse/`. After a green deploy the site
 `https://data-science-link.github.io/perspectiverse/`
 
 Setting the repository homepage to that URL is optional and done in the same settings screen. The daily job does not push to `main` (the ruleset would block it). It commits `data.json` on the unprotected `data-snapshot` branch. The Pages build uses that file when the branch exists. The SQLite corpus is uploaded to a private R2 bucket when those secrets exist, and stays on `data-snapshot` until they do.
+
+## When the pipeline runs
+
+| Trigger | What happens | LLM spend |
+| --- | --- | --- |
+| Cron 06:00 UTC | Full live pipeline — Bluesky fetch, Jev decisions on new posts only, embed, cluster, label, publish `data.json` | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
+| Push to `main` — pipeline code changed (`pipeline/**`, `pyproject.toml`, `uv.lock`, `.github/workflows/pipeline.yml`) | Same full live pipeline as cron | Same as cron |
+| Push to `main` — site-only files changed (frontend, `pipeline/README.md`, `pipeline/data/**`, docs) | `pages.yml` redeploy only — no pipeline run, no Bluesky fetch, no LLM spend | None |
+| `workflow_dispatch` | Full live pipeline | Same as cron |
+
+Same-UTC-day reruns are safe: `pipeline/live.py` records each fetched UTC date in `fetched_days` and skips Bluesky if that day is already present. Jev (`pipeline/jev.py`) only classifies posts that have no `section` yet, so existing posts are never re-scored. R2 and `data-snapshot` writes are guarded by `concurrency: discourse-pipeline` (cancel-in-progress: false), so runs never overlap.
 
 ## Security
 
