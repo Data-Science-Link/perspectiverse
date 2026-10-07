@@ -49,3 +49,9 @@ Append-only. Newest at the bottom.
 - **Why:** Avoid PRs based on outdated tips and painful rebase conflicts.
 - **Alternatives:** Hope the agent environment is fresh; only sync when conflicts appear.
 - **Revisit when:** Agent harnesses guarantee up-to-date default branch at start.
+
+### 2026-10-07 — Hard minimum of 2 perspectives per published planet (#41)
+- **Decision:** Set `MIN_FACES = 2` in `pipeline/schema.py`; lower `MIN_FACE_SHARE` to 0.05 in `perspectives.py`; remove inertia-gain as a veto in `choose_n_faces` (tiebreaker only); every face needs at least one post. Frontend mirrors in `src/lib/faces.js` and `src/lib/polyhedra.js` already carried `MIN_FACES = 2`.
+- **Why:** A skewed planet collapsed to a single 100% bar hid real minority viewpoints. Michael explicitly prioritised issue #41 (hard floor of 2) over the earlier #32 proposal that allowed one face.
+- **Alternatives:** #32 proposal 4 (allow one face); raising inertia-gain threshold to prevent trivial splits.
+- **Revisit when:** Evidence that forcing k ≥ 2 on a near-uniform corpus introduces misleading splits in production.
