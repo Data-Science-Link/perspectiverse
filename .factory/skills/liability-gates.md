@@ -28,7 +28,8 @@ Read this with `factory-loop.md` on every change.
 6. Document limitations and non-goals instead of adding compliance theater.
 7. Leave work pick-uppable: issue + PR explain what changed and what still needs a human.
 8. **After merge:** monitor deploy / pages / CD on the default branch; if it fails, fix promptly and report on the issue.
-9. When a human approves in chat (or elsewhere), **update the PR description first** (Factory loop step 7; Human reviewed before merge: yes + who), then merge. Chat approval without a PR-body update is incomplete.
+9. **Scheduled jobs:** check cron workflow runs each session; a failure is filed as a bug issue and reported, never left for a human to discover.
+10. When a human approves in chat (or elsewhere), **update the PR description first** (Factory loop step 7; Human reviewed before merge: yes + who), then merge. Chat approval without a PR-body update is incomplete.
 
 ## Risk classes (for PR template)
 
