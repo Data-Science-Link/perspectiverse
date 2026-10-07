@@ -79,3 +79,9 @@ Append-only. Newest at the bottom.
 - **Why:** Hard to tell from chat whether workers followed the playbook; PR is the durable, multiplayer surface.
 - **Alternatives:** Chat-only status updates; separate process ticket per change.
 - **Revisit when:** Checklist becomes noise or steps change.
+
+### 2026-10-07 — UI screenshots must be in PR Evidence section
+- **Decision:** UI/frontend screenshots must live in the PR **Evidence** section of the description (not only a conversation comment). Factory skills and PR template updated to enforce this.
+- **Why:** Thread-only comments are easy to miss, not durable in the PR body, and harder to audit at a glance. The Evidence section is the canonical place for CI links, test output, and screenshots.
+- **Alternatives:** Allow screenshots anywhere on the PR (comment, review, description); rely on convention.
+- **Revisit when:** PR review tooling makes comment-based screenshots equally prominent and durable.

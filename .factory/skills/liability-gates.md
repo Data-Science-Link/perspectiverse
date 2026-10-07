@@ -15,12 +15,12 @@ Read this with `factory-loop.md` on every change.
 7. Invent or “fix” license/attribution metadata the agent cannot verify from the source.
 8. Over-claim safety, medical, security, or compliance outcomes in README/docs/marketing copy.
 9. Relicense the project or strip third-party notices because “AI rewrote it.”
-10. Mark a UI/frontend/website/pages PR ready without **screenshots** on the PR.
+10. Mark a UI/frontend/website/pages PR ready without **screenshots in the PR Evidence section** (thread-only comments do not count).
 
 ## Always
 
 1. Sync to the latest default branch (`git fetch` + update from `main`/default) before branching or continuing a stale agent checkout.
-2. Open a PR linked to the issue; put evidence on the PR (CI, tests, screenshots).
+2. Open a PR linked to the issue; put evidence on the PR (CI, tests, screenshots). For UI, screenshots go in the **Evidence** section of the PR body — not only a comment.
 3. Fill the PR template completely — especially the **Factory loop** (steps 1–8), risk class, AI disclosure, safety checklist, and UI screenshots when applicable. Blank factory-loop steps without an N/A note = incomplete PR.
 4. Request **human** review when: risk class is **normal** or **high**; or touching auth, crypto, payments, PII, safety-related behavior, `.github/workflows`, CODEOWNERS, Dependabot, LICENSE/NOTICE, security docs.
 5. Prefer deps from an allowlisted set when the repo defines one (e.g. MIT, Apache-2.0, BSD-2/3).
@@ -33,7 +33,7 @@ Read this with `factory-loop.md` on every change.
 | Class | Examples | Gate |
 |---|---|---|
 | **trivial** | Typos, docs-only, comment fixes, playbook-only with no product change | Agent self-review + green CI → worker **may** merge |
-| **normal** | Feature/bugfix, behavior change, **any UI / frontend / pages** | Agent review + green CI + **screenshots if UI** + **human product gate** before merge |
+| **normal** | Feature/bugfix, behavior change, **any UI / frontend / pages** | Agent review + green CI + **screenshots in Evidence if UI** + **human product gate** before merge |
 | **high** | License, secrets, auth, crypto, safety claims, workflows, supply chain | **Human required** before merge |
 
 ## If unsure
