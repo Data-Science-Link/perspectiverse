@@ -284,6 +284,42 @@ def validate_payload(payload: dict[str, Any]) -> None:
     if abs(topic_volume - 100.0) > 0.15:
         raise ValueError(f"Topic volumes sum to {topic_volume}, not 100")
 
+    sections = payload.get("sections")
+    if sections is not None:
+        if not isinstance(sections, dict):
+            raise ValueError("sections must be a dict mapping section name to topic list")
+        for section_name, section_topics in sections.items():
+            if section_name not in CATEGORIES:
+                raise ValueError(f"sections key '{section_name}' is not a valid category")
+            if not isinstance(section_topics, list) or not section_topics:
+                raise ValueError(f"Section '{section_name}' must be a non-empty list of topics")
+            sec_volume = 0.0
+            seen_sec_ids: set[int] = set()
+            for topic in section_topics:
+                topic_id = topic["id"]
+                if topic_id in seen_sec_ids:
+                    raise ValueError(f"Section '{section_name}' has duplicate topic id {topic_id}")
+                seen_sec_ids.add(topic_id)
+                if not topic.get("name"):
+                    raise ValueError(f"Section '{section_name}' topic {topic_id} is missing a name")
+                perspectives = topic.get("perspectives") or []
+                if not MIN_FACES <= len(perspectives) <= MAX_FACES:
+                    raise ValueError(
+                        f"Section '{section_name}' topic {topic_id} should have "
+                        f"{MIN_FACES}-{MAX_FACES} perspectives, found {len(perspectives)}"
+                    )
+                sec_volume += float(topic["total_volume_percent"])
+                for face in perspectives:
+                    posts = face.get("representative_posts") or []
+                    if not posts:
+                        raise ValueError(
+                            f"Section '{section_name}' perspective {face.get('id')} needs representative posts"
+                        )
+            if abs(sec_volume - 100.0) > 0.15:
+                raise ValueError(
+                    f"Section '{section_name}' topic volumes sum to {sec_volume}, not 100"
+                )
+
     # Demo catalogs are a full solar system per category so the dropdown never empties.
     if payload.get("mode") == "demo":
         counts = Counter(topic["category"] for topic in topics)

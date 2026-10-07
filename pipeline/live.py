@@ -42,7 +42,7 @@ from pipeline.label import (
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
-from pipeline.schema import SYSTEM_SIZE, category_for_members, to_percents
+from pipeline.schema import CATEGORIES, SYSTEM_SIZE, category_for_members, to_percents
 from pipeline.settings import load_settings
 from pipeline.store import (
     LIVE_CORPUS_DB,
@@ -133,6 +133,15 @@ def run_live(
         topics, membership, face_rows = _build_topics(
             planet_posts, clustered, settings, keep=catalog_size
         )
+        # Section clustering reuses the precomputed embedding matrix so posts
+        # are not re-embedded ten times. Only sections that produce at least one
+        # planet appear in the output; small sections are silently skipped.
+        global_matrix = clustered.get("matrix")
+        sections: dict[str, list[dict]] = {}
+        if global_matrix is not None:
+            sections = _cluster_sections(
+                planet_posts, global_matrix, settings, catalog_size, floor
+            )
         write_clusters(connection, membership, face_rows)
     finally:
         connection.close()
@@ -142,6 +151,7 @@ def run_live(
         mode="live",
         source=source,
         total_posts=len(planet_posts),
+        sections=sections or None,
     )
     destination = write_payload(payload, output)
     print(
@@ -423,6 +433,64 @@ def _build_topics(
         built = built[: max(int(keep), 1)]
     publish_volumes(built)
     return _renumber_planets(built, membership, face_rows)
+
+
+def _cluster_sections(
+    planet_posts: list[dict],
+    global_matrix,
+    settings: dict,
+    catalog_size: int,
+    floor: int,
+) -> dict[str, list[dict]]:
+    """Cluster each Jev section independently, reusing the global embeddings.
+
+    Posts are not re-embedded; the sub-rows of *global_matrix* (already
+    L2-normalised) are sliced out and passed back into cluster_texts via the
+    *embed* hook, which short-circuits the fastembed call.
+    """
+    import numpy as np
+
+    section_indices: dict[str, list[int]] = {}
+    for idx, post in enumerate(planet_posts):
+        section = str(post.get("section") or "")
+        if section in CATEGORIES:
+            section_indices.setdefault(section, []).append(idx)
+
+    result: dict[str, list[dict]] = {}
+    seed = int(settings["seed"])
+
+    for section in sorted(section_indices):
+        indices = section_indices[section]
+        if len(indices) < floor:
+            print(f"Section {section}: {len(indices)} posts, skipping (need {floor}).")
+            continue
+
+        section_posts = [planet_posts[i] for i in indices]
+        section_texts = [p["clean_text"] for p in section_posts]
+        sub_matrix = np.asarray(global_matrix)[indices]
+
+        try:
+            pool = min(20, catalog_size + 10)
+            section_clustered = cluster_texts(
+                section_texts,
+                min_cluster_size=floor,
+                cluster_backend=str(settings["cluster_backend"]),
+                embedding_model=str(settings["embedding_model"]),
+                seed=seed,
+                catalog_size=pool,
+                embed=lambda _texts, m=sub_matrix: m,
+                authors=[str(p.get("author") or "unknown") for p in section_posts],
+            )
+            section_topics, _, _ = _build_topics(
+                section_posts, section_clustered, settings, keep=catalog_size
+            )
+            if section_topics:
+                result[section] = section_topics
+                print(f"Section {section}: {len(section_topics)} planet(s) from {len(indices)} posts.")
+        except RuntimeError as exc:
+            print(f"Section {section}: skipped ({exc}).")
+
+    return result
 
 
 def publish_volumes(topics: list[dict]) -> None:
