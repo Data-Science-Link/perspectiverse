@@ -54,7 +54,7 @@ export function OverviewGraphic() {
 
         <rect x="12" y="376" width="296" height="64" rx="16" fill="rgba(47,210,168,0.08)" stroke="rgba(47,210,168,0.45)" />
         <text x="28" y="402" fill="#efeef7" fontSize="14" fontFamily="Instrument Sans, Segoe UI, sans-serif">Steelmanned summaries</text>
-        <text x="28" y="422" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Not a right/wrong score · static data.json</text>
+        <text x="28" y="422" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Each view stated clearly · static data.json</text>
       </svg>
       <figcaption>
         Filters first, then clustering and labels. The browser only fetches the published file.

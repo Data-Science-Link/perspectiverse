@@ -28,7 +28,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What does a longer bar mean?',
-    a: 'A larger share of that conversation. We do not score views as right or wrong.',
+    a: 'A larger share of that conversation.',
   },
   {
     q: 'Why only ten planets?',
@@ -99,9 +99,11 @@ function AboutPage({ data, onOpenPage }) {
   return (
     <>
       <p className="lede">
-        Perspectiverse maps a week of public conversation as a small solar system. We aim to show
-        how much attention each topic drew and the perspectives that showed up — ordered by prevalence,
-        with each side steelmanned in summary form, not ranked as correct or incorrect.
+        Perspectiverse maps a week of public conversation as a small solar system: how much attention
+        each topic drew, and the perspectives that showed up, ordered by how common they are.
+      </p>
+      <p className="bias-line">
+        An unbiased pipeline, so you can meet the biases that challenge your own.
       </p>
       <section>
         <h2>What you see</h2>
@@ -122,7 +124,6 @@ function AboutPage({ data, onOpenPage }) {
         <ul className="page-list">
           <li>Not a poll, census, or truth score.</li>
           <li>Not a live feed or personal timeline.</li>
-          <li>Not claiming perfect neutrality — see Methodology for limits and maintainer bias.</li>
         </ul>
         <button type="button" className="text-link" onClick={() => onOpenPage('methodology')}>
           How the map is built
@@ -141,17 +142,29 @@ function MethodologyPage() {
       </p>
 
       <section>
-        <h2>Representation, not verdict</h2>
-        <p>
-          Perspectives are ordered by how much they showed up in the sample. Summaries try to steelman
-          each cluster&apos;s argument — state it clearly as its holders might — without labeling a view
-          right or wrong. The goal is to mirror public attention and disagreement as we find it, not to
-          interfere with or skew it toward what maintainers wish were true.
+        <h2>An unbiased pipeline</h2>
+        <p className="bias-line">
+          An unbiased pipeline, so you can meet the biases that challenge your own.
         </p>
-        <p className="method-disclaimer">
-          Michael Link and other maintainers have personal beliefs and biases. This project tries to
-          keep them out of the measurement and labeling steps, but no pipeline is perfectly neutral.
-          Treat the map as a structured sample, not an oracle.
+        <p>
+          The people who built this work hard to keep their own opinions out of the map.
+          The pipeline does not put a thumb on any scale. What it shows is public attention
+          and opinion. On some topics that may line up with a familiar bias; on others it may
+          run the other way.
+        </p>
+        <p>
+          The perspectives can be very biased, because that is what people are saying.
+          The pipeline that finds and arranges them is built to be as neutral as possible.
+          Summaries steelman each side: they state the argument as its holders would.
+          The point is to show you the prevailing sentiment and arguments, including biases
+          that challenge your own.
+        </p>
+        <p>
+          The code is open source, so anyone can audit how it works.{' '}
+          <a href={REPO_URL} target="_blank" rel="noreferrer">
+            Read it on GitHub
+          </a>
+          .
         </p>
       </section>
 

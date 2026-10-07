@@ -471,13 +471,25 @@ h3 {
   flex: none;
 }
 
-.welcome-card .welcome-graphic svg,
 .welcome-card figure.welcome-flow > svg {
   display: block;
   width: 100%;
   max-width: 100%;
   height: auto;
   min-width: 0;
+}
+
+.welcome-icon {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+}
+
+.welcome-mini {
+  display: block;
+  width: 44px;
+  height: 44px;
 }
 
 .color-legend {
@@ -683,8 +695,12 @@ h3 {
 }
 
 .welcome-steps li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
   margin: 0;
-  padding: 0.5rem 0.75rem;
+  padding: 0.35rem 0.5rem;
   border: 1px solid rgba(232, 230, 245, 0.16);
   border-radius: 0.75rem;
   background: rgba(255, 255, 255, 0.04);
@@ -700,35 +716,49 @@ h3 {
   background: rgba(47, 210, 168, 0.1);
 }
 
-.welcome-steps strong {
+.welcome-copy strong {
   display: block;
   color: #efeef7;
-  font-size: 1rem;
-  line-height: 1.3;
+  font-size: 0.95rem;
+  line-height: 1.25;
 }
 
-.welcome-steps span {
+.welcome-copy span {
   display: block;
-  margin-top: 0.2rem;
+  margin-top: 0.12rem;
   color: var(--muted);
   font-size: 0.875rem;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .welcome-flow figcaption {
-  display: block;
+  display: grid;
+  gap: 0.15rem;
   width: 100%;
-  margin: 0.55rem 0 0;
+  margin: 0.45rem 0 0;
   font-size: 0.875rem;
-  line-height: 1.4;
+  line-height: 1.35;
   text-align: left;
 }
 
-.method-disclaimer {
-  padding: 0.85rem 1rem;
-  border-left: 3px solid rgba(244, 193, 78, 0.55);
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.02);
+@media (min-width: 801px) {
+  .welcome-card {
+    width: min(46rem, calc(100% - 2rem));
+  }
+
+  .welcome-card ol.welcome-steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+}
+
+.site-page .bias-line,
+.bias-line {
+  color: #f4e2b0;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.2rem;
+  line-height: 1.35;
 }
 
 .menu-feedback {
@@ -1191,12 +1221,15 @@ h3 {
 
 .method-figure {
   margin: 0.85rem 0 0;
+  overflow: visible;
 }
 
 .method-overview {
   display: block;
-  width: min(100%, 26rem);
+  width: min(100%, 22rem);
   height: auto;
+  aspect-ratio: 320 / 500;
+  overflow: visible;
   margin-inline: auto;
 }
 
@@ -1439,7 +1472,7 @@ h3 {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  width: min(28rem, 100%);
+  width: min(46rem, calc(100% - 2rem));
   height: auto;
   max-height: calc(100dvh - 1.25rem);
   overflow: auto;
