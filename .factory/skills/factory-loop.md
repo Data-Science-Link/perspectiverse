@@ -16,6 +16,7 @@ Also follow `liability-gates.md` on every change.
 - **Hard** — write short product + technical specs on the issue (or linked files); wait for human approval before coding.
 - **High-risk** (license, secrets, auth, crypto, safety, workflows): treat as hard; human review required before merge.
 - Assign a **risk class** on the PR: `trivial` | `normal` | `high` (see merge authority).
+- **Pick the model** from `.factory/MODEL_ROUTING.md` using risk class + type of work; note it on the issue. Pin it on every cloud-agent launch (never Auto). Escalate only per the table.
 
 ## Build
 
@@ -59,4 +60,5 @@ The PR body is the durable audit trail. Chat is ephemeral relative to GitHub.
 - Merge only when the table above allows.
 - **After merge — monitor deploy:** watch pages / deploy / CD workflows on the default branch. If deploy CI is red or stuck, open a fix promptly (same issue or new); comment status on the issue. Do not walk away after PR CI alone was green.
 - Close or update the issue when ship + deploy are good (or note follow-ups).
+- **Scheduled jobs:** at the start of each session, check the latest scheduled (cron) workflow runs on the default branch. A failed run becomes a bug issue (failing step + log excerpt), is reported to the human, and goes to the top of the queue. Flag big jumps in run duration too.
 - Failures, monitor hits, process lessons → new GitHub issues and/or skill updates. Not chat-only.

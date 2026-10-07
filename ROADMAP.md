@@ -46,8 +46,11 @@ These stay inside today's architecture. No new vendor, no GPU, no chat API.
 | --- | --- | --- |
 | Up to 10 planets, 1–6 opaque spikes, dashed empty faces, solar skins, mobile drill-down | Shipped | $0 |
 | Daily MiniLM pipeline; TF-IDF in pytest; optional Ollama or DeepInfra labels | Shipped | about $1 / month, plus Jev |
-| Rolling 168-hour window of up to 10,000 filtered claims, retained in R2 | Shipped | R2 free tier |
-| Author cap, cohesion gate, one face when there is one stance, merged duplicate titles | Shipped | $0 |
+| Rolling 168-hour window of up to 10,000 filtered claims, retained in R2 (#28, #30) | Shipped | R2 free tier |
+| Author cap, cohesion gate, merged duplicate titles (part of #32) | Shipped | $0 |
+| At least two perspectives per planet, 2–6 faces (#41) | Shipped | $0 |
+| Even planet distribution on load; orbit kept after explore (#47) | Shipped | $0 |
+| Per-section solar systems behind the newspaper dropdown (#26) | Merged; first publish blocked by #53 | $0 |
 | Welcome tour + tagline (how to read size, tilt, and the crystal) | Shipped | $0 |
 | **`--query` live extract** — operator can pull a brand-shaped sample and write a solar system | Shipped | $0 (your laptop / Actions minutes) |
 
@@ -69,15 +72,19 @@ The [2026-09-28 audit](project_documentation/Pipeline%20Audit%202026-09-28.md) d
 
 What is left on this architecture:
 
-1. **Ship more evidence per face** (20–50 posts, plus top terms) so a future LLM clerk has enough words. `data.json` grows from tens of KB to a few hundred KB. Pages will not notice.
-2. **Optional local LLM in the sidebar** for people who run [Ollama](https://ollama.com/) — same allow-list the pipeline already uses. The site stays static; the browser talks to `localhost`. Cost: $0. Quality: good on a laptop, useless on a phone.
-3. **Keep dated copies of `data.json`** instead of only overwriting `data-snapshot`. Cost: git/Pages, still $0. A date picker can load `solar systems/YYYY-MM-DD.json`. That is time-travel, not trending: planet names and rank ids still churn. Matching, week-over-week, and a database are Horizon C, not this list.
+1. **Ship more evidence per face** (#54) (20–50 posts, plus top terms) so a future LLM clerk has enough words. `data.json` grows from tens of KB to a few hundred KB. Pages will not notice.
+2. **Optional local LLM in the sidebar** (#55) for people who run [Ollama](https://ollama.com/) — same allow-list the pipeline already uses. The site stays static; the browser talks to `localhost`. Cost: $0. Quality: good on a laptop, useless on a phone.
+3. **Keep dated copies of `data.json`** (#56) instead of only overwriting `data-snapshot`. Cost: git/Pages, still $0. A date picker can load `solar systems/YYYY-MM-DD.json`. That is time-travel, not trending: planet names and rank ids still churn. Matching, week-over-week, and a database are Horizon C, not this list.
+
+Also in flight on this architecture: daily pipeline fix (#53), tighter groupings (#32), pipeline reruns on pipeline-code merges (#51), site menu, landing, and methodology (#50), and growing the window via Jetstream (#27).
 
 Stop here if the goal is a public civic observatory that stays free.
 
 ---
 
 ## Horizon A — planet and face intelligence (conversational LLM)
+
+Tracked in #57.
 
 **Job:** A visitor locks a planet or a face and talks to it. "Why are people thinking that, in their words?" "Push back on me." "Is my argument even on this cube?" Follow-ups keep the same retrieval scope.
 
@@ -121,6 +128,8 @@ Details: [Planet Engagement Architecture](project_documentation/Planet%20Engagem
 ---
 
 ## Horizon B — retain posts and generate a universe from text
+
+Tracked in #58.
 
 **Job:** Someone types a brand, a claim, or a paragraph. They get *their* 10-planet solar system, not this week's public one. A Google / Chrome plugin is the distribution: highlight text on a page, or type a brand, and open a generated universe.
 
@@ -176,6 +185,8 @@ The public site stays the unsupervised week. Custom solar systems are a **second
 ---
 
 ## Horizon C — historical solar systems, trending, and topic continuity
+
+Tracked in #59. Step 1 is #56.
 
 **Job:** A visitor rewinds the observatory to last Tuesday, or asks whether a neighborhood grew, entered the top ten, or flipped its majority face. "What changed?" is a different question from "what is this week?"
 

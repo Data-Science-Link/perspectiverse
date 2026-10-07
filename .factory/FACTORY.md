@@ -20,7 +20,7 @@ If there is no separate worker yet, the coordinator may run `factory-loop` thems
 ## Loop
 
 1. **Intake** — GitHub issue with a clear outcome (from coordinator handoff or native issue).
-2. **Triage** — easy → build; hard → product + tech specs on the issue.
+2. **Triage** — easy → build; hard → product + tech specs on the issue. Pick the model per `MODEL_ROUTING.md`.
 3. **Spec gate (human)** — approve, or skip if trivial.
 4. **Build** — sync latest default branch first (agents often have a stale tip), then branch + PR linked to the issue.
 5. **Review** — agent first; human on risk and product (see merge authority below + `skills/liability-gates.md`).
@@ -46,6 +46,10 @@ Any PR that changes a website, page, or UI **must** put screenshots in the PR **
 
 After merge: watch the repo’s deploy / pages / CD workflows on the default branch. If deploy CI fails, open a fix PR (or continue on the same issue) promptly — do not walk away after a green PR CI. Comment deploy status on the issue.
 
+## Scheduled jobs (cron) watch
+
+Scheduled workflows (daily data jobs, nightly builds) can fail with no PR in flight. At the start of each work session, and after any merge that touches a scheduled job, check the latest scheduled runs on the default branch. If one failed, open (or reopen) a bug issue with the failing step and log excerpt, tell the human, and treat it as top priority. Also note run duration trends; a big jump is worth an issue.
+
 ## Folder map
 
 ```
@@ -53,6 +57,7 @@ After merge: watch the repo’s deploy / pages / CD workflows on the default bra
   FACTORY.md                      ← this playbook (keep thin)
   DECISIONS.md                    ← append-only decisions for this repo
   DOCS.md                         ← map to repo docs (pointers only, no copies)
+  MODEL_ROUTING.md                ← which model per task; what to do when spend limits hit
   skills/
     factory-loop.md               ← run the loop on an issue
     intake-from-coordinator.md    ← coordinator: chat → issue → hand off to worker
@@ -70,6 +75,8 @@ After merge: watch the repo’s deploy / pages / CD workflows on the default bra
 
 ## Rules
 
+- Pin a model on every agent launch per `MODEL_ROUTING.md`; cheapest capable model first; never enable on-demand spend yourself
+
 - Humans own “is this useful?” for all **normal** and **high** work; only **trivial** may auto-merge
 - Chat (or issue) product-gate approval must be **written onto the PR description** before merge
 - History in GitHub + this folder — not only chat
@@ -77,4 +84,5 @@ After merge: watch the repo’s deploy / pages / CD workflows on the default bra
 - Agents see their own CI/evidence (incl. UI screenshots) before asking for review
 - Follow `skills/liability-gates.md` on every change
 - After merge, monitor deploy CI and correct failures
+- Check scheduled (cron) workflow runs each session; a failure becomes a top-priority bug issue
 - Drop process that stopped helping
