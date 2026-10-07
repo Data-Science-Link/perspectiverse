@@ -121,6 +121,15 @@ export default function App() {
     commitSelection({ category, topicId: null, perspectiveId: null, page: null })
   }
 
+  const openEmail = () => {
+    setMenuOpen(false)
+    setWelcomeOpen(false)
+    if (pageById(page)) {
+      commitSelection({ category, topicId: null, perspectiveId: null, page: null })
+    }
+    setEmailOpen(true)
+  }
+
   const changeCategory = (next) => {
     commitSelection({ category: next, topicId: null, perspectiveId: null, page: null })
   }
@@ -189,8 +198,8 @@ export default function App() {
 
   const sitePage = pageById(page)
   const drilled = Boolean(selectedTopic) || Boolean(sitePage)
-  const showObservatory = !sitePage && !(isMobile && selectedTopic)
-  const showReading = !sitePage && (!isMobile || selectedTopic)
+  const showObservatory = !sitePage && !(isMobile && selectedTopic) && !emailOpen
+  const showReading = !sitePage && (!isMobile || selectedTopic || emailOpen)
   const chromeTitle = sitePage?.title
     ?? selectedPerspective?.title
     ?? selectedTopic?.name
@@ -211,7 +220,7 @@ export default function App() {
   return (
     <div
       ref={shellRef}
-      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${isMobile && !sitePage && !selectedTopic ? 'is-orbits' : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
+      className={`app-shell ${isMobile ? 'is-mobile' : ''} ${menuOpen ? 'is-menu-open' : ''} ${isMobile && !sitePage && !selectedTopic ? 'is-orbits' : ''} ${selectedTopic && !sitePage ? 'is-drilled' : ''} ${sitePage ? 'is-page' : ''}`}
     >
       <SiteChrome
         drilled={drilled}
@@ -219,8 +228,10 @@ export default function App() {
         subtitle={chromeSubtitle}
         tagline={!selectedTopic}
         backLabel={backLabel}
+        showEmail={!sitePage}
         onBack={stepBack}
         onOpenMenu={() => setMenuOpen(true)}
+        onOpenEmail={openEmail}
         onUniverse={goUniverse}
       />
       {sitePage && (
@@ -264,15 +275,14 @@ export default function App() {
       )}
       <SiteMenu
         open={menuOpen}
-        topics={visibleTopics}
         categories={CATEGORIES}
         category={category}
         counts={categoryCounts(data)}
-        currentPage={page}
+        currentPage={pageById(page)?.id ?? null}
         onClose={() => setMenuOpen(false)}
         onCategory={changeCategory}
-        onSelectTopic={selectTopic}
         onOpenPage={openPage}
+        onOpenEmail={openEmail}
         onShowWelcome={() => {
           setMenuOpen(false)
           setWelcomeOpen(true)

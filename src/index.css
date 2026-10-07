@@ -460,17 +460,36 @@ h3 {
   min-height: 0;
 }
 
-.welcome-graphic {
-  flex: 1 1 0;
-  min-height: 0;
+.welcome-graphic,
+.welcome-card .welcome-graphic,
+.welcome-card figure.welcome-flow {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin: 0;
-  display: flex;
-  align-items: center;
+  flex: none;
 }
 
-.welcome-card .welcome-graphic svg {
+.welcome-card figure.welcome-flow > svg {
+  display: block;
   width: 100%;
-  height: 100%;
+  max-width: 100%;
+  height: auto;
+  min-width: 0;
+}
+
+.welcome-icon {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+}
+
+.welcome-mini {
+  display: block;
+  width: 44px;
+  height: 44px;
 }
 
 .color-legend {
@@ -526,27 +545,37 @@ h3 {
 .menu-layer {
   position: fixed;
   inset: 0;
-  z-index: 50;
-  display: flex;
+  z-index: 2000;
+  pointer-events: auto;
 }
 
 .menu-backdrop {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   border: 0;
-  background: rgba(5, 6, 11, 0.72);
+  background: rgba(5, 6, 11, 0.94);
   cursor: pointer;
 }
 
 .menu-drawer {
+  position: relative;
+  z-index: 1;
   width: min(420px, 92vw);
   height: 100%;
   overflow-y: auto;
   padding: calc(1rem + env(safe-area-inset-top)) 1.25rem calc(2rem + env(safe-area-inset-bottom));
   border-right: 1px solid var(--line);
   background: #080910;
+  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.65);
   isolation: isolate;
   transform: translateZ(0);
   animation: drawer-in 0.22s ease;
+}
+
+.app-shell.is-menu-open .site-chrome,
+.app-shell.is-menu-open .observatory-chrome {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .menu-head {
@@ -606,6 +635,130 @@ h3 {
   color: var(--muted);
   font-style: normal;
   font-size: 0.8rem;
+}
+
+.menu-section-tight {
+  margin-top: 0.5rem;
+}
+
+.menu-email-cta {
+  width: 100%;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(244, 193, 78, 0.55);
+  border-radius: 0.85rem;
+  background: rgba(244, 193, 78, 0.1);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-email-cta strong {
+  font-size: 1rem;
+}
+
+.menu-email-cta span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.menu-inline-link {
+  width: 100%;
+  margin-top: 0.65rem;
+  padding: 0.35rem 0;
+  border: 0;
+  background: transparent;
+  color: #f4c14e;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+
+.chrome-email {
+  width: auto;
+  padding: 0 0.65rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+}
+
+.welcome-card ol.welcome-steps,
+.welcome-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.welcome-steps li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgba(232, 230, 245, 0.16);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.welcome-steps li:nth-child(2) {
+  border-color: rgba(244, 193, 78, 0.4);
+  background: rgba(244, 193, 78, 0.08);
+}
+
+.welcome-steps li:last-child {
+  border-color: rgba(47, 210, 168, 0.45);
+  background: rgba(47, 210, 168, 0.1);
+}
+
+.welcome-copy strong {
+  display: block;
+  color: #efeef7;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.welcome-copy span {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.welcome-flow figcaption {
+  display: grid;
+  gap: 0.15rem;
+  width: 100%;
+  margin: 0.45rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  text-align: left;
+}
+
+@media (min-width: 801px) {
+  .welcome-card {
+    width: min(46rem, calc(100% - 2rem));
+  }
+
+  .welcome-card ol.welcome-steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+}
+
+.site-page .bias-line,
+.bias-line {
+  color: #f4e2b0;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 1.2rem;
+  line-height: 1.35;
 }
 
 .menu-feedback {
@@ -1068,12 +1221,15 @@ h3 {
 
 .method-figure {
   margin: 0.85rem 0 0;
+  overflow: visible;
 }
 
 .method-overview {
   display: block;
-  width: min(100%, 26rem);
+  width: min(100%, 22rem);
   height: auto;
+  aspect-ratio: 320 / 500;
+  overflow: visible;
   margin-inline: auto;
 }
 
@@ -1316,10 +1472,10 @@ h3 {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  width: min(24rem, 100%);
-  height: min(740px, calc(100dvh - 1.25rem));
+  width: min(46rem, calc(100% - 2rem));
+  height: auto;
   max-height: calc(100dvh - 1.25rem);
-  overflow: hidden;
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: 1.1rem;
   background: linear-gradient(180deg, #10131c, #080910 72%);
@@ -1337,15 +1493,16 @@ h3 {
 }
 
 .welcome-head {
-  padding-bottom: 0.35rem;
+  padding-bottom: 0.25rem;
 }
 
 .welcome-body {
-  flex: 1 1 auto;
+  display: block;
+  width: 100%;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: hidden;
-  display: flex;
-  padding: 0 0.8rem 0.2rem;
+  overflow: visible;
+  padding: 0 0.75rem 0.35rem;
 }
 
 .welcome-foot {
@@ -1488,12 +1645,23 @@ h3 {
 }
 
 @media (max-width: 900px) {
+  .app-shell.is-menu-open .observatory {
+    visibility: hidden;
+  }
+
+  .menu-drawer {
+    width: 100%;
+    max-width: 100%;
+    border-right: 0;
+  }
+
   .welcome-layer {
     padding: 0.45rem;
   }
 
   .welcome-card {
-    height: calc(100dvh - 0.9rem);
+    width: 100%;
+    height: auto;
     max-height: calc(100dvh - 0.9rem);
   }
 

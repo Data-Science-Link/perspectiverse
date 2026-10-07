@@ -8,18 +8,19 @@ import {
   REPO_URL,
   SPONSORS_URL,
   neighborPages,
+  normalizePageId,
   pageById,
 } from '../lib/pages'
-import { OverviewGraphic, SystemsGraphic, TechnicalMapGraphic } from './MethodologyGraphics'
+import { OverviewGraphic, SystemsGraphic } from './MethodologyGraphics'
 
 const FAQ_ITEMS = [
   {
     q: 'What is this for?',
-    a: 'To see what the public is paying attention to, what the opinions actually are, and that there are several of them — so you can leave an echo chamber and show up to debate prepared, not scandalized by a caricature. The Vision page spells it out.',
+    a: 'To see what people were discussing this week, how much attention each topic drew, and the main perspectives inside it — without a feed picking winners.',
   },
   {
     q: 'Is this a poll of everyone?',
-    a: 'No. It is a sample of public English posts — usually Bluesky — from the last week. That is internet talk, not humanity. Younger, Western, and tech-heavy voices are over-represented.',
+    a: 'No. It is a sample of public English posts — usually Bluesky — from the last week. Internet talk is not humanity.',
   },
   {
     q: 'What does planet size mean?',
@@ -35,36 +36,25 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How often does it update?',
-    a: 'Once a day. The pipeline looks at the last 168 hours, writes one data file, and the site loads that file. There is no live firehose in your browser.',
+    a: 'Once a day. The pipeline looks at the last 168 hours and writes one data file.',
   },
   {
     q: 'Why is my take missing?',
-    a: 'It may be rare in this sample, or in the posts that never became a planet.',
+    a: 'It may be rare in this sample, filtered out, or never clustered into a planet.',
   },
   {
-    q: 'Is this social listening or brand monitoring?',
-    a: 'No. Those tools start from a query you already named. Perspectiverse starts from a week of public posts and keeps the ten largest topics. If something you care about is not a planet, that is the finding.',
-  },
-  {
-    q: 'Can I search for a brand?',
-    a: 'Not on this public page. Operators can run the live pipeline with --query on a laptop. Custom universes are a separate product idea, not the homepage.',
-  },
-  {
-    q: 'Where does the data come from right now?',
-    a: 'A retained sample of English Bluesky posts from the last week, cleaned of obvious spam. The daily job rotates about one seventh of that sample. You are looking at a snapshot, not your personal feed.',
-  },
-  {
-    q: 'Do you keep the posts?',
-    a: 'The published snapshot keeps up to three dozen example posts per perspective. About a thousand cleaned posts sit in a retained SQLite window so tomorrow’s job can drop the oldest seventh and add yesterday’s posts. That is not a firehose archive.',
+    q: 'Where does the data come from?',
+    a: 'Today: English Bluesky posts from the last week, after spam and quality filters. We hope to add broader inputs later.',
   },
   {
     q: 'How do I get in touch?',
-    a: 'The Connect page has GitHub, LinkedIn, and a link to open an issue. There is no project inbox in the browser.',
+    a: 'GitHub issues and the links on the Connect page.',
   },
 ]
 
 function PagePager({ pageId, onOpenPage }) {
-  const { prev, next } = neighborPages(pageId)
+  const canonical = normalizePageId(pageId) ?? pageId
+  const { prev, next } = neighborPages(canonical)
   if (!prev && !next) return null
   return (
     <nav className="page-pager" aria-label="More pages">
@@ -96,87 +86,10 @@ function PagePager({ pageId, onOpenPage }) {
   )
 }
 
-function VisionPage({ onOpenPage }) {
-  return (
-    <>
-      <p className="lede">
-        Be well informed about current public attention, public opinion, and the several
-        perspectives that form it. Then walk into debate ready to listen — not already
-        scandalized by a caricature.
-      </p>
-
-      <div className="vision-points">
-        <article className="vision-point">
-          <strong>Public attention</strong>
-          <p>What people were actually talking about this week — not what a feed ranked because it would keep you scrolling.</p>
-        </article>
-        <article className="vision-point">
-          <strong>Public opinion</strong>
-          <p>The views that showed up, common and rare.</p>
-        </article>
-        <article className="vision-point">
-          <strong>Multiple perspectives</strong>
-          <p>Most topics are not two-sided. A planet holds one to six takes.</p>
-        </article>
-      </div>
-
-      <section>
-        <h2>Leave the echo chamber</h2>
-        <p>
-          Feeds reward what is sticky: outrage, tribe, the take that already agrees with
-          you. That is a poor map of the public and a worse way to prepare for talking to
-          someone you do not already like.
-        </p>
-        <p>
-          The solar system is supposed to do the opposite. Tilt until every side comes into view.
-          Check whether you are the majority, a minority, or not on the planet at all.
-          Then you can walk into a conversation without plugging your ears.
-        </p>
-      </section>
-
-      <section>
-        <h2>Earnest debate, not a tribe</h2>
-        <p>
-          Meaningful public debate is not winning a thread. It is understanding the other
-          view well enough to meet it, and being willing to change your mind when the
-          facts are better than your side.
-        </p>
-        <p>
-          We should not refuse to talk because we are scandalized by someone&apos;s opinion
-          — or by what we imagine they think. That is how people stop being neighbors and
-          start being avatars. Cohesive relationships come from seeing the argument as it
-          is, not as it was packaged to keep us spinning.
-        </p>
-      </section>
-
-      <section>
-        <h2>Truth is real, and it is worth acting on</h2>
-        <p>
-          Truth can be nuanced. It still exists. People can hold different perspectives
-          and still be aiming at the same thing: what is so, and what to do about it.
-        </p>
-        <p>
-          Knowing the truth, and acting on it, is how you get better outcomes for
-          humanity. Staying in tribes with our ears plugged — reinforcing bias, reinforcing
-          whatever stuck in the feed — is how we alienate each other and never get there.
-        </p>
-        <p>
-          Perspectiverse cannot hand you the truth. It can show you the shape of the
-          public argument so you have a fairer chance of finding it, and of taking action
-          accordingly.
-        </p>
-        <button type="button" className="text-link" onClick={() => onOpenPage('about')}>
-          How to read the solar system
-        </button>
-      </section>
-    </>
-  )
-}
-
 function sourceLine(data) {
   if (!data) return 'the snapshot bundled with this page'
   if (data.mode === 'demo' || data.source === 'synthetic') {
-    return 'demo data (made-up example posts, not a live feed)'
+    return 'demo data (synthetic example posts)'
   }
   if (data.source === 'bluesky') return 'public English posts on Bluesky'
   return 'the snapshot bundled with this page'
@@ -186,109 +99,34 @@ function AboutPage({ data, onOpenPage }) {
   return (
     <>
       <p className="lede">
-        Perspectiverse turns a week of public conversation into a small solar system so you
-        can step out of an echo chamber. Tilt to see every side. Check whether your take is
-        the majority, a minority, or not on the map at all.
+        Perspectiverse maps a week of public conversation as a small solar system: how much attention
+        each topic drew, and the perspectives that showed up, ordered by how common they are.
+      </p>
+      <p className="bias-line">
+        An unbiased pipeline, so you can meet the biases that challenge your own.
       </p>
       <section>
-        <h2>What you are looking at</h2>
+        <h2>What you see</h2>
         <p>
-          The largest topic sits in the center as the sun. The next nine orbit around it.
-          The briefing uses the same screen for planets and for perspectives: bars,
-          a short summary, and example posts.
+          The largest topic is the sun; nine more orbit it. Planet size is share of talk in this sample.
+          Tap a planet or bar to read summaries and example posts.
         </p>
       </section>
       <section>
         <h2>This week&apos;s snapshot</h2>
         <p>
-          Source: {sourceLine(data)}. Window: the last {data?.window_hours ?? 168} hours.
-          {data?.last_updated ? ` Updated ${data.last_updated}.` : ''} Only the ten largest
-          topics are shown.
+          Source: {sourceLine(data)}. Window: {data?.window_hours ?? 168} hours.
+          {data?.last_updated ? ` Updated ${data.last_updated}.` : ''} Ten planets max.
         </p>
       </section>
       <section>
-        <h2>What this is not</h2>
+        <h2>What we are not doing</h2>
         <ul className="page-list">
-          <li>Not a poll, census, or score of who is right.</li>
-          <li>Not social listening or a brand dashboard. Those start from a name you already typed.</li>
-          <li>Not a live feed. It is yesterday’s snapshot of a week.</li>
+          <li>Not a poll, census, or truth score.</li>
+          <li>Not a live feed or personal timeline.</li>
         </ul>
-      </section>
-      <section>
-        <h2>How to read it</h2>
-        <ol className="page-list is-numbered">
-          <li>Drag, pinch, or tilt. Planets keep turning so every side comes into view.</li>
-          <li>Bigger planet = more talk this week, not more importance.</li>
-          <li>Tap a bar. Read more opens the longer summary. Posts sit under it.</li>
-        </ol>
-        <div className="text-links">
-          <button type="button" className="text-link" onClick={() => onOpenPage('vision')}>
-            Read the vision
-          </button>
-          <button type="button" className="text-link" onClick={() => onOpenPage('methodology')}>
-            See how the solar system is made
-          </button>
-        </div>
-      </section>
-    </>
-  )
-}
-
-function AuthorPage({ onOpenPage }) {
-  return (
-    <>
-      <p className="lede">
-        {AUTHOR_NAME} is a data systems and analytics engineer in {AUTHOR_LOCATION}.
-        He builds Perspectiverse as a personal civic project: a way to see the shape
-        of public talk without asking a feed to decide what matters.
-      </p>
-      <section>
-        <h2>Background</h2>
-        <p>
-          He started in water resources and ecological engineering — a B.S. at Oregon
-          State, then a master&apos;s at UT Austin — and now spends his days turning
-          messy operational data into something a decision can stand on. The habit is
-          the same here: take a noisy public record, make the structure visible, and
-          refuse to pretend a loud corner is the whole solar system.
-        </p>
-        <p>
-          Perspectiverse is independent of his day job. MIT licensed, cheap on purpose,
-          and meant to stay readable on a phone.
-        </p>
-      </section>
-      <section>
-        <h2>Why this exists</h2>
-        <p>
-          Feeds flatten argument into a For/Against scroll, and they hide scale. A loud
-          fight can look like the whole solar system. This project puts attention and disagreement
-          in space: planet size for how widely something was discussed, bars for the
-          actual views inside it.
-        </p>
-      </section>
-      <section>
-        <h2>Find Michael</h2>
-        <ul className="page-list">
-          <li>
-            GitHub:{' '}
-            <a href={AUTHOR_GITHUB_URL} target="_blank" rel="noreferrer">
-              @{AUTHOR_HANDLE}
-            </a>
-          </li>
-          <li>
-            LinkedIn:{' '}
-            <a href={LINKEDIN_URL} target="_blank" rel="noreferrer">
-              {AUTHOR_NAME}
-            </a>
-          </li>
-          <li>
-            This repo:{' '}
-            <a href={REPO_URL} target="_blank" rel="noreferrer">
-              perspectiverse
-            </a>
-          </li>
-        </ul>
-        <button type="button" className="text-link" onClick={() => onOpenPage('connect')}>
-          All the ways to connect
+        <button type="button" className="text-link" onClick={() => onOpenPage('methodology')}>
+          How the map is built
         </button>
       </section>
     </>
@@ -299,36 +137,73 @@ function MethodologyPage() {
   return (
     <>
       <p className="lede">
-        One daily job reads a week of public posts, finds up to ten topics and the
-        opinions that differ, and writes a file. The site is that file, drawn as a solar system.
+        A daily job reads public posts, filters noise, clusters topics, splits perspectives, and writes
+        one file. The site only displays that snapshot.
       </p>
 
       <section>
-        <h2>The big picture</h2>
-        <p>
-          You never query Bluesky from the browser. You never talk to a model from the
-          browser. Clustering and labeling happen once, then the observatory just looks.
+        <h2>An unbiased pipeline</h2>
+        <p className="bias-line">
+          An unbiased pipeline, so you can meet the biases that challenge your own.
         </p>
+        <p>
+          The people who built this work hard to keep their own opinions out of the map.
+          The pipeline does not put a thumb on any scale. What it shows is public attention
+          and opinion. On some topics that may line up with a familiar bias; on others it may
+          run the other way.
+        </p>
+        <p>
+          The perspectives can be very biased, because that is what people are saying.
+          The pipeline that finds and arranges them is built to be as neutral as possible.
+          Summaries steelman each side: they state the argument as its holders would.
+          The point is to show you the prevailing sentiment and arguments, including biases
+          that challenge your own.
+        </p>
+        <p>
+          The code is open source, so anyone can audit how it works.{' '}
+          <a href={REPO_URL} target="_blank" rel="noreferrer">
+            Read it on GitHub
+          </a>
+          .
+        </p>
+      </section>
+
+      <section>
+        <h2>From posts to planets</h2>
         <OverviewGraphic />
       </section>
 
       <section>
-        <h2>How the systems connect</h2>
+        <h2>Why Bluesky (for now)</h2>
         <p>
-          Collect, sort, name, publish. Each stage is boring on purpose so the public
-          solar system can stay free. The map is the whole path; the cards underneath spell out
-          what each box actually does.
+          Bluesky offers a free, practical public search API for English posts. That makes a civic
+          prototype affordable. It is not representative of the whole world; we hope to add more inputs
+          over time so the solar system can better reflect society.
         </p>
-        <TechnicalMapGraphic />
+      </section>
+
+      <section>
+        <h2>Jev filters</h2>
+        <p>
+          When configured, Jev scores each post for spam, whether it makes a public claim worth mapping,
+          and a newspaper-style section (World, Politics, Business, and the rest). High-confidence spam
+          drops out. Sections help the topic filter match how editors bucket news — see{' '}
+          <code>pipeline/jev.py</code> and the README. Without an API key, regex cleaning and keyword
+          sections still run.
+        </p>
+      </section>
+
+      <section>
+        <h2>Pipeline stages</h2>
         <SystemsGraphic />
       </section>
 
       <section>
-        <h2>What we do not claim</h2>
+        <h2>Limits</h2>
         <ul className="page-list">
-          <li>A perspective title is a summary of a cluster, not a person.</li>
-          <li>Percentages ignore leftover posts that never became a planet.</li>
-          <li>Bluesky is not the world. Demo mode is not a live feed.</li>
+          <li>Labels describe clusters, not individuals.</li>
+          <li>Percentages omit posts that never became a planet.</li>
+          <li>Demo mode uses synthetic posts, not a live feed.</li>
         </ul>
       </section>
     </>
@@ -338,9 +213,7 @@ function MethodologyPage() {
 function FaqPage() {
   return (
     <>
-      <p className="lede">
-        Short answers. If something still feels off, that is useful — tell us.
-      </p>
+      <p className="lede">Short answers. Confusing bits are useful feedback.</p>
       <div className="faq-list">
         {FAQ_ITEMS.map((item) => (
           <details key={item.q} className="faq-item">
@@ -362,17 +235,9 @@ function DonatePage() {
   return (
     <>
       <p className="lede">
-        The public solar system is built to cost almost nothing — about a dollar a month at most
-        today. Donations keep it independent, not pay the hosting bill.
+        The public solar system is built to cost almost nothing. Donations support independence and time
+        on the method, not a large hosting bill.
       </p>
-      <section>
-        <h2>What support is for</h2>
-        <ul className="page-list">
-          <li>Keep the civic homepage query-free and ad-free.</li>
-          <li>Thicken what a perspective can show: more example posts, clearer labels, a longer archive.</li>
-          <li>Time to explain the method in public, not hide it in a dashboard.</li>
-        </ul>
-      </section>
       <section>
         <h2>Ways to help</h2>
         <div className="donate-actions">
@@ -383,13 +248,6 @@ function DonatePage() {
             Star the repository
           </a>
         </div>
-        <p>
-          If sponsorships are not open yet, starring the repo and{' '}
-          <a href={FEEDBACK_URL} target="_blank" rel="noreferrer">
-            sending feedback
-          </a>{' '}
-          is the most useful thing. There is no paywall on Perspectiverse.
-        </p>
       </section>
     </>
   )
@@ -421,59 +279,49 @@ function IssueIcon() {
   )
 }
 
-function ConnectPage({ onOpenPage }) {
+function ConnectPage() {
   return (
     <>
       <p className="lede">
-        {AUTHOR_NAME} is in {AUTHOR_LOCATION}. If you want to talk about Perspectiverse, the
-        method, a missing perspective, or just say hello — these are the public doors.
-        There is no inbox hiding in the page.
+        {AUTHOR_NAME} ({AUTHOR_LOCATION}) builds Perspectiverse as an independent civic project — data
+        systems engineer by day, observatory maintainer here.
       </p>
       <nav className="connect-list" aria-label="Ways to connect">
         <a className="connect-link" href={AUTHOR_GITHUB_URL} target="_blank" rel="noreferrer">
           <GitHubIcon />
           <span>
             <strong>GitHub</strong>
-            <em>@{AUTHOR_HANDLE} — profile and other work</em>
+            <em>@{AUTHOR_HANDLE}</em>
           </span>
         </a>
         <a className="connect-link" href={LINKEDIN_URL} target="_blank" rel="noreferrer">
           <LinkedInIcon />
           <span>
             <strong>LinkedIn</strong>
-            <em>{AUTHOR_NAME} — {AUTHOR_LOCATION}, data systems and analytics</em>
+            <em>{AUTHOR_NAME}</em>
           </span>
         </a>
         <a className="connect-link" href={REPO_URL} target="_blank" rel="noreferrer">
           <GitHubIcon />
           <span>
-            <strong>This repository</strong>
-            <em>perspectiverse — star, fork, or open a pull request</em>
+            <strong>Repository</strong>
+            <em>perspectiverse</em>
           </span>
         </a>
         <a className="connect-link" href={FEEDBACK_URL} target="_blank" rel="noreferrer">
           <IssueIcon />
           <span>
-            <strong>Send feedback</strong>
-            <em>Open a GitHub issue about Perspectiverse</em>
+            <strong>Feedback</strong>
+            <em>GitHub issue</em>
           </span>
         </a>
       </nav>
-      <p>
-        There is no project Twitter, Bluesky, or email form. If that changes, it will
-        show up here.
-      </p>
-      <button type="button" className="text-link" onClick={() => onOpenPage('author')}>
-        About the author
-      </button>
     </>
   )
 }
 
 const PAGE_BODY = {
-  vision: VisionPage,
   about: AboutPage,
-  author: AuthorPage,
   connect: ConnectPage,
   methodology: MethodologyPage,
   faq: FaqPage,
@@ -481,8 +329,9 @@ const PAGE_BODY = {
 }
 
 export default function SitePage({ pageId, data, onOpenPage }) {
-  const meta = pageById(pageId)
-  const Body = PAGE_BODY[pageId]
+  const canonical = normalizePageId(pageId)
+  const meta = pageById(canonical)
+  const Body = canonical ? PAGE_BODY[canonical] : null
   if (!meta || !Body) return null
 
   return (
@@ -491,7 +340,7 @@ export default function SitePage({ pageId, data, onOpenPage }) {
         <p className="eyebrow">{meta.eyebrow}</p>
         <h1>{meta.heading}</h1>
         <Body data={data} onOpenPage={onOpenPage} />
-        <PagePager pageId={pageId} onOpenPage={onOpenPage} />
+        <PagePager pageId={canonical} onOpenPage={onOpenPage} />
       </div>
     </main>
   )

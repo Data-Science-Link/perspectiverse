@@ -20,8 +20,10 @@ export default function SiteChrome({
   subtitle = 'See every perspective — and where yours stands.',
   tagline = false,
   backLabel = 'Back',
+  showEmail = false,
   onBack,
   onOpenMenu,
+  onOpenEmail,
   onUniverse,
 }) {
   return (
@@ -52,6 +54,11 @@ export default function SiteChrome({
         )}
       </div>
       <div className="chrome-actions">
+        {showEmail && onOpenEmail && (
+          <button type="button" className="icon-btn chrome-email" onClick={onOpenEmail}>
+            Email
+          </button>
+        )}
         <button type="button" className="icon-btn chrome-universe" onClick={onUniverse}>
           Universe
         </button>

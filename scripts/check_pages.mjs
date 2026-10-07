@@ -6,6 +6,7 @@ import {
   SITE_PAGES,
   isSitePage,
   neighborPages,
+  normalizePageId,
   pageById,
 } from '../src/lib/pages.js'
 import { selectionURL, readSelectionFromURL } from '../src/lib/navigation.js'
@@ -15,7 +16,7 @@ assert.equal(AUTHOR_LOCATION, 'Austin, Texas')
 assert.equal(LINKEDIN_URL, 'https://www.linkedin.com/in/data-science-link')
 assert.deepEqual(
   SITE_PAGES.map((page) => page.id),
-  ['vision', 'about', 'author', 'connect', 'methodology', 'faq', 'donate'],
+  ['about', 'methodology', 'faq', 'connect', 'donate'],
 )
 
 for (const page of SITE_PAGES) {
@@ -25,18 +26,20 @@ for (const page of SITE_PAGES) {
   assert.ok(page.heading)
 }
 
+assert.equal(normalizePageId('vision'), 'about')
+assert.equal(normalizePageId('author'), 'connect')
+assert.equal(isSitePage('vision'), true)
 assert.equal(isSitePage('nope'), false)
 assert.equal(isSitePage(''), false)
 assert.equal(pageById('nope'), null)
 
-assert.deepEqual(neighborPages('vision').prev, null)
-assert.equal(neighborPages('vision').next.id, 'about')
-assert.equal(neighborPages('about').prev.id, 'vision')
-assert.equal(neighborPages('about').next.id, 'author')
-assert.equal(neighborPages('author').next.id, 'connect')
-assert.equal(neighborPages('connect').prev.id, 'author')
-assert.equal(neighborPages('connect').next.id, 'methodology')
-assert.equal(neighborPages('donate').prev.id, 'faq')
+assert.deepEqual(neighborPages('about').prev, null)
+assert.equal(neighborPages('about').next.id, 'methodology')
+assert.equal(neighborPages('methodology').prev.id, 'about')
+assert.equal(neighborPages('methodology').next.id, 'faq')
+assert.equal(neighborPages('connect').prev.id, 'faq')
+assert.equal(neighborPages('connect').next.id, 'donate')
+assert.equal(neighborPages('donate').prev.id, 'connect')
 assert.equal(neighborPages('donate').next, null)
 
 globalThis.window = {
@@ -59,6 +62,9 @@ const snap = readSelectionFromURL()
 assert.equal(snap.page, 'methodology')
 assert.equal(snap.topicId, null)
 assert.equal(snap.perspectiveId, null)
+
+globalThis.window.location.search = '?page=vision'
+assert.equal(readSelectionFromURL().page, 'about')
 
 globalThis.window.location.search = '?page=not-a-page&topic=4'
 assert.equal(readSelectionFromURL().page, null)
