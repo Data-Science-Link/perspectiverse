@@ -42,7 +42,7 @@ from pipeline.label import (
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
-from pipeline.schema import SYSTEM_SIZE, category_for_members, to_percents
+from pipeline.schema import CATEGORIES, SYSTEM_SIZE, category_for_members, to_percents
 from pipeline.settings import load_settings
 from pipeline.store import (
     LIVE_CORPUS_DB,
@@ -90,17 +90,23 @@ def run_live(
         )
         if source == "bluesky" and not relabel:
             cleaned = apply_jev(cleaned)
+            # Keep only public claims; non-claims are discarded and not stored.
+            cleaned = [p for p in cleaned if p.get("is_claim") is True]
             if refreshed:
-                before = len(counted_posts(cleaned))
+                # Top up: keep fetching until claim count reaches target so the
+                # rolling window stays at the threshold, not below it.
+                if len(cleaned) < target:
+                    cleaned = _topup_claims(cleaned, target=target, settings=settings)
+                before = len(cleaned)
                 cleaned = retire_oldest(
                     cleaned,
                     now=datetime.now(timezone.utc),
                     window_hours=int(settings["window_hours"]),
                     target=target,
                 )
-                kept = len(counted_posts(cleaned))
+                kept = len(cleaned)
                 if kept < target:
-                    print(f"Claim shortfall: {kept} of {target} filtered claims. Search did not fill the window.")
+                    print(f"Claim shortfall: {kept} of {target}. Bluesky could not fill the window.")
                 elif before > kept:
                     print(f"Retired the oldest posts down to {kept} of {target}.")
         if not cleaned:
@@ -133,6 +139,15 @@ def run_live(
         topics, membership, face_rows = _build_topics(
             planet_posts, clustered, settings, keep=catalog_size
         )
+        # Section clustering reuses the precomputed embedding matrix so posts
+        # are not re-embedded ten times. Only sections that produce at least one
+        # planet appear in the output; small sections are silently skipped.
+        global_matrix = clustered.get("matrix")
+        sections: dict[str, list[dict]] = {}
+        if global_matrix is not None:
+            sections = _cluster_sections(
+                planet_posts, global_matrix, settings, catalog_size, floor
+            )
         write_clusters(connection, membership, face_rows)
     finally:
         connection.close()
@@ -142,6 +157,7 @@ def run_live(
         mode="live",
         source=source,
         total_posts=len(planet_posts),
+        sections=sections or None,
     )
     destination = write_payload(payload, output)
     print(
@@ -150,6 +166,65 @@ def run_live(
         f"{clustered['noise_count']} excluded as noise, wrote {destination}"
     )
     return destination
+
+
+def _topup_claims(
+    claims: list[dict],
+    *,
+    target: int,
+    settings: dict,
+    max_rounds: int = 6,
+) -> list[dict]:
+    """Fetch additional posts and Jev-classify them until claim count reaches target.
+
+    Each round over-fetches by 4× the remaining gap to account for the Bluesky
+    claim rate (~30 %). Stops early if Bluesky returns nothing new or max_rounds
+    is exhausted — the caller still gets whatever claims were collected.
+    """
+    result = list(claims)
+    seen = {post.get("uri") for post in result if post.get("uri")}
+    neutral = [item for item in (settings.get("neutral_queries") or []) if item]
+    refresh_hours = int(settings.get("refresh_hours") or 24)
+    # Use a shifted seed so each round samples a different slice of Bluesky.
+    rng = random.Random(int(settings["seed"]) + len(result))
+    now = datetime.now(timezone.utc)
+
+    for round_num in range(1, max_rounds + 1):
+        gap = target - len(result)
+        if gap <= 0:
+            break
+        # 4× overfetch compensates for the ~25–35 % claim rate on Bluesky.
+        fetch_size = min(gap * 4, 5000)
+        try:
+            incoming = extract_posts(
+                sample_size=fetch_size,
+                window_hours=refresh_hours,
+                queries=neutral,
+                rng=rng,
+                now=now,
+                skip_uris=seen,
+            )
+        except RuntimeError as exc:
+            print(f"Top-up fetch {round_num} failed ({exc}); stopping.")
+            break
+        fresh = []
+        for post in drop_near_duplicates(clean_posts(incoming)):
+            uri = post.get("uri")
+            if not uri or uri in seen:
+                continue
+            seen.add(uri)
+            fresh.append(post)
+        if not fresh:
+            print(f"Top-up {round_num}: no new posts from Bluesky; stopping.")
+            break
+        new_claims = [p for p in apply_jev(fresh) if p.get("is_claim") is True]
+        result.extend(new_claims)
+        print(
+            f"Top-up {round_num}: {len(new_claims)} claims from {len(fresh)} posts "
+            f"(total {len(result)}/{target})."
+        )
+
+    return result
 
 
 def _collect_posts(
@@ -425,6 +500,68 @@ def _build_topics(
     return _renumber_planets(built, membership, face_rows)
 
 
+def _cluster_sections(
+    planet_posts: list[dict],
+    global_matrix,
+    settings: dict,
+    catalog_size: int,
+    floor: int,
+) -> dict[str, list[dict]]:
+    """Cluster each Jev section independently, reusing the global embeddings.
+
+    Posts are not re-embedded; the sub-rows of *global_matrix* (already
+    L2-normalised) are sliced out and passed back into cluster_texts via the
+    *embed* hook, which short-circuits the fastembed call.
+    """
+    import numpy as np
+
+    section_indices: dict[str, list[int]] = {}
+    for idx, post in enumerate(planet_posts):
+        section = str(post.get("section") or "")
+        if section in CATEGORIES:
+            section_indices.setdefault(section, []).append(idx)
+
+    result: dict[str, list[dict]] = {}
+    seed = int(settings["seed"])
+    base_min = int(settings["min_cluster_size"])
+
+    for section in sorted(section_indices):
+        indices = section_indices[section]
+        # Scale the floor to the section size; smaller sections get a lower bar
+        # than the global floor so they can still form tight groups.
+        section_floor = max(base_min, len(indices) // 200)
+        if len(indices) < section_floor:
+            print(f"Section {section}: {len(indices)} posts, skipping (need {section_floor}).")
+            continue
+
+        section_posts = [planet_posts[i] for i in indices]
+        section_texts = [p["clean_text"] for p in section_posts]
+        sub_matrix = np.asarray(global_matrix)[indices]
+
+        try:
+            pool = min(20, catalog_size + 10)
+            section_clustered = cluster_texts(
+                section_texts,
+                min_cluster_size=section_floor,
+                cluster_backend=str(settings["cluster_backend"]),
+                embedding_model=str(settings["embedding_model"]),
+                seed=seed,
+                catalog_size=pool,
+                embed=lambda _texts, m=sub_matrix: m,
+                authors=[str(p.get("author") or "unknown") for p in section_posts],
+            )
+            section_topics, _, _ = _build_topics(
+                section_posts, section_clustered, settings, keep=catalog_size
+            )
+            if section_topics:
+                result[section] = section_topics
+                print(f"Section {section}: {len(section_topics)} planet(s) from {len(indices)} posts.")
+        except RuntimeError as exc:
+            print(f"Section {section}: skipped ({exc}).")
+
+    return result
+
+
 def publish_volumes(topics: list[dict]) -> None:
     """Planet size is the posts still on the planet.
 
@@ -461,7 +598,7 @@ def posts_for_planets(posts: list[dict], *, require_claims: bool = False) -> lis
         print(f"Jev left {unlabeled} posts unlabeled. They stay out of the planets.")
     print(
         f"Clustering {len(claims)} public claims; "
-        f"{len(posts) - len(claims)} non-claims stay in the window."
+        f"{len(posts) - len(claims)} non-claims excluded."
     )
     return claims
 

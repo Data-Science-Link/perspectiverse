@@ -27,11 +27,17 @@ def assemble_payload(
     source: str,
     total_posts: int,
     last_updated: str | None = None,
+    sections: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     for topic in topics:
         if not topic.get("brief") or not topic.get("detail"):
             apply_level_summaries(topic)
-    payload = {
+    if sections:
+        for section_topics in sections.values():
+            for topic in section_topics:
+                if not topic.get("brief") or not topic.get("detail"):
+                    apply_level_summaries(topic)
+    payload: dict[str, Any] = {
         "last_updated": last_updated or datetime.now(timezone.utc).date().isoformat(),
         "total_posts": int(total_posts),
         "window_hours": WINDOW_HOURS,
@@ -41,6 +47,8 @@ def assemble_payload(
         "topics": topics,
         "digest": assemble_email(topics),
     }
+    if sections:
+        payload["sections"] = sections
     validate_payload(payload)
     return payload
 

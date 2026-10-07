@@ -345,9 +345,19 @@ function withPostCounts(topic, totalPosts) {
 
 export function presentSnapshot(data) {
   const topics = (data?.topics || []).map((topic) => withPostCounts(presentTopic(topic), data?.total_posts))
+  const rawSections = data?.sections ?? null
+  const sections = rawSections
+    ? Object.fromEntries(
+        Object.entries(rawSections).map(([section, sectionTopics]) => [
+          section,
+          sectionTopics.map((topic) => withPostCounts(presentTopic(topic), data?.total_posts)),
+        ]),
+      )
+    : null
   return {
     ...data,
     topics,
+    sections,
     digest: presentDigest(topics, data?.digest),
   }
 }

@@ -1,6 +1,7 @@
 # Copy to pipeline/config/pipeline.yaml to override locally (gitignored).
-# The daily job holds up to 10,000 posts that already passed cleaning, dedup,
-# spam, and the public-claim check. Non-claims stay stored and do not count.
+# Public claims kept in the rolling window. Non-claims are discarded after Jev
+# classification and never stored. Each morning adds ~1/7 of this count and
+# retire_oldest evicts the oldest claims until the total is back at this ceiling.
 window_hours: 168
 refresh_hours: 24
 sample_size: 10000

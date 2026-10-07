@@ -44,14 +44,14 @@ export default function App() {
         const topics = [...(payload.topics ?? [])].sort(
           (a, b) => b.total_volume_percent - a.total_volume_percent,
         )
-        setData(presentSnapshot({ ...payload, topics }))
+        setData(presentSnapshot({ ...payload, topics, sections: payload.sections ?? null }))
         if (!isWelcomeHidden() && !boot.page) setWelcomeOpen(true)
       })
       .catch((err) => setError(err.message))
   }, [boot.page])
 
   const visibleTopics = useMemo(
-    () => (data ? solarTopics(data.topics, category) : []),
+    () => (data ? solarTopics(data, category) : []),
     [data, category],
   )
   const volumeMax = useMemo(() => solarMaxVolume(visibleTopics), [visibleTopics])
@@ -233,7 +233,7 @@ export default function App() {
           selectedPerspectiveId={selectedPerspectiveId}
           category={category}
           categories={CATEGORIES}
-          counts={categoryCounts(data.topics)}
+          counts={categoryCounts(data)}
           isMobile={isMobile}
           volumeMax={volumeMax}
           onSelectTopic={selectTopic}
@@ -267,7 +267,7 @@ export default function App() {
         topics={visibleTopics}
         categories={CATEGORIES}
         category={category}
-        counts={categoryCounts(data.topics)}
+        counts={categoryCounts(data)}
         currentPage={page}
         onClose={() => setMenuOpen(false)}
         onCategory={changeCategory}

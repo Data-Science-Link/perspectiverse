@@ -126,11 +126,34 @@ def test_retire_drops_the_eighth_day_and_then_the_oldest_surplus():
     posts.append(aside)
     kept = retire_oldest(posts, now=NOW, window_hours=168, target=10)
     uris = {post["uri"] for post in kept}
+    # stale (200h) is past the window
     assert "at://stale" not in uris
+    # aside (2h non-claim) is younger than p-9/10/11, so it survives the age cut
     assert "at://aside" in uris
+    # three oldest claims evicted to reach total cap of 10
     assert "at://p-11" not in uris
     assert "at://p-10" not in uris
+    assert "at://p-9" not in uris
     assert "at://p-0" in uris
+    # total post count (claims + non-claims) is the cap, not just claims
+    assert len(kept) == 10
+    assert len(counted_posts(kept)) == 9  # aside occupies one slot
+
+
+def test_retire_evicts_non_claims_by_age_when_they_are_the_oldest():
+    # If the non-claim is older than the surplus claims, it should be evicted
+    posts = []
+    for index in range(10):
+        post = _post(f"at://p-{index}", hours_ago=index + 1)
+        post["is_claim"] = True
+        posts.append(post)
+    old_nonclaim = _post("at://old-aside", hours_ago=50)
+    old_nonclaim["is_claim"] = False
+    posts.append(old_nonclaim)
+    kept = retire_oldest(posts, now=NOW, window_hours=168, target=10)
+    uris = {post["uri"] for post in kept}
+    assert "at://old-aside" not in uris
+    assert len(kept) == 10
     assert len(counted_posts(kept)) == 10
 
 
