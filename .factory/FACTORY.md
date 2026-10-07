@@ -40,7 +40,7 @@ If unsure whether something is trivial vs normal, treat it as **normal** and wai
 
 ## UI / frontend evidence
 
-Any PR that changes a website, page, or UI **must** attach screenshots on the PR (before/after when practical, or current state + what changed). No screenshots → incomplete; do not ask for merge.
+Any PR that changes a website, page, or UI **must** put screenshots in the PR **Evidence** section (embed or link; before/after when practical, or current state + what changed). Thread-only comments do **not** count. No Evidence screenshots → incomplete; do not ask for merge.
 
 ## Post-merge deploy
 

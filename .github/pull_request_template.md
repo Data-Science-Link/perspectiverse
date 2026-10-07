@@ -16,7 +16,7 @@ Closes #
 - [ ] **3. Spec gate** — human approved specs / skipped (easy or trivial only)
 - [ ] **4. Build** — synced latest default branch; branch + PR linked to issue; scope matches
 - [ ] **5. Review** — agent self-review vs issue outcome + `.factory/skills/liability-gates.md`
-- [ ] **6. Verify** — required CI green (or N/A + reason); evidence below; **UI → screenshots attached**
+- [ ] **6. Verify** — required CI green (or N/A + reason); evidence below; **UI → screenshots in Evidence section of this PR body** (not only a comment)
 - [ ] **7. Product gate** — human approved (**required** for normal/high) / N/A trivial only
 - [ ] **8. Ship + monitor** — merge only per risk class; after merge watch deploy/pages and fix if red
 
@@ -39,10 +39,11 @@ Closes #
 - [ ] New deps: licenses checked / allowlisted (or N/A)
 - [ ] Did not over-claim safety, security, or compliance in docs
 - [ ] Did not auto-merge normal/high work
+- [ ] **UI / frontend / pages:** screenshots embedded or linked in **Evidence** (not only a PR comment)
 
 ## Evidence
 
-<!-- CI links, test output, screenshots (required for UI/frontend/pages) -->
+<!-- CI links, test output. UI/frontend/pages: embed or link screenshots HERE in this section (before/after when practical). Thread-only comments do not count. -->
 
 ## Notes for reviewers
 
