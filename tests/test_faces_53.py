@@ -249,6 +249,39 @@ def test_one_bad_planet_does_not_block_the_rest(monkeypatch):
     assert len(topics[0]["perspectives"]) == 2
 
 
+def test_collapsed_best_k_retries_the_next_count(monkeypatch):
+    """The best k merges to one face; the next passing k is used, and the planet stays at 2+."""
+    three = _planet_posts("canada", [30, 12, 10], seed=21)
+    calls = []
+    original = live._label_faces
+
+    def collapse_first(members, split, terms, context):
+        drafted, labeled = original(members, split, terms, context)
+        calls.append(split.get("k"))
+        if len(calls) == 1:
+            return drafted[:1], labeled
+        return drafted, labeled
+
+    def titles_for(prefix, text):
+        if "stance2" in text:
+            return "Alberta Separation"
+        if "stance1" in text:
+            return "Trade Tariffs"
+        return "US Canada Tensions"
+
+    _fake_labels(monkeypatch, titles_for)
+    monkeypatch.setattr(live, "_label_faces", collapse_first)
+    posts, clustered = _clustered([three])
+    topics, _membership, face_rows = live._build_topics(posts, clustered, SETTINGS, keep=10)
+    assert calls[0] != calls[1]
+    assert len(calls) == 2
+    assert len(topics) == 1
+    assert MIN_FACES <= len(topics[0]["perspectives"]) <= MAX_FACES
+    assert {position for _uri, _topic, position, _distance in face_rows} == set(
+        range(len(topics[0]["perspectives"]))
+    )
+
+
 def test_build_topics_stops_once_keep_planets_survive(monkeypatch):
     groups = [_planet_posts(f"topic{index}", [30, 12], seed=30 + index) for index in range(5)]
     drafted = []
@@ -267,6 +300,147 @@ def test_build_topics_stops_once_keep_planets_survive(monkeypatch):
     topics, _membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=2)
     assert len(topics) == 2
     assert drafted == [0, 1]
+
+
+def test_parallel_workers_do_not_label_past_keep(monkeypatch):
+    """A full wave is only the planets still needed, even when several run at once."""
+    groups = [_planet_posts(f"topic{index}", [30, 12], seed=30 + index) for index in range(5)]
+    drafted = []
+    face_calls = []
+    original = live._draft_planet
+
+    def counting(posts, clustered, topic, context):
+        drafted.append(topic["id"])
+        return original(posts, clustered, topic, context)
+
+    def titles_for(prefix, text):
+        face_calls.append(prefix)
+        return f"{prefix} first" if "stance0" in text else f"{prefix} second view"
+
+    _fake_labels(monkeypatch, titles_for)
+    monkeypatch.setattr(live, "_draft_planet", counting)
+    posts, clustered = _clustered(groups)
+    context = live._label_context(SETTINGS)
+    context["workers"] = 8
+    topics, _membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=2, context=context)
+    assert drafted == [0, 1]
+    assert [topic["id"] for topic in topics] == [1, 2]
+    assert len(face_calls) == 4
+    assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in topics)
+
+
+def test_parallel_workers_keep_rank_order_when_the_first_planet_is_slower(monkeypatch):
+    import threading
+
+    groups = [_planet_posts(f"topic{index}", [30, 12], seed=40 + index) for index in range(2)]
+    started_second = threading.Event()
+    overlap = []
+    original = live._draft_planet
+
+    def counting(posts, clustered, topic, context):
+        if topic["id"] == 0:
+            overlap.append(started_second.wait(2))
+        elif topic["id"] == 1:
+            started_second.set()
+        return original(posts, clustered, topic, context)
+
+    def titles_for(prefix, text):
+        return f"{prefix} first" if "stance0" in text else f"{prefix} second view"
+
+    _fake_labels(monkeypatch, titles_for)
+    monkeypatch.setattr(live, "_draft_planet", counting)
+    posts, clustered = _clustered(groups)
+    context = live._label_context(SETTINGS)
+    context["workers"] = 4
+    topics, _membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=2, context=context)
+    assert overlap == [True]
+    assert [topic["name"].split()[0] for topic in topics] == ["topic0", "topic1"]
+
+
+def test_parallel_workers_fill_keep_after_a_failure_without_the_whole_pool(monkeypatch):
+    groups = [_planet_posts(f"topic{index}", [30, 12], seed=50 + index) for index in range(5)]
+    drafted = []
+    original = live._draft_planet
+
+    def counting(posts, clustered, topic, context):
+        drafted.append(topic["id"])
+        if topic["id"] == 0:
+            raise RuntimeError("label backend exploded")
+        return original(posts, clustered, topic, context)
+
+    def titles_for(prefix, text):
+        return f"{prefix} first" if "stance0" in text else f"{prefix} second view"
+
+    _fake_labels(monkeypatch, titles_for)
+    monkeypatch.setattr(live, "_draft_planet", counting)
+    posts, clustered = _clustered(groups)
+    context = live._label_context(SETTINGS)
+    context["workers"] = 8
+    topics, _membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=2, context=context)
+    assert drafted == [0, 1, 2]
+    assert [topic["name"].split()[0] for topic in topics] == ["topic1", "topic2"]
+
+
+def test_label_workers_zero_is_one_at_a_time(monkeypatch):
+    monkeypatch.setattr(live, "_resolve_backend", lambda backend: "openai")
+    monkeypatch.setattr(live, "_generator_for", lambda chosen, model: (lambda prompt: "{}"))
+    settings = {
+        "label_backend": "openai",
+        "openai_model": "m",
+        "representative_posts": 6,
+        "seed": 0,
+        "label_workers": 0,
+    }
+    assert live._label_context(settings)["workers"] == 1
+
+
+def test_unshared_face_cannot_leave_fewer_than_two_faces():
+    one_left = {
+        "id": 2,
+        "name": "Solo",
+        "perspectives": [
+            {"id": "2A", "title": "Real Claim", "summary": "A real claim here.", "post_count": 8, "volume_percent": 80},
+            {
+                "id": "2B",
+                "title": "Mixed remarks",
+                "summary": "These posts do not share a claim.",
+                "post_count": 2,
+                "volume_percent": 20,
+            },
+        ],
+    }
+    assert live._drop_unshared_planets([one_left]) == []
+
+
+def test_dropping_one_unshared_face_keeps_two_and_realigns_rows():
+    planet = {
+        "id": 4,
+        "name": "Court",
+        "post_count": 20,
+        "perspectives": [
+            {"id": "4A", "title": "Roe Settled", "summary": "Roe is settled law.", "post_count": 10, "volume_percent": 50},
+            {
+                "id": "4B",
+                "title": "Mixed remarks",
+                "summary": "These posts do not share a claim.",
+                "post_count": 6,
+                "volume_percent": 30,
+            },
+            {"id": "4C", "title": "Dobbs Ruling", "summary": "Dobbs changed the rule.", "post_count": 4, "volume_percent": 20},
+        ],
+    }
+    kept = live._drop_unshared_planets([planet])
+    assert len(kept) == 1
+    faces = kept[0]["perspectives"]
+    assert [face["title"] for face in faces] == ["Roe Settled", "Dobbs Ruling"]
+    assert abs(sum(face["volume_percent"] for face in faces) - 100) < 0.15
+    assert kept[0]["post_count"] == 14
+    rows = live._align_face_rows(
+        kept,
+        [("at://a", 4, 0, 0.1), ("at://b", 4, 1, 0.2), ("at://c", 4, 2, 0.3)],
+    )
+    assert [(uri, index) for uri, _topic, index, _distance in rows] == [("at://a", 0), ("at://c", 1)]
+    assert [face["id"] for face in faces] == ["4A", "4B"]
 
 
 def test_publishable_guard_drops_a_one_face_planet():
@@ -306,6 +480,38 @@ def test_a_failing_section_is_skipped(monkeypatch):
         "embedding_model": "unused",
     }
     sections = live._cluster_sections(posts, clustered["matrix"], settings, 10, 8)
+    assert list(sections) == ["World"]
+    assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in sections["World"])
+
+
+def test_section_budget_runs_the_largest_section_then_stops(monkeypatch):
+    """Largest section first. Once the deadline has passed, the rest are skipped."""
+    world = _planet_posts("ukraine", [30, 12], seed=11)
+    health = _planet_posts("medicare", [20, 12], seed=12)
+    posts, clustered = _clustered([world, health])
+    for post in posts:
+        post["section"] = "World" if post["uri"].startswith("at://ukraine") else "Health"
+
+    def titles_for(prefix, text):
+        return f"{prefix} first" if "stance0" in text else f"{prefix} second view"
+
+    _fake_labels(monkeypatch, titles_for)
+
+    def cluster_texts(texts, **kwargs):
+        return {
+            "topics": [
+                {"id": 0, "size": len(texts), "member_indices": list(range(len(texts))), "terms": ["topic"]}
+            ],
+            "matrix": kwargs["embed"](texts),
+            "assignments": [0] * len(texts),
+            "noise_count": 0,
+        }
+
+    ticks = iter([0.0, 1_000.0])
+    monkeypatch.setattr(live, "cluster_texts", cluster_texts)
+    monkeypatch.setattr("time.monotonic", lambda: next(ticks))
+    settings = {**SETTINGS, "min_cluster_size": 8, "cluster_backend": "embedding", "embedding_model": "unused"}
+    sections = live._cluster_sections(posts, clustered["matrix"], settings, 10, 8, deadline=10.0)
     assert list(sections) == ["World"]
     assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in sections["World"])
 

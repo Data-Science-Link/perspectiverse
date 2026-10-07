@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from pipeline.assemble import assemble_payload, face_id, topic_name, write_payload
+from pipeline.assemble import FACE_LETTERS, assemble_payload, face_id, topic_name, write_payload
 from pipeline.briefs import apply_level_summaries
 from pipeline.cleaning import clean_posts, drop_near_duplicates
 from pipeline.corpus import (
@@ -167,7 +167,9 @@ def run_live(
         global_matrix = clustered.get("matrix")
         sections: dict[str, list[dict]] = {}
         if global_matrix is not None:
-            budget = float(settings.get("section_budget_minutes") or DEFAULT_SECTION_BUDGET_MINUTES)
+            # 0 is a real budget (skip sections). Missing means the default.
+            raw_budget = settings.get("section_budget_minutes")
+            budget = float(DEFAULT_SECTION_BUDGET_MINUTES if raw_budget is None else raw_budget)
             started = time.monotonic()
             sections = _cluster_sections(
                 planet_posts,
@@ -397,8 +399,12 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
     workers = 1
     if chosen != "heuristic":
         # Labeling is network-bound. Planets are drafted independently, so a
-        # few run at once; results are still taken in rank order.
-        workers = max(1, int(settings.get("label_workers") or DEFAULT_LABEL_WORKERS))
+        # few run at once; results are still taken in rank order. 0 means
+        # "one at a time", not the default.
+        raw_workers = settings.get("label_workers")
+        if raw_workers is None:
+            raw_workers = DEFAULT_LABEL_WORKERS
+        workers = max(1, int(raw_workers))
     return {
         "backend": backend,
         "model": model,
@@ -662,10 +668,11 @@ def _build_topics(
     try:
         while cursor < len(candidates) and len(built) < target:
             need = target - len(built)
-            # Lazy when sequential. In parallel, over-draft a little because a
-            # share of candidates is dropped; results are used in rank order.
-            size = 1 if workers <= 1 else need + max(2, need // 2)
-            wave = candidates[cursor : cursor + size]
+            # Exactly the planets still needed. The pool runs `workers` of
+            # them at a time and results are applied in rank order. The next
+            # candidate is labeled only when an earlier one was dropped, so a
+            # full catalog does not pay for spare label calls.
+            wave = candidates[cursor : cursor + need]
             cursor += len(wave)
             if workers > 1 and len(wave) > 1:
                 if executor is None:
@@ -677,7 +684,7 @@ def _build_topics(
                 results = [draft(topic) for topic in wave]
             for result, log in results:
                 if len(built) >= target:
-                    break  # spare drafts from the last wave are not published
+                    break
                 for line in log:
                     print(line)
                 if result is None:
@@ -697,6 +704,7 @@ def _build_topics(
         if executor is not None:
             executor.shutdown(wait=True)
     built = _drop_unshared_planets(built)
+    face_rows = _align_face_rows(built, face_rows)
     built = _publishable_planets(built)
     publish_volumes(built)
     return _renumber_planets(built, membership, face_rows)
@@ -757,7 +765,7 @@ def _cluster_sections(
 
     for section in sorted(section_indices, key=lambda name: (-len(section_indices[name]), name)):
         indices = section_indices[section]
-        if deadline is not None and time.monotonic() > deadline:
+        if deadline is not None and time.monotonic() >= deadline:
             print(f"Section {section}: skipped, the section time budget is spent.")
             continue
         # Scale the floor to the section size; smaller sections get a lower bar
@@ -997,16 +1005,64 @@ def _renumber_planets(
 
 
 def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
-    """A planet whose label admits the posts do not share a claim is not published."""
+    """Drop a planet that cannot keep 2–6 faces with a shared claim.
+
+    A face that admits no shared claim is removed. If that leaves the planet
+    outside 2–6 faces, the planet is dropped rather than published with one
+    face. If two or more faces remain, their volumes are recomputed so they
+    still sum to 100.
+    """
     kept = []
     for topic in topics:
-        faces = [face for face in (topic.get("perspectives") or []) if not _face_has_no_shared_claim(face)]
-        if not faces:
-            print(f"Dropping {topic.get('name')}: the posts do not share a claim.")
+        original = list(topic.get("perspectives") or [])
+        faces = [face for face in original if not _face_has_no_shared_claim(face)]
+        if not MIN_FACES <= len(faces) <= MAX_FACES:
+            print(
+                f"Dropping {topic.get('name')}: {len(faces)} faces left after "
+                f"removing unshared claims (need {MIN_FACES}-{MAX_FACES})."
+            )
             continue
-        topic["perspectives"] = faces
-        counts = [int(face.get("post_count") or 0) for face in faces]
-        if any(counts):
+        if len(faces) != len(original):
+            counts = [int(face.get("post_count") or 0) for face in faces]
+            if sum(counts) <= 0:
+                print(f"Dropping {topic.get('name')}: remaining faces have no posts.")
+                continue
             topic["post_count"] = sum(counts)
+            for face, volume in zip(faces, to_percents(counts)):
+                face["volume_percent"] = volume
+        topic["perspectives"] = faces
         kept.append(topic)
     return kept
+
+
+def _align_face_rows(topics: list[dict], face_rows: list[tuple]) -> list[tuple]:
+    """Compact face indexes after a face is removed so they match the snapshot.
+
+    Ids are ``{topic_id}{letter}`` (A–F) for the index assigned at label time.
+    Rows for a removed face are dropped. The faces that remain become 0..n-1.
+    """
+    kept_index: dict[int, dict[int, int]] = {}
+    for topic in topics:
+        topic_id = int(topic["id"])
+        mapping: dict[int, int] = {}
+        for new_index, face in enumerate(topic.get("perspectives") or []):
+            text = str(face.get("id") or "")
+            prefix = str(topic_id)
+            letter = text[len(prefix) :] if text.startswith(prefix) else ""
+            old_index = FACE_LETTERS.find(letter) if len(letter) == 1 else -1
+            if old_index < 0:
+                old_index = new_index
+            mapping[old_index] = new_index
+            face["id"] = face_id(topic_id, new_index)
+        kept_index[topic_id] = mapping
+    aligned = []
+    for uri, topic_id, face_index, distance in face_rows:
+        topic_id = int(topic_id)
+        mapping = kept_index.get(topic_id)
+        if mapping is None:
+            continue
+        new_index = mapping.get(int(face_index))
+        if new_index is None:
+            continue
+        aligned.append((uri, topic_id, new_index, distance))
+    return aligned

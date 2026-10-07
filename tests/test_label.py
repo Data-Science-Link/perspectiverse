@@ -466,6 +466,24 @@ def test_openai_generate_backs_off_on_rate_limit(monkeypatch):
     assert len(calls) == 3
 
 
+def test_openai_generate_stops_after_bounded_retries(monkeypatch):
+    """A 5xx is retried with backoff, and the retries stop."""
+    calls = []
+    slept = []
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls.append(url)
+        raise RuntimeError("HTTP 503 from api.deepinfra.com")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: slept.append(seconds))
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    with pytest.raises(RuntimeError, match="HTTP 503"):
+        _openai_generate("hello", "model")
+    assert len(calls) == 3
+    assert slept == [2.0, 6.0]
+
+
 def test_openai_generate_does_not_retry_other_errors(monkeypatch):
     calls = []
 
