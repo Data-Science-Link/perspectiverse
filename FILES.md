@@ -80,6 +80,13 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `public/vite.svg` | Favicon |
 | `tests/e2e/views.spec.js` | Playwright desktop and mobile view checks |
 
+## Documentation (`docs/`)
+
+| File | Description |
+| --- | --- |
+| `docs/architecture.md` | Short data-flow entry: ingest, corpus, cluster, snapshot, Pages |
+| `docs/glossary.md` | Domain terms (planet, face, section, claim, Jev, data-snapshot) |
+
 ## Documentation (`project_documentation/`)
 
 | File | Description |
