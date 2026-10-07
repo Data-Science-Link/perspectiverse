@@ -9,7 +9,7 @@ Read this with `factory-loop.md` on every change.
 1. Commit secrets, `.env`, key material, tokens, or paste them into issues/PRs/logs.
 2. Change `LICENSE`, `NOTICE`, copyright headers, or SPDX identifiers without a human decision logged in `.factory/DECISIONS.md`.
 3. Disable, bypass, or weaken required CI, branch protection, CODEOWNERS, or secret scanning.
-4. Merge (or ask to auto-merge) when required checks are red, pending, or skipped.
+4. Merge (or ask to auto-merge) when required checks are red, pending, or skipped — or when the branch is behind the default branch, or the green CI is from a stale commit.
 5. **Auto-merge non-trivial work.** Only **trivial** risk-class PRs may be merged by the factory worker without a human. **Normal** (incl. any UI/behavior change) and **high** require a human before merge.
 6. Add dependencies with unknown or disallowed licenses (especially strong copyleft like GPL/AGPL) without human approval.
 7. Invent or “fix” license/attribution metadata the agent cannot verify from the source.
@@ -30,6 +30,7 @@ Read this with `factory-loop.md` on every change.
 8. **After merge:** monitor deploy / pages / CD on the default branch; if it fails, fix promptly and report on the issue.
 9. **Scheduled jobs:** check cron workflow runs each session; a failure is filed as a bug issue and reported, never left for a human to discover.
 10. When a human approves in chat (or elsewhere), **update the PR description first** (Factory loop step 7; Human reviewed before merge: yes + who), then merge. Chat approval without a PR-body update is incomplete.
+11. **Right before any merge**, update the PR branch onto the latest default branch if it is behind, and merge only after required CI is green on that new head commit. Never merge a behind branch or on stale-commit CI. Clean catch-up keeps prior approval; conflicts or changes to the PR’s own diff/behavior → resolve, re-verify, tell the human (re-ask the gate for normal/high). Update the branch before handing a PR to the human for review, too.
 
 ## Risk classes (for PR template)
 
