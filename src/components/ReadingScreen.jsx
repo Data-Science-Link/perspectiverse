@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import BarChart from './BarChart'
+import { LazyPostFeed, POST_PREVIEW_COUNT, TopTerms } from './FaceEvidence'
 
 function paragraphs(text) {
   return String(text || '')
@@ -8,8 +9,6 @@ function paragraphs(text) {
     .map((part) => part.trim())
     .filter(Boolean)
 }
-
-const MOBILE_POST_PREVIEW = 3
 
 function examplePosts(topic, perspective) {
   if (perspective) return sortPosts(perspective.representative_posts || [])
@@ -24,23 +23,6 @@ function examplePosts(topic, perspective) {
     }
   }
   return sortPosts(posts)
-}
-
-function PostCards({ posts }) {
-  return (
-    <>
-      {posts.map((post) => (
-        <article key={`${post.author}-${post.likes}-${post.text?.slice(0, 24)}`} className="post-card">
-          <header>
-            <span>@{post.author}</span>
-            <span>{formatNumber(post.likes || 0)} likes</span>
-          </header>
-          <p>{post.text}</p>
-        </article>
-      ))}
-      {posts.length === 0 && <p className="reading-brief">No example posts.</p>}
-    </>
-  )
 }
 
 function emailPlain(digest, updated) {
@@ -190,7 +172,7 @@ export default function ReadingScreen({
   }, [selectionKey])
 
   const mobilePlanet = Boolean(isMobile && topic)
-  const previewPosts = mobilePlanet ? posts.slice(0, MOBILE_POST_PREVIEW) : posts
+  const faceTerms = perspective?.top_terms
 
   const openSummary = () => {
     if (mobilePlanet) {
@@ -251,7 +233,8 @@ export default function ReadingScreen({
         <div className="reading-sheet">
           <h1>Example posts</h1>
           <div className="reading-sheet-posts">
-            <PostCards posts={posts} />
+            <TopTerms terms={faceTerms} />
+            <LazyPostFeed posts={posts} />
           </div>
         </div>
       )}
@@ -274,6 +257,7 @@ export default function ReadingScreen({
             </p>
             <h1>{title}</h1>
             {brief && <p className="reading-brief">{brief}</p>}
+            {topic && perspective && <TopTerms terms={faceTerms} />}
             <div className="reading-actions">
               <button type="button" className="text-button" onClick={openSummary}>
                 {expanded && !mobilePlanet ? 'Show less' : 'Read more …'}
@@ -304,7 +288,7 @@ export default function ReadingScreen({
               )}
             </div>
             <div className="post-scroller">
-              <PostCards posts={previewPosts} />
+              <LazyPostFeed posts={posts} previewCount={POST_PREVIEW_COUNT} />
             </div>
           </div>
         </div>

@@ -6,6 +6,15 @@ from pipeline.generate_demo_data import DEMO_TOPICS, build_demo_payload, validat
 from pipeline.schema import DEMO_CATEGORIES, SYSTEM_SIZE
 
 
+def test_validate_accepts_faces_without_top_terms():
+    payload = build_demo_payload()
+    legacy = payload["topics"][0]["perspectives"][0].copy()
+    legacy.pop("top_terms", None)
+    topic = {**payload["topics"][0], "perspectives": [legacy, *payload["topics"][0]["perspectives"][1:]]}
+    snapshot = {**payload, "topics": [topic, *payload["topics"][1:]]}
+    validate_payload(snapshot)
+
+
 def test_demo_payload_matches_ui_contract():
     payload = build_demo_payload()
     validate_payload(payload)
@@ -44,6 +53,7 @@ def test_each_planet_has_two_to_six_faces_and_posts():
         for face in topic["perspectives"]:
             assert len(face["representative_posts"]) >= 2
             assert all("likes" in post for post in face["representative_posts"])
+            assert face.get("top_terms")
 
 
 PLACEHOLDER_SNIPPETS = (
