@@ -85,3 +85,9 @@ Append-only. Newest at the bottom.
 - **Why:** Thread-only comments are easy to miss, not durable in the PR body, and harder to audit at a glance. The Evidence section is the canonical place for CI links, test output, and screenshots.
 - **Alternatives:** Allow screenshots anywhere on the PR (comment, review, description); rely on convention.
 - **Revisit when:** PR review tooling makes comment-based screenshots equally prominent and durable.
+
+### 2026-10-07 — Chat product-gate approval must update the PR description
+- **Decision:** When a human product gate (or similar review) is given in chat or another channel, the factory worker must **edit the PR description** before merging: check **Factory loop step 7 (Product gate)**, set **Human reviewed before merge: yes** (and who), and any other matching review fields. Chat approval alone is not enough — the PR body is the durable audit trail.
+- **Why:** Workers were merging after chat "Approved" without reflecting that on the PR; humans auditing the PR later could not see that a product gate happened.
+- **Alternatives:** Rely on chat history only; require a GitHub review click instead of chat.
+- **Revisit when:** Branch protection requires an approving GitHub review for all normal/high PRs.

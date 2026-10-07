@@ -25,7 +25,7 @@ If there is no separate worker yet, the coordinator may run `factory-loop` thems
 4. **Build** — sync latest default branch first (agents often have a stale tip), then branch + PR linked to the issue.
 5. **Review** — agent first; human on risk and product (see merge authority below + `skills/liability-gates.md`).
 6. **Verify** — CI + evidence on the PR (screenshots required for UI); fill the **Factory loop** section of the PR template so adherence is auditable; never merge on red/skipped required checks.
-7. **Product gate (human)** — required for **normal** and **high** work; skipped only for **trivial**.
+7. **Product gate (human)** — required for **normal** and **high** work; skipped only for **trivial**. When approval arrives in chat (or elsewhere), the worker **edits the PR description first** (step 7 checked + Human reviewed before merge: yes + who), then merges — chat alone is not the audit trail.
 8. **Ship → monitor deploy → feed back** — merge only when authority allows; watch post-merge deploy CI; fix if red; lessons → issues/skills.
 
 ## Merge authority (by design)
@@ -71,6 +71,7 @@ After merge: watch the repo’s deploy / pages / CD workflows on the default bra
 ## Rules
 
 - Humans own “is this useful?” for all **normal** and **high** work; only **trivial** may auto-merge
+- Chat (or issue) product-gate approval must be **written onto the PR description** before merge
 - History in GitHub + this folder — not only chat
 - Leave work pick-uppable from issue/PR alone
 - Agents see their own CI/evidence (incl. UI screenshots) before asking for review
