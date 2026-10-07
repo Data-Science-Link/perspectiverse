@@ -34,9 +34,11 @@ DEFAULTS: dict[str, Any] = {
     "seed": 0,
     "catalog_size": 10,
     # Planets labeled at once when a network label backend is on.
+    # Section labeling shares one pool and widens this default of 8 to 12.
     "label_workers": 8,
     # Minutes the section solar systems may spend after the global system.
-    "section_budget_minutes": 15,
+    # 0 skips sections. None (omit the key) uses this default.
+    "section_budget_minutes": 20,
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
 }
 

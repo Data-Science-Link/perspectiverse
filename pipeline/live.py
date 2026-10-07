@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import random
 import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -65,8 +66,14 @@ from pipeline.topics import cluster_texts
 
 # Planets drafted at once when a network label backend is on (I/O bound).
 DEFAULT_LABEL_WORKERS = 8
+# Section planets share one pool. Each slot is one planet, and that planet
+# makes its LLM calls one at a time, so this is also how many label calls are
+# in flight across every section. The default ``label_workers`` of 8 becomes
+# this wider pool; any other setting is used as the cap.
+DEFAULT_SECTION_LABEL_IN_FLIGHT = 12
 # Section solar systems get this many minutes after the global system is built.
-DEFAULT_SECTION_BUDGET_MINUTES = 15
+# 0 is a real budget and skips sections. None means this default.
+DEFAULT_SECTION_BUDGET_MINUTES = 20
 
 
 def load_fixture(path: Path) -> list[dict]:
@@ -168,8 +175,7 @@ def run_live(
         sections: dict[str, list[dict]] = {}
         if global_matrix is not None:
             # 0 is a real budget (skip sections). Missing means the default.
-            raw_budget = settings.get("section_budget_minutes")
-            budget = float(DEFAULT_SECTION_BUDGET_MINUTES if raw_budget is None else raw_budget)
+            budget = _section_budget_minutes(settings.get("section_budget_minutes"))
             started = time.monotonic()
             sections = _cluster_sections(
                 planet_posts,
@@ -634,6 +640,56 @@ def _merge_alike_drafts(
     return [(item[0], item[1], item[2]) for item in kept]
 
 
+def _section_budget_minutes(raw: object) -> float:
+    """Minutes of wall time the section solar systems may spend.
+
+    ``None`` is the default. ``0`` is a real budget: the deadline is already
+    due, so every section is skipped and the global snapshot still publishes.
+    """
+    if raw is None:
+        return float(DEFAULT_SECTION_BUDGET_MINUTES)
+    return float(raw)
+
+
+def _section_pool_size(context: dict) -> int:
+    """In-flight section label calls, shared by every section.
+
+    Each slot drafts one planet, and that planet makes its LLM calls one at
+    a time, so the slot count is the number of label calls in flight. The
+    heuristic backend and ``label_workers=0`` stay one at a time. The default
+    of 8 (one section's worth) is widened to 12 so ten sections fit the
+    ceiling. Any other configured value is the cap, including a lower one
+    set to ease HTTP 429s and a higher one.
+    """
+    workers = max(1, int(context.get("workers") or 1))
+    if workers <= 1:
+        return 1
+    if workers == DEFAULT_LABEL_WORKERS:
+        return DEFAULT_SECTION_LABEL_IN_FLIGHT
+    return workers
+
+
+def _safe_draft(posts: list[dict], clustered: dict, topic: dict, context: dict):
+    """Draft one candidate. A raised error is a log line, not a failed snapshot."""
+    try:
+        return _draft_planet(posts, clustered, topic, context)
+    except Exception as exc:  # noqa: BLE001 - one bad planet must not block the snapshot
+        return None, [f"Dropping candidate {topic.get('id')}: drafting failed ({type(exc).__name__}: {exc})."]
+
+
+def _stage_planet(built: list[dict], seen_names: set[str], result: dict) -> dict:
+    """Give a surviving draft its published id and a unique name."""
+    planet = result["planet"]
+    topic_id = len(built) + 1
+    planet["id"] = topic_id
+    planet["name"] = unique_label(str(planet.get("name") or ""), seen_names)
+    planet["perspectives"] = [
+        {**face, "id": face_id(topic_id, position)} for position, face in enumerate(planet["perspectives"])
+    ]
+    built.append(planet)
+    return planet
+
+
 def _build_topics(
     posts: list[dict],
     clustered: dict,
@@ -658,10 +714,7 @@ def _build_topics(
     seen_names: set[str] = set()
 
     def draft(topic: dict):
-        try:
-            return _draft_planet(posts, clustered, topic, context)
-        except Exception as exc:  # noqa: BLE001 - one bad planet must not block the snapshot
-            return None, [f"Dropping candidate {topic.get('id')}: drafting failed ({type(exc).__name__}: {exc})."]
+        return _safe_draft(posts, clustered, topic, context)
 
     cursor = 0
     executor = None
@@ -676,8 +729,6 @@ def _build_topics(
             cursor += len(wave)
             if workers > 1 and len(wave) > 1:
                 if executor is None:
-                    from concurrent.futures import ThreadPoolExecutor
-
                     executor = ThreadPoolExecutor(max_workers=workers)
                 results = list(executor.map(draft, wave))
             else:
@@ -689,15 +740,8 @@ def _build_topics(
                     print(line)
                 if result is None:
                     continue
-                planet = result["planet"]
-                topic_id = len(built) + 1
-                planet["id"] = topic_id
-                planet["name"] = unique_label(str(planet.get("name") or ""), seen_names)
-                planet["perspectives"] = [
-                    {**face, "id": face_id(topic_id, position)}
-                    for position, face in enumerate(planet["perspectives"])
-                ]
-                built.append(planet)
+                planet = _stage_planet(built, seen_names, result)
+                topic_id = int(planet["id"])
                 membership.extend((uri, topic_id) for uri in result["membership"])
                 face_rows.extend((uri, topic_id, position, distance) for uri, position, distance in result["face_rows"])
     finally:
@@ -729,6 +773,150 @@ def _publishable_planets(topics: list[dict]) -> list[dict]:
     return kept
 
 
+class _SectionLabelJob:
+    """One section's candidates, labeled only until ``keep`` planets survive.
+
+    The shared pool asks ``can_submit`` / ``take`` and later ``accept`` in
+    whatever order drafts finish. Results are applied in candidate order, and
+    the next candidate is labeled only when an earlier one was dropped, so a
+    full catalog does not pay for spare label calls (#53).
+    """
+
+    def __init__(self, name: str, posts: list[dict], clustered: dict, keep: int, context: dict, post_count: int):
+        self.name = name
+        self.posts = posts
+        self.clustered = clustered
+        self.keep = max(int(keep), 1)
+        self.context = context
+        self.post_count = int(post_count)
+        self.candidates = list(clustered["topics"])
+        self.cursor = 0
+        self.built: list[dict] = []
+        self.seen: set[str] = set()
+        self.pending: dict[int, tuple] = {}
+        self.order: list[int] = []
+        self.applied = 0
+        self.inflight = 0
+        self.wave_left = 0
+        self.wave_open = False
+        self.budget_hit = False
+        self.skipped_budget = False
+        self.done = False
+
+    def can_submit(self) -> bool:
+        if self.done or self.budget_hit or self.skipped_budget:
+            return False
+        if not self.wave_open:
+            if len(self.built) >= self.keep or self.cursor >= len(self.candidates):
+                self.done = True
+                return False
+            need = self.keep - len(self.built)
+            available = len(self.candidates) - self.cursor
+            self.wave_left = min(need, available)
+            self.wave_open = self.wave_left > 0
+            if not self.wave_open:
+                self.done = True
+                return False
+        return self.wave_left > 0
+
+    def take(self) -> tuple[int, dict]:
+        index = self.cursor
+        topic = self.candidates[index]
+        self.cursor += 1
+        self.wave_left -= 1
+        self.inflight += 1
+        self.order.append(index)
+        return index, topic
+
+    def accept(self, index: int, result, log: list[str]) -> None:
+        self.pending[index] = (result, log)
+        self.inflight -= 1
+        self._drain()
+        self._close_wave_if_idle()
+
+    def mark_budget(self) -> None:
+        """Stop submitting. Planets already in flight still finish."""
+        self.budget_hit = True
+        self._close_wave_if_idle()
+
+    def _drain(self) -> None:
+        while self.applied < len(self.order):
+            index = self.order[self.applied]
+            if index not in self.pending:
+                return
+            result, log = self.pending.pop(index)
+            for line in log:
+                print(line)
+            if result is not None and len(self.built) < self.keep:
+                _stage_planet(self.built, self.seen, result)
+            self.applied += 1
+
+    def _close_wave_if_idle(self) -> None:
+        if self.inflight > 0:
+            return
+        if self.wave_left > 0 and not self.budget_hit:
+            return
+        self.wave_open = False
+        self.wave_left = 0
+        if self.budget_hit or len(self.built) >= self.keep or self.cursor >= len(self.candidates):
+            self.done = True
+
+
+def _submit_section_drafts(jobs: list[_SectionLabelJob], inflight: dict, executor, workers: int, deadline) -> None:
+    """Fill free slots from the largest section that still needs a planet."""
+    for job in jobs:
+        if job.done:
+            continue
+        if job.cursor == 0 and job.inflight == 0 and deadline is not None and time.monotonic() >= deadline:
+            print(f"Section {job.name}: skipped, the section time budget is spent.")
+            job.skipped_budget = True
+            job.done = True
+            continue
+        while job.can_submit() and len(inflight) < workers:
+            if deadline is not None and time.monotonic() >= deadline:
+                job.mark_budget()
+                break
+            index, topic = job.take()
+            future = executor.submit(_safe_draft, job.posts, job.clustered, topic, job.context)
+            inflight[future] = (job, index)
+
+
+def _label_section_jobs(jobs: list[_SectionLabelJob], workers: int, deadline) -> None:
+    """Label every section through one pool. Biggest sections take free slots first."""
+    if not jobs:
+        return
+    workers = max(1, int(workers))
+    print(f"Section labels: {workers} call(s) in flight, shared by {len(jobs)} section(s).")
+    executor = ThreadPoolExecutor(max_workers=workers)
+    inflight: dict = {}
+    # A catalog is a handful of planets. This only fires if the state machine loops.
+    guard = 0
+    try:
+        while True:
+            guard += 1
+            if guard > 100_000:
+                raise RuntimeError("section label scheduler did not finish")
+            _submit_section_drafts(jobs, inflight, executor, workers, deadline)
+            if not inflight:
+                break
+            done, _pending = wait(set(inflight), return_when=FIRST_COMPLETED)
+            for future in done:
+                job, index = inflight.pop(future)
+                result, log = future.result()
+                job.accept(index, result, log)
+    finally:
+        executor.shutdown(wait=True)
+
+
+def _finish_section_planets(built: list[dict]) -> list[dict]:
+    """Same last guards as the global catalog: drop collapses, renumber, volumes."""
+    built = _drop_unshared_planets(built)
+    built = _publishable_planets(built)
+    publish_volumes(built)
+    topics, _membership, _faces = _renumber_planets(built, [], [])
+    return topics
+
+
 def _cluster_sections(
     planet_posts: list[dict],
     global_matrix,
@@ -738,17 +926,16 @@ def _cluster_sections(
     context: dict | None = None,
     deadline: float | None = None,
 ) -> dict[str, list[dict]]:
-    """Cluster each Jev section independently, reusing the global embeddings.
+    """Cluster each Jev section, then label them through one shared pool.
 
     Posts are not re-embedded; the sub-rows of *global_matrix* (already
     L2-normalised) are sliced out and passed back into cluster_texts via the
-    *embed* hook, which short-circuits the fastembed call. Sections run
-    largest first. A section that fails is logged and skipped. Past
-    ``deadline`` (time.monotonic) the remaining sections are skipped so the
-    global snapshot still publishes.
+    *embed* hook, which short-circuits the fastembed call. Sections are
+    ordered by post volume so the biggest ones take pool slots first. Past
+    ``deadline`` (time.monotonic) no new planet is labeled; a section that
+    never started is skipped, and one that raises is logged and skipped, so
+    the global snapshot still publishes.
     """
-    import time
-
     import numpy as np
 
     section_indices: dict[str, list[int]] = {}
@@ -757,17 +944,21 @@ def _cluster_sections(
         if section in CATEGORIES:
             section_indices.setdefault(section, []).append(idx)
 
+    order = sorted(section_indices, key=lambda name: (-len(section_indices[name]), name))
+    if deadline is not None and time.monotonic() >= deadline:
+        for section in order:
+            print(f"Section {section}: skipped, the section time budget is spent.")
+        return {}
+
     result: dict[str, list[dict]] = {}
     seed = int(settings["seed"])
     base_min = int(settings["min_cluster_size"])
     context = context or _label_context(settings)
     matrix = np.asarray(global_matrix)
+    jobs: list[_SectionLabelJob] = []
 
-    for section in sorted(section_indices, key=lambda name: (-len(section_indices[name]), name)):
+    for section in order:
         indices = section_indices[section]
-        if deadline is not None and time.monotonic() >= deadline:
-            print(f"Section {section}: skipped, the section time budget is spent.")
-            continue
         # Scale the floor to the section size; smaller sections get a lower bar
         # than the global floor so they can still form tight groups.
         section_floor = max(base_min, len(indices) // 200)
@@ -791,16 +982,35 @@ def _cluster_sections(
                 embed=lambda _texts, m=sub_matrix: m,
                 authors=[str(p.get("author") or "unknown") for p in section_posts],
             )
-            section_topics, _, _ = _build_topics(
-                section_posts, section_clustered, settings, keep=catalog_size, context=context
-            )
-            if section_topics:
-                result[section] = section_topics
-                print(f"Section {section}: {len(section_topics)} planet(s) from {len(indices)} posts.")
-            else:
-                print(f"Section {section}: no planet with two distinct faces from {len(indices)} posts.")
         except Exception as exc:  # noqa: BLE001 - one section must not block the snapshot
             print(f"Section {section}: skipped ({type(exc).__name__}: {exc}).")
+            continue
+        if not section_clustered.get("topics"):
+            print(f"Section {section}: no planet with two distinct faces from {len(indices)} posts.")
+            continue
+        jobs.append(
+            _SectionLabelJob(
+                section,
+                section_posts,
+                section_clustered,
+                catalog_size,
+                context,
+                len(indices),
+            )
+        )
+
+    _label_section_jobs(jobs, _section_pool_size(context), deadline)
+    for job in jobs:
+        if job.skipped_budget:
+            continue
+        topics = _finish_section_planets(job.built)
+        if topics:
+            result[job.name] = topics
+            print(f"Section {job.name}: {len(topics)} planet(s) from {job.post_count} posts.")
+        elif job.budget_hit:
+            print(f"Section {job.name}: stopped, the section time budget is spent.")
+        else:
+            print(f"Section {job.name}: no planet with two distinct faces from {job.post_count} posts.")
 
     return {name: result[name] for name in CATEGORIES if name in result}
 

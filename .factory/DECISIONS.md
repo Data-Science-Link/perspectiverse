@@ -122,6 +122,12 @@ Append-only. Newest at the bottom.
 - **Alternatives:** Rely on the start-of-work sync only; merge queue.
 - **Revisit when:** The repo adopts a merge queue or the platform auto-updates branches before merge.
 
+### 2026-10-07 — Section labels share one pool; ceiling is 20 minutes (#71)
+- **Decision:** Section solar systems are ordered by post volume and labeled through one shared pool. The default `label_workers` of 8 stays the global cap and is widened to 12 in-flight calls for sections; any other `label_workers` is the section cap. `section_budget_minutes` defaults to 20. `0` still skips sections and `None` still means the default. Labeling still stops at `catalog_size` survivors per section, and one bad planet or section is logged and skipped.
+- **Why:** Run 37696485020 built 4 of 10 sections in 1,052s and skipped the rest with "the section time budget is spent." Sections ran one after another, so partial waves left workers idle. Sharing the pool keeps the biggest sections first if the ceiling hits, and 12 in flight fits the live planet counts inside 20 minutes.
+- **Alternatives:** Raise the ceiling to ~35 minutes and keep serial sections; cap each section at 6 planets.
+- **Revisit when:** Live logs show HTTP 429s under 12 in-flight calls, or a day still drops sections inside 20 minutes.
+
 ### 2026-10-07 — Bypass merges: verify up-to-date + green by hand
 - **Decision:** Factory PRs authored by the owner's account can't get the ruleset's required approval, so workers merge chat-approved and trivial PRs with the admin bypass. Because a bypass skips every rule, including the up-to-date check, the worker first verifies by hand that the branch is 0 commits behind the default branch and all required checks are green on the current head SHA, and uses a merge method the ruleset allows. The review rule and bypass actors stay unchanged.
 - **Why:** Keeps the "update onto latest main right before merge" guarantee when the ruleset itself is bypassed.

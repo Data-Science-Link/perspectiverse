@@ -507,9 +507,19 @@ def test_section_budget_runs_the_largest_section_then_stops(monkeypatch):
             "noise_count": 0,
         }
 
-    ticks = iter([0.0, 1_000.0])
+    clock = {"now": 0.0}
+    original = live._draft_planet
+
+    def draft(posts, clustered, topic, context):
+        result = original(posts, clustered, topic, context)
+        # The first planet spends the rest of the ceiling. Workers are 1 here,
+        # so the smaller section has not been submitted yet.
+        clock["now"] = 1_000.0
+        return result
+
     monkeypatch.setattr(live, "cluster_texts", cluster_texts)
-    monkeypatch.setattr("time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr(live, "_draft_planet", draft)
+    monkeypatch.setattr("time.monotonic", lambda: clock["now"])
     settings = {**SETTINGS, "min_cluster_size": 8, "cluster_backend": "embedding", "embedding_model": "unused"}
     sections = live._cluster_sections(posts, clustered["matrix"], settings, 10, 8, deadline=10.0)
     assert list(sections) == ["World"]
