@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, data-snapshot]
   workflow_dispatch:
+  # Pushes to data-snapshot use GITHUB_TOKEN, which does not start push workflows.
+  # workflow_run still runs after Daily Discourse Pipeline (schedule, push, or workflow_dispatch).
+  workflow_run:
+    workflows: ["Daily Discourse Pipeline"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -16,8 +21,13 @@ concurrency:
 
 jobs:
   build:
+    # workflow_run fires for every conclusion. Deploy only after a successful pipeline.
+    # push and workflow_dispatch are unchanged. deploy needs this job, so a skip here skips deploy.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      # No ref: for workflow_run, GITHUB_REF and GITHUB_SHA are the default branch (main),
+      # not the pipeline head. Do not set ref to github.event.workflow_run.head_sha.
       - name: Checkout repository
         uses: actions/checkout@v4
 
