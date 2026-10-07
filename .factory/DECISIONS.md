@@ -55,3 +55,21 @@ Append-only. Newest at the bottom.
 - **Why:** A skewed planet collapsed to a single 100% bar hid real minority viewpoints. Michael explicitly prioritised issue #41 (hard floor of 2) over the earlier #32 proposal that allowed one face.
 - **Alternatives:** #32 proposal 4 (allow one face); raising inertia-gain threshold to prevent trivial splits.
 - **Revisit when:** Evidence that forcing k ≥ 2 on a near-uniform corpus introduces misleading splits in production.
+
+### 2026-10-07 — Merge authority: trivial may auto-merge; normal/high need human
+- **Decision:** Only **trivial** PRs (typo/docs/comment/playbook-only, no product/behavior change) may be merged by the factory worker after green required CI. **Normal** (features, bugfixes, behavior, any UI) and **high** require a human before merge. Unsure → normal.
+- **Why:** Auto-merges on green CI for user-facing work surprised stakeholders; design allows simple stuff to ship without blocking, but product judgment stays human.
+- **Alternatives:** Never auto-merge; always auto-merge on green CI.
+- **Revisit when:** Branch protection / CODEOWNERS enforce the same split mechanically.
+
+### 2026-10-07 — UI PRs require screenshots
+- **Decision:** Any factory PR that changes websites, pages, or UI must attach screenshots on the PR before it is treated as ready / mergeable.
+- **Why:** Text diffs under-communicate visual regressions; humans need a fast visual gate.
+- **Alternatives:** Optional screenshots; video-only; rely on live preview links alone.
+- **Revisit when:** Automated visual regression is wired into CI.
+
+### 2026-10-07 — Post-merge deploy monitoring
+- **Decision:** After merge, the factory worker watches deploy/pages/CD on the default branch and opens a fix if it fails; status is commented on the issue.
+- **Why:** Green PR CI is not the same as a healthy deployment; walking away after merge leaves broken sites.
+- **Alternatives:** Rely only on humans noticing Pages failures; separate deploy-only bot.
+- **Revisit when:** Deploy notifications are automatic and always routed to the worker.
