@@ -145,3 +145,9 @@ Append-only. Newest at the bottom.
 - **Why:** The earlier bullet still says 15 minutes. Run 37696485020 published 4 of 10 sections under that serial ceiling. The shared pool and the 20-minute ceiling are the current default.
 - **Alternatives:** Editing the older bullet in place.
 - **Revisit when:** A live run under the 20-minute ceiling still drops sections, or HTTP 429s show up at 12 in flight.
+
+### 2026-10-07 — Shared pool and 20-minute ceiling supersede the 15-minute section budget (#71)
+- **Decision:** This supersedes the earlier entry dated 2026-10-07 headed "Label planets lazily and concurrently; section time budget (#53)" (that entry's `section_budget_minutes` default of 15). Section solar systems are ordered by post volume and labeled through one shared pool: 12 calls in flight when `label_workers` is the default 8, and that configured value otherwise (`label_workers` 0 is one at a time). The ceiling default is 20 minutes. `0` still skips sections and `None` still means the default. Pointer: [2026-10-07 — Label planets lazily and concurrently; section time budget (#53)](#2026-10-07-label-planets-lazily-and-concurrently-section-time-budget-53).
+- **Why:** The named entry still records a 15-minute default. Run 37696485020 published 4 of 10 sections under that serial ceiling. The shared pool and the 20-minute ceiling are the current default.
+- **Alternatives:** Editing that older entry in place.
+- **Revisit when:** A live run under the 20-minute ceiling still drops sections, or HTTP 429s show up at 12 in flight.
