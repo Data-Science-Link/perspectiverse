@@ -159,7 +159,8 @@ export function orbitElements(index, isSun, id, radius = null) {
   // Uniform random orbital plane: some sit near the equator, some near a right angle.
   const inclination = Math.acos(Math.min(1, Math.max(-1, 2 * unitHash(seed + 41) - 1)))
   const node = unitHash(seed + 53) * Math.PI * 2
-  const phase = (index * 2.399963229) + unitHash(seed + 67) * 0.7
+  // Full-range random starting angle so planets are evenly distributed on first load.
+  const phase = unitHash(seed + 67) * Math.PI * 2
 
   return {
     radius: radius ?? orbitRadius(index, false),
@@ -168,6 +169,19 @@ export function orbitElements(index, isSun, id, radius = null) {
     node,
     phase,
   }
+}
+
+// Module-level clock so planet orbital angles survive Observatory remounts (e.g. mobile
+// navigate-to-reading → back). Keyed by topic id; cleared lazily via normal GC since topic
+// sets are small and stable within a session.
+const _orbitClock = new Map()
+
+export function resumeOrbitAngle(id, initial) {
+  return _orbitClock.has(id) ? _orbitClock.get(id) : initial
+}
+
+export function saveOrbitAngle(id, angle) {
+  _orbitClock.set(id, angle)
 }
 
 export function bodySpin(id, index = 0) {

@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, CatmullRomCurve3, DoubleSide, Quaternion, TubeGeometry, Vector3 } from 'three'
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
-import { bodySpin, formatPercent, orbitElements, setOrbitPosition, topicScale } from '../lib/layout'
+import { bodySpin, formatPercent, orbitElements, resumeOrbitAngle, saveOrbitAngle, setOrbitPosition, topicScale } from '../lib/layout'
 import SpikyCube from './SpikyCube'
 
 const _desired = new Vector3()
@@ -47,7 +47,7 @@ export default function Planet({
   )
   const spin = useMemo(() => bodySpin(topic.id, index), [topic.id, index])
   const spinAxis = useMemo(() => new Vector3(...spin.axis), [spin])
-  const angle = useRef(orbit.phase)
+  const angle = useRef(resumeOrbitAngle(topic.id, orbit.phase))
   const placed = useRef(Boolean(anchor))
   const scale = topicScale(topic.total_volume_percent, volumeMax)
   const color = topicColor(topic.id, body)
@@ -62,6 +62,9 @@ export default function Planet({
     const linear = Boolean(anchor)
     if (!linear && !isSun && !selected) {
       angle.current += delta * orbit.speed
+    }
+    if (!linear && !isSun) {
+      saveOrbitAngle(topic.id, angle.current)
     }
 
     if (group.current) {
