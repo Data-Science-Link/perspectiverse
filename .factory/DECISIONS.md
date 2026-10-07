@@ -139,3 +139,9 @@ Append-only. Newest at the bottom.
 - **Why:** Run 37696485020 built 4 of 10 sections in 1,052s and skipped the rest with "the section time budget is spent." Sections ran one after another, so partial waves left workers idle. Sharing the pool keeps the biggest sections first if the ceiling hits, and 12 in flight fits the live planet counts inside 20 minutes.
 - **Alternatives:** Raise the ceiling to ~35 minutes and keep serial sections; cap each section at 6 planets.
 - **Revisit when:** Live logs show HTTP 429s under 12 in-flight calls, or a day still drops sections inside 20 minutes.
+
+### 2026-10-07 — 20-minute section ceiling supersedes the 15-minute default (#71)
+- **Decision:** The 15-minute `section_budget_minutes` default in "Label planets lazily and concurrently; section time budget (#53)" is superseded. Section solar systems are ordered by post volume and labeled through one shared pool: 12 calls in flight when `label_workers` is the default 8, and that configured value otherwise (`label_workers` 0 is one at a time). The ceiling default is 20 minutes. `0` still skips sections and `None` still means the default.
+- **Why:** The earlier bullet still says 15 minutes. Run 37696485020 published 4 of 10 sections under that serial ceiling. The shared pool and the 20-minute ceiling are the current default.
+- **Alternatives:** Editing the older bullet in place.
+- **Revisit when:** A live run under the 20-minute ceiling still drops sections, or HTTP 429s show up at 12 in flight.

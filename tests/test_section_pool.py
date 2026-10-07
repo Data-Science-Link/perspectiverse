@@ -544,6 +544,70 @@ def test_shared_pool_overlaps_real_threads(monkeypatch):
     assert elapsed < 0.15 * len(CATEGORIES)
 
 
+def test_label_workers_zero_schedules_sections_one_at_a_time(monkeypatch, capsys):
+    """``label_workers: 0`` in settings reaches the section scheduler as one call in flight.
+
+    ``_label_context`` already maps 0 to one worker. This runs ``_cluster_sections``
+    without a hand-built context, so the scheduler itself uses that cap.
+    """
+    monkeypatch.setattr(live, "_resolve_backend", lambda backend: "openai")
+    monkeypatch.setattr(live, "_generator_for", lambda chosen, model: (lambda prompt: "{}"))
+    posts = []
+    for name, count in (("World", 40), ("Health", 24)):
+        for index in range(count):
+            posts.append(
+                {
+                    "uri": f"at://{name}/{index}",
+                    "author": f"{name}.{index}",
+                    "clean_text": f"{name} claim {index}",
+                    "text": f"{name} claim {index}",
+                    "section": name,
+                    "likes": 0,
+                }
+            )
+    state = {"current": 0, "peak": 0}
+    lock = threading.Lock()
+
+    def draft(section_posts, clustered, topic, context):
+        assert context["workers"] == 1
+        with lock:
+            state["current"] += 1
+            state["peak"] = max(state["peak"], state["current"])
+        time.sleep(0.05)
+        with lock:
+            state["current"] -= 1
+        return _planet_result(f"{topic['terms'][0]} {topic['id']}"), []
+
+    def cluster_texts(texts, **kwargs):
+        name = texts[0].split()[0]
+        return {
+            "topics": [
+                {"id": index, "size": 8, "member_indices": [index], "terms": [name]}
+                for index in range(2)
+            ],
+            "matrix": kwargs["embed"](texts),
+            "assignments": [],
+            "noise_count": 0,
+        }
+
+    monkeypatch.setattr(live, "cluster_texts", cluster_texts)
+    monkeypatch.setattr(live, "_draft_planet", draft)
+    settings = _settings()
+    settings.update({"label_backend": "openai", "openai_model": "m", "label_workers": 0})
+    sections = live._cluster_sections(
+        posts,
+        np.zeros((len(posts), 4)),
+        settings,
+        2,
+        8,
+        deadline=None,
+    )
+    assert state["peak"] == 1
+    assert set(sections) == {"World", "Health"}
+    assert all(len(topics) == 2 for topics in sections.values())
+    assert "1 call(s) in flight" in capsys.readouterr().out
+
+
 def test_timing_table_old_serial_versus_shared_pool(monkeypatch, capsys):
     """Evidence row: sections finished and wall time, old loop versus the shared pool."""
     latency = 11.0
