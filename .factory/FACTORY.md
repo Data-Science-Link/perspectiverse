@@ -26,7 +26,7 @@ If there is no separate worker yet, the coordinator may run `factory-loop` thems
 5. **Review** — agent first; human on risk and product (see merge authority below + `skills/liability-gates.md`).
 6. **Verify** — CI + evidence on the PR (screenshots required for UI); fill the **Factory loop** section of the PR template so adherence is auditable; never merge on red/skipped required checks.
 7. **Product gate (human)** — required for **normal** and **high** work; skipped only for **trivial**. When approval arrives in chat (or elsewhere), the worker **edits the PR description first** (step 7 checked + Human reviewed before merge: yes + who), then merges — chat alone is not the audit trail.
-8. **Ship → monitor deploy → feed back** — merge only when authority allows; watch post-merge deploy CI; fix if red; lessons → issues/skills.
+8. **Ship → monitor deploy → feed back** — merge only when authority allows; **right before merge, update the PR branch onto latest default branch and wait for required CI green on that new head commit** (see Rules); watch post-merge deploy CI; fix if red; lessons → issues/skills.
 
 ## Merge authority (by design)
 
@@ -79,6 +79,7 @@ Scheduled workflows (daily data jobs, nightly builds) can fail with no PR in fli
 
 - Humans own “is this useful?” for all **normal** and **high** work; only **trivial** may auto-merge
 - Chat (or issue) product-gate approval must be **written onto the PR description** before merge
+- **Update the branch right before every merge** (trivial, or after the human gate): if behind the default branch, update it, wait for required CI green on the new head, then merge — never a behind branch or stale-commit CI. Clean catch-up keeps approval; conflicts or changes to the PR’s own diff/behavior → re-verify and tell the human (re-ask the gate for normal/high). Update before human review, too
 - History in GitHub + this folder — not only chat
 - Leave work pick-uppable from issue/PR alone
 - Agents see their own CI/evidence (incl. UI screenshots) before asking for review
