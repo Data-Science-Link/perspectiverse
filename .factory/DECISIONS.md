@@ -92,6 +92,18 @@ Append-only. Newest at the bottom.
 - **Alternatives:** Rely on chat history only; require a GitHub review click instead of chat.
 - **Revisit when:** Branch protection requires an approving GitHub review for all normal/high PRs.
 
+### 2026-10-07 — Faces chosen by fit in 2..6; drop, never pad (#53)
+- **Decision:** `choose_n_faces` tries k = 2..6 in the planet's own embedding space and keeps the best mean cosine silhouette among counts that pass hard gates: every face ≥ `MIN_FACE_POSTS` (2) posts and ≥ `MIN_FACE_SHARE` (0.05), face centroids below cosine 0.90, and every face at least as tight as its planet. No passing count → `None`, and the planet is not published. If labeling collapses a split below 2 faces (Mixed remarks or alike titles), the next passing count is tried once, then the planet is dropped. A final guard drops any planet outside 2–6 faces before `validate_payload`, which stays strict.
+- **Why:** The 2026-10-07 daily run failed validation on a 1-face planet. #43 set the floor to 2 but `choose_n_faces` could still return 1 and post-label merging could collapse faces. Picking the highest k that passed (inertia "gain" always grows with k) also over-split planets into near-duplicate faces. Michael (#53): small minorities are fine, groupings must be tight, and more than one perspective must exist.
+- **Alternatives:** Relax the schema to allow 1 face (#32 proposal 4; rejected in #41); pad a second face; keep 1-post faces (a lone remark is not a group).
+- **Revisit when:** Production logs show many popular planets dropped for lack of a second face, or LLM labels routinely merge silhouette-chosen faces.
+
+### 2026-10-07 — Label planets lazily and concurrently; section time budget (#53)
+- **Decision:** Labeling stops once `catalog_size` planets survive (global and per section); the planet name and briefs are generated only for survivors. With a network label backend, `label_workers` (default 8) planets are labeled concurrently and results are used in rank order. Section solar systems run largest first under `section_budget_minutes` (default 15). One planet or section that raises is logged and skipped.
+- **Why:** The 2026-10-07 run took ~2.5 h: ~140 candidate planets × ~8 sequential LLM calls (~1,170 calls at ~7–11 s each). Clustering itself was ~1 min but allocated an n×k×d tensor (8.8 GB peak at 7,447 claims); it now uses an n×k distance form.
+- **Alternatives:** Drop LLM briefs for section planets; cache labels across global and section planets; a total LLM-call budget.
+- **Revisit when:** DeepInfra rate limits (429) show up in logs, or the job still exceeds ~30 minutes.
+
 ### 2026-10-07 — Watch scheduled (cron) workflow runs, not just post-merge deploys
 - **Decision:** Factory workers check the latest scheduled workflow runs on the default branch at the start of each session and after merges touching scheduled jobs. A failed run becomes a top-priority bug issue (failing step + log excerpt) and is reported to the human; large duration jumps are flagged.
 - **Why:** A daily data job failed and the site silently served stale data; it surfaced only when a human asked about something else. Post-merge deploy watching doesn't cover cron jobs with no PR in flight.
@@ -103,3 +115,15 @@ Append-only. Newest at the bottom.
 - **Why:** The Other Models pool hit 100% while Cursor Models sat at 1%, blocking agent launches; model choice was implicit and cost-blind.
 - **Alternatives:** Leave everything on Auto; one model for all work.
 - **Revisit when:** Plan, pool rules, or model lineup changes.
+
+### 2026-10-07 — Update PR branch onto latest main right before merge; repo setting requires up-to-date branches
+- **Decision:** Immediately before any merge (trivial auto-merge, or after the human gate), the worker updates the PR branch onto the latest default branch if it is behind and merges only after required CI is green on that new head commit. PRs are also updated before handing them to the human for review. A clean catch-up keeps prior approval; conflicts or changes to the PR’s own diff/behavior are re-verified and reported to the human (gate re-asked for normal/high). As a second layer, repos enable "Always suggest updating pull request branches" and require branches to be up to date (strict status checks) on the default branch.
+- **Why:** PRs were reaching human review, and could be merged, while out of date with main, so CI results no longer described what would actually land.
+- **Alternatives:** Rely on the start-of-work sync only; merge queue.
+- **Revisit when:** The repo adopts a merge queue or the platform auto-updates branches before merge.
+
+### 2026-10-07 — Bypass merges: verify up-to-date + green by hand
+- **Decision:** Factory PRs authored by the owner's account can't get the ruleset's required approval, so workers merge chat-approved and trivial PRs with the admin bypass. Because a bypass skips every rule, including the up-to-date check, the worker first verifies by hand that the branch is 0 commits behind the default branch and all required checks are green on the current head SHA, and uses a merge method the ruleset allows. The review rule and bypass actors stay unchanged.
+- **Why:** Keeps the "update onto latest main right before merge" guarantee when the ruleset itself is bypassed.
+- **Alternatives:** Remove the review requirement; a separate bot account to approve.
+- **Revisit when:** PRs come from an account that can be approved, or a merge queue is adopted.

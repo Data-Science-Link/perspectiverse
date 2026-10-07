@@ -18,7 +18,7 @@ Closes #
 - [ ] **5. Review** — agent self-review vs issue outcome + `.factory/skills/liability-gates.md`
 - [ ] **6. Verify** — required CI green (or N/A + reason); evidence below; **UI → screenshots in Evidence section of this PR body** (not only a comment)
 - [ ] **7. Product gate** — human approved (**required** for normal/high) / N/A trivial only — **when approved in chat, check this and update Human reviewed below before merge**
-- [ ] **8. Ship + monitor** — merge only per risk class; after merge watch deploy/pages and fix if red
+- [ ] **8. Ship + monitor** — merge only per risk class; branch updated onto latest main and CI green on that commit right before merge; after merge watch deploy/pages and fix if red
 
 ## Risk class
 

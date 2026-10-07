@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from collections.abc import Callable
 
 from pipeline.http_json import read_json
@@ -1335,24 +1336,35 @@ def resolve_openai_model(explicit: str | None = None) -> str:
     return DEFAULT_OPENAI_MODEL
 
 
+# Planets are labeled concurrently (pipeline.live), so a rate limit or a
+# gateway blip is retried with a short backoff instead of becoming a fallback
+# label (which drops the face). Timeouts are not retried; they already cost 60s.
+_RETRY_STATUSES = ("HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504")
+_RETRY_DELAYS = (2.0, 6.0)
+
+
 def _openai_generate(prompt: str, model: str) -> str:
     api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
     base = resolve_openai_base_url()
-    payload = read_json(
-        f"{base}/chat/completions",
-        timeout=60,
-        data=json.dumps(
-            {
-                "model": model,
-                "temperature": 0,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-        ).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        },
-    )
+    body = json.dumps(
+        {
+            "model": model,
+            "temperature": 0,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+    ).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+    for attempt in range(len(_RETRY_DELAYS) + 1):
+        try:
+            payload = read_json(f"{base}/chat/completions", timeout=60, data=body, headers=headers)
+            break
+        except RuntimeError as exc:
+            if attempt >= len(_RETRY_DELAYS) or not str(exc).startswith(_RETRY_STATUSES):
+                raise
+            time.sleep(_RETRY_DELAYS[attempt])
     return str(payload["choices"][0]["message"]["content"])
