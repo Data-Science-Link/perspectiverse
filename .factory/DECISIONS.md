@@ -79,3 +79,9 @@ Append-only. Newest at the bottom.
 - **Why:** Hard to tell from chat whether workers followed the playbook; PR is the durable, multiplayer surface.
 - **Alternatives:** Chat-only status updates; separate process ticket per change.
 - **Revisit when:** Checklist becomes noise or steps change.
+
+### 2026-10-07 — UI screenshots must be in PR Evidence section
+- **Decision:** For UI/frontend/website/pages PRs, screenshots must appear in the PR description **Evidence** section (embedded or linked). Screenshots only in a conversation comment do not satisfy the gate.
+- **Why:** Comment-only shots are easy for humans to miss when auditing adherence from the PR body.
+- **Alternatives:** Allow either body or comment; require attached image files only.
+- **Revisit when:** GitHub UX makes comment evidence as visible as the description.
