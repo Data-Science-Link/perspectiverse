@@ -57,7 +57,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Python CI | `.github/workflows/pytest.yml` | Runs on push/PR to main. Installs lightweight deps via `uv`. |
 | Frontend CI | `.github/workflows/frontend.yml` | Lint (`npm run lint`) + category helper on push/PR to main. |
 | Daily pipeline | `.github/workflows/pipeline.yml` | Scheduled (06:00 UTC daily) + `workflow_dispatch`. Publishes `public/data.json`. |
-| Pages deploy | `.github/workflows/pages.yml` | Deploys to GitHub Pages on push to main. Pages source must be enabled in repo settings. |
+| Pages deploy | `.github/workflows/pages.yml` | Deploys on push to main, `workflow_dispatch`, and a successful Daily Discourse Pipeline (`workflow_run`). Build checks out main and overlays `public/data.json` from `data-snapshot`. |
 | Security audit | `.github/workflows/security-audit.yml` | Required check on all pushes; runs `bandit` + `pip-audit`. Do not add path filters. |
 | CODEOWNERS | `.github/CODEOWNERS` | `@Data-Science-Link` must approve PRs to `main`. |
 
