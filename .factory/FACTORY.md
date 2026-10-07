@@ -80,6 +80,7 @@ Scheduled workflows (daily data jobs, nightly builds) can fail with no PR in fli
 - Humans own “is this useful?” for all **normal** and **high** work; only **trivial** may auto-merge
 - Chat (or issue) product-gate approval must be **written onto the PR description** before merge
 - **Update the branch right before every merge** (trivial, or after the human gate): if behind the default branch, update it, wait for required CI green on the new head, then merge — never a behind branch or stale-commit CI. Clean catch-up keeps approval; conflicts or changes to the PR’s own diff/behavior → re-verify and tell the human (re-ask the gate for normal/high). Update before human review, too
+- **Bypass merges:** If you merge with an admin/ruleset bypass, the bypass skips every rule including the up-to-date check, so first verify by hand that the branch is 0 commits behind the default branch and that all required checks are green on the current head SHA; use a merge method the ruleset allows.
 - History in GitHub + this folder — not only chat
 - Leave work pick-uppable from issue/PR alone
 - Agents see their own CI/evidence (incl. UI screenshots) before asking for review
