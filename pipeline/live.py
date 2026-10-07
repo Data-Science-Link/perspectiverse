@@ -93,6 +93,10 @@ def run_live(
             # Keep only public claims; non-claims are discarded and not stored.
             cleaned = [p for p in cleaned if p.get("is_claim") is True]
             if refreshed:
+                # Top up: keep fetching until claim count reaches target so the
+                # rolling window stays at the threshold, not below it.
+                if len(cleaned) < target:
+                    cleaned = _topup_claims(cleaned, target=target, settings=settings)
                 before = len(cleaned)
                 cleaned = retire_oldest(
                     cleaned,
@@ -102,7 +106,7 @@ def run_live(
                 )
                 kept = len(cleaned)
                 if kept < target:
-                    print(f"Claim shortfall: {kept} of {target}. Search did not fill the window.")
+                    print(f"Claim shortfall: {kept} of {target}. Bluesky could not fill the window.")
                 elif before > kept:
                     print(f"Retired the oldest posts down to {kept} of {target}.")
         if not cleaned:
@@ -162,6 +166,65 @@ def run_live(
         f"{clustered['noise_count']} excluded as noise, wrote {destination}"
     )
     return destination
+
+
+def _topup_claims(
+    claims: list[dict],
+    *,
+    target: int,
+    settings: dict,
+    max_rounds: int = 6,
+) -> list[dict]:
+    """Fetch additional posts and Jev-classify them until claim count reaches target.
+
+    Each round over-fetches by 4× the remaining gap to account for the Bluesky
+    claim rate (~30 %). Stops early if Bluesky returns nothing new or max_rounds
+    is exhausted — the caller still gets whatever claims were collected.
+    """
+    result = list(claims)
+    seen = {post.get("uri") for post in result if post.get("uri")}
+    neutral = [item for item in (settings.get("neutral_queries") or []) if item]
+    refresh_hours = int(settings.get("refresh_hours") or 24)
+    # Use a shifted seed so each round samples a different slice of Bluesky.
+    rng = random.Random(int(settings["seed"]) + len(result))
+    now = datetime.now(timezone.utc)
+
+    for round_num in range(1, max_rounds + 1):
+        gap = target - len(result)
+        if gap <= 0:
+            break
+        # 4× overfetch compensates for the ~25–35 % claim rate on Bluesky.
+        fetch_size = min(gap * 4, 5000)
+        try:
+            incoming = extract_posts(
+                sample_size=fetch_size,
+                window_hours=refresh_hours,
+                queries=neutral,
+                rng=rng,
+                now=now,
+                skip_uris=seen,
+            )
+        except RuntimeError as exc:
+            print(f"Top-up fetch {round_num} failed ({exc}); stopping.")
+            break
+        fresh = []
+        for post in drop_near_duplicates(clean_posts(incoming)):
+            uri = post.get("uri")
+            if not uri or uri in seen:
+                continue
+            seen.add(uri)
+            fresh.append(post)
+        if not fresh:
+            print(f"Top-up {round_num}: no new posts from Bluesky; stopping.")
+            break
+        new_claims = [p for p in apply_jev(fresh) if p.get("is_claim") is True]
+        result.extend(new_claims)
+        print(
+            f"Top-up {round_num}: {len(new_claims)} claims from {len(fresh)} posts "
+            f"(total {len(result)}/{target})."
+        )
+
+    return result
 
 
 def _collect_posts(
