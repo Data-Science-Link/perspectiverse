@@ -121,3 +121,4 @@ dmypy.json
 bandit-report.json
 safety-report.json
 requirements-lock.txt
+artifacts/

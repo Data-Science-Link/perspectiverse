@@ -1,4 +1,4 @@
-import { isSitePage } from './pages.js'
+import { isSitePage, normalizePageId } from './pages.js'
 
 export function readSelectionFromURL() {
   const params = new URLSearchParams(window.location.search)
@@ -7,7 +7,7 @@ export function readSelectionFromURL() {
   const topicId = topicRaw == null || topicRaw === '' ? null : Number(topicRaw)
   const face = params.get('face')
   const pageRaw = params.get('page')
-  const page = isSitePage(pageRaw) ? pageRaw : null
+  const page = normalizePageId(pageRaw)
   return {
     category,
     topicId: page ? null : Number.isFinite(topicId) ? topicId : null,

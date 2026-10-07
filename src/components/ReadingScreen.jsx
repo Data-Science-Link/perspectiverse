@@ -228,11 +228,7 @@ export default function ReadingScreen({
             {isMobile ? '← Back to the solar system' : '← All topics'}
           </button>
         ) : null}
-        <div className="reading-actions">
-          <button type="button" className="text-button" onClick={onToggleEmail}>
-            Email
-          </button>
-        </div>
+        <div className="reading-actions" aria-hidden="true" />
       </header>
       {sheet === 'summary' && (
         <div className="reading-sheet">

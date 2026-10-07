@@ -11,55 +11,53 @@ export function OverviewGraphic() {
     <figure className="method-figure">
       <svg
         className="method-overview"
-        viewBox="0 0 320 430"
+        viewBox="0 0 320 500"
         role="img"
         aria-labelledby="overview-graphic-title overview-graphic-desc"
       >
-        <title id="overview-graphic-title">How Perspectiverse connects public talk to a solar system you can look around</title>
+        <title id="overview-graphic-title">From Bluesky posts through Jev filters to planets and perspectives</title>
         <desc id="overview-graphic-desc">
-          Public posts from a week of conversation are clustered once a day into up to ten topics.
-          Each topic keeps two to six opinions that are actually different. You open the solar system and check where you stand.
+          A week of English Bluesky posts passes spam, public-claim, and section filters, clusters into up to
+          ten planets, splits into two to six perspectives by prevalence, then loads in the observatory.
         </desc>
-        <rect x="12" y="10" width="296" height="78" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
-        <circle cx="46" cy="40" r="7" fill="#6ea8ff" />
-        <circle cx="68" cy="52" r="5" fill="#c77dff" />
-        <circle cx="58" cy="62" r="4" fill="#2fd2a8" />
-        <circle cx="78" cy="38" r="6" fill="#ff6b9d" />
-        <text x="102" y="42" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">A week of public posts</text>
-        <text x="102" y="64" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Usually English Bluesky</text>
+        <rect x="12" y="10" width="296" height="64" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
+        <text x="28" y="36" fill="#efeef7" fontSize="14" fontFamily="Instrument Sans, Segoe UI, sans-serif">Bluesky · 7-day English window</text>
+        <text x="28" y="56" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Current source; broader inputs planned</text>
 
-        <path d="M160 88 v22" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
-        <path d="M154 104 l6 10 6-10" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
+        <path d="M160 74 v18" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
+        <path d="M154 86 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
 
-        <rect x="12" y="118" width="296" height="78" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
-        <rect x="36" y="140" width="44" height="34" rx="8" fill="#10131c" stroke="#f4c14e" />
-        <path d="M48 151 h20 M58 141 v20" stroke="#f4c14e" strokeWidth="2" />
-        <text x="102" y="150" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">Clustered once a day</text>
-        <text x="102" y="172" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">One job. One snapshot.</text>
+        <rect x="12" y="96" width="296" height="72" rx="16" fill="rgba(244,193,78,0.08)" stroke="rgba(244,193,78,0.45)" />
+        <text x="28" y="120" fill="#f4e2b0" fontSize="13" fontFamily="Instrument Sans, Segoe UI, sans-serif">Jev filters</text>
+        <text x="28" y="140" fill="#efeef7" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Spam drop · public-claim check · newspaper section</text>
+        <text x="28" y="158" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Regex fallback when Jev is off</text>
 
-        <path d="M160 196 v22" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
-        <path d="M154 212 l6 10 6-10" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
+        <path d="M160 168 v18" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
+        <path d="M154 180 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
 
-        <rect x="12" y="226" width="296" height="86" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
-        <circle cx="58" cy="268" r="22" fill="#f4c14e" />
-        <circle cx="52" cy="260" r="7" fill="rgba(255,255,255,0.22)" />
-        <circle cx="88" cy="278" r="9" fill="#4aa3e6" />
-        <text x="112" y="258" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">Up to ten planets</text>
-        <text x="112" y="280" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Size is share of attention</text>
-        <text x="112" y="298" fill="#9a98ad" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Longest bar = most common</text>
+        <rect x="12" y="190" width="296" height="64" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
+        <text x="28" y="216" fill="#efeef7" fontSize="14" fontFamily="Instrument Sans, Segoe UI, sans-serif">Cluster once a day</text>
+        <text x="28" y="236" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Embeddings → up to 10 planets</text>
 
-        <path d="M160 312 v22" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
-        <path d="M154 328 l6 10 6-10" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
+        <path d="M160 254 v18" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
+        <path d="M154 266 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
 
-        <rect x="12" y="342" width="296" height="76" rx="16" fill="rgba(244,193,78,0.08)" stroke="rgba(244,193,78,0.45)" />
-        <circle cx="48" cy="380" r="10" fill="none" stroke="#f4c14e" strokeWidth="2" />
-        <circle cx="48" cy="380" r="3" fill="#f4c14e" />
-        <text x="74" y="374" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">You look around</text>
-        <text x="74" y="396" fill="#f4e2b0" fontSize="12" fontFamily="Instrument Sans, Segoe UI, sans-serif">Check where your take stands</text>
+        <rect x="12" y="276" width="296" height="78" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
+        <circle cx="52" cy="314" r="18" fill="#f4c14e" />
+        <circle cx="82" cy="324" r="10" fill="#4aa3e6" />
+        <text x="108" y="308" fill="#efeef7" fontSize="14" fontFamily="Instrument Sans, Segoe UI, sans-serif">Planets = topics</text>
+        <text x="108" y="328" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Size = attention share</text>
+        <text x="108" y="344" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">2–6 perspectives · bars by prevalence</text>
+
+        <path d="M160 354 v18" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
+        <path d="M154 366 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
+
+        <rect x="12" y="376" width="296" height="64" rx="16" fill="rgba(47,210,168,0.08)" stroke="rgba(47,210,168,0.45)" />
+        <text x="28" y="402" fill="#efeef7" fontSize="14" fontFamily="Instrument Sans, Segoe UI, sans-serif">Steelmanned summaries</text>
+        <text x="28" y="422" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Not a right/wrong score · static data.json</text>
       </svg>
       <figcaption>
-        Public posts become up to ten planets. Each planet opens into the opinions that differ.
-        You look around the solar system — not a feed ranked for you.
+        Filters first, then clustering and labels. The browser only fetches the published file.
       </figcaption>
     </figure>
   )

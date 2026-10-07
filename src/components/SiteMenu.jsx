@@ -1,8 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { SITE_TAGLINE } from '../lib/copy'
 import { FEEDBACK_URL, SITE_PAGES } from '../lib/pages'
-import { hexToRgba } from '../lib/colors'
-import { formatPercent } from '../lib/layout'
 import TopicFilter from './TopicFilter'
 
 function CloseIcon() {
@@ -23,16 +21,15 @@ function ChevronIcon() {
 
 export default function SiteMenu({
   open,
-  topics,
   categories,
   category,
   counts,
   currentPage = null,
   onClose,
   onCategory,
-  onSelectTopic,
   onOpenPage,
   onShowWelcome,
+  onOpenEmail,
 }) {
   const closeRef = useRef(null)
 
@@ -69,8 +66,21 @@ export default function SiteMenu({
           </button>
         </div>
 
+        <section className="menu-section menu-section-tight">
+          <button
+            type="button"
+            className="menu-email-cta"
+            onClick={() => {
+              onOpenEmail?.()
+              onClose()
+            }}
+          >
+            <strong>Weekly email digest</strong>
+            <span>Copy this week&apos;s planets and perspectives</span>
+          </button>
+        </section>
+
         <section className="menu-section">
-          <h3>Pages</h3>
           <nav className="menu-pages" aria-label="Site pages">
             {SITE_PAGES.map((page) => (
               <button
@@ -88,28 +98,11 @@ export default function SiteMenu({
               </button>
             ))}
           </nav>
-        </section>
-
-        <section className="menu-section">
-          <h3>About the project</h3>
-          <p>
-            A week of public conversation as a solar system. The briefing beside it
-            is the same at every depth: bars, a summary, and posts.
-          </p>
           {onShowWelcome && (
-            <button type="button" className="menu-feedback" onClick={onShowWelcome}>
-              Show the welcome tour
+            <button type="button" className="menu-inline-link" onClick={onShowWelcome}>
+              How it works (welcome tour)
             </button>
           )}
-        </section>
-
-        <section className="menu-section">
-          <h3>How to read this</h3>
-          <ul>
-            <li>Drag to look around the planets.</li>
-            <li>Tap a bar to read that planet or perspective.</li>
-            <li>Read more opens the longer summary. Example posts sit underneath.</li>
-          </ul>
         </section>
 
         <section className="menu-section">
@@ -126,38 +119,9 @@ export default function SiteMenu({
           />
         </section>
 
-        <section className="menu-section">
-          <h3>Today&apos;s planets</h3>
-          <div className="menu-planets">
-            {topics.map((topic) => (
-              <button
-                key={topic.id}
-                type="button"
-                className="menu-planet"
-                onClick={() => {
-                  onSelectTopic(topic.id)
-                  onClose()
-                }}
-              >
-                <span className="swatch" style={{ background: topic.body?.color, boxShadow: `0 0 12px ${hexToRgba(topic.body?.color ?? '#fff', 0.5)}` }} />
-                <span>
-                  <strong>{topic.body?.name}</strong>
-                  <em>{topic.name}</em>
-                </span>
-                <span>{formatPercent(topic.total_volume_percent)}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="menu-section">
-          <h3>Feedback</h3>
-          <p>
-            Something confusing, a planet that feels wrong, or a view that flattened
-            your take? This is a research prototype — tell us.
-          </p>
+        <section className="menu-section menu-section-tight">
           <a className="menu-feedback" href={FEEDBACK_URL} target="_blank" rel="noreferrer">
-            Open a GitHub issue
+            Feedback on GitHub
           </a>
         </section>
       </aside>

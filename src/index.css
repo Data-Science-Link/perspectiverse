@@ -608,6 +608,64 @@ h3 {
   font-size: 0.8rem;
 }
 
+.menu-section-tight {
+  margin-top: 0.5rem;
+}
+
+.menu-email-cta {
+  width: 100%;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(244, 193, 78, 0.55);
+  border-radius: 0.85rem;
+  background: rgba(244, 193, 78, 0.1);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-email-cta strong {
+  font-size: 1rem;
+}
+
+.menu-email-cta span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.menu-inline-link {
+  width: 100%;
+  margin-top: 0.65rem;
+  padding: 0.35rem 0;
+  border: 0;
+  background: transparent;
+  color: #f4c14e;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+
+.chrome-email {
+  width: auto;
+  padding: 0 0.65rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+}
+
+.welcome-flow figcaption {
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.method-disclaimer {
+  padding: 0.85rem 1rem;
+  border-left: 3px solid rgba(244, 193, 78, 0.55);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .menu-feedback {
   display: inline-flex;
   align-items: center;
