@@ -458,11 +458,15 @@ def _cluster_sections(
 
     result: dict[str, list[dict]] = {}
     seed = int(settings["seed"])
+    base_min = int(settings["min_cluster_size"])
 
     for section in sorted(section_indices):
         indices = section_indices[section]
-        if len(indices) < floor:
-            print(f"Section {section}: {len(indices)} posts, skipping (need {floor}).")
+        # Scale the floor to the section size; smaller sections get a lower bar
+        # than the global floor so they can still form tight groups.
+        section_floor = max(base_min, len(indices) // 200)
+        if len(indices) < section_floor:
+            print(f"Section {section}: {len(indices)} posts, skipping (need {section_floor}).")
             continue
 
         section_posts = [planet_posts[i] for i in indices]
@@ -473,7 +477,7 @@ def _cluster_sections(
             pool = min(20, catalog_size + 10)
             section_clustered = cluster_texts(
                 section_texts,
-                min_cluster_size=floor,
+                min_cluster_size=section_floor,
                 cluster_backend=str(settings["cluster_backend"]),
                 embedding_model=str(settings["embedding_model"]),
                 seed=seed,
