@@ -155,7 +155,20 @@ def test_drop_planet_that_admits_no_shared_claim():
         "id": 10,
         "name": "Taxes",
         "total_volume_percent": 80,
-        "perspectives": [{"id": "10A", "title": "Tax the Rich", "summary": "Wealth taxes should fund public services."}],
+        "perspectives": [
+            {
+                "id": "10A",
+                "title": "Tax the Rich",
+                "summary": "Wealth taxes should fund public services.",
+                "post_count": 6,
+            },
+            {
+                "id": "10B",
+                "title": "Flat Tax",
+                "summary": "A flat tax is simpler to collect.",
+                "post_count": 4,
+            },
+        ],
     }
     kept = _drop_unshared_planets([mixed, solid])
     assert [topic["name"] for topic in kept] == ["Taxes"]

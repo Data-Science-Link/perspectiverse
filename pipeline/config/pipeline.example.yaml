@@ -26,6 +26,13 @@ label_backend: auto
 ollama_model: llama3.2
 openai_model: gpt-4o-mini
 
+# Planets labeled concurrently when a network label backend is on (the labeling
+# loop is I/O bound). The heuristic backend always runs one at a time.
+label_workers: 8
+# Minutes the per-section solar systems may spend after the global system is
+# built. Sections past the budget are skipped (logged) so the snapshot publishes.
+section_budget_minutes: 15
+
 representative_posts: 36
 language: en
 seed: 0
