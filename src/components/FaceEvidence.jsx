@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatNumber, sortPosts } from '../lib/layout'
 
 export const POST_PREVIEW_COUNT = 5
@@ -15,9 +15,14 @@ export function TopTerms({ terms }) {
   )
 }
 
-export function LazyPostFeed({ posts, previewCount = POST_PREVIEW_COUNT }) {
+export function LazyPostFeed({ posts, previewCount = POST_PREVIEW_COUNT, faceKey = '' }) {
   const sorted = sortPosts(posts || [])
   const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    setExpanded(false)
+  }, [faceKey])
+
   const hidden = sorted.length > previewCount
   const visible = expanded || !hidden ? sorted : sorted.slice(0, previewCount)
 

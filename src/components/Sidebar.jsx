@@ -267,7 +267,7 @@ function PerspectivePanel({
       <div className="post-feed">
         <h2>Example posts</h2>
         <p className="topic-row-meta">Posts from this view, sorted by likes — the talk behind the summary.</p>
-        <LazyPostFeed posts={perspective.representative_posts} />
+        <LazyPostFeed posts={perspective.representative_posts} faceKey={perspective.id} />
       </div>
     </div>
   )

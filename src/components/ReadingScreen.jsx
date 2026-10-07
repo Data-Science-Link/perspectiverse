@@ -234,7 +234,7 @@ export default function ReadingScreen({
           <h1>Example posts</h1>
           <div className="reading-sheet-posts">
             <TopTerms terms={faceTerms} />
-            <LazyPostFeed posts={posts} />
+            <LazyPostFeed posts={posts} faceKey={selectionKey} />
           </div>
         </div>
       )}
@@ -288,7 +288,11 @@ export default function ReadingScreen({
               )}
             </div>
             <div className="post-scroller">
-              <LazyPostFeed posts={posts} previewCount={POST_PREVIEW_COUNT} />
+              <LazyPostFeed
+                posts={posts}
+                previewCount={POST_PREVIEW_COUNT}
+                faceKey={selectionKey}
+              />
             </div>
           </div>
         </div>
