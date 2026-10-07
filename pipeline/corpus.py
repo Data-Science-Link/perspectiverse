@@ -12,7 +12,8 @@ import math
 import random
 from datetime import datetime, timedelta, timezone
 
-# Posts that already passed cleaning, dedup, spam, and the public-claim check.
+# Total posts in the rolling window. Each morning adds roughly 1/7 of this
+# count and the oldest posts are dropped to stay at this ceiling.
 CLAIM_TARGET = 10000
 TARGET_POSTS = CLAIM_TARGET
 MIN_GROUP_POSTS = 10
@@ -144,24 +145,19 @@ def retire_oldest(
     window_hours: int,
     target: int,
 ) -> list[dict]:
-    """Drop posts older than 7 days, then the oldest counted posts down to ``target``.
+    """Drop posts older than the window, then the oldest posts down to ``target``.
 
-    The oldest go even when they are younger than 7 days. Non-claims stay and
-    do not fill a slot. Call this only after a fetch that actually returned posts.
+    The cap applies to the total post count — claims and non-claims alike.
+    Oldest posts are evicted first regardless of claim status, keeping the
+    rolling window at most ``target`` posts at any one time.
+    Call this only after a fetch that actually returned posts.
     """
     kept = within_window(posts, now, window_hours)
     limit = max(int(target), 0)
-    counted = counted_posts(kept)
-    if len(counted) <= limit:
+    if len(kept) <= limit:
         return kept
-    ordered = sorted(counted, key=lambda post: parse_created(post.get("created_at") or "").timestamp())
-    drop = {post.get("uri") for post in ordered[: len(counted) - limit]}
-    labeled = any(post.get("is_claim") is not None for post in kept)
-    return [
-        post
-        for post in kept
-        if post.get("uri") not in drop or (labeled and post.get("is_claim") is not True)
-    ]
+    ordered = sorted(kept, key=lambda post: parse_created(post.get("created_at") or "").timestamp())
+    return ordered[len(ordered) - limit:]
 
 
 def posts_on_utc_date(posts: list[dict], utc_date: str) -> bool:
