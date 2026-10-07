@@ -115,3 +115,9 @@ Append-only. Newest at the bottom.
 - **Why:** The Other Models pool hit 100% while Cursor Models sat at 1%, blocking agent launches; model choice was implicit and cost-blind.
 - **Alternatives:** Leave everything on Auto; one model for all work.
 - **Revisit when:** Plan, pool rules, or model lineup changes.
+
+### 2026-10-07 — Update PR branch onto latest main right before merge; repo setting requires up-to-date branches
+- **Decision:** Immediately before any merge (trivial auto-merge, or after the human gate), the worker updates the PR branch onto the latest default branch if it is behind and merges only after required CI is green on that new head commit. PRs are also updated before handing them to the human for review. A clean catch-up keeps prior approval; conflicts or changes to the PR’s own diff/behavior are re-verified and reported to the human (gate re-asked for normal/high). As a second layer, repos enable "Always suggest updating pull request branches" and require branches to be up to date (strict status checks) on the default branch.
+- **Why:** PRs were reaching human review, and could be merged, while out of date with main, so CI results no longer described what would actually land.
+- **Alternatives:** Rely on the start-of-work sync only; merge queue.
+- **Revisit when:** The repo adopts a merge queue or the platform auto-updates branches before merge.
