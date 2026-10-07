@@ -16,7 +16,9 @@ EXAMPLE_PATH = ROOT / "config" / "pipeline.example.yaml"
 LOCAL_PATH = ROOT / "config" / "pipeline.yaml"
 DEFAULT_DEEPINFRA_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
-# Example posts kept on each perspective in the published snapshot.
+# Representative posts kept on each perspective in the published snapshot.
+# 36 sits in the roadmap's 20–50 band: enough evidence for readers and a future
+# clerk without blowing up Pages payload (most faces are smaller than the cap).
 EXAMPLE_POST_CAP = 36
 
 DEFAULTS: dict[str, Any] = {

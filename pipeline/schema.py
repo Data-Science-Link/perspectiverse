@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from pipeline.settings import EXAMPLE_POST_CAP
+
 WINDOW_HOURS = 168
 MODES = frozenset({"demo", "live"})
 SOURCES = frozenset({"synthetic", "bluesky", "fixture"})
@@ -46,6 +48,8 @@ ALLOWED_CATEGORIES = frozenset(CATEGORIES) | frozenset(DEMO_CATEGORIES) | frozen
 NOISE_POLICY = "Topic -1 is dropped and excluded from the volume denominator."
 MIN_FACES = 2
 MAX_FACES = 6
+# Salient tokens stored on each published face (pipeline + demo).
+TOP_TERMS_LIMIT = 8
 
 CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "World": (
@@ -271,9 +275,24 @@ def validate_payload(payload: dict[str, Any]) -> None:
                     raise ValueError(f"Perspective {face_id} has an empty argument")
             elif payload.get("mode") == "demo":
                 raise ValueError(f"Demo perspective {face_id} needs core arguments")
+            top_terms = face.get("top_terms")
+            if top_terms is not None:
+                if not isinstance(top_terms, list) or not top_terms:
+                    raise ValueError(f"Perspective {face_id} top_terms must be a non-empty list")
+                if len(top_terms) > TOP_TERMS_LIMIT:
+                    raise ValueError(
+                        f"Perspective {face_id} has {len(top_terms)} top_terms; max is {TOP_TERMS_LIMIT}"
+                    )
+                if any(not isinstance(term, str) or not term.strip() for term in top_terms):
+                    raise ValueError(f"Perspective {face_id} top_terms must be non-empty strings")
             posts = face.get("representative_posts") or []
             if not posts:
                 raise ValueError(f"Perspective {face_id} needs representative posts")
+            if len(posts) > EXAMPLE_POST_CAP:
+                raise ValueError(
+                    f"Perspective {face_id} has {len(posts)} representative posts; "
+                    f"max is {EXAMPLE_POST_CAP}"
+                )
             for post in posts:
                 if "likes" not in post or "text" not in post or "author" not in post:
                     raise ValueError(f"Perspective {face_id} posts need author, text, and likes")

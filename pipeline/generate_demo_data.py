@@ -14,7 +14,15 @@ from typing import Any
 
 from pipeline.demo_briefs import FACE_BRIEFS, FEATURED_ARGUMENTS
 from pipeline.demo_catalog import CATEGORY_ROSTERS, CATEGORY_WEIGHTS, TOPIC_CURVE
-from pipeline.schema import DEMO_CATEGORIES, NOISE_POLICY, SYSTEM_SIZE, to_percents, validate_payload
+from pipeline.cluster_math import salient_terms
+from pipeline.schema import (
+    DEMO_CATEGORIES,
+    NOISE_POLICY,
+    SYSTEM_SIZE,
+    TOP_TERMS_LIMIT,
+    to_percents,
+    validate_payload,
+)
 
 DEMO_TOTAL_POSTS = 100_000
 DEMO_LAST_UPDATED = date(2026, 9, 26).isoformat()
@@ -804,6 +812,11 @@ def _likes_for(text: str, salt: int, index: int) -> int:
     return 180 + ((salt * 37 + index * 91 + len(text)) % 2100)
 
 
+def _with_top_terms(face: dict[str, Any]) -> dict[str, Any]:
+    texts = [str(post.get("text") or "") for post in face.get("representative_posts") or []]
+    return {**face, "top_terms": salient_terms(texts, limit=TOP_TERMS_LIMIT)}
+
+
 def _attach_featured_arguments(topic: dict[str, Any]) -> dict[str, Any]:
     by_title = FEATURED_ARGUMENTS.get(topic["name"])
     if not by_title:
@@ -813,7 +826,7 @@ def _attach_featured_arguments(topic: dict[str, Any]) -> dict[str, Any]:
         arguments = by_title.get(face["title"])
         if not arguments:
             raise ValueError(f"Missing arguments for {topic['name']!r} / {face['title']!r}")
-        perspectives.append({**face, "arguments": list(arguments)})
+        perspectives.append(_with_top_terms({**face, "arguments": list(arguments)}))
     return {**topic, "perspectives": perspectives}
 
 
@@ -836,14 +849,16 @@ def _synthesize_topic(name: str, category: str, salt: int) -> dict[str, Any]:
             for post_index, post in enumerate(brief["posts"])
         ]
         perspectives.append(
-            {
-                "id": f"tmp{index}",
-                "title": brief["title"],
-                "summary": brief["summary"],
-                "arguments": list(brief["arguments"]),
-                "volume_percent": percent,
-                "representative_posts": posts,
-            }
+            _with_top_terms(
+                {
+                    "id": f"tmp{index}",
+                    "title": brief["title"],
+                    "summary": brief["summary"],
+                    "arguments": list(brief["arguments"]),
+                    "volume_percent": percent,
+                    "representative_posts": posts,
+                }
+            )
         )
     return {
         "id": 0,
