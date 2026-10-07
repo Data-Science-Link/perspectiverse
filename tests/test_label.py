@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from pipeline.label import (
     FALLBACK_TITLE,
     build_prompt,
@@ -445,3 +447,35 @@ def test_mocked_openai_generate_posts_to_deepinfra(monkeypatch):
 
     assert _allowed(seen["url"])
 
+
+
+def test_openai_generate_backs_off_on_rate_limit(monkeypatch):
+    """Concurrent labeling (#53) must not turn a 429 into a dropped face."""
+    calls = []
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls.append(url)
+        if len(calls) < 3:
+            raise RuntimeError("HTTP 429 from api.deepinfra.com")
+        return {"choices": [{"message": {"content": "{\"title\": \"Rent Burden\"}"}}]}
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    assert "Rent Burden" in _openai_generate("hello", "model")
+    assert len(calls) == 3
+
+
+def test_openai_generate_does_not_retry_other_errors(monkeypatch):
+    calls = []
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls.append(url)
+        raise RuntimeError("HTTP 401 from api.deepinfra.com")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    with pytest.raises(RuntimeError):
+        _openai_generate("hello", "model")
+    assert len(calls) == 1

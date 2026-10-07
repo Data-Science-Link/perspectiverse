@@ -159,6 +159,21 @@ def salient_terms(texts: list[str], limit: int = 3) -> list[str]:
     return chosen
 
 
+def _sq_distances(matrix: np.ndarray, centers: np.ndarray, row_norms: np.ndarray | None = None) -> np.ndarray:
+    """Squared Euclidean distance from every row to every center, as an n x k matrix.
+
+    Uses |x|^2 - 2 x.c + |c|^2 so memory is n x k, not n x k x d. The old
+    broadcast built an n x k x d tensor (about 3.4 GB at 7,447 claims and
+    k=201) and was most of the non-LLM runtime (issue #53).
+    """
+    if row_norms is None:
+        row_norms = np.einsum("ij,ij->i", matrix, matrix)
+    center_norms = np.einsum("ij,ij->i", centers, centers)
+    distance = row_norms[:, None] - 2.0 * (matrix @ centers.T) + center_norms[None, :]
+    np.maximum(distance, 0.0, out=distance)
+    return distance
+
+
 def _farthest_first(matrix: np.ndarray, k: int, start: int) -> list[int]:
     count = matrix.shape[0]
     k = min(k, count)
@@ -175,45 +190,41 @@ def _farthest_first(matrix: np.ndarray, k: int, start: int) -> list[int]:
 
 
 def _lloyd(matrix: np.ndarray, seeds: list[int], iters: int) -> tuple[np.ndarray, np.ndarray]:
-    centers = matrix[seeds].copy()
+    centers = matrix[seeds].astype(float, copy=True)
     labels = np.zeros(matrix.shape[0], dtype=int)
+    row_norms = np.einsum("ij,ij->i", matrix, matrix)
+    k = centers.shape[0]
     for _ in range(iters):
-        delta = matrix[:, None, :] - centers[None, :, :]
-        distance = np.einsum("ijk,ijk->ij", delta, delta)
-        labels = distance.argmin(axis=1)
-        for index in range(centers.shape[0]):
-            mask = labels == index
-            if np.any(mask):
-                centers[index] = matrix[mask].mean(axis=0)
+        labels = _sq_distances(matrix, centers, row_norms).argmin(axis=1)
+        sums = np.zeros_like(centers)
+        np.add.at(sums, labels, matrix)
+        counts = np.bincount(labels, minlength=k)
+        filled = counts > 0
+        # An empty cluster keeps its previous center, as before.
+        centers[filled] = sums[filled] / counts[filled, None]
     return labels, centers
 
 
 def _fill_empty(matrix: np.ndarray, labels: np.ndarray, centers: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     labels = labels.copy()
     centers = centers.copy()
-    for _ in range(centers.shape[0]):
-        empty = [index for index in range(centers.shape[0]) if not np.any(labels == index)]
+    k = centers.shape[0]
+    for _ in range(k):
+        counts = np.bincount(labels, minlength=k)
+        empty = [index for index in range(k) if counts[index] == 0]
         if not empty:
             break
-        counts = [(index, int(np.sum(labels == index))) for index in range(centers.shape[0])]
-        donors = [index for index, count in counts if count > 1]
-        if not donors:
+        donors = counts > 1
+        if not np.any(donors):
             break
-        best_point = None
-        best_distance = -1.0
-        for row in range(matrix.shape[0]):
-            label = int(labels[row])
-            if label not in donors:
-                continue
-            delta = matrix[row] - centers[label]
-            distance = float(np.dot(delta, delta))
-            if distance > best_distance:
-                best_distance = distance
-                best_point = row
-        if best_point is None:
+        delta = matrix - centers[labels]
+        distance = np.einsum("ij,ij->i", delta, delta)
+        distance = np.where(donors[labels], distance, -1.0)
+        best_point = int(np.argmax(distance))
+        if distance[best_point] < 0:
             break
         labels[best_point] = empty[0]
-        for index in range(centers.shape[0]):
+        for index in range(k):
             mask = labels == index
             if np.any(mask):
                 centers[index] = matrix[mask].mean(axis=0)
@@ -228,6 +239,44 @@ def cluster_kmeans(matrix: np.ndarray, k: int, seed: int = 0, iters: int = 12) -
     seeds = _farthest_first(matrix, k, seed % count)
     labels, centers = _lloyd(matrix, seeds, iters)
     return _fill_empty(matrix, labels, centers)
+
+
+def silhouette_cosine(matrix: np.ndarray, labels, max_rows: int = 1500) -> float:
+    """Mean silhouette with cosine distance. Higher means tighter, better-separated groups.
+
+    O(n^2) in the rows, so a large group is scored on an evenly spaced sample
+    of at most ``max_rows`` rows (deterministic). Singletons score 0.
+    """
+    labels = np.asarray(labels, dtype=int)
+    values = np.asarray(matrix, dtype=float)
+    count = int(labels.shape[0])
+    ids = sorted({int(item) for item in labels})
+    if count < 2 or len(ids) < 2:
+        return 0.0
+    norms = np.linalg.norm(values, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    unit = values / norms
+    rows = np.arange(count)
+    if count > max_rows:
+        rows = np.linspace(0, count - 1, max_rows).round().astype(int)
+    onehot = np.zeros((count, len(ids)), dtype=float)
+    position = {label: index for index, label in enumerate(ids)}
+    onehot[np.arange(count), [position[int(label)] for label in labels]] = 1.0
+    sizes = onehot.sum(axis=0)
+    distance = 1.0 - unit[rows] @ unit.T
+    np.maximum(distance, 0.0, out=distance)
+    distance[np.arange(rows.shape[0]), rows] = 0.0
+    totals = distance @ onehot
+    own = np.array([position[int(label)] for label in labels[rows]])
+    own_size = sizes[own]
+    alone = own_size <= 1
+    a = np.where(alone, 0.0, totals[np.arange(rows.shape[0]), own] / np.maximum(own_size - 1, 1))
+    means = totals / sizes[None, :]
+    means[np.arange(rows.shape[0]), own] = np.inf
+    b = means.min(axis=1)
+    denom = np.maximum(np.maximum(a, b), 1e-12)
+    scores = np.where(alone, 0.0, (b - a) / denom)
+    return float(scores.mean())
 
 
 def grow_clusters_to_min(

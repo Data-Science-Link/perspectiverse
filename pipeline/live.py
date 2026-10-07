@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import random
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -42,7 +43,14 @@ from pipeline.label import (
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
-from pipeline.schema import CATEGORIES, SYSTEM_SIZE, category_for_members, to_percents
+from pipeline.schema import (
+    CATEGORIES,
+    MAX_FACES,
+    MIN_FACES,
+    SYSTEM_SIZE,
+    category_for_members,
+    to_percents,
+)
 from pipeline.settings import load_settings
 from pipeline.store import (
     LIVE_CORPUS_DB,
@@ -54,6 +62,11 @@ from pipeline.store import (
     write_clusters,
 )
 from pipeline.topics import cluster_texts
+
+# Planets drafted at once when a network label backend is on (I/O bound).
+DEFAULT_LABEL_WORKERS = 8
+# Section solar systems get this many minutes after the global system is built.
+DEFAULT_SECTION_BUDGET_MINUTES = 15
 
 
 def load_fixture(path: Path) -> list[dict]:
@@ -127,6 +140,7 @@ def run_live(
         pool = catalog_size
         if str(settings["cluster_backend"]) == "embedding":
             pool = min(20, catalog_size + 10)
+        started = time.monotonic()
         clustered = cluster_texts(
             texts,
             min_cluster_size=floor,
@@ -136,17 +150,37 @@ def run_live(
             catalog_size=pool,
             authors=[str(post.get("author") or "unknown") for post in planet_posts],
         )
-        topics, membership, face_rows = _build_topics(
-            planet_posts, clustered, settings, keep=catalog_size
+        print(
+            f"Timing: embedded and clustered {len(planet_posts)} claims into "
+            f"{len(clustered['topics'])} candidate planets in {time.monotonic() - started:.1f}s."
         )
+        context = _label_context(settings)
+        print(f"Labels: {context['chosen']} backend, {context['workers']} planet(s) at a time.")
+        started = time.monotonic()
+        topics, membership, face_rows = _build_topics(
+            planet_posts, clustered, settings, keep=catalog_size, context=context
+        )
+        print(f"Timing: {len(topics)} global planet(s) labeled in {time.monotonic() - started:.1f}s.")
         # Section clustering reuses the precomputed embedding matrix so posts
         # are not re-embedded ten times. Only sections that produce at least one
-        # planet appear in the output; small sections are silently skipped.
+        # planet appear in the output; a section that fails is skipped.
         global_matrix = clustered.get("matrix")
         sections: dict[str, list[dict]] = {}
         if global_matrix is not None:
+            budget = float(settings.get("section_budget_minutes") or DEFAULT_SECTION_BUDGET_MINUTES)
+            started = time.monotonic()
             sections = _cluster_sections(
-                planet_posts, global_matrix, settings, catalog_size, floor
+                planet_posts,
+                global_matrix,
+                settings,
+                catalog_size,
+                floor,
+                context=context,
+                deadline=started + budget * 60.0,
+            )
+            print(
+                f"Timing: {len(sections)} section solar system(s), "
+                f"{sum(len(items) for items in sections.values())} planet(s) in {time.monotonic() - started:.1f}s."
             )
         write_clusters(connection, membership, face_rows)
     finally:
@@ -349,155 +383,342 @@ def _collect_posts(
     return cleaned, "bluesky", True
 
 
+def _label_context(settings: dict, *, summaries: bool = True) -> dict:
+    """Backend, model, and the summary writer shared by every planet in a run."""
+    backend = str(settings["label_backend"])
+    model = str(settings.get("openai_model") or "") or None
+    chosen = _resolve_backend(backend)
+    summary_model = None
+    if chosen != "heuristic" and summaries:
+        try:
+            summary_model = _generator_for(chosen, model)
+        except Exception as exc:
+            print(f"Level summaries will use the grounded writer ({exc}).")
+    workers = 1
+    if chosen != "heuristic":
+        # Labeling is network-bound. Planets are drafted independently, so a
+        # few run at once; results are still taken in rank order.
+        workers = max(1, int(settings.get("label_workers") or DEFAULT_LABEL_WORKERS))
+    return {
+        "backend": backend,
+        "model": model,
+        "chosen": chosen,
+        "summary_model": summary_model,
+        "limit": int(settings["representative_posts"]),
+        "seed": int(settings["seed"]),
+        "workers": workers,
+    }
+
+
+# A planet whose labels collapse below MIN_FACES may try this many other
+# passing face counts (best fit first) before it is dropped.
+_FACE_RETRIES = 1
+
+
+def _label_faces(
+    members: list[dict],
+    split: dict,
+    terms: list[str],
+    context: dict,
+) -> tuple[list[tuple[dict, list[tuple[str, int, float]], int]], int]:
+    """Label each face of one split. Returns surviving drafts and how many were labeled.
+
+    A face that admits no shared claim is dropped; faces whose titles are the
+    same stance are merged.
+    """
+    backend = context["backend"]
+    model = context["model"]
+    limit = context["limit"]
+    face_volumes = to_percents([face["size"] for face in split["faces"]])
+    drafted: list[tuple[dict, list[tuple[str, int, float]], int]] = []
+    ordered_faces = sorted(
+        zip(split["faces"], face_volumes),
+        key=lambda item: (-item[1], item[0]["index"]),
+    )
+    for position, (face, face_volume) in enumerate(ordered_faces):
+        face_posts = [members[index] for index in face["member_indices"]]
+        face_distances = [split["distances"][index] for index in face["member_indices"]]
+        face_cosines = [split["cosines"][index] for index in face["member_indices"]]
+        representatives = select_representatives(
+            face_posts, face_distances, limit=limit, matches=face_cosines
+        )
+        label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
+        arguments = label.get("arguments") or []
+        title = str(label.get("title") or "")
+        on_claim = [
+            (post, score)
+            for post, score in zip(face_posts, face_cosines)
+            if shares_claim_word(str(post.get("text") or post.get("clean_text") or ""), title)
+        ]
+        if len(on_claim) >= 3:
+            representatives = select_representatives(
+                [post for post, _score in on_claim],
+                [0.0] * len(on_claim),
+                limit=limit,
+                matches=[score for _post, score in on_claim],
+            )
+        focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
+        representatives = _align_representatives(representatives, focus)
+        summary = _without_ungrounded_tail(str(label.get("summary") or ""), representatives)
+        label["summary"] = summary
+        if content_tokens(title) and (
+            not _claim_words_overlap(title, summary) or not _title_covers_posts(title, representatives)
+        ):
+            label = {
+                "title": "Mixed remarks",
+                "summary": "These posts do not share a claim.",
+                "label_source": "heuristic",
+            }
+            arguments = []
+        elif len(representatives) < 2 or not _posts_share_a_subject(representatives):
+            label = {
+                "title": "Mixed remarks",
+                "summary": "These posts do not share a claim.",
+                "label_source": "heuristic",
+            }
+            arguments = []
+            representatives = _align_representatives(representatives, label["title"])
+        perspective = {
+            "id": face_id(1, position),
+            "title": label["title"],
+            "summary": label["summary"],
+            "volume_percent": face_volume,
+            "representative_posts": representatives,
+        }
+        if len(arguments) >= 2:
+            perspective["arguments"] = arguments[:6]
+        rows = [
+            (members[index]["uri"], position, float(split["distances"][index]))
+            for index in face["member_indices"]
+        ]
+        drafted.append((perspective, rows, int(face["size"])))
+    labeled = len(drafted)
+    drafted = [item for item in drafted if not _face_has_no_shared_claim(item[0])]
+    drafted = _merge_alike_drafts(drafted, limit)
+    return drafted, labeled
+
+
+def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict) -> tuple[dict | None, list[str]]:
+    """Split, label, and check one candidate planet. Returns (draft or None, log lines).
+
+    Only this planet's posts are touched, so drafts can run in parallel.
+    The face count is the best fit in 2..6 (``split_perspectives``). If the
+    labels collapse that split below MIN_FACES (a face with no shared claim,
+    or two faces with the same stance), the next passing count is tried once;
+    after that the planet is not published (#53). The planet name and level
+    summaries are written only for a planet that survives.
+    """
+    log: list[str] = []
+    backend = context["backend"]
+    model = context["model"]
+    members = [posts[index] for index in topic["member_indices"]]
+    member_texts = [post["clean_text"] for post in members]
+    matrix = clustered.get("matrix")
+    member_matrix = None
+    if matrix is not None:
+        member_matrix = matrix[topic["member_indices"]]
+    terms = list(topic["terms"])
+    split = split_perspectives(member_texts, seed=context["seed"], matrix=member_matrix)
+    if len(split["faces"]) < MIN_FACES:
+        log.append(f"Dropping {topic_name(terms)}: {split.get('reason') or 'no two faces'}.")
+        return None, log
+    attempts = [split, *(split.get("alternatives") or [])[:_FACE_RETRIES]]
+    drafted: list = []
+    tried: list[str] = []
+    chosen_split = split
+    for attempt in attempts:
+        drafted, labeled = _label_faces(members, attempt, terms, context)
+        tried.append(f"k={attempt.get('k', len(attempt['faces']))}: {len(drafted)} of {labeled}")
+        chosen_split = attempt
+        if len(drafted) >= MIN_FACES:
+            break
+    if len(drafted) < MIN_FACES:
+        log.append(
+            f"Dropping {topic_name(terms)}: too few faces kept a distinct shared claim "
+            f"({'; '.join(tried)}; need {MIN_FACES})."
+        )
+        return None, log
+    drafted = drafted[:MAX_FACES]
+    perspectives = [item[0] for item in drafted]
+    if not specific_shared_words(perspectives):
+        log.append(f"Dropping {topic_name(terms)}: its faces are different stories.")
+        return None, log
+    planet = label_topic(members, terms, backend=backend, model=model)
+    name = str(planet.get("name") or topic_name(terms))
+    if (
+        planet.get("label_source") == "heuristic"
+        or topic_name_is_weak(name, members, terms)
+        or _name_misses_faces(name, perspectives)
+    ):
+        renamed = name_from_perspectives(members, perspectives, terms, backend=backend, model=model)
+        fallback = str(perspectives[0].get("title") or "") if perspectives else ""
+        if renamed and not _name_misses_faces(renamed, perspectives):
+            name = renamed
+        elif fallback and not _title_needs_repair(fallback) and not _is_camp_title(fallback):
+            name = fallback
+    face_volumes = to_percents([item[2] for item in drafted])
+    perspectives = []
+    face_rows: list[tuple[str, int, float]] = []
+    for position, ((perspective, rows, size), volume) in enumerate(zip(drafted, face_volumes)):
+        perspective["volume_percent"] = volume
+        perspective["post_count"] = int(size)
+        perspective["id"] = face_id(1, position)
+        perspectives.append(perspective)
+        for uri, _old_position, distance in rows:
+            face_rows.append((uri, position, distance))
+    planet_out = {
+        "id": 1,
+        "name": name,
+        "category": category_for_members(name, terms, member_texts, members),
+        "total_volume_percent": 0.0,
+        "post_count": sum(int(item[2]) for item in drafted),
+        "perspectives": perspectives,
+    }
+    apply_level_summaries(planet_out, generate=context["summary_model"])
+    k_scores = ", ".join(
+        f"k={row['k']}:{row['silhouette'] if row['valid'] else 'x'}" for row in split.get("k_scores") or []
+    )
+    retried = f" (retried k={chosen_split.get('k')})" if chosen_split is not split else ""
+    log.append(
+        f"Planet {name}: "
+        + " | ".join(f"{item['volume_percent']}% {item['title']}" for item in perspectives)
+        + (f"  [silhouette {k_scores}]{retried}" if k_scores else retried)
+    )
+    return {
+        "planet": planet_out,
+        "membership": [post["uri"] for post in members],
+        "face_rows": face_rows,
+    }, log
+
+
+def _merge_alike_drafts(
+    drafted: list[tuple[dict, list[tuple[str, int, float]], int]],
+    post_limit: int = EXAMPLE_POST_CAP,
+) -> list[tuple[dict, list[tuple[str, int, float]], int]]:
+    """Fold a face into a larger one when the titles are the same stance.
+
+    Same rule as ``_merge_alike_faces``, but the membership rows move with
+    the merged face so the database matches what is published.
+    """
+    ranked = sorted(drafted, key=lambda item: (-int(item[2]), str(item[0].get("id") or "")))
+    kept: list[list] = []
+    for perspective, rows, size in ranked:
+        match = next((item for item in kept if titles_alike(item[0].get("title"), perspective.get("title"))), None)
+        if match is None:
+            kept.append([perspective, list(rows), int(size)])
+            continue
+        target = match[0]
+        seen_text = {str(post.get("text") or "") for post in target.get("representative_posts") or []}
+        shown = list(target.get("representative_posts") or [])
+        for post in perspective.get("representative_posts") or []:
+            if str(post.get("text") or "") in seen_text:
+                continue
+            shown.append(post)
+            seen_text.add(str(post.get("text") or ""))
+        shown.sort(
+            key=lambda post: (
+                -(float(post["match"]) if post.get("match") is not None else 0.0),
+                -int(post.get("likes") or 0),
+            )
+        )
+        target["representative_posts"] = shown[: max(int(post_limit), 1)]
+        match[1].extend(rows)
+        match[2] += int(size)
+    kept.sort(key=lambda item: -int(item[2]))  # largest face first, as published
+    return [(item[0], item[1], item[2]) for item in kept]
+
+
 def _build_topics(
     posts: list[dict],
     clustered: dict,
     settings: dict,
     keep: int | None = None,
+    context: dict | None = None,
 ) -> tuple[list[dict], list[tuple], list[tuple]]:
-    volumes = to_percents([topic["size"] for topic in clustered["topics"]])
-    limit = int(settings["representative_posts"])
-    backend = str(settings["label_backend"])
-    seed = int(settings["seed"])
-    model = str(settings.get("openai_model") or "") or None
-    chosen = _resolve_backend(backend)
-    summary_model = None
-    if chosen != "heuristic":
-        try:
-            summary_model = _generator_for(chosen, model)
-        except Exception as exc:
-            print(f"Level summaries will use the grounded writer ({exc}).")
+    """Draft candidates in rank order until ``keep`` planets survive.
+
+    Candidates arrive ranked by distinct authors, so stopping at ``keep``
+    publishes the same planets as labeling every candidate and truncating,
+    without paying for labels nobody sees (#53). One candidate that raises is
+    logged and skipped instead of failing the snapshot.
+    """
+    context = context or _label_context(settings)
+    candidates = list(clustered["topics"])
+    target = len(candidates) if keep is None else max(int(keep), 1)
+    workers = int(context.get("workers") or 1)
     built: list[dict] = []
     membership: list[tuple[str, int]] = []
     face_rows: list[tuple[str, int, int, float]] = []
+    seen_names: set[str] = set()
 
-    for topic, volume in zip(clustered["topics"], volumes):
-        members = [posts[index] for index in topic["member_indices"]]
-        member_texts = [post["clean_text"] for post in members]
-        matrix = clustered.get("matrix")
-        member_matrix = None
-        if matrix is not None:
-            member_matrix = matrix[topic["member_indices"]]
-        split = split_perspectives(member_texts, seed=seed, matrix=member_matrix)
-        face_volumes = to_percents([face["size"] for face in split["faces"]])
-        topic_id = topic["id"] + 1
-        terms = list(topic["terms"])
-        planet = label_topic(members, terms, backend=backend, model=model)
-        name = str(planet.get("name") or topic_name(terms))
-        drafted: list[tuple[dict, list[tuple[str, int, int, float]], int]] = []
-        ordered_faces = sorted(
-            zip(split["faces"], face_volumes),
-            key=lambda item: (-item[1], item[0]["index"]),
-        )
-        for position, (face, face_volume) in enumerate(ordered_faces):
-            face_posts = [members[index] for index in face["member_indices"]]
-            face_distances = [split["distances"][index] for index in face["member_indices"]]
-            face_cosines = [split["cosines"][index] for index in face["member_indices"]]
-            representatives = select_representatives(
-                face_posts, face_distances, limit=limit, matches=face_cosines
-            )
-            label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
-            arguments = label.get("arguments") or []
-            title = str(label.get("title") or "")
-            on_claim = [
-                (post, score)
-                for post, score in zip(face_posts, face_cosines)
-                if shares_claim_word(str(post.get("text") or post.get("clean_text") or ""), title)
-            ]
-            if len(on_claim) >= 3:
-                representatives = select_representatives(
-                    [post for post, _score in on_claim],
-                    [0.0] * len(on_claim),
-                    limit=limit,
-                    matches=[score for _post, score in on_claim],
-                )
-            focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
-            representatives = _align_representatives(representatives, focus)
-            summary = _without_ungrounded_tail(str(label.get("summary") or ""), representatives)
-            label["summary"] = summary
-            if content_tokens(title) and (
-                not _claim_words_overlap(title, summary) or not _title_covers_posts(title, representatives)
-            ):
-                label = {
-                    "title": "Mixed remarks",
-                    "summary": "These posts do not share a claim.",
-                    "label_source": "heuristic",
-                }
-                arguments = []
-            elif len(representatives) < 2 or not _posts_share_a_subject(representatives):
-                label = {
-                    "title": "Mixed remarks",
-                    "summary": "These posts do not share a claim.",
-                    "label_source": "heuristic",
-                }
-                arguments = []
-                representatives = _align_representatives(representatives, label["title"])
-            perspective = {
-                "id": face_id(topic_id, position),
-                "title": label["title"],
-                "summary": label["summary"],
-                "volume_percent": face_volume,
-                "representative_posts": representatives,
-            }
-            if len(arguments) >= 2:
-                perspective["arguments"] = arguments[:6]
-            rows = [
-                (members[index]["uri"], topic_id, position, float(split["distances"][index]))
-                for index in face["member_indices"]
-            ]
-            drafted.append((perspective, rows, int(face["size"])))
-        drafted = [
-            item for item in drafted if not _face_has_no_shared_claim(item[0])
-        ]
-        if not drafted:
-            print(f"Dropping {name}: the posts do not share a claim.")
-            continue
-        perspectives = [item[0] for item in drafted]
-        if len(perspectives) >= 2 and not specific_shared_words(perspectives):
-            print(f"Dropping {name}: its faces are different stories.")
-            continue
-        if (
-            planet.get("label_source") == "heuristic"
-            or topic_name_is_weak(name, members, terms)
-            or _name_misses_faces(name, perspectives)
-        ):
-            renamed = name_from_perspectives(members, perspectives, terms, backend=backend, model=model)
-            fallback = str(perspectives[0].get("title") or "") if perspectives else ""
-            if renamed and not _name_misses_faces(renamed, perspectives):
-                name = renamed
-            elif fallback and not _title_needs_repair(fallback) and not _is_camp_title(fallback):
-                name = fallback
-        face_volumes = to_percents([item[2] for item in drafted])
-        perspectives = []
-        for position, ((perspective, rows, _size), volume) in enumerate(zip(drafted, face_volumes)):
-            perspective["volume_percent"] = volume
-            perspective["post_count"] = int(_size)
-            perspective["id"] = face_id(topic_id, position)
-            perspectives.append(perspective)
-            for uri, _topic_id, _position, distance in rows:
-                face_rows.append((uri, topic_id, position, distance))
-        print(
-            f"Planet {name}: "
-            + " | ".join(f"{item['volume_percent']}% {item['title']}" for item in perspectives)
-        )
-        for post in members:
-            membership.append((post["uri"], topic_id))
-        planet = {
-            "id": topic_id,
-            "name": name,
-            "category": category_for_members(name, terms, member_texts, members),
-            "total_volume_percent": volume,
-            "post_count": sum(int(item[2]) for item in drafted),
-            "perspectives": perspectives,
-        }
-        apply_level_summaries(planet, generate=summary_model)
-        built.append(planet)
-        _dedupe_labels(built, limit)
+    def draft(topic: dict):
+        try:
+            return _draft_planet(posts, clustered, topic, context)
+        except Exception as exc:  # noqa: BLE001 - one bad planet must not block the snapshot
+            return None, [f"Dropping candidate {topic.get('id')}: drafting failed ({type(exc).__name__}: {exc})."]
+
+    cursor = 0
+    executor = None
+    try:
+        while cursor < len(candidates) and len(built) < target:
+            need = target - len(built)
+            # Lazy when sequential. In parallel, over-draft a little because a
+            # share of candidates is dropped; results are used in rank order.
+            size = 1 if workers <= 1 else need + max(2, need // 2)
+            wave = candidates[cursor : cursor + size]
+            cursor += len(wave)
+            if workers > 1 and len(wave) > 1:
+                if executor is None:
+                    from concurrent.futures import ThreadPoolExecutor
+
+                    executor = ThreadPoolExecutor(max_workers=workers)
+                results = list(executor.map(draft, wave))
+            else:
+                results = [draft(topic) for topic in wave]
+            for result, log in results:
+                if len(built) >= target:
+                    break  # spare drafts from the last wave are not published
+                for line in log:
+                    print(line)
+                if result is None:
+                    continue
+                planet = result["planet"]
+                topic_id = len(built) + 1
+                planet["id"] = topic_id
+                planet["name"] = unique_label(str(planet.get("name") or ""), seen_names)
+                planet["perspectives"] = [
+                    {**face, "id": face_id(topic_id, position)}
+                    for position, face in enumerate(planet["perspectives"])
+                ]
+                built.append(planet)
+                membership.extend((uri, topic_id) for uri in result["membership"])
+                face_rows.extend((uri, topic_id, position, distance) for uri, position, distance in result["face_rows"])
+    finally:
+        if executor is not None:
+            executor.shutdown(wait=True)
     built = _drop_unshared_planets(built)
-    if keep is not None:
-        built = built[: max(int(keep), 1)]
+    built = _publishable_planets(built)
     publish_volumes(built)
     return _renumber_planets(built, membership, face_rows)
+
+
+def _publishable_planets(topics: list[dict]) -> list[dict]:
+    """Last guard before validation: a planet outside 2..6 faces is dropped and logged.
+
+    Drafting already enforces this. If a later step ever breaks it, one planet
+    is lost instead of the whole snapshot. ``validate_payload`` stays strict.
+    """
+    kept = []
+    for topic in topics:
+        faces = topic.get("perspectives") or []
+        if MIN_FACES <= len(faces) <= MAX_FACES:
+            kept.append(topic)
+            continue
+        print(
+            f"WARNING dropping {topic.get('name')}: {len(faces)} faces is outside "
+            f"{MIN_FACES}-{MAX_FACES} after labeling."
+        )
+    return kept
 
 
 def _cluster_sections(
@@ -506,13 +727,20 @@ def _cluster_sections(
     settings: dict,
     catalog_size: int,
     floor: int,
+    context: dict | None = None,
+    deadline: float | None = None,
 ) -> dict[str, list[dict]]:
     """Cluster each Jev section independently, reusing the global embeddings.
 
     Posts are not re-embedded; the sub-rows of *global_matrix* (already
     L2-normalised) are sliced out and passed back into cluster_texts via the
-    *embed* hook, which short-circuits the fastembed call.
+    *embed* hook, which short-circuits the fastembed call. Sections run
+    largest first. A section that fails is logged and skipped. Past
+    ``deadline`` (time.monotonic) the remaining sections are skipped so the
+    global snapshot still publishes.
     """
+    import time
+
     import numpy as np
 
     section_indices: dict[str, list[int]] = {}
@@ -524,9 +752,14 @@ def _cluster_sections(
     result: dict[str, list[dict]] = {}
     seed = int(settings["seed"])
     base_min = int(settings["min_cluster_size"])
+    context = context or _label_context(settings)
+    matrix = np.asarray(global_matrix)
 
-    for section in sorted(section_indices):
+    for section in sorted(section_indices, key=lambda name: (-len(section_indices[name]), name)):
         indices = section_indices[section]
+        if deadline is not None and time.monotonic() > deadline:
+            print(f"Section {section}: skipped, the section time budget is spent.")
+            continue
         # Scale the floor to the section size; smaller sections get a lower bar
         # than the global floor so they can still form tight groups.
         section_floor = max(base_min, len(indices) // 200)
@@ -536,7 +769,7 @@ def _cluster_sections(
 
         section_posts = [planet_posts[i] for i in indices]
         section_texts = [p["clean_text"] for p in section_posts]
-        sub_matrix = np.asarray(global_matrix)[indices]
+        sub_matrix = matrix[indices]
 
         try:
             pool = min(20, catalog_size + 10)
@@ -551,15 +784,17 @@ def _cluster_sections(
                 authors=[str(p.get("author") or "unknown") for p in section_posts],
             )
             section_topics, _, _ = _build_topics(
-                section_posts, section_clustered, settings, keep=catalog_size
+                section_posts, section_clustered, settings, keep=catalog_size, context=context
             )
             if section_topics:
                 result[section] = section_topics
                 print(f"Section {section}: {len(section_topics)} planet(s) from {len(indices)} posts.")
-        except RuntimeError as exc:
-            print(f"Section {section}: skipped ({exc}).")
+            else:
+                print(f"Section {section}: no planet with two distinct faces from {len(indices)} posts.")
+        except Exception as exc:  # noqa: BLE001 - one section must not block the snapshot
+            print(f"Section {section}: skipped ({type(exc).__name__}: {exc}).")
 
-    return result
+    return {name: result[name] for name in CATEGORIES if name in result}
 
 
 def publish_volumes(topics: list[dict]) -> None:
@@ -775,48 +1010,3 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
             topic["post_count"] = sum(counts)
         kept.append(topic)
     return kept
-
-
-def _dedupe_labels(topics: list[dict], post_limit: int = EXAMPLE_POST_CAP) -> None:
-    seen: set[str] = set()
-    for topic in topics:
-        topic["name"] = unique_label(str(topic.get("name") or ""), seen)
-        _merge_alike_faces(topic, post_limit)
-
-
-def _merge_alike_faces(topic: dict, post_limit: int = EXAMPLE_POST_CAP) -> None:
-    """Fold a second face into the larger one when the titles are the same stance.
-
-    Numbering a duplicate ("Pro Ukraine 2") was presenting one view as two.
-    """
-    ranked = sorted(
-        topic.get("perspectives") or [],
-        key=lambda face: (-float(face.get("volume_percent") or 0), str(face.get("id") or "")),
-    )
-    kept: list[dict] = []
-    for face in ranked:
-        match = next((item for item in kept if titles_alike(item.get("title"), face.get("title"))), None)
-        if match is None:
-            kept.append(face)
-            continue
-        match["volume_percent"] = float(match.get("volume_percent") or 0) + float(face.get("volume_percent") or 0)
-        match["post_count"] = int(match.get("post_count") or 0) + int(face.get("post_count") or 0)
-        seen_text = {str(post.get("text") or "") for post in match.get("representative_posts") or []}
-        posts = list(match.get("representative_posts") or [])
-        for post in face.get("representative_posts") or []:
-            if str(post.get("text") or "") in seen_text:
-                continue
-            posts.append(post)
-            seen_text.add(str(post.get("text") or ""))
-        posts.sort(
-            key=lambda post: (
-                -(float(post["match"]) if post.get("match") is not None else 0.0),
-                -int(post.get("likes") or 0),
-            )
-        )
-        match["representative_posts"] = posts[: max(int(post_limit), 1)]
-    topic_id = int(topic["id"])
-    topic["perspectives"] = [
-        {**face, "id": face_id(topic_id, position)}
-        for position, face in enumerate(kept)
-    ]
