@@ -91,3 +91,15 @@ Append-only. Newest at the bottom.
 - **Why:** Workers were merging after chat "Approved" without reflecting that on the PR; humans auditing the PR later could not see that a product gate happened.
 - **Alternatives:** Rely on chat history only; require a GitHub review click instead of chat.
 - **Revisit when:** Branch protection requires an approving GitHub review for all normal/high PRs.
+
+### 2026-10-07 — Watch scheduled (cron) workflow runs, not just post-merge deploys
+- **Decision:** Factory workers check the latest scheduled workflow runs on the default branch at the start of each session and after merges touching scheduled jobs. A failed run becomes a top-priority bug issue (failing step + log excerpt) and is reported to the human; large duration jumps are flagged.
+- **Why:** A daily data job failed and the site silently served stale data; it surfaced only when a human asked about something else. Post-merge deploy watching doesn't cover cron jobs with no PR in flight.
+- **Alternatives:** GitHub email notifications only; a separate monitoring bot.
+- **Revisit when:** The repo has real alerting on scheduled job failures.
+
+### 2026-10-07 — Model routing table; pin models, cheapest capable first
+- **Decision:** Add `MODEL_ROUTING.md`. Workers pick a model at triage from risk class + type of work, pin it on every cloud-agent launch (never Auto), escalate one step at a time, and record the model in the PR body. Cursor Models pool (Composer 2.5, Grok 4.7) first; third-party models only when stuck or for a high-risk second opinion. Other Models exhausted → stay on Cursor Models; Cursor Models exhausted → stop new work and ask the human. Workers never enable on-demand spend.
+- **Why:** The Other Models pool hit 100% while Cursor Models sat at 1%, blocking agent launches; model choice was implicit and cost-blind.
+- **Alternatives:** Leave everything on Auto; one model for all work.
+- **Revisit when:** Plan, pool rules, or model lineup changes.
