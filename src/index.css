@@ -302,6 +302,29 @@ h3 {
   margin-top: 1.4rem;
 }
 
+.top-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
+  margin: 0.65rem 0 0.2rem;
+}
+
+.top-term {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+}
+
+.post-expand {
+  margin-top: 0.35rem;
+}
+
 .how-to ul {
   margin: 0;
   padding-left: 1.1rem;

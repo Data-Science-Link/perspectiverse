@@ -25,6 +25,8 @@ from pipeline.corpus import (
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
+from pipeline.cluster_math import salient_terms
+from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
     content_tokens,
@@ -484,12 +486,16 @@ def _label_faces(
             }
             arguments = []
             representatives = _align_representatives(representatives, label["title"])
+        member_texts = [
+            str(post.get("clean_text") or post.get("text") or "") for post in face_posts
+        ]
         perspective = {
             "id": face_id(1, position),
             "title": label["title"],
             "summary": label["summary"],
             "volume_percent": face_volume,
             "representative_posts": representatives,
+            "top_terms": salient_terms(member_texts, limit=TOP_TERMS_LIMIT),
         }
         if len(arguments) >= 2:
             perspective["arguments"] = arguments[:6]

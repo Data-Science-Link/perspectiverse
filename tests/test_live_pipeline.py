@@ -66,6 +66,9 @@ def test_live_fixture_writes_contract(tmp_path):
             assert all(post.get("match") is not None for post in shown)
             matches = [post["match"] for post in shown]
             assert matches == sorted(matches, reverse=True)
+            terms = face.get("top_terms") or []
+            assert terms
+            assert all(isinstance(term, str) and term.strip() for term in terms)
     assert payload["digest"]["planets"]
     assert payload["digest"]["planets"][0]["disagreement"]
 

@@ -2,7 +2,8 @@ import { useLayoutEffect, useRef } from 'react'
 import { categoryCounts } from '../lib/categories'
 import { SITE_TAGLINE } from '../lib/copy'
 import { faceShade, hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
-import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
+import { formatNumber, formatPercent } from '../lib/layout'
+import { LazyPostFeed, TopTerms } from './FaceEvidence'
 import MiniCube from './MiniCube'
 import TopicFilter from './TopicFilter'
 
@@ -220,7 +221,6 @@ function PerspectivePanel({
   const planetColor = topicColor(topic.id, topic.body)
   const ranked = rankPerspectives(topic.perspectives)
   const color = faceShade(planetColor, ranked.findIndex((item) => item.id === perspective.id), ranked.length)
-  const posts = sortPosts(perspective.representative_posts)
   const argumentsList = (perspective.arguments ?? []).filter((item) => String(item).trim())
 
   return (
@@ -233,6 +233,7 @@ function PerspectivePanel({
       </p>
       <h1>{perspective.title}</h1>
       <p className="lede">{perspective.summary}</p>
+      <TopTerms terms={perspective.top_terms} />
       <MiniCube topic={topic} selectedPerspectiveId={perspective.id} />
       {argumentsList.length > 0 && (
         <section className="argument-card">
@@ -266,15 +267,7 @@ function PerspectivePanel({
       <div className="post-feed">
         <h2>Example posts</h2>
         <p className="topic-row-meta">Posts from this view, sorted by likes — the talk behind the summary.</p>
-        {posts.map((post) => (
-          <article key={`${post.author}-${post.likes}-${post.text.slice(0, 24)}`} className="post-card">
-            <header>
-              <span>@{post.author}</span>
-              <span>{formatNumber(post.likes)} likes</span>
-            </header>
-            <p>{post.text}</p>
-          </article>
-        ))}
+        <LazyPostFeed posts={perspective.representative_posts} faceKey={perspective.id} />
       </div>
     </div>
   )
