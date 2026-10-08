@@ -784,6 +784,235 @@ def production_census(
     return {"min_cluster_size": min_cluster_size, "catalog_size": catalog_size, "groups": rows, "published": published}
 
 
+# Midpoint of the 7–11s label-call band measured against run 37696485020.
+# Section labeling keeps 12 planets in flight, and one planet's calls stay serial.
+LABEL_SECONDS = 9.0
+LABEL_IN_FLIGHT = 12
+
+
+def _label_makespan(serial_calls: list[int], *, seconds: float = LABEL_SECONDS, workers: int = LABEL_IN_FLIGHT) -> float:
+    """Wall-clock seconds when each planet's calls are serial and planets share a pool."""
+    if not serial_calls:
+        return 0.0
+    loads = [0.0] * max(1, workers)
+    for calls in sorted(serial_calls, reverse=True):
+        slot = loads.index(min(loads))
+        loads[slot] += calls * seconds
+    return round(max(loads), 1)
+
+
+def _paid_serial_calls(face_count: int) -> int:
+    """Draft, wide relabel, one name, and briefs for the planet plus each face."""
+    faces = max(int(face_count), 0)
+    return faces + faces + 1 + (faces + 1)
+
+
+def _member_uris(posts: list[dict], topic: dict) -> set[str]:
+    return {str(posts[int(index)].get("uri") or index) for index in topic["member_indices"]}
+
+
+def _publish(posts, topics, matrix, context, keep: int) -> list[dict]:
+    from pipeline.live import _build_topics
+
+    clustered = {"topics": topics, "matrix": matrix, "assignments": [], "noise_count": 0}
+    built, membership, _faces = _build_topics(posts, clustered, {}, keep=keep, context=context)
+    uris_by_id: dict[int, set[str]] = {}
+    for uri, topic_id in membership:
+        uris_by_id.setdefault(int(topic_id), set()).add(str(uri))
+    published = []
+    for topic in built:
+        published.append(
+            {
+                "name": str(topic.get("name") or ""),
+                "faces": len(topic.get("perspectives") or []),
+                "uris": uris_by_id.get(int(topic["id"]), set()),
+                "calls": _paid_serial_calls(len(topic.get("perspectives") or [])),
+            }
+        )
+    return published
+
+
+def _overlap(left: set[str], right: set[str]) -> bool:
+    if not left or not right:
+        return False
+    shared = len(left & right)
+    return shared / min(len(left), len(right)) >= 0.5
+
+
+def _pack(name: str, sections: dict[str, list[dict]], global_rows: list[dict], fallbacks: list[str]) -> dict:
+    full = sum(1 for rows in sections.values() if len(rows) >= 10)
+    both = 0
+    for row in global_rows:
+        if any(_overlap(row["uris"], other["uris"]) for rows in sections.values() for other in rows):
+            both += 1
+    seen: set[frozenset[str]] = set()
+    serial: list[int] = []
+    for row in global_rows:
+        key = frozenset(row["uris"])
+        if key in seen:
+            continue
+        seen.add(key)
+        serial.append(row["calls"])
+    if name == "A":
+        for rows in sections.values():
+            for row in rows:
+                key = frozenset(row["uris"])
+                if key in seen:
+                    continue
+                seen.add(key)
+                serial.append(row["calls"])
+    else:
+        for rows in sections.values():
+            for row in rows:
+                serial.append(row["calls"])
+    # calls = 3 * faces + 2
+    face_count = sum(max(calls - 2, 0) // 3 for calls in serial)
+    return {
+        "sections_full": full,
+        "sections_published": len(sections),
+        "global_also_in_a_section": both,
+        "unique_planets": len(serial),
+        "faces": face_count,
+        "label_calls": sum(serial),
+        "projected_seconds": _label_makespan(serial),
+        "fallbacks": fallbacks,
+        "names": {section: [row["name"] for row in rows] for section, rows in sections.items()},
+    }
+
+
+def compare_section_grouping(
+    posts: list[dict],
+    matrix: np.ndarray,
+    *,
+    seed: int,
+    catalog_size: int,
+    min_cluster_size: int,
+) -> dict:
+    """Label the top planets two ways. A lists one clustering. B re-clusters each section.
+
+    Names come from the heuristic labeler, so this spends no model call.
+    Projected seconds use a 9s call and 12 planets in flight.
+    """
+    from pipeline.live import _label_context
+    from pipeline.schema import CATEGORIES
+    from pipeline.topics import CANDIDATE_POOL, cluster_texts
+
+    def embed_hook(rows):
+        return lambda _texts, kept=rows: kept
+
+    started = time.perf_counter()
+    global_clustered = cluster_texts(
+        [post["clean_text"] for post in posts],
+        min_cluster_size=min_cluster_size,
+        cluster_backend="embedding",
+        seed=seed,
+        catalog_size=CANDIDATE_POOL,
+        embed=embed_hook(matrix),
+        authors=[str(post.get("author") or "") for post in posts],
+    )
+    print(f"Global clustering: {len(global_clustered['topics'])} candidates in {time.perf_counter() - started:.1f}s")
+    settings = {
+        "label_backend": "heuristic",
+        "representative_posts": 12,
+        "prompt_sample_size": 40,
+        "draft_prompt_sample_size": 12,
+        "planet_prompt_sample_size": 20,
+        "seed": seed,
+        "label_workers": 0,
+        "min_planet_posts": 5,
+        "min_cluster_size": min_cluster_size,
+        "cluster_backend": "embedding",
+        "embedding_model": "all-MiniLM-L6-v2",
+        "openai_model": "",
+    }
+    from pipeline.live import _cluster_sections_once
+
+    context = _label_context(settings)
+    context["reuse_labels"] = True
+    context["planet_label_cache"] = {}
+    context["section_fallbacks"] = []
+    context["section_published_uris"] = {}
+    context["story_calls"] = {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0}
+    global_rows = _publish(posts, global_clustered["topics"], matrix, context, catalog_size)
+    print(f"Global published {len(global_rows)}")
+
+    once_built = _cluster_sections_once(
+        posts,
+        matrix,
+        global_clustered["topics"],
+        settings,
+        catalog_size,
+        min_cluster_size,
+        context=context,
+    )
+    fallbacks = list(context.get("section_fallbacks") or [])
+    print(f"Fallback sections ({len(fallbacks)}): {', '.join(fallbacks) or 'none'}")
+    once_sections: dict[str, list[dict]] = {}
+    uri_lists = context.get("section_published_uris") or {}
+    for name, built in once_built.items():
+        sets = uri_lists.get(name) or []
+        rows = []
+        for index, topic in enumerate(built):
+            faces = len(topic.get("perspectives") or [])
+            rows.append(
+                {
+                    "name": str(topic.get("name") or ""),
+                    "faces": faces,
+                    "uris": sets[index] if index < len(sets) else set(),
+                    "calls": _paid_serial_calls(faces),
+                }
+            )
+        once_sections[name] = rows
+        print(f"A {name}: {len(rows)} published")
+
+    fresh = _label_context(settings)
+    fresh["story_calls"] = {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0}
+    per_sections: dict[str, list[dict]] = {}
+    by_section: dict[str, list[int]] = {name: [] for name in CATEGORIES}
+    for index, post in enumerate(posts):
+        section = str(post.get("section") or "")
+        if section in by_section:
+            by_section[section].append(index)
+    for name in CATEGORIES:
+        indices = by_section[name]
+        if len(indices) < min_cluster_size:
+            continue
+        sub_posts = [posts[index] for index in indices]
+        try:
+            clustered = cluster_texts(
+                [post["clean_text"] for post in sub_posts],
+                min_cluster_size=min_cluster_size,
+                cluster_backend="embedding",
+                seed=seed,
+                catalog_size=CANDIDATE_POOL,
+                embed=embed_hook(matrix[indices]),
+                authors=[str(post.get("author") or "") for post in sub_posts],
+            )
+        except RuntimeError as exc:
+            print(f"B {name}: {exc}")
+            continue
+        per_sections[name] = _publish(
+            sub_posts, clustered["topics"], matrix[indices], fresh, catalog_size
+        )
+        print(f"B {name}: {len(per_sections[name])} published")
+
+    option_a = _pack("A", once_sections, global_rows, fallbacks)
+    option_b = _pack("B", per_sections, global_rows, [])
+    return {
+        "posts": len(posts),
+        "catalog_size": catalog_size,
+        "min_cluster_size": min_cluster_size,
+        "global_names": [row["name"] for row in global_rows],
+        "A": option_a,
+        "B": option_b,
+        "assumptions": {
+            "seconds_per_call": LABEL_SECONDS,
+            "planets_in_flight": LABEL_IN_FLIGHT,
+            "calls_per_planet": "3 * faces + 2 (draft, wide relabel, name, briefs)",
+        },
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare face-grouping approaches on a corpus snapshot")
     parser.add_argument("--db", type=Path, required=True)
@@ -801,6 +1030,11 @@ def main() -> None:
         "--census-only",
         action="store_true",
         help="Cluster with the production density path and heuristic-label the published top planets",
+    )
+    parser.add_argument(
+        "--section-compare",
+        action="store_true",
+        help="Compare one clustering (A) with per-section re-clustering (B). Heuristic labels, no paid calls.",
     )
     parser.add_argument("--llm", action="store_true", help="Spend a few model calls on hard planets")
     parser.add_argument("--llm-max", type=int, default=8)
@@ -836,6 +1070,25 @@ def main() -> None:
         payload = {"posts": len(posts), "census": census}
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        print(args.out)
+        return
+    if args.section_compare:
+        compared = compare_section_grouping(
+            posts,
+            matrix,
+            seed=args.seed,
+            catalog_size=args.catalog_size,
+            min_cluster_size=args.min_cluster_size,
+        )
+        payload = {"posts": len(posts), "section_compare": compared}
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+
+        def _dump(value):
+            if isinstance(value, set):
+                return sorted(value)
+            raise TypeError(type(value).__name__)
+
+        args.out.write_text(json.dumps(payload, indent=2, default=_dump) + "\n", encoding="utf-8")
         print(args.out)
         return
     planets = _candidate_planets(posts, matrix, seed=args.seed, catalog_size=args.catalog_size)

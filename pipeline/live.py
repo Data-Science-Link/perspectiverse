@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import random
 import sys
+import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
@@ -189,6 +191,18 @@ def run_live(
             f"{len(clustered['topics'])} candidate planets in {time.monotonic() - started:.1f}s."
         )
         context = _label_context(settings)
+        grouping = str(settings.get("section_grouping") or "per_section")
+        if grouping not in {"cluster_once", "per_section"}:
+            raise ValueError(
+                f"Unknown section_grouping {grouping!r}. Use cluster_once or per_section."
+            )
+        if grouping == "cluster_once":
+            # Created on this object so the global pass and every section list
+            # share it. ``_build_topics`` copies the context shallowly.
+            context["reuse_labels"] = True
+            context["planet_label_cache"] = {}
+            context["planet_label_guard"] = threading.Lock()
+            context["planet_label_key_locks"] = {}
         print(f"Labels: {context['chosen']} backend, {context['workers']} planet(s) at a time.")
         started = time.monotonic()
         topics, membership, face_rows = _build_topics(
@@ -204,15 +218,30 @@ def run_live(
             # 0 is a real budget (skip sections). Missing means the default.
             budget = _section_budget_minutes(settings.get("section_budget_minutes"))
             started = time.monotonic()
-            sections = _cluster_sections(
-                planet_posts,
-                global_matrix,
-                settings,
-                catalog_size,
-                floor,
-                context=context,
-                deadline=started + budget * 60.0,
-            )
+            section_kwargs = {
+                "context": context,
+                "deadline": started + budget * 60.0,
+            }
+            if grouping == "cluster_once":
+                print("Sections: one clustering, planets listed by their posts' sections.")
+                sections = _cluster_sections_once(
+                    planet_posts,
+                    global_matrix,
+                    clustered["topics"],
+                    settings,
+                    catalog_size,
+                    floor,
+                    **section_kwargs,
+                )
+            else:
+                sections = _cluster_sections(
+                    planet_posts,
+                    global_matrix,
+                    settings,
+                    catalog_size,
+                    floor,
+                    **section_kwargs,
+                )
             print(
                 f"Timing: {len(sections)} section solar system(s), "
                 f"{sum(len(items) for items in sections.values())} planet(s) in {time.monotonic() - started:.1f}s."
@@ -1307,12 +1336,42 @@ def _section_pool_size(context: dict) -> int:
     return workers
 
 
-def _safe_draft(posts: list[dict], clustered: dict, topic: dict, context: dict):
-    """Draft one candidate. A raised error is a log line, not a failed snapshot."""
+def _member_cache_key(posts: list[dict], topic: dict) -> tuple[str, ...]:
+    """Stable identity for a planet: the same posts are the same labeling job."""
+    return tuple(sorted(str(posts[int(index)].get("uri") or index) for index in topic["member_indices"]))
+
+
+def _draft_or_drop(posts: list[dict], clustered: dict, topic: dict, context: dict):
     try:
         return _draft_planet(posts, clustered, topic, context)
     except Exception as exc:  # noqa: BLE001 - one bad planet must not block the snapshot
         return None, [f"Dropping candidate {topic.get('id')}: drafting failed ({type(exc).__name__}: {exc})."]
+
+
+def _safe_draft(posts: list[dict], clustered: dict, topic: dict, context: dict):
+    """Draft one candidate. A raised error is a log line, not a failed snapshot.
+
+    When ``reuse_labels`` is set, a planet whose posts were already drafted
+    returns that draft. The global list and a section list then share one
+    name and one set of faces.
+    """
+    if not context.get("reuse_labels"):
+        return _draft_or_drop(posts, clustered, topic, context)
+    key = _member_cache_key(posts, topic)
+    guard = context.setdefault("planet_label_guard", threading.Lock())
+    locks = context.setdefault("planet_label_key_locks", {})
+    with guard:
+        key_lock = locks.setdefault(key, threading.Lock())
+    with key_lock:
+        cache = context.setdefault("planet_label_cache", {})
+        with guard:
+            cached = cache.get(key)
+        if cached is not None:
+            return copy.deepcopy(cached)
+        result = _draft_or_drop(posts, clustered, topic, context)
+        with guard:
+            cache[key] = copy.deepcopy(result)
+        return result
 
 
 def _stage_planet(built: list[dict], seen_names: set[str], result: dict) -> dict:
@@ -1334,6 +1393,8 @@ def _build_topics(
     settings: dict,
     keep: int | None = None,
     context: dict | None = None,
+    *,
+    finalize: bool = True,
 ) -> tuple[list[dict], list[tuple], list[tuple]]:
     """Draft candidates in rank order until ``keep`` planets survive.
 
@@ -1394,7 +1455,8 @@ def _build_topics(
     built = _drop_unshared_planets(built)
     face_rows = _align_face_rows(built, face_rows)
     built = _publishable_planets(built)
-    _finalize_published_planets(built, posts, clustered, context)
+    if finalize:
+        _finalize_published_planets(built, posts, clustered, context)
     publish_volumes(built)
     return _renumber_planets(built, membership, face_rows)
 
@@ -1581,6 +1643,308 @@ def _finish_section_planets(
     publish_volumes(built)
     topics, _membership, _faces = _renumber_planets(built, [], [])
     return topics
+
+
+# A planet whose two biggest sections are each at least this share of its posts
+# is listed in both. Otherwise it is listed only in the section with the most posts.
+DUAL_SECTION_SHARE = 35
+
+
+def _share_at_least(count: int, total: int, percent: int = DUAL_SECTION_SHARE) -> bool:
+    return total > 0 and count * 100 >= percent * total
+
+
+def sections_for_members(posts: list[dict], member_indices: list[int]) -> list[str]:
+    """Sections that should list this planet.
+
+    The section with the most member posts is the home. When the top two
+    sections are each at least 35% of the planet, it is listed in both.
+    Posts with no Jev section count in the denominator, so they cannot
+    invent a second listing.
+    """
+    counts: dict[str, int] = {}
+    for index in member_indices:
+        section = str(posts[int(index)].get("section") or "")
+        if section in CATEGORIES:
+            counts[section] = counts.get(section, 0) + 1
+    if not counts:
+        return []
+    total = len(member_indices)
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], CATEGORIES.index(item[0])))
+    chosen = [ranked[0][0]]
+    if (
+        len(ranked) > 1
+        and _share_at_least(ranked[0][1], total)
+        and _share_at_least(ranked[1][1], total)
+    ):
+        chosen.append(ranked[1][0])
+    return chosen
+
+
+def _topic_reach_key(posts: list[dict], topic: dict) -> tuple:
+    """Distinct authors, then size. A once-clustered planet wins a tie with a fallback."""
+    members = [int(index) for index in topic["member_indices"]]
+    authors = len({str(posts[index].get("author") or "") for index in members})
+    fallback = 1 if topic.get("_fallback") else 0
+    return (-authors, -len(members), fallback, int(topic.get("id") or 0))
+
+
+def _cluster_section_groups(
+    posts: list[dict],
+    matrix,
+    indices: list[int],
+    settings: dict,
+    floor: int,
+) -> list[dict]:
+    """Density-cluster one section. Member indexes are positions in ``posts``."""
+    if len(indices) < max(2, int(floor)):
+        return []
+    section_posts = [posts[index] for index in indices]
+    texts = [post["clean_text"] for post in section_posts]
+    sub = matrix[list(indices)]
+    try:
+        clustered = cluster_texts(
+            texts,
+            min_cluster_size=max(2, int(floor)),
+            cluster_backend=str(settings["cluster_backend"]),
+            embedding_model=str(settings["embedding_model"]),
+            seed=int(settings["seed"]),
+            catalog_size=CANDIDATE_POOL,
+            embed=lambda _texts, rows=sub: rows,
+            authors=[str(post.get("author") or "unknown") for post in section_posts],
+        )
+    except Exception as exc:  # noqa: BLE001 - a short section must not block the snapshot
+        print(f"Section fallback skipped ({type(exc).__name__}: {exc}).")
+        return []
+    remapped = []
+    for topic in clustered.get("topics") or []:
+        remapped.append(
+            {
+                **topic,
+                "member_indices": [indices[int(index)] for index in topic["member_indices"]],
+                "_fallback": True,
+            }
+        )
+    return remapped
+
+
+def section_candidate_planets(
+    posts: list[dict],
+    matrix,
+    topics: list[dict],
+    settings: dict,
+    catalog_size: int,
+    floor: int,
+) -> tuple[dict[str, list[dict]], list[str]]:
+    """Planets to label for each section, from one global clustering.
+
+    A section with fewer than ``catalog_size`` qualifying planets also gets
+    groups from a density pass on that section's own posts. Those groups are
+    dropped when at least half their posts already sit in a planet listed
+    here. The returned lists are ranked by distinct authors, then size.
+    The second value is the sections that ran the fallback.
+    """
+    post_floor = _planet_post_floor(settings)
+    assigned: dict[str, list[dict]] = {name: [] for name in CATEGORIES}
+    for topic in topics:
+        size = int(topic.get("size") or len(topic["member_indices"]))
+        if post_floor > 0 and size < post_floor:
+            continue
+        for section in sections_for_members(posts, topic["member_indices"]):
+            assigned[section].append(dict(topic))
+    indices_by_section: dict[str, list[int]] = {name: [] for name in CATEGORIES}
+    for index, post in enumerate(posts):
+        section = str(post.get("section") or "")
+        if section in indices_by_section:
+            indices_by_section[section].append(index)
+    fallbacks: list[str] = []
+    chosen: dict[str, list[dict]] = {}
+    for section in CATEGORIES:
+        primary = list(assigned[section])
+        groups = list(primary)
+        section_posts = indices_by_section[section]
+        if len(primary) < int(catalog_size) and len(section_posts) >= max(2, int(floor)):
+            fallbacks.append(section)
+            covered: set[int] = set()
+            for topic in primary:
+                covered.update(int(index) for index in topic["member_indices"])
+            for topic in _cluster_section_groups(posts, matrix, section_posts, settings, floor):
+                members = [int(index) for index in topic["member_indices"]]
+                if not members:
+                    continue
+                overlap = sum(1 for index in members if index in covered) / len(members)
+                if overlap >= 0.5:
+                    continue
+                groups.append(topic)
+                covered.update(members)
+        if not groups:
+            continue
+        groups.sort(key=lambda topic: _topic_reach_key(posts, topic))
+        chosen[section] = groups
+    return chosen, fallbacks
+
+
+def _cluster_sections_once(
+    planet_posts: list[dict],
+    global_matrix,
+    topics: list[dict],
+    settings: dict,
+    catalog_size: int,
+    floor: int,
+    context: dict | None = None,
+    deadline: float | None = None,
+) -> dict[str, list[dict]]:
+    """List the one global clustering under each section, and label each planet once.
+
+    Sections with fewer than ``catalog_size`` planets from that clustering
+    are filled by a density pass on that section only.
+    """
+    import numpy as np
+
+    context = dict(context or _label_context(settings))
+    context["reuse_labels"] = True
+    context.setdefault("planet_label_cache", {})
+    context.setdefault("planet_label_guard", threading.Lock())
+    context.setdefault("planet_label_key_locks", {})
+    if deadline is not None and time.monotonic() >= deadline:
+        for section in CATEGORIES:
+            print(f"Section {section}: skipped, the section time budget is spent.")
+        context["section_fallbacks"] = []
+        return {}
+    matrix = np.asarray(global_matrix)
+    chosen, fallbacks = section_candidate_planets(
+        planet_posts, matrix, topics, settings, catalog_size, floor
+    )
+    # Mutate the caller's list when they passed one. A shallow copy shares it.
+    recorded_early = context.setdefault("section_fallbacks", [])
+    recorded_early.clear()
+    recorded_early.extend(fallbacks)
+    for section in fallbacks:
+        print(
+            f"Section {section}: fewer than {catalog_size} planets from the one clustering; "
+            "clustering that section."
+        )
+    counts = {name: 0 for name in CATEGORIES}
+    for post in planet_posts:
+        section = str(post.get("section") or "")
+        if section in counts:
+            counts[section] += 1
+    order = sorted(chosen, key=lambda name: (-counts[name], name))
+    jobs = [
+        _SectionLabelJob(
+            section,
+            planet_posts,
+            {
+                "topics": chosen[section],
+                "matrix": matrix,
+                "assignments": [],
+                "noise_count": 0,
+            },
+            catalog_size,
+            context,
+            counts[section],
+        )
+        for section in order
+    ]
+    _label_section_jobs(jobs, _section_pool_size(context), deadline)
+    recorded = context.setdefault("section_fallbacks", [])
+    recorded.clear()
+    recorded.extend(fallbacks)
+    published_uris = context.setdefault("section_published_uris", {})
+    result: dict[str, list[dict]] = {}
+    for job in jobs:
+        if job.skipped_budget:
+            continue
+        planets = _drop_unshared_planets(list(job.built))
+        planets = _publishable_planets(planets)
+        if len(planets) < catalog_size:
+            topped, ran = _top_up_section(
+                planets,
+                planet_posts,
+                matrix,
+                settings,
+                catalog_size,
+                floor,
+                job.context,
+                job.name,
+                deadline,
+            )
+            planets = topped
+            seen_names: set[str] = set()
+            for planet in planets:
+                planet["name"] = unique_label(str(planet.get("name") or ""), seen_names)
+            if ran and job.name not in recorded:
+                recorded.append(job.name)
+                print(
+                    f"Section {job.name}: published {len(planets)} after a section clustering "
+                    f"filled the list toward {catalog_size}."
+                )
+        published_uris[job.name] = [
+            {str(uri) for uri in (planet.get("_member_uris") or [])} for planet in planets
+        ]
+        _finalize_published_planets(
+            planets, job.posts, job.clustered, job.context, deadline=deadline
+        )
+        publish_volumes(planets)
+        planets, _membership, _faces = _renumber_planets(planets, [], [])
+        if planets:
+            result[job.name] = planets
+            print(f"Section {job.name}: {len(planets)} planet(s) from {job.post_count} posts.")
+        elif job.budget_hit:
+            print(f"Section {job.name}: stopped, the section time budget is spent.")
+        else:
+            print(f"Section {job.name}: no publishable planet from {job.post_count} posts.")
+    return {name: result[name] for name in CATEGORIES if name in result}
+
+
+def _top_up_section(
+    planets: list[dict],
+    posts: list[dict],
+    matrix,
+    settings: dict,
+    catalog_size: int,
+    floor: int,
+    context: dict,
+    section: str,
+    deadline: float | None,
+) -> tuple[list[dict], bool]:
+    """Cluster one section when the shared planets did not fill its top list.
+
+    Groups that are mostly posts already on a published planet are left out.
+    Returns the extended list and whether this fallback ran.
+    """
+    if deadline is not None and time.monotonic() >= deadline:
+        return planets, False
+    indices = [index for index, post in enumerate(posts) if str(post.get("section") or "") == section]
+    if len(indices) < max(2, int(floor)):
+        return planets, False
+    uri_to_index = {str(post.get("uri") or ""): index for index, post in enumerate(posts)}
+    covered: set[int] = set()
+    for planet in planets:
+        for uri in planet.get("_member_uris") or []:
+            index = uri_to_index.get(str(uri))
+            if index is not None:
+                covered.add(index)
+    fresh = []
+    for topic in _cluster_section_groups(posts, matrix, indices, settings, floor):
+        members = [int(index) for index in topic["member_indices"]]
+        if not members:
+            continue
+        if sum(index in covered for index in members) / len(members) >= 0.5:
+            continue
+        fresh.append(topic)
+        covered.update(members)
+    if not fresh:
+        return planets, True
+    extra, _membership, _faces = _build_topics(
+        posts,
+        {"topics": fresh, "matrix": matrix, "assignments": [], "noise_count": 0},
+        settings,
+        keep=int(catalog_size) - len(planets),
+        context=context,
+        finalize=False,
+    )
+    return planets + extra, True
 
 
 def _cluster_sections(
