@@ -169,3 +169,9 @@ Append-only. Newest at the bottom.
 - **Why:** Splitting glued stories was going to publish planets a reader would not treat as a topic, including stories of two, three, or four posts.
 - **Alternatives:** Keep publishing those small stories, including folding a one-post story into a neighbour. Ship 8 or 10 instead of 5.
 - **Revisit when:** A live week shows the floor cutting a conversation readers still wanted, or section labeling goes past 20 minutes.
+
+### 2026-10-08 — Daily pipeline cron at an odd minute (06:17 UTC)
+- **Decision:** The Daily Discourse Pipeline schedule is `cron: "17 6 * * *"` (06:17 UTC, 1:17 AM CT during daylight time). The daily health check treats a scheduled run that has not started within about 2 hours of that time as a finding.
+- **Why:** GitHub delays or drops scheduled runs when many jobs start at once, and this is worst at :00. The 2026-10-08 06:00 UTC run did not start until 12:25 UTC, about 6.5 hours late.
+- **Alternatives:** Stay on `0 6 * * *`. Move the job to a different hour.
+- **Revisit when:** A 06:17 UTC run is still delayed by hours, or the about-2-hour start window stops matching how late GitHub actually is.

@@ -3,7 +3,8 @@ name: Daily Discourse Pipeline
 on:
   schedule:
     # Once per day. This runs the live path, not the demo writer.
-    - cron: "0 6 * * *"
+    # Avoid :00 because GitHub delays or skips scheduled runs at the top of the hour.
+    - cron: "17 6 * * *"
   push:
     branches: [main]
     paths:

@@ -90,7 +90,7 @@ The daily workflow runs `--live` and publishes a new snapshot. It does not commi
 
 | Trigger | What happens | LLM spend |
 | --- | --- | --- |
-| Cron 06:00 UTC | Full live pipeline — Bluesky fetch, Jev decisions on new posts only, embed, cluster, label, publish | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
+| Cron 06:17 UTC | Full live pipeline — Bluesky fetch, Jev decisions on new posts only, embed, cluster, label, publish | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
 | Push to `main` — pipeline code changed (`pipeline/**`, `pyproject.toml`, `uv.lock`, `.github/workflows/pipeline.yml`) | Same full live pipeline | Same as cron |
 | Push to `main` — site-only files (frontend, `pipeline/README.md`, `pipeline/data/**`, docs) | `pages.yml` redeploy only — no pipeline run, no LLM spend | None |
 | `workflow_dispatch` | Full live pipeline | Same as cron |

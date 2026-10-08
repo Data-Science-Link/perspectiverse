@@ -4,7 +4,7 @@ Short map of the path that ships. Longer design notes stay in [`project_document
 
 ## Data flow
 
-The daily job is `.github/workflows/pipeline.yml` (`cron` 06:00 UTC, plus `workflow_dispatch`). It runs `python -m pipeline.run_pipeline --live`. It does not push to `main`.
+The daily job is `.github/workflows/pipeline.yml` (`cron` 06:17 UTC, plus `workflow_dispatch`). It runs `python -m pipeline.run_pipeline --live`. It does not push to `main`.
 
 1. **Bluesky ingest.** [`pipeline/data_sources/extract_bluesky.py`](../pipeline/data_sources/extract_bluesky.py) pulls a neutral English sample. [`pipeline/live.py`](../pipeline/live.py) rotates the retained window. If today's UTC date is already in `fetched_days` and the corpus still has posts from that day, the job does not search again.
 2. **Clean and decide.** [`pipeline/cleaning.py`](../pipeline/cleaning.py) normalizes text and drops obvious junk. [`pipeline/jev.py`](../pipeline/jev.py) scores spam (drop at 0.8), a public claim (keep at 0.5), and one newspaper section. Jev does not name planets or write steelmans. On a live Bluesky run, posts that are not claims are dropped before the SQLite replace. With no `TYPESAFE_API_KEY`, that run stops instead of clustering unlabeled posts.
