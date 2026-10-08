@@ -127,6 +127,11 @@ jobs:
           if [ -f pipeline/data/cost_run.json ]; then
             cp pipeline/data/cost_run.json /tmp/perspectiverse-snapshot/cost_run.json
           fi
+          # r2_usage.json is gitignored and written by restore plus upload,
+          # which are separate processes from the live step.
+          if [ -f pipeline/data/r2_usage.json ]; then
+            cp pipeline/data/r2_usage.json /tmp/perspectiverse-snapshot/r2_usage.json
+          fi
           # Build the ledger with THIS commit's pipeline.costs, before checkout
           # switches the worktree onto data-snapshot (that branch does not carry
           # the pipeline code). Read the existing ledger first and append.
@@ -154,8 +159,12 @@ jobs:
               fi
             fi
             if [ "$SKIP_COSTS" = "0" ]; then
-              if source .venv/bin/activate && python -m pipeline.costs append --run /tmp/perspectiverse-snapshot/cost_run.json --ledger "$LEDGER" --readme "$README"; then
-                if [ -f "$LEDGER" ] && [ -f "$README" ]; then
+              R2_USAGE_ARG=""
+              if [ -f /tmp/perspectiverse-snapshot/r2_usage.json ]; then
+                R2_USAGE_ARG="--r2-usage /tmp/perspectiverse-snapshot/r2_usage.json"
+              fi
+              if source .venv/bin/activate && python -m pipeline.costs append --run /tmp/perspectiverse-snapshot/cost_run.json --ledger "$LEDGER" --readme "$README" $R2_USAGE_ARG; then
+                if [ -f "$LEDGER" ] && [ -f "$README" ] && [ -f /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg ]; then
                   COST_READY=1
                 fi
               else
@@ -197,7 +206,8 @@ jobs:
             mkdir -p costs
             cp /tmp/perspectiverse-snapshot/costs/ledger.csv costs/ledger.csv
             cp /tmp/perspectiverse-snapshot/costs/README.md costs/README.md
-            git add -- costs/ledger.csv costs/README.md
+            cp /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg costs/daily_spend_14d.svg
+            git add -- costs/ledger.csv costs/README.md costs/daily_spend_14d.svg
           fi
           if git diff --cached --quiet; then
             echo "Snapshot unchanged"

@@ -92,6 +92,11 @@ class _MemoryR2:
             assert "secret" not in headers["authorization"]
             self.objects[path] = body
             return _Resp(200, b"")
+        if request.get_method() == "HEAD":
+            if path not in self.objects:
+                return _Resp(404, b"")
+            body = self.objects[path]
+            return _Resp(200, b"", headers={"Content-Length": str(len(body))})
         if request.get_method() == "GET":
             if path not in self.objects:
                 return _Resp(404, b"missing")
@@ -291,7 +296,7 @@ def test_round_trip_clusters_without_searching_a_fetched_day(monkeypatch, tmp_pa
     assert payload["source"] == "bluesky"
     assert payload["total_posts"] == kept
     assert len(payload["topics"]) == 10
-    assert remote.calls == ["PUT", "GET"]
+    assert remote.calls == ["PUT", "HEAD", "GET"]
 
 
 def test_cli_upload_rejects_garbage_without_leaking_the_secret(tmp_path, monkeypatch, capsys):
@@ -316,6 +321,77 @@ def test_publishable_corpus_passes_the_check(tmp_path):
     assert_corpus_publishable(path)
 
 
+def test_upload_counts_put_as_class_a_and_head_plus_get_as_class_b(tmp_path, monkeypatch):
+    usage_path = tmp_path / "r2_usage.json"
+    monkeypatch.setattr("pipeline.costs.R2_USAGE_PATH", usage_path)
+    source = tmp_path / "seed.db"
+    _write_corpus(source)
+    remote = _MemoryR2()
+    assert upload_corpus(source, config=_config(), opener=remote) == "uploaded"
+    restored = tmp_path / "restored.db"
+    assert restore_corpus(restored, config=_config(), opener=remote) == "downloaded"
+    usage = json.loads(usage_path.read_text(encoding="utf-8"))
+    assert remote.calls == ["PUT", "HEAD", "GET"]
+    assert usage["class_a_ops"] == 1
+    assert usage["class_b_ops"] == 2
+    assert usage["storage_known"] is True
+    assert usage["storage_bytes"] == source.stat().st_size
+
+
+def test_head_failure_still_uploads_and_keeps_the_file_size(tmp_path, monkeypatch):
+    usage_path = tmp_path / "r2_usage.json"
+    monkeypatch.setattr("pipeline.costs.R2_USAGE_PATH", usage_path)
+    source = tmp_path / "seed.db"
+    _write_corpus(source)
+
+    class _HeadDown(_MemoryR2):
+        def __call__(self, request, timeout):
+            if request.get_method() == "HEAD":
+                self.calls.append("HEAD")
+                raise RuntimeError("head down")
+            return super().__call__(request, timeout)
+
+    remote = _HeadDown()
+    assert upload_corpus(source, config=_config(), opener=remote) == "uploaded"
+    usage = json.loads(usage_path.read_text(encoding="utf-8"))
+    assert usage["class_a_ops"] == 1
+    assert usage["class_b_ops"] == 0
+    assert usage["storage_known"] is True
+    assert usage["storage_bytes"] == source.stat().st_size
+
+
+def test_a_response_is_counted_and_a_dropped_request_is_not(tmp_path, monkeypatch):
+    usage_path = tmp_path / "r2_usage.json"
+    monkeypatch.setattr("pipeline.costs.R2_USAGE_PATH", usage_path)
+    path = tmp_path / "live_corpus.db"
+    _write_corpus(path)
+
+    def missing(request, timeout):
+        return _Resp(404, b"missing")
+
+    assert restore_corpus(path, config=_config(), opener=missing) == "absent"
+    usage = json.loads(usage_path.read_text(encoding="utf-8"))
+    assert usage["class_b_ops"] == 1
+    assert usage["class_a_ops"] == 0
+    assert usage["storage_known"] is False
+
+    def unauthorized(request, timeout):
+        return _Resp(401, b"no")
+
+    with pytest.raises(RuntimeError, match="HTTP 401"):
+        restore_corpus(path, config=_config(), opener=unauthorized)
+    usage = json.loads(usage_path.read_text(encoding="utf-8"))
+    assert usage["class_b_ops"] == 1
+
+    def boom(request, timeout):
+        raise RuntimeError("no response")
+
+    with pytest.raises(RuntimeError, match="no response"):
+        restore_corpus(path, config=_config(), opener=boom)
+    usage = json.loads(usage_path.read_text(encoding="utf-8"))
+    assert usage["class_b_ops"] == 1
+
+
 def test_daily_workflow_uploads_only_after_a_successful_run():
     workflow = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
     pages = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
@@ -328,5 +404,8 @@ def test_daily_workflow_uploads_only_after_a_successful_run():
     publish_window = workflow[publish_at : publish_at + 500]
     assert "steps.r2upload.outcome == 'success'" in publish_window
     assert "git rm -f --ignore-unmatch pipeline/data/live_corpus.db" in workflow
+    assert "r2_usage.json" in workflow
+    assert "--r2-usage" in workflow
+    assert "costs/daily_spend_14d.svg" in workflow
     assert "public/data.json" in pages
     assert "live_corpus.db" not in pages

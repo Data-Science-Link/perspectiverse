@@ -7,14 +7,18 @@ import threading
 import urllib.error
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 import pytest
 
 from pipeline.costs import (
+    CHART_PATH,
     LEDGER_COLUMNS,
     LEDGER_PATH,
+    LEGACY_LEDGER_COLUMNS,
     README_PATH,
     SERVICE_DEEPINFRA,
     SERVICE_JEV,
+    SERVICE_R2,
     CostLedgerError,
     append_ledger,
     append_run_files,
@@ -24,7 +28,12 @@ from pipeline.costs import (
     iso_week_label,
     jev_cost_usd,
     main,
+    r2_billed_increment_usd,
+    r2_ledger_row,
+    r2_list_price_usd,
+    r2_month_bill_usd,
     read_ledger,
+    render_daily_spend_svg,
     render_readme,
     reset_meter,
     rows_for_attempts,
@@ -320,7 +329,7 @@ def test_weekly_rollup_counts_each_run_once():
     assert recent.runs == 2
     assert recent.total_usd == Decimal("2.042")
     assert recent.posts_processed == 1500
-    assert recent.llm_usd + recent.jev_usd == recent.total_usd
+    assert recent.llm_usd + recent.jev_usd + recent.r2_usd == recent.total_usd
 
     readme = render_readme(rows, today=date(2026, 10, 8))
     assert "input tokens × $0.042 per 1,000,000" in readme
@@ -435,8 +444,17 @@ def test_published_planets_include_sections_and_files_stay_off_the_site():
     assert count_published_planets({"topics": []}) == 0
     assert LEDGER_PATH.parts[0] == "costs"
     assert README_PATH.parts[0] == "costs"
+    assert CHART_PATH.parts[0] == "costs"
+    assert CHART_PATH.name == "daily_spend_14d.svg"
     assert "public" not in LEDGER_PATH.parts
     assert "public" not in README_PATH.parts
+    assert "public" not in CHART_PATH.parts
+    readme = Path("README.md").read_text(encoding="utf-8")
+    assert (
+        "https://raw.githubusercontent.com/Data-Science-Link/perspectiverse/data-snapshot/costs/daily_spend_14d.svg"
+        in readme
+    )
+    assert "costs/README.md" in readme
 
 
 def test_http_error_keeps_usage_for_the_meter(monkeypatch):
@@ -473,6 +491,286 @@ def test_zero_posts_render_as_not_applicable():
     assert "n/a" in render_readme(rows, today=date(2026, 10, 8))
     assert format_usd(Decimal("0.042")) == "0.042"
     assert format_usd(Decimal("2")) == "2.00"
+
+
+def test_r2_list_price_prorates_a_gb_month_and_prices_operations():
+    from pipeline.costs import (
+        R2_USD_PER_GB_MONTH,
+        R2_USD_PER_MILLION_CLASS_A,
+        R2_USD_PER_MILLION_CLASS_B,
+    )
+
+    one_gb_day = r2_list_price_usd(storage_bytes=1_000_000_000, class_a_ops=0, class_b_ops=0)
+    assert one_gb_day == R2_USD_PER_GB_MONTH / Decimal(30)
+    assert r2_list_price_usd(storage_bytes=0, class_a_ops=1_000_000, class_b_ops=0) == R2_USD_PER_MILLION_CLASS_A
+    assert r2_list_price_usd(storage_bytes=0, class_a_ops=0, class_b_ops=1_000_000) == R2_USD_PER_MILLION_CLASS_B
+    combined = r2_list_price_usd(storage_bytes=1_000_000_000, class_a_ops=1_000_000, class_b_ops=1_000_000)
+    assert combined == one_gb_day + R2_USD_PER_MILLION_CLASS_A + R2_USD_PER_MILLION_CLASS_B
+
+
+def test_r2_free_tier_bills_only_the_increment_above_the_allowance():
+    fifteen_gb = 15_000_000_000
+    first = _r2_row("2026-10-01", fifteen_gb, class_a=0, class_b=0)
+    assert r2_month_bill_usd([first], as_of=date(2026, 10, 1)) == 0
+    # 15 GB for 20 days is exactly 10 GB-month, still inside the free tier.
+    assert (
+        r2_billed_increment_usd(
+            [first],
+            run_day=date(2026, 10, 20),
+            storage_bytes=fifteen_gb,
+            class_a_ops=0,
+            class_b_ops=0,
+        )
+        == 0
+    )
+    prior = [first, _r2_row("2026-10-20", fifteen_gb, class_a=0, class_b=0)]
+    # The 21st day is 0.5 GB-month over the 10 GB-month allowance.
+    assert r2_billed_increment_usd(
+        prior,
+        run_day=date(2026, 10, 21),
+        storage_bytes=fifteen_gb,
+        class_a_ops=0,
+        class_b_ops=0,
+    ) == Decimal("0.015") * Decimal("0.5")
+
+    class_a_prior = [_r2_row("2026-10-01", 0, class_a=900_000, class_b=0)]
+    assert r2_billed_increment_usd(
+        class_a_prior,
+        run_day=date(2026, 10, 2),
+        storage_bytes=0,
+        class_a_ops=200_000,
+        class_b_ops=0,
+    ) == Decimal("4.50") * Decimal(100_000) / Decimal(1_000_000)
+
+    class_b_prior = [_r2_row("2026-10-01", 0, class_a=0, class_b=10_000_000)]
+    assert r2_billed_increment_usd(
+        class_b_prior,
+        run_day=date(2026, 10, 2),
+        storage_bytes=0,
+        class_a_ops=0,
+        class_b_ops=1_000_000,
+    ) == Decimal("0.36")
+
+    # A measurement from the previous month still occupies the bucket.
+    september = [_r2_row("2026-09-30", 20_000_000_000, class_a=0, class_b=0)]
+    october = r2_billed_increment_usd(
+        september,
+        run_day=date(2026, 10, 30),
+        storage_bytes=20_000_000_000,
+        class_a_ops=0,
+        class_b_ops=0,
+    )
+    assert october == Decimal("0.15")
+
+    identity = {
+        "run_id": "r2-free",
+        "run_started_utc": "2026-10-08T06:00:00Z",
+        "date_utc": "2026-10-08",
+        "trigger": "schedule",
+    }
+    row = r2_ledger_row(
+        [],
+        identity=identity,
+        posts_processed=10,
+        planets_published=1,
+        usage={
+            "class_a_ops": 1,
+            "class_b_ops": 2,
+            "storage_bytes": 1_000_000_000,
+            "storage_known": True,
+        },
+    )
+    assert row is not None
+    assert row["service"] == SERVICE_R2
+    assert row["model"] == "r2-standard"
+    assert row["cost_source"] == "computed"
+    assert Decimal(row["cost_usd"]) == 0
+    assert Decimal(row["list_price_usd"]) > 0
+    assert row["storage_bytes"] == "1000000000"
+    assert row["class_a_ops"] == "1"
+    assert row["class_b_ops"] == "2"
+
+
+def test_r2_increments_reconstruct_the_month_bill_and_same_day_replacement():
+    events = [
+        (date(2026, 10, 1), 15_000_000_000, 900_000, 0),
+        (date(2026, 10, 20), 15_000_000_000, 200_000, 0),
+        (date(2026, 10, 21), 15_000_000_000, 0, 50),
+    ]
+    rows: list[dict[str, str]] = []
+    billed = Decimal(0)
+    for day, storage, class_a, class_b in events:
+        billed += r2_billed_increment_usd(
+            rows,
+            run_day=day,
+            storage_bytes=storage,
+            class_a_ops=class_a,
+            class_b_ops=class_b,
+        )
+        rows.append(_r2_row(day.isoformat(), storage, class_a=class_a, class_b=class_b))
+    assert billed == r2_month_bill_usd(rows, as_of=date(2026, 10, 21))
+
+    first = _r2_row("2026-10-08", 600_000_000_000, class_a=0, class_b=0)
+    assert r2_month_bill_usd([first], as_of=date(2026, 10, 8)) == Decimal("0.15")
+    shrunk = r2_billed_increment_usd(
+        [first],
+        run_day=date(2026, 10, 8),
+        storage_bytes=300_000_000_000,
+        class_a_ops=10,
+        class_b_ops=0,
+    )
+    assert shrunk == Decimal("-0.15")
+
+
+def test_daily_spend_svg_is_fourteen_days_with_gaps_and_valid_xml():
+    import xml.etree.ElementTree as ET
+
+    today = date(2026, 10, 8)
+    rows = [
+        _row("run-a", "2026-10-08", SERVICE_DEEPINFRA, "1.50", 10, 1),
+        _row("run-a", "2026-10-08", SERVICE_JEV, "0.042", 10, 1),
+        _row("run-b", "2026-10-03", SERVICE_R2, "0.25", 10, 1),
+    ]
+    text = render_daily_spend_svg(rows, today=today)
+    root = ET.parse(io.StringIO(text)).getroot()
+    assert root.tag.endswith("svg")
+    groups = [element for element in root.iter() if element.tag.endswith("g") and element.get("data-date")]
+    assert len(groups) == 14
+    by_date = {element.get("data-date"): element for element in groups}
+    assert list(by_date)[0] == "2026-09-25"
+    assert list(by_date)[-1] == "2026-10-08"
+    gap = by_date["2026-10-01"]
+    assert gap.get("data-llm") == "0"
+    assert gap.get("data-jev") == "0"
+    assert gap.get("data-r2") == "0"
+    assert gap.get("data-total") == "0"
+    present = by_date["2026-10-08"]
+    assert Decimal(present.get("data-llm")) == Decimal("1.50")
+    assert Decimal(present.get("data-jev")) == Decimal("0.042")
+    assert Decimal(present.get("data-r2")) == Decimal("0")
+    assert Decimal(present.get("data-total")) == Decimal("1.542")
+    assert Decimal(by_date["2026-10-03"].get("data-r2")) == Decimal("0.25")
+    labels = [element.text for element in root.iter() if element.tag.endswith("text")]
+    assert "LLM labeling" in labels
+    assert "Jev" in labels
+    assert "R2" in labels
+    assert "UTC day" in labels
+    assert text.startswith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+
+
+def test_legacy_header_migrates_without_dropping_rows(tmp_path):
+    import csv
+
+    ledger = tmp_path / "ledger.csv"
+
+    def line(run_id: str, cost: str) -> dict[str, str]:
+        return {
+            "run_id": run_id,
+            "run_started_utc": "2026-10-01T06:00:00Z",
+            "date_utc": "2026-10-01",
+            "trigger": "schedule",
+            "service": SERVICE_JEV,
+            "model": "jev-1.13.0",
+            "calls": "1",
+            "failed_calls": "0",
+            "input_tokens": "500000",
+            "output_tokens": "2",
+            "cost_usd": cost,
+            "cost_source": "computed",
+            "posts_processed": "200",
+            "planets_published": "3",
+        }
+
+    with ledger.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=LEGACY_LEDGER_COLUMNS, lineterminator="\n")
+        writer.writeheader()
+        writer.writerow(line("old-a", "0.021"))
+        writer.writerow(line("old-b", "0.0100"))
+    before = ledger.read_bytes()
+    peeked = read_ledger(ledger)
+    assert ledger.read_bytes() == before
+    assert [row["run_id"] for row in peeked] == ["old-a", "old-b"]
+    assert peeked[0]["list_price_usd"] == "0.021"
+    assert peeked[0]["storage_bytes"] == "0"
+    assert peeked[0]["class_a_ops"] == "0"
+    assert peeked[1]["cost_usd"] == "0.0100"
+    assert peeked[1]["list_price_usd"] == "0.0100"
+
+    append_ledger(ledger, [_row("new-run", "2026-10-08", SERVICE_DEEPINFRA, "0.0200", 10, 1)])
+    rows = read_ledger(ledger)
+    assert [row["run_id"] for row in rows] == ["old-a", "old-b", "new-run"]
+    assert rows[0]["cost_usd"] == "0.021"
+    assert rows[0]["list_price_usd"] == "0.021"
+    assert rows[2]["list_price_usd"] == "0.0200"
+    assert rows[2]["service"] == SERVICE_DEEPINFRA
+    migrated = ledger.read_text(encoding="utf-8")
+    assert migrated.splitlines()[0].split(",") == LEDGER_COLUMNS
+    append_ledger(ledger, [_row("newer", "2026-10-08", SERVICE_JEV, "0.042", 10, 1)])
+    assert ledger.read_text(encoding="utf-8").startswith(migrated)
+    assert [row["run_id"] for row in read_ledger(ledger)] == ["old-a", "old-b", "new-run", "newer"]
+
+
+def test_r2_usage_appends_a_row_and_notes_the_free_tier(tmp_path):
+    run_path = tmp_path / "cost_run.json"
+    write_cost_run(
+        posts_processed=4,
+        planets_published=1,
+        started_at=datetime(2026, 10, 8, 6, 0, tzinfo=timezone.utc),
+        path=run_path,
+        attempts=(),
+    )
+    usage = tmp_path / "r2_usage.json"
+    usage.write_text(
+        '{"class_a_ops": 1, "class_b_ops": 2, "storage_bytes": 2000000000, "storage_known": true}\n',
+        encoding="utf-8",
+    )
+    ledger = tmp_path / "costs" / "ledger.csv"
+    readme = tmp_path / "costs" / "README.md"
+    assert append_run_files(
+        run_path,
+        ledger,
+        readme,
+        r2_usage_path=usage,
+        today=date(2026, 10, 8),
+    ) == 0
+    rows = read_ledger(ledger)
+    assert len(rows) == 1
+    assert rows[0]["service"] == SERVICE_R2
+    assert Decimal(rows[0]["cost_usd"]) == 0
+    assert Decimal(rows[0]["list_price_usd"]) > 0
+    text = readme.read_text(encoding="utf-8")
+    assert "R2 is currently inside the monthly free tier" in text
+    assert "daily_spend_14d.svg" in text
+    assert "R2 $" in text
+    chart = (tmp_path / "costs" / "daily_spend_14d.svg").read_text(encoding="utf-8")
+    import xml.etree.ElementTree as ET
+
+    root = ET.parse(io.StringIO(chart)).getroot()
+    assert root.tag.endswith("svg")
+    assert len([element for element in root.iter() if element.tag.endswith("g") and element.get("data-date")]) == 14
+
+
+def _r2_row(day: str, storage_bytes: int, *, class_a: int, class_b: int) -> dict[str, str]:
+    return {
+        "run_id": f"r2-{day}",
+        "run_started_utc": f"{day}T06:00:00Z",
+        "date_utc": day,
+        "trigger": "schedule",
+        "service": SERVICE_R2,
+        "model": "r2-standard",
+        "calls": str(class_a + class_b),
+        "failed_calls": "0",
+        "input_tokens": "0",
+        "output_tokens": "0",
+        "cost_usd": "0",
+        "cost_source": "computed",
+        "posts_processed": "1",
+        "planets_published": "1",
+        "storage_bytes": str(storage_bytes),
+        "class_a_ops": str(class_a),
+        "class_b_ops": str(class_b),
+        "list_price_usd": "0",
+    }
 
 
 def _row(run_id, day, service, cost, posts, planets):

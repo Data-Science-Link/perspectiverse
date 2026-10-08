@@ -86,7 +86,7 @@ The public dropdown is a newspaper: **World, Politics, Business, Technology, Spo
 
 The daily workflow runs `--live` and publishes a new snapshot. It does not commit to `main`. It uploads `data.json` and `live_corpus.db` as artifacts. `data.json` is pushed to `data-snapshot`, which Pages overlays at build time. When the R2 secrets are set, `live_corpus.db` is uploaded to the private bucket and removed from that branch. Until the secrets exist, the SQLite file is still committed to `data-snapshot`.
 
-The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` on `data-snapshot` (one row per paid service and model). Those files are not under `public/`, so Pages does not deploy them. A cost-log error is a warning and does not stop the snapshot.
+The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` and `costs/daily_spend_14d.svg` on `data-snapshot` (one row per paid service and model, including Cloudflare R2). Those files are not under `public/`, so Pages does not deploy them. A cost-log error is a warning and does not stop the snapshot.
 
 ### When the pipeline triggers
 
