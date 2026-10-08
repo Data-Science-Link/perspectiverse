@@ -39,6 +39,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/topics.py` | Up to 10 planets (MiniLM, lexical, or BERTopic), author cap, cohesion gate |
 | `pipeline/perspectives.py` | 1–6 faces and representative posts |
 | `pipeline/label.py` | Ollama, OpenAI-compatible (DeepInfra), or heuristic titles |
+| `pipeline/costs.py` | Thread-safe meter for DeepInfra and Jev spend; weekly ledger on `data-snapshot` |
 | `pipeline/assemble.py` | Writes `public/data.json` |
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
 | `pipeline/http_json.py` | Allow-listed JSON HTTP (`api.bsky.app`, `api.openai.com`, `api.deepinfra.com`, `api.typesafe.ai`) |
@@ -116,5 +117,5 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `.github/workflows/security-audit.yml` | Bandit + pip-audit on every push/PR, plus `workflow_dispatch` |
 | `.github/workflows/pytest.yml` | Pytest without a model download |
 | `.github/workflows/frontend.yml` | Lint, category check, build, data contract |
-| `.github/workflows/pipeline.yml` | Daily live run, R2 corpus sync, artifact, `data-snapshot` `data.json` |
+| `.github/workflows/pipeline.yml` | Daily live run, R2 corpus sync, artifact, `data-snapshot` `data.json` and `costs/` |
 | `.github/workflows/pages.yml` | GitHub Pages, overlaying `data-snapshot` when present |
