@@ -16,7 +16,7 @@ One bar per UTC day. The label on a bar is that day's billed total. The chart is
 
 | ISO week | runs | LLM $ | Jev $ | R2 $ | total $ | posts processed | planets published | $ per 1,000 posts | $ per planet |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2026-W41 | 1 | 0.1016585 | 0.00 | 0.00 | 0.1016585 | 10000 | 101 | 0.01016585 | 0.00100652 |
+| 2026-W41 | 2 | 0.20065354 | 0.00 | 0.00 | 0.20065354 | 20000 | 203 | 0.01003268 | 0.00098844 |
 
 ## Last 30 days
 
@@ -24,4 +24,4 @@ Runs whose `date_utc` is on or after 2026-09-08 (through 2026-10-08).
 
 | runs | LLM $ | Jev $ | R2 $ | total $ | posts processed | planets published | $ per 1,000 posts | $ per planet |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 0.1016585 | 0.00 | 0.00 | 0.1016585 | 10000 | 101 | 0.01016585 | 0.00100652 |
+| 2 | 0.20065354 | 0.00 | 0.00 | 0.20065354 | 20000 | 203 | 0.01003268 | 0.00098844 |

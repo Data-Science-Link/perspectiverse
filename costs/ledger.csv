@@ -1,3 +1,5 @@
 run_id,run_started_utc,date_utc,trigger,service,model,calls,failed_calls,input_tokens,output_tokens,cost_usd,cost_source,posts_processed,planets_published,storage_bytes,class_a_ops,class_b_ops,list_price_usd
 37780964812,2026-10-08T13:00:25Z,2026-10-08,push,deepinfra,meta-llama/Llama-3.3-70B-Instruct-Turbo,1080,1,528857,152415,0.101658500000000001872,reported,10000,101,0,0,0,0.101658500000000001872
 37780964812,2026-10-08T13:00:25Z,2026-10-08,push,cloudflare-r2,r2-standard,3,0,0,0,0,computed,10000,101,14356480,1,2,0.00001239824
+37781464985,2026-10-08T13:23:22Z,2026-10-08,push,deepinfra,meta-llama/Llama-3.3-70B-Instruct-Turbo,1060,2,509464,150152,0.098995040000000001899,reported,10000,102,0,0,0,0.098995040000000001899
+37781464985,2026-10-08T13:23:22Z,2026-10-08,push,cloudflare-r2,r2-standard,3,0,0,0,0,computed,10000,102,14356480,1,2,0.00001239824
