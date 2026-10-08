@@ -150,3 +150,52 @@ If the labeler then merges titles or drops a "Mixed remarks" face and fewer than
 - Replacing silhouette k-means with Ward on every planet. The average gain is about 0.01 distinctness, and it rewrites faces that already passed the gate.
 - A stance-encoder fine-tune. The papers say it is the real fix for "yes" versus "no." It needs a paired corpus and a model change in the daily image. The residual axis is the stand-in, and it lost on distinctness.
 - An LLM position list in the daily job. Better sentences on three Health topics, worse embedding separation, and a call we do not have spare budget for.
+
+## Planet post floor
+
+Splitting a glued candidate keeps both stories. Some of those stories are only a few posts. A published planet now needs at least `min_planet_posts` posts. The shipped value is **5**. It lives next to the other grouping floors (`MIN_PLANET_POSTS` in `pipeline/grouping.py`) and is overridden the same way as the other pipeline settings: `min_planet_posts` in the pipeline config, or `PERSPECTIVERSE_MIN_PLANET_POSTS`.
+
+The check runs before any face label when the post count is already known, and again before the planet name and the briefs if labeling leaves fewer posts than the floor. A piece under the floor is not published, not glued onto a sibling, and not used to fill a catalog slot. The log line is one INFO record with the section, a label hint, and the post count. The catalog ceiling still fills from the remaining candidates in the existing rank order.
+
+Floors of 8 and 10 were measured on the same Oct 7 corpus and were not shipped. The table is the catalog walk (10 planets per section, All topics plus the ten sections). Labels are the local heuristic, so brief calls are 0. "Main" is the walk that drops a glued candidate, which is what `main` does today: 316 face labels and 80 names on this corpus. Call counts below are that walk versus the split-and-floor walk.
+
+| Floor | Planets published | Excluded by the floor (walk / whole pool) | Smallest published planet | Post-mass (all / Politics / Health) | Face labels | Names | Versus main |
+|---|---:|---:|---|---:|---:|---:|---|
+| 5 (shipped) | 99 | 44 / 72 | 5 (Health, Ebola) | 2,941 / 416 / 93 | 366 | 100 | +50 faces, +20 names |
+| 8 | 85 | 74 / 87 | 8 (Environment, Green Greens Both) | 2,977 / 453 / 76 | 348 | 85 | +32 faces, +5 names |
+| 10 | 71 | 76 / 92 | 10 (Business, Building Housing) | 2,860 / 453 / 59 | 289 | 71 | −27 faces, −9 names |
+
+Planets published at the shipped floor of 5:
+
+| Section | Planets | Excluded in the walk | Post-mass | Smallest |
+|---|---:|---:|---:|---:|
+| All topics | 10 | 0 | 1,069 | 7 |
+| Politics | 10 | 4 | 416 | 5 |
+| World | 10 | 0 | 519 | 6 |
+| Business | 10 | 4 | 133 | 7 |
+| Other | 10 | 4 | 92 | 5 |
+| Technology | 10 | 1 | 228 | 6 |
+| Culture | 9 | 10 | 124 | 7 |
+| Health | 8 | 5 | 93 | 5 |
+| Environment | 9 | 8 | 98 | 6 |
+| Sports | 6 | 6 | 68 | 5 |
+| Education | 7 | 2 | 101 | 8 |
+| **Total** | **99** | **44** | **2,941** | **5** |
+
+At floor 10 the walk skips some 8- and 9-post candidates before labeling them, so its own "drop glued stories" column is no longer the main baseline. The "versus main" column uses the same 316 / 80 baseline for all three floors.
+
+Pieces the floor leaves out at 5, from this corpus:
+
+- **Culture, "African American Black", 4 posts**, split out of "black african american" (10). "Foundational Black USA = African American…" and a follow-up on Creoles, Cajuns, and the "African American" label.
+- **Sports, "Tennis Women Without", 4 posts**, split out of "sports women" (18). A US Open third-round line, and "Unpredictable upsets showcase the incredible depth… of the modern women's tennis tour."
+- **Business, "Trump Days Factory", 4 posts**, split out of "trump days factory" (8). "Nearly 1,400 laid off at truck factory just days before Trump rally."
+
+Split pairs that still publish at 5:
+
+- **Health, "covid flu" (21) → Mixed remarks (flu) (13) and Ebola (5).** Flu and covid shots ("I'm getting my measles booster… and my flu and covid shots") on one planet. "Ebola has arrived in a new country - Kenya…" on the other. A 2-post flu-season story from the same candidate is under the floor and is left out.
+- **World, "canada" (15) → Canada Canadians Down (9) and Mixed remarks (6).** "Canada is not our enemy" and a Government of Canada post, beside posts about Australia and diplomatic cover for allies.
+- **Politics, "news press" (28) → Mixed remarks (news) (10) and Journalists Democracy Read (9).** Fox News and Newsnight on one planet. "Journalists… Democracy is on the line" and a court fight over a White House media ban on the other.
+
+Heuristic titles often land on "Mixed remarks" when the local title check fails. The posts are still the separate stories. A network run writes the real titles and also spends one brief per face and one per planet, which this table does not count.
+
+Section labeling with the real model, on this same corpus, at the shipped floor of 5, took **765 seconds**. The section ceiling is 1,200 seconds. The clock is `_cluster_sections` only: the global catalog is labeled before that clock starts. The run used the OpenAI-compatible backend the daily job resolves to, with briefs on and 12 calls in flight. It published 92 section planets. The smallest had 5 posts.

@@ -192,6 +192,36 @@ def test_a_shared_commodity_counts_as_one_subject():
     assert specific_shared_words(courts) == set()
 
 
+def test_story_groups_split_faces_that_share_no_subject_word():
+    from pipeline.label import story_groups
+
+    diesel = [
+        {
+            "title": "Diesel Export",
+            "representative_posts": [{"text": "The president will not ban diesel exports this week."}],
+        },
+        {
+            "title": "Oil Release",
+            "representative_posts": [{"text": "Allies will release diesel from emergency stockpiles."}],
+        },
+    ]
+    courts = [
+        {
+            "title": "Judicial Compliance",
+            "representative_posts": [{"text": "Nothing happens when officials defy a judge's order."}],
+        },
+        {
+            "title": "No Prosecution",
+            "representative_posts": [{"text": "The department will not reopen the renovation investigation."}],
+        },
+    ]
+    assert story_groups(diesel) == [[0, 1]]
+    assert story_groups(courts) == [[0], [1]]
+    glued = courts + diesel
+    groups = story_groups(glued)
+    assert sorted(tuple(sorted(group)) for group in groups) == [(0,), (1,), (2, 3)]
+
+
 def test_faces_that_share_no_subject_word_are_different_stories():
     from pipeline.label import faces_share_vocabulary
 

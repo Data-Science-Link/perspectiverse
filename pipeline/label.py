@@ -688,19 +688,67 @@ def _shared_post_words(faces: list[dict]) -> set[str]:
     return shared
 
 
+def _is_specific_subject_word(word: str) -> bool:
+    """Same filters as ``specific_shared_words``: not a person, creed, verb, or office."""
+    return (
+        len(word) >= 3
+        and word not in _PERSON_GLUE
+        and word not in _TOPIC_GLUE
+        and word not in _VERB_STEMS
+        and word not in _OFFICE_GLUE
+    )
+
+
+def specific_subject_words(face: dict) -> set[str]:
+    """Specific subject stems one face repeats. Empty when the face has none."""
+    return {word for word in _face_subject_words(face) if _is_specific_subject_word(word)}
+
+
 def specific_shared_words(faces: list[dict]) -> set[str]:
     """Subject words the faces' posts share, ignoring a bare politician or creed."""
-    return {
-        word
-        for word in _shared_post_words(faces)
-        if (
-            len(word) >= 3
-            and word not in _PERSON_GLUE
-            and word not in _TOPIC_GLUE
-            and word not in _VERB_STEMS
-            and word not in _OFFICE_GLUE
-        )
-    }
+    return {word for word in _shared_post_words(faces) if _is_specific_subject_word(word)}
+
+
+def story_groups(faces: list[dict]) -> list[list[int]]:
+    """Partition faces into stories that still share a specific subject word.
+
+    A group stays together only while the intersection of its subject words
+    is non-empty. That is the same signal as ``specific_shared_words``: an
+    empty intersection is different stories, not one planet. A face with no
+    specific subject word is its own story. Groups come back largest first,
+    then by the earliest face index. At most a handful of faces, so the
+    merge is a direct search.
+    """
+    count = len(faces)
+    if count == 0:
+        return []
+    bags = [specific_subject_words(face) for face in faces]
+    members: list[list[int]] = [[index] for index in range(count)]
+    active = set(range(count))
+    while True:
+        best: tuple[tuple[int, int, int], int, int, set[str]] | None = None
+        ids = sorted(active)
+        for left_at, left in enumerate(ids):
+            if not bags[left]:
+                continue
+            for right in ids[left_at + 1 :]:
+                if not bags[right]:
+                    continue
+                overlap = bags[left] & bags[right]
+                if not overlap:
+                    continue
+                rank = (len(overlap), -left, -right)
+                if best is None or rank > best[0]:
+                    best = (rank, left, right, overlap)
+        if best is None:
+            break
+        _rank, left, right, overlap = best
+        members[left].extend(members[right])
+        bags[left] = overlap
+        active.remove(right)
+    groups = [sorted(members[index]) for index in sorted(active)]
+    groups.sort(key=lambda indexes: (-len(indexes), indexes[0]))
+    return groups
 
 
 def faces_share_vocabulary(faces: list[dict]) -> bool:

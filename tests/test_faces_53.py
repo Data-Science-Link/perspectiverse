@@ -545,3 +545,362 @@ def test_section_budget_skips_remaining_sections(monkeypatch):
     settings = {**SETTINGS, "min_cluster_size": 8, "cluster_backend": "embedding", "embedding_model": "unused"}
     sections = live._cluster_sections(posts, clustered["matrix"], settings, 10, 8, deadline=0.0)
     assert sections == {}
+
+
+def _story_blob(word: str, size: int, seed: int):
+    """One tight embedding group whose posts repeat a single subject word."""
+    matrix = _blobs([size], seed=seed)
+    posts = []
+    for copy in range(size):
+        extra = {"diesel": "stockpile refinery", "measles": "vaccine outbreak", "bitcoin": "wallet ledger"}.get(
+            word, "remark detail"
+        )
+        text = f"{word} {word} {word} {extra} {copy}"
+        posts.append(
+            {
+                "uri": f"at://{word}/{copy}",
+                "author": f"{word}.{copy}",
+                "clean_text": text,
+                "text": text,
+                "likes": copy,
+            }
+        )
+    return posts, matrix
+
+
+def _glued_candidate(stories):
+    posts, blocks = [], []
+    for group_posts, matrix in stories:
+        posts.extend(group_posts)
+        blocks.append(matrix)
+    clustered = {
+        "topics": [
+            {
+                "id": 0,
+                "size": len(posts),
+                "member_indices": list(range(len(posts))),
+                "terms": ["glued"],
+            }
+        ],
+        "matrix": np.vstack(blocks),
+        "assignments": [],
+        "noise_count": 0,
+    }
+    return posts, clustered
+
+
+def test_glued_stories_split_instead_of_dropping(capsys):
+    """A candidate whose faces share no subject word becomes one planet per story."""
+    posts, clustered = _glued_candidate(
+        [
+            _story_blob("diesel", 24, seed=3),
+            _story_blob("measles", 20, seed=11),
+        ]
+    )
+    topics, membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=10)
+    logged = capsys.readouterr().out
+    assert "its faces are different stories." not in logged
+    assert "Splitting" in logged
+    assert len(topics) == 2
+    names = " ".join(topic["name"].lower() for topic in topics)
+    assert "diesel" in names
+    assert "measles" in names
+    assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in topics)
+    authors = {uri.split("/")[2] for uri, _topic in membership}
+    assert authors == {"diesel", "measles"}
+    for topic in topics:
+        words = {word for face in topic["perspectives"] for word in (face.get("top_terms") or [])}
+        assert words
+        # Each planet's faces are one story, so they share that story's word.
+        blob = "diesel" if "diesel" in topic["name"].lower() else "measles"
+        assert all(blob in str(face.get("title") or "").lower() or blob in str(face.get("summary") or "").lower() or blob in " ".join(face.get("top_terms") or []) for face in topic["perspectives"])
+
+
+def test_different_stories_stay_published_through_the_later_guard(capsys):
+    """The post-label guard does not drop a planet for being a different story.
+
+    A glued candidate is split into planets. Once those planets exist, removing
+    faces with no shared claim does not throw them away, and a planet that
+    arrives with one face still is.
+    """
+    posts, clustered = _glued_candidate(
+        [
+            _story_blob("diesel", 24, seed=3),
+            _story_blob("measles", 20, seed=11),
+        ]
+    )
+    topics, _membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=10)
+    logged = capsys.readouterr().out
+    assert len(topics) == 2
+    assert "Splitting" in logged
+    assert not any(
+        line.startswith("Dropping") and "different stories" in line for line in logged.splitlines()
+    )
+    kept = live._drop_unshared_planets(topics)
+    assert [topic["name"] for topic in kept] == [topic["name"] for topic in topics]
+    lone = {
+        **topics[0],
+        "name": "Lone",
+        "perspectives": topics[0]["perspectives"][:1],
+    }
+    assert live._drop_unshared_planets([lone]) == []
+
+
+def test_split_planets_stay_within_the_catalog(capsys):
+    posts, clustered = _glued_candidate(
+        [
+            _story_blob("diesel", 24, seed=3),
+            _story_blob("measles", 20, seed=11),
+            _story_blob("bitcoin", 18, seed=19),
+        ]
+    )
+    topics, membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=2)
+    logged = capsys.readouterr().out
+    assert len(topics) == 2
+    assert "the catalog already has 2 planets" in logged
+    assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in topics)
+    assert len({topic_id for _uri, topic_id in membership}) == 2
+
+
+def test_single_post_story_is_skipped_with_a_reason(capsys):
+    diesel_posts, diesel_matrix = _story_blob("diesel", 16, seed=4)
+    lone = {
+        "uri": "at://hurricane/0",
+        "author": "hurricane.0",
+        "clean_text": "hurricane hurricane landfall warning",
+        "text": "hurricane hurricane landfall warning",
+        "likes": 1,
+    }
+    # A 1-post face cannot come from the face splitter's floors, so build the
+    # drafted rows the splitter would hand to the story cut.
+    members = diesel_posts + [lone]
+    drafted = [
+        (
+            {
+                "title": "Diesel",
+                "summary": "Diesel exports are the claim.",
+                "representative_posts": [{"text": post["text"]} for post in diesel_posts[:3]],
+            },
+            [(post["uri"], 0, 0.1) for post in diesel_posts],
+            len(diesel_posts),
+        ),
+        (
+            {
+                "title": "Hurricane",
+                "summary": "A hurricane is the claim.",
+                "representative_posts": [{"text": lone["text"]}],
+            },
+            [(lone["uri"], 1, 0.2)],
+            1,
+        ),
+    ]
+    topic = {"id": 0, "terms": ["glued"], "member_indices": list(range(len(members))), "size": len(members)}
+    clustered = {"matrix": np.vstack([diesel_matrix, _blobs([1], seed=8)]), "topics": [topic]}
+    handled, result, log = live._split_different_stories(
+        members, clustered, topic, live._label_context(SETTINGS), members, drafted, []
+    )
+    assert handled is True
+    assert any(line.startswith("INFO ") and "1 post" in line for line in log)
+    assert not any("Folding" in line for line in log)
+    assert result is not None
+    assert result["floor_excluded"] == 1
+    assert len(result["planets"]) == 1
+    assert "diesel" in result["planets"][0]["planet"]["name"].lower()
+    assert all("hurricane" not in uri for uri in result["planets"][0]["membership"])
+    del capsys
+
+
+def _spy_labelers(monkeypatch):
+    """Record posts handed to the label, name, and rename calls."""
+    seen = []
+
+    def wrap(name):
+        real = getattr(live, name)
+
+        def spy(*args, **kwargs):
+            posts = args[0] if args else []
+            if isinstance(posts, list):
+                blob = " ".join(
+                    str(post.get("text") or post.get("clean_text") or "")
+                    for post in posts
+                    if isinstance(post, dict)
+                )
+                seen.append((name, blob))
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(live, name, spy)
+
+    for name in ("label_perspective", "label_topic", "name_from_perspectives"):
+        wrap(name)
+    return seen
+
+
+def _drafted_stories(stories):
+    """Pre-labeled faces, one per story, as ``_split_different_stories`` receives them."""
+    members = []
+    drafted = []
+    blocks = []
+    for posts, matrix in stories:
+        start = len(members)
+        members.extend(posts)
+        blocks.append(matrix)
+        drafted.append(
+            (
+                {
+                    "title": posts[0]["text"].split()[0].capitalize(),
+                    "summary": f"{posts[0]['text'].split()[0]} is the claim.",
+                    "representative_posts": [{"text": post["text"]} for post in posts[:3]],
+                },
+                [(post["uri"], len(drafted), 0.1) for post in posts],
+                len(posts),
+            )
+        )
+        del start
+    topic = {"id": 0, "terms": ["glued"], "member_indices": list(range(len(members))), "size": len(members)}
+    clustered = {"matrix": np.vstack(blocks), "topics": [topic]}
+    return members, clustered, topic, drafted
+
+
+def test_split_child_under_the_floor_is_excluded_without_label_calls(monkeypatch):
+    seen = _spy_labelers(monkeypatch)
+    members, clustered, topic, drafted = _drafted_stories(
+        [
+            _story_blob("diesel", 16, seed=4),
+            _story_blob("measles", 3, seed=9),
+        ]
+    )
+    context = live._label_context(SETTINGS)
+    context["section"] = "Health"
+    handled, result, log = live._split_different_stories(
+        members, clustered, topic, context, members, drafted, []
+    )
+    assert handled is True
+    assert result is not None
+    assert len(result["planets"]) == 1
+    assert "diesel" in result["planets"][0]["planet"]["name"].lower()
+    assert result["floor_excluded"] == 1
+    assert any(line.startswith("INFO Health:") and "3 posts" in line for line in log)
+    assert seen
+    assert all("measles" not in blob for _name, blob in seen)
+
+
+def test_split_child_at_the_floor_is_kept(monkeypatch):
+    seen = _spy_labelers(monkeypatch)
+    members, clustered, topic, drafted = _drafted_stories(
+        [
+            _story_blob("diesel", 16, seed=4),
+            _story_blob("measles", 5, seed=9),
+        ]
+    )
+    handled, result, log = live._split_different_stories(
+        members, clustered, topic, live._label_context(SETTINGS), members, drafted, []
+    )
+    assert handled is True
+    assert result is not None
+    assert len(result["planets"]) == 2
+    names = " ".join(bundle["planet"]["name"].lower() for bundle in result["planets"])
+    assert "diesel" in names
+    assert "measles" in names
+    assert result["floor_excluded"] == 0
+    assert any("measles" in blob for _name, blob in seen)
+    assert not any(line.startswith("INFO ") for line in log)
+
+
+def test_min_planet_posts_override_excludes_a_child_the_default_keeps(monkeypatch):
+    members, clustered, topic, drafted = _drafted_stories(
+        [
+            _story_blob("diesel", 16, seed=4),
+            _story_blob("measles", 6, seed=9),
+        ]
+    )
+    default_handled, default_result, _default_log = live._split_different_stories(
+        members, clustered, topic, live._label_context(SETTINGS), members, drafted, []
+    )
+    assert default_handled is True
+    assert len(default_result["planets"]) == 2
+
+    seen = _spy_labelers(monkeypatch)
+    overridden = live._label_context({**SETTINGS, "min_planet_posts": 8})
+    overridden["section"] = "Health"
+    handled, result, log = live._split_different_stories(
+        members, clustered, topic, overridden, members, drafted, []
+    )
+    assert handled is True
+    assert result is not None
+    assert len(result["planets"]) == 1
+    assert "measles" not in result["planets"][0]["planet"]["name"].lower()
+    assert result["floor_excluded"] == 1
+    assert any(line.startswith("INFO Health:") and "6 posts" in line for line in log)
+    assert all("measles" not in blob for _name, blob in seen)
+
+
+def test_planet_that_shrinks_below_the_floor_is_not_named(monkeypatch, capsys):
+    """Face labels can leave fewer posts than the floor. Skip the name and do not publish."""
+
+    def fake_faces(members, split, terms, context, lock_floor=False):
+        del split, terms, context, lock_floor
+        drafted = []
+        cursor = 0
+        for position, size in enumerate((2, 1)):
+            chunk = members[cursor : cursor + size]
+            cursor += size
+            drafted.append(
+                (
+                    {
+                        "title": "Diesel exports",
+                        "summary": "Diesel exports are the claim.",
+                        "representative_posts": [{"text": post["text"]} for post in chunk],
+                    },
+                    [(post["uri"], position, 0.1) for post in chunk],
+                    size,
+                )
+            )
+        return drafted, 2
+
+    monkeypatch.setattr(live, "_label_faces", fake_faces)
+    named = []
+
+    def fake_name(*args, **kwargs):
+        del args, kwargs
+        named.append("name")
+        return {"name": "Nope", "label_source": "heuristic"}
+
+    monkeypatch.setattr(live, "label_topic", fake_name)
+    posts, matrix = _story_blob("diesel", 12, seed=3)
+    clustered = {
+        "topics": [{"id": 0, "size": 12, "member_indices": list(range(12)), "terms": ["diesel"]}],
+        "matrix": matrix,
+        "assignments": [],
+        "noise_count": 0,
+    }
+    topics, _membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=1)
+    logged = capsys.readouterr().out
+    assert topics == []
+    assert named == []
+    assert "INFO All topics:" in logged
+    assert "3 posts" in logged
+
+
+def test_whole_planet_under_the_floor_is_not_labeled_or_used_as_filler(monkeypatch, capsys):
+    seen = _spy_labelers(monkeypatch)
+    small_posts, small_matrix = _story_blob("measles", 4, seed=2)
+    big_posts, big_matrix = _story_blob("diesel", 16, seed=6)
+    posts = small_posts + big_posts
+    clustered = {
+        "topics": [
+            {"id": 0, "size": 4, "member_indices": [0, 1, 2, 3], "terms": ["measles"]},
+            {"id": 1, "size": 16, "member_indices": list(range(4, 20)), "terms": ["diesel"]},
+        ],
+        "matrix": np.vstack([small_matrix, big_matrix]),
+        "assignments": [],
+        "noise_count": 0,
+    }
+    topics, membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=1)
+    logged = capsys.readouterr().out
+    assert len(topics) == 1
+    assert "diesel" in topics[0]["name"].lower()
+    assert "INFO All topics:" in logged
+    assert "4 posts" in logged
+    assert "measles" in logged.lower()
+    assert all("measles" not in blob for _name, blob in seen)
+    assert {uri.split("/")[2] for uri, _topic in membership} == {"diesel"}
