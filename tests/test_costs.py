@@ -620,6 +620,37 @@ def test_r2_increments_reconstruct_the_month_bill_and_same_day_replacement():
         class_b_ops=0,
     )
     assert shrunk == Decimal("-0.15")
+    recorded = r2_ledger_row(
+        [first],
+        identity={
+            "run_id": "r2-shrink",
+            "run_started_utc": "2026-10-08T07:00:00Z",
+            "date_utc": "2026-10-08",
+            "trigger": "schedule",
+        },
+        posts_processed=1,
+        planets_published=1,
+        usage={
+            "class_a_ops": 10,
+            "class_b_ops": 0,
+            "storage_bytes": 300_000_000_000,
+            "storage_known": True,
+        },
+    )
+    assert recorded is not None
+    assert Decimal(recorded["cost_usd"]) == 0
+    assert Decimal(recorded["list_price_usd"]) > 0
+    assert "rather than a credit" in render_readme([first, recorded], today=date(2026, 10, 8))
+    poison = dict(recorded)
+    poison["run_id"] = "poison"
+    poison["cost_usd"] = "-4"
+    _weeks, recent = weekly_rollup([poison], today=date(2026, 10, 8))
+    assert recent.r2_usd == 0
+    assert recent.total_usd == 0
+    from pipeline.costs import daily_spend
+
+    series = daily_spend([poison], today=date(2026, 10, 8))
+    assert all(Decimal(item["r2"]) >= 0 for item in series)
 
 
 def test_daily_spend_svg_is_fourteen_days_with_gaps_and_valid_xml():
@@ -708,6 +739,32 @@ def test_legacy_header_migrates_without_dropping_rows(tmp_path):
     append_ledger(ledger, [_row("newer", "2026-10-08", SERVICE_JEV, "0.042", 10, 1)])
     assert ledger.read_text(encoding="utf-8").startswith(migrated)
     assert [row["run_id"] for row in read_ledger(ledger)] == ["old-a", "old-b", "new-run", "newer"]
+
+
+def test_chart_failure_still_publishes_the_ledger_and_table(tmp_path, monkeypatch):
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("svg down")
+
+    monkeypatch.setattr("pipeline.costs.write_daily_spend_svg", boom)
+    run_path = tmp_path / "cost_run.json"
+    write_cost_run(
+        posts_processed=4,
+        planets_published=1,
+        started_at=datetime(2026, 10, 8, 6, 0, tzinfo=timezone.utc),
+        path=run_path,
+        attempts=(),
+    )
+    usage = tmp_path / "r2_usage.json"
+    usage.write_text(
+        '{"class_a_ops": 1, "class_b_ops": 1, "storage_bytes": 1000, "storage_known": true}\n',
+        encoding="utf-8",
+    )
+    ledger = tmp_path / "costs" / "ledger.csv"
+    readme = tmp_path / "costs" / "README.md"
+    assert append_run_files(run_path, ledger, readme, r2_usage_path=usage, today=date(2026, 10, 8)) == 0
+    assert ledger.is_file()
+    assert "rather than a credit" in readme.read_text(encoding="utf-8")
+    assert not (tmp_path / "costs" / "daily_spend_14d.svg").exists()
 
 
 def test_r2_usage_appends_a_row_and_notes_the_free_tier(tmp_path):

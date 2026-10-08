@@ -621,6 +621,11 @@ def iso_week_label(day: date) -> str:
     return f"{iso.year}-W{iso.week:02d}"
 
 
+def _nonnegative_cost(row: dict) -> Decimal:
+    """Billed dollars for the table and chart. A credit is shown as zero."""
+    return max(Decimal(0), Decimal(row.get("cost_usd") or "0"))
+
+
 def _accumulate(rows: list[dict[str, str]]) -> CostTotals:
     """Sum money by service. Count posts and planets once per run_id."""
     per_run: dict[str, dict[str, int]] = {}
@@ -629,7 +634,7 @@ def _accumulate(rows: list[dict[str, str]]) -> CostTotals:
     r2 = Decimal("0")
     total = Decimal("0")
     for row in rows:
-        cost = Decimal(row["cost_usd"] or "0")
+        cost = _nonnegative_cost(row)
         total += cost
         service = row["service"]
         if service == SERVICE_JEV:
@@ -814,13 +819,15 @@ def r2_billed_increment_usd(
     class_a_ops: int,
     class_b_ops: int,
 ) -> Decimal:
-    """Increase in this month's R2 bill caused by one run.
+    """Signed change in this month's R2 bill. Internal free-tier model.
 
     Days since the previous R2 row are included, at the last known object
     size, because those days were not in the earlier bill. A later run on
     the same UTC day replaces that day's storage measurement and adds its
-    operations. The result can be negative when a smaller object reduces
-    the month's bill. Summing these increments reconstructs the month bill.
+    operations. The signed result can be negative when a smaller object
+    lowers the month's bill. Summing these signed increments reconstructs
+    that bill. The ledger row stores ``max(0, increment)`` instead, so a
+    shrink is not a credit.
     """
     before_day = _previously_billed_day(prior_rows, run_day)
     before = Decimal(0) if before_day is None else r2_month_bill_usd(prior_rows, as_of=before_day)
@@ -885,7 +892,7 @@ def r2_ledger_row(
             "failed_calls": 0,
             "input_tokens": 0,
             "output_tokens": 0,
-            "cost_usd": billed,
+            "cost_usd": max(Decimal(0), billed),
             "cost_source": "computed",
             "posts_processed": int(posts_processed),
             "planets_published": int(planets_published),
@@ -922,10 +929,13 @@ def _r2_free_tier_sentence(rows: list[dict[str, str]], *, today: date) -> str:
             f"The R2 column is billed spend after the monthly free tier ({allowance})."
         )
     if r2_month_bill_usd(rows, as_of=today) == 0:
-        return (
-            f"R2 is currently inside the monthly free tier ({allowance}), "
-            "so the R2 column and the chart show $0.00."
-        )
+        shown = _accumulate([row for row in rows if row.get("service") == SERVICE_R2]).r2_usd
+        if shown == 0:
+            return (
+                f"R2 is currently inside the monthly free tier ({allowance}), "
+                "so the R2 column and the chart show $0.00."
+            )
+        return f"R2 is currently inside the monthly free tier ({allowance})."
     return (
         "The R2 column is billed spend above the monthly free tier "
         f"({allowance})."
@@ -952,7 +962,7 @@ def daily_spend(rows: list[dict[str, str]], *, today: date) -> list[dict[str, De
         bucket = index.get(day)
         if bucket is None:
             continue
-        cost = Decimal(row.get("cost_usd") or "0")
+        cost = _nonnegative_cost(row)
         service = row.get("service")
         if service == SERVICE_JEV:
             bucket["jev"] = Decimal(bucket["jev"]) + cost
@@ -1212,7 +1222,7 @@ def render_readme(rows: list[dict[str, str]], *, today: date | None = None) -> s
         "",
         f"DeepInfra labeling dollars are the provider's `usage.estimated_cost` on each response. Jev dollars are computed, not reported by the API: input tokens × ${price} per 1,000,000 (published price dated {JEV_PRICE_AS_OF}). Jev output tokens are free. {_r2_pricing_sentence()} {_r2_free_tier_sentence(rows, today=moment)} Local embeddings, GitHub Actions, and Bluesky reads are not listed.",
         "",
-        "Posts are the `total_posts` figure in that run's `data.json` (claims that entered clustering). Planets are every planet written into that file, including section solar systems. Both are counted once per run, even when the run has a DeepInfra row, a Jev row, and an R2 row. `$ per 1,000 posts` is total dollars ÷ posts × 1,000. `$ per planet` is total dollars ÷ planets published. The table uses billed `cost_usd`. For R2 that is spend above the monthly free tier. `list_price_usd` is the list price of that row.",
+        "Posts are the `total_posts` figure in that run's `data.json` (claims that entered clustering). Planets are every planet written into that file, including section solar systems. Both are counted once per run, even when the run has a DeepInfra row, a Jev row, and an R2 row. `$ per 1,000 posts` is total dollars ÷ posts × 1,000. `$ per planet` is total dollars ÷ planets published. The table uses billed `cost_usd`. For R2 that is spend above the monthly free tier. `list_price_usd` is the list price of that row. A same-day rerun that shrinks storage records $0 rather than a credit.",
         "",
         "## Last 14 days",
         "",
@@ -1278,7 +1288,10 @@ def _identity_from_payload(payload: dict) -> dict[str, str]:
 
 def _publish_cost_views(readme_path: Path, rows: list[dict[str, str]], *, today: date) -> None:
     write_readme(readme_path, rows, today=today)
-    write_daily_spend_svg(readme_path.parent / CHART_PATH.name, rows, today=today)
+    try:
+        write_daily_spend_svg(readme_path.parent / CHART_PATH.name, rows, today=today)
+    except Exception as exc:
+        warn(f"Cost chart update failed: {exc}")
 
 
 def append_run_files(

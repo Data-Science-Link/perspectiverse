@@ -164,12 +164,12 @@ jobs:
                 R2_USAGE_ARG="--r2-usage /tmp/perspectiverse-snapshot/r2_usage.json"
               fi
               if source .venv/bin/activate && python -m pipeline.costs append --run /tmp/perspectiverse-snapshot/cost_run.json --ledger "$LEDGER" --readme "$README" $R2_USAGE_ARG; then
-                if [ -f "$LEDGER" ] && [ -f "$README" ] && [ -f /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg ]; then
-                  COST_READY=1
-                fi
+                :
               else
-                echo "::warning::Cost ledger update failed; the discourse snapshot will still publish"
+                echo "::warning::Cost ledger update failed; publishing any cost files that were written. The discourse snapshot will still publish"
               fi
+              # A chart-only failure must not drop the ledger or the table.
+              COST_READY=1
             fi
           else
             echo "::warning::No cost run file; leaving the cost ledger unchanged"
@@ -204,10 +204,18 @@ jobs:
           # costs/ files; this replaces them with previous rows plus this run.
           if [ "$COST_READY" = "1" ]; then
             mkdir -p costs
-            cp /tmp/perspectiverse-snapshot/costs/ledger.csv costs/ledger.csv
-            cp /tmp/perspectiverse-snapshot/costs/README.md costs/README.md
-            cp /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg costs/daily_spend_14d.svg
-            git add -- costs/ledger.csv costs/README.md costs/daily_spend_14d.svg
+            if [ -f /tmp/perspectiverse-snapshot/costs/ledger.csv ]; then
+              cp /tmp/perspectiverse-snapshot/costs/ledger.csv costs/ledger.csv
+              git add -- costs/ledger.csv
+            fi
+            if [ -f /tmp/perspectiverse-snapshot/costs/README.md ]; then
+              cp /tmp/perspectiverse-snapshot/costs/README.md costs/README.md
+              git add -- costs/README.md
+            fi
+            if [ -f /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg ]; then
+              cp /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg costs/daily_spend_14d.svg
+              git add -- costs/daily_spend_14d.svg
+            fi
           fi
           if git diff --cached --quiet; then
             echo "Snapshot unchanged"

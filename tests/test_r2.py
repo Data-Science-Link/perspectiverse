@@ -407,5 +407,8 @@ def test_daily_workflow_uploads_only_after_a_successful_run():
     assert "r2_usage.json" in workflow
     assert "--r2-usage" in workflow
     assert "costs/daily_spend_14d.svg" in workflow
+    assert "if [ -f /tmp/perspectiverse-snapshot/costs/ledger.csv ]" in workflow
+    assert "if [ -f /tmp/perspectiverse-snapshot/costs/README.md ]" in workflow
+    assert "if [ -f /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg ]" in workflow
     assert "public/data.json" in pages
     assert "live_corpus.db" not in pages

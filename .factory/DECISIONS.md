@@ -181,3 +181,9 @@ Append-only. Newest at the bottom.
 - **Why:** Michael asked for actual R2 spend in the log and the graph, and for a 14-day chart that does not commit to `main` every day.
 - **Alternatives:** List every object in the bucket. Record only the list price and ignore the free tier. Apply the whole-unit rounding. Commit the SVG to `main` on each run.
 - **Revisit when:** Cloudflare changes the Standard price or the free tier, a monthly invoice disagrees because of whole-unit rounding, or the bucket holds objects other than the corpus.
+
+### 2026-10-08 — A smaller R2 object is not a credit (#80)
+- **Decision:** This adds to [2026-10-08 — R2 Standard price, free tier, and the 14-day chart (#80)](#2026-10-08-r2-standard-price-free-tier-and-the-14-day-chart-80). The month bill is still computed from storage and operations above the free tier. The signed increment can be negative when a later measurement is smaller. The ledger row stores `cost_usd` as `max(0, increment)`. `list_price_usd` stays this run's list price. The weekly table and the chart sum those non-negative amounts, so neither total can go below zero. A same-day rerun that shrinks storage records $0 rather than a credit. If only the SVG fails, the ledger and the table are still published.
+- **Why:** Michael wants the table and the chart to show actual spend. A negative row reads as a refund.
+- **Alternatives:** Record the negative so the month's rows sum to the month bill. Hold the ledger and the table until the SVG exists.
+- **Revisit when:** A monthly invoice needs that credit in order to reconcile.
