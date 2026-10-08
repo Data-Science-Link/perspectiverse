@@ -23,6 +23,9 @@ from pipeline.costs import (
     append_ledger,
     append_run_files,
     count_published_planets,
+    format_axis_tick_usd,
+    format_chart_usd,
+    format_ledger_usd,
     format_usd,
     get_meter,
     iso_week_label,
@@ -267,9 +270,9 @@ def test_append_preserves_earlier_rows(tmp_path):
     assert text.startswith(original)
     rows = read_ledger(ledger)
     assert [row["run_id"] for row in rows] == ["earlier-run", "later-run"]
-    assert rows[0]["cost_usd"] == "0.0100"
+    assert rows[0]["cost_usd"] == "0.01"
     assert rows[0]["posts_processed"] == "800"
-    assert rows[1]["cost_usd"] == "0.0200"
+    assert rows[1]["cost_usd"] == "0.02"
     assert list(rows[0]) == LEDGER_COLUMNS
 
 
@@ -455,6 +458,8 @@ def test_published_planets_include_sections_and_files_stay_off_the_site():
         in readme
     )
     assert "costs/README.md" in readme
+    assert "appears after the next pipeline run" not in readme
+    assert "live chart" in readme
 
 
 def test_http_error_keeps_usage_for_the_meter(monkeypatch):
@@ -491,6 +496,50 @@ def test_zero_posts_render_as_not_applicable():
     assert "n/a" in render_readme(rows, today=date(2026, 10, 8))
     assert format_usd(Decimal("0.042")) == "0.042"
     assert format_usd(Decimal("2")) == "2.00"
+
+
+def test_format_chart_usd_prefixes_dollars_and_rounds():
+    assert format_chart_usd(Decimal("0")) == "$0.00"
+    assert format_chart_usd(Decimal("0.20")) == "$0.20"
+    assert format_chart_usd(Decimal("0.20065354")) == "$0.20"
+    assert format_chart_usd(Decimal("1.542")) == "$1.54"
+    assert format_chart_usd(Decimal("0.000021")) == "$0.000021"
+    assert format_chart_usd(Decimal("0.00999")) == "$0.01"
+    assert format_axis_tick_usd(Decimal("0.125")) == "$0.125"
+    assert format_axis_tick_usd(Decimal("0.375")) == "$0.375"
+    assert format_axis_tick_usd(Decimal("0.5")) == "$0.50"
+
+
+def test_ledger_usd_rounds_to_eight_decimals_on_write(tmp_path):
+    ledger = tmp_path / "ledger.csv"
+    noisy = Decimal("0.101658500000000001872")
+    append_ledger(
+        ledger,
+        [
+            {
+                "run_id": "noise-run",
+                "run_started_utc": "2026-10-08T06:00:00Z",
+                "date_utc": "2026-10-08",
+                "trigger": "schedule",
+                "service": SERVICE_DEEPINFRA,
+                "model": "unit-test-llm",
+                "calls": 1,
+                "failed_calls": 0,
+                "input_tokens": 1,
+                "output_tokens": 1,
+                "cost_usd": noisy,
+                "cost_source": "reported",
+                "posts_processed": 1,
+                "planets_published": 1,
+                "list_price_usd": noisy,
+            }
+        ],
+    )
+    assert format_ledger_usd(noisy) == "0.1016585"
+    rows = read_ledger(ledger)
+    assert rows[0]["cost_usd"] == "0.1016585"
+    assert rows[0]["list_price_usd"] == "0.1016585"
+    assert "000000001872" not in ledger.read_text(encoding="utf-8")
 
 
 def test_r2_list_price_prorates_a_gb_month_and_prices_operations():
@@ -686,7 +735,27 @@ def test_daily_spend_svg_is_fourteen_days_with_gaps_and_valid_xml():
     assert "Jev" in labels
     assert "R2" in labels
     assert "UTC day" in labels
+    assert "$1.54" in labels
+    assert "$0.25" in labels
+    assert _money_chart_labels(labels) == {label for label in labels if label and label.startswith("$")}
     assert text.startswith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+
+
+def test_daily_spend_svg_axis_ticks_show_unrounded_scale_at_half_dollar_max():
+    import xml.etree.ElementTree as ET
+
+    today = date(2026, 10, 8)
+    rows = [_row("run-a", "2026-10-08", SERVICE_R2, "0.40", 10, 1)]
+    text = render_daily_spend_svg(rows, today=today)
+    labels = [
+        element.text
+        for element in ET.parse(io.StringIO(text)).getroot().iter()
+        if element.tag.endswith("text")
+    ]
+    assert "$0.125" in labels
+    assert "$0.375" in labels
+    assert "$0.50" in labels
+    assert _money_chart_labels(labels) == {label for label in labels if label and label.startswith("$")}
 
 
 def test_legacy_header_migrates_without_dropping_rows(tmp_path):
@@ -732,7 +801,7 @@ def test_legacy_header_migrates_without_dropping_rows(tmp_path):
     assert [row["run_id"] for row in rows] == ["old-a", "old-b", "new-run"]
     assert rows[0]["cost_usd"] == "0.021"
     assert rows[0]["list_price_usd"] == "0.021"
-    assert rows[2]["list_price_usd"] == "0.0200"
+    assert rows[2]["list_price_usd"] == "0.02"
     assert rows[2]["service"] == SERVICE_DEEPINFRA
     migrated = ledger.read_text(encoding="utf-8")
     assert migrated.splitlines()[0].split(",") == LEDGER_COLUMNS
@@ -805,6 +874,19 @@ def test_r2_usage_appends_a_row_and_notes_the_free_tier(tmp_path):
     root = ET.parse(io.StringIO(chart)).getroot()
     assert root.tag.endswith("svg")
     assert len([element for element in root.iter() if element.tag.endswith("g") and element.get("data-date")]) == 14
+
+
+def _money_chart_labels(labels: list[str | None]) -> set[str]:
+    skip = {"LLM labeling", "Jev", "R2", "UTC day"}
+    money: set[str] = set()
+    for label in labels:
+        if not label or label in skip:
+            continue
+        if len(label) == 5 and label[2] == "-" and label[:2].isdigit() and label[3:].isdigit():
+            continue
+        money.add(label)
+        assert label.startswith("$")
+    return money
 
 
 def _r2_row(day: str, storage_bytes: int, *, class_a: int, class_b: int) -> dict[str, str]:

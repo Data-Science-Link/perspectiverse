@@ -22,7 +22,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 
 # Published TypeSafe price for Jev. Dated 2026-10-08.
@@ -101,6 +101,7 @@ _INTEGER_COLUMNS = (
     "class_a_ops",
     "class_b_ops",
 )
+_LEDGER_USD_QUANTUM = Decimal("0.00000001")
 
 _CHART_DAYS = 14
 _LLM_COLOR = "#3b6ea5"
@@ -487,7 +488,10 @@ def _stringify_row(row: dict) -> dict[str, str]:
     out: dict[str, str] = {}
     for column in LEDGER_COLUMNS:
         value = row[column]
-        if isinstance(value, Decimal):
+        if column in ("cost_usd", "list_price_usd"):
+            amount = value if isinstance(value, Decimal) else Decimal(str(value))
+            out[column] = format_ledger_usd(amount)
+        elif isinstance(value, Decimal):
             out[column] = "0" if value == 0 else format(value, "f")
         else:
             out[column] = str(value)
@@ -679,8 +683,21 @@ def weekly_rollup(
     return weeks, _accumulate(recent)
 
 
+def format_ledger_usd(amount: Decimal) -> str:
+    """Dollar string for ``costs/ledger.csv`` (eight decimal places, no float noise)."""
+    quantized = amount.quantize(_LEDGER_USD_QUANTUM, rounding=ROUND_HALF_UP)
+    text = format(quantized, "f")
+    if "." not in text:
+        return text
+    whole, fraction = text.split(".", 1)
+    fraction = fraction.rstrip("0")
+    if not fraction:
+        return whole
+    return f"{whole}.{fraction}"
+
+
 def format_usd(amount: Decimal) -> str:
-    quantized = amount.quantize(Decimal("0.00000001"))
+    quantized = amount.quantize(_LEDGER_USD_QUANTUM)
     text = format(quantized, "f")
     if "." in text:
         whole, fraction = text.split(".", 1)
@@ -689,6 +706,38 @@ def format_usd(amount: Decimal) -> str:
             fraction = fraction.ljust(2, "0")
         return f"{whole}.{fraction}"
     return text + ".00"
+
+
+def format_axis_tick_usd(amount: Decimal) -> str:
+    """Y-axis tick label: ``$`` prefix, at least two decimals, trailing zeros stripped."""
+    quantized = amount.quantize(_LEDGER_USD_QUANTUM, rounding=ROUND_HALF_UP)
+    text = format(quantized, "f")
+    if "." in text:
+        whole, fraction = text.split(".", 1)
+        fraction = fraction.rstrip("0")
+        if len(fraction) < 2:
+            fraction = fraction.ljust(2, "0")
+        return f"${whole}.{fraction}"
+    return f"${text}.00"
+
+
+def format_chart_usd(amount: Decimal) -> str:
+    """Dollar label for stacked bar totals (``$`` prefix; 2 decimals at or above one cent)."""
+    if amount == 0:
+        return "$0.00"
+    rounded_cent = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if rounded_cent >= Decimal("0.01"):
+        return f"${format(rounded_cent, 'f')}"
+    rounded = amount.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    if rounded != 0:
+        return f"${format(rounded, 'f')}"
+    rounded = amount.quantize(_LEDGER_USD_QUANTUM, rounding=ROUND_HALF_UP)
+    text = format(rounded, "f")
+    whole, fraction = text.split(".", 1)
+    fraction = fraction.rstrip("0")
+    if not fraction:
+        return f"${whole}.00"
+    return f"${whole}.{fraction}"
 
 
 def _table_row(cells: list[str]) -> str:
@@ -1062,7 +1111,7 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
                 "fill": "#333333",
             },
         )
-        label.text = f"${format_usd(tick)}"
+        label.text = format_axis_tick_usd(tick)
     ET.SubElement(
         svg,
         "line",
@@ -1134,7 +1183,7 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
                 "fill": "#333333",
             },
         )
-        total_text.text = format_usd(total)
+        total_text.text = format_chart_usd(total)
         day_label = ET.SubElement(
             svg,
             "text",
