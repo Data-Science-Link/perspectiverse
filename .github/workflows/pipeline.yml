@@ -123,6 +123,58 @@ jobs:
           mkdir -p /tmp/perspectiverse-snapshot
           cp public/data.json /tmp/perspectiverse-snapshot/data.json
           cp pipeline/data/live_corpus.db /tmp/perspectiverse-snapshot/live_corpus.db
+          # cost_run.json is gitignored. Copy it before reset so the ledger
+          # step still has this run if the worktree is discarded.
+          if [ -f pipeline/data/cost_run.json ]; then
+            cp pipeline/data/cost_run.json /tmp/perspectiverse-snapshot/cost_run.json
+          fi
+          # r2_usage.json is gitignored and written by restore plus upload,
+          # which are separate processes from the live step.
+          if [ -f pipeline/data/r2_usage.json ]; then
+            cp pipeline/data/r2_usage.json /tmp/perspectiverse-snapshot/r2_usage.json
+          fi
+          # Build the ledger with THIS commit's pipeline.costs, before checkout
+          # switches the worktree onto data-snapshot (that branch does not carry
+          # the pipeline code). Read the existing ledger first and append.
+          # A failure here warns and still publishes data.json. costs/ is not
+          # under public/, so Pages does not deploy it. Nothing is committed
+          # to main.
+          COST_READY=0
+          if [ -f /tmp/perspectiverse-snapshot/cost_run.json ]; then
+            mkdir -p /tmp/perspectiverse-snapshot/costs
+            LEDGER=/tmp/perspectiverse-snapshot/costs/ledger.csv
+            README=/tmp/perspectiverse-snapshot/costs/README.md
+            SKIP_COSTS=0
+            if git ls-remote --exit-code --heads origin data-snapshot >/dev/null 2>&1; then
+              if git fetch origin data-snapshot; then
+                if git cat-file -e origin/data-snapshot:costs/ledger.csv 2>/dev/null; then
+                  if ! git show origin/data-snapshot:costs/ledger.csv > "$LEDGER"; then
+                    echo "::warning::Could not read costs/ledger.csv from data-snapshot; leaving the ledger unchanged"
+                    rm -f "$LEDGER"
+                    SKIP_COSTS=1
+                  fi
+                fi
+              else
+                echo "::warning::Could not fetch data-snapshot; leaving the cost ledger unchanged"
+                SKIP_COSTS=1
+              fi
+            fi
+            if [ "$SKIP_COSTS" = "0" ]; then
+              R2_USAGE_ARG=""
+              if [ -f /tmp/perspectiverse-snapshot/r2_usage.json ]; then
+                R2_USAGE_ARG="--r2-usage /tmp/perspectiverse-snapshot/r2_usage.json"
+              fi
+              if source .venv/bin/activate && python -m pipeline.costs append --run /tmp/perspectiverse-snapshot/cost_run.json --ledger "$LEDGER" --readme "$README" $R2_USAGE_ARG; then
+                :
+              else
+                echo "::warning::Cost ledger update failed; publishing any cost files that were written. The discourse snapshot will still publish"
+              fi
+              # A chart-only failure must not drop the ledger or the table.
+              COST_READY=1
+            fi
+          else
+            echo "::warning::No cost run file; leaving the cost ledger unchanged"
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # The live step dirties data.json and live_corpus.db. Those bytes are
@@ -149,9 +201,26 @@ jobs:
             echo "Unexpected R2 restore status"
             exit 1
           fi
+          # Overlay the appended ledger. The checkout already has the previous
+          # costs/ files; this replaces them with previous rows plus this run.
+          if [ "$COST_READY" = "1" ]; then
+            mkdir -p costs
+            if [ -f /tmp/perspectiverse-snapshot/costs/ledger.csv ]; then
+              cp /tmp/perspectiverse-snapshot/costs/ledger.csv costs/ledger.csv
+              git add -- costs/ledger.csv
+            fi
+            if [ -f /tmp/perspectiverse-snapshot/costs/README.md ]; then
+              cp /tmp/perspectiverse-snapshot/costs/README.md costs/README.md
+              git add -- costs/README.md
+            fi
+            if [ -f /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg ]; then
+              cp /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg costs/daily_spend_14d.svg
+              git add -- costs/daily_spend_14d.svg
+            fi
+          fi
           if git diff --cached --quiet; then
             echo "Snapshot unchanged"
             exit 0
           fi
-          git commit -m "Update discourse snapshot"
+          git commit -m "Update discourse snapshot and cost ledger"
           git push origin data-snapshot

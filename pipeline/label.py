@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import time
 from collections.abc import Callable
 
@@ -1407,12 +1408,37 @@ def _openai_generate(prompt: str, model: str) -> str:
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
     }
+    payload: dict | None = None
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
             payload = read_json(f"{base}/chat/completions", timeout=60, data=body, headers=headers)
-            break
         except RuntimeError as exc:
-            if attempt >= len(_RETRY_DELAYS) or not str(exc).startswith(_RETRY_STATUSES):
+            will_retry = attempt < len(_RETRY_DELAYS) and str(exc).startswith(_RETRY_STATUSES)
+            _remember_label_cost(
+                model,
+                getattr(exc, "payload", None),
+                "retry" if will_retry else "failure",
+            )
+            if not will_retry:
                 raise
             time.sleep(_RETRY_DELAYS[attempt])
+            continue
+        _remember_label_cost(model, payload, "success")
+        break
+    assert payload is not None
     return str(payload["choices"][0]["message"]["content"])
+
+
+def _remember_label_cost(model: str, payload: dict | None, status: str) -> None:
+    """Best effort. A metering error must not change the label result."""
+    try:
+        from pipeline.costs import llm_service_for_base_url, record_llm_attempt
+
+        record_llm_attempt(
+            service=llm_service_for_base_url(resolve_openai_base_url()),
+            requested_model=model,
+            payload=payload,
+            status=status,
+        )
+    except Exception as exc:
+        sys.stderr.write(f"WARNING: Cost log skipped for a labeling call: {exc}\n")

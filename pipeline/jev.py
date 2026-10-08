@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -191,15 +192,31 @@ def _post_systemone(text: str) -> dict:
     }
     delay = 0.4
     last: RuntimeError | None = None
-    for _attempt in range(4):
+    for attempt in range(4):
         try:
-            return read_json(SYSTEMONE_URL, timeout=30, data=body, headers=headers)
+            payload = read_json(SYSTEMONE_URL, timeout=30, data=body, headers=headers)
         except RuntimeError as exc:
             last = exc
             message = str(exc)
-            if "HTTP 429" not in message and "HTTP 529" not in message:
+            retryable = "HTTP 429" in message or "HTTP 529" in message
+            will_retry = retryable and attempt < 3
+            _remember_jev_cost(getattr(exc, "payload", None), "retry" if will_retry else "failure")
+            if not retryable:
                 raise
             time.sleep(delay)
             delay *= 2
+            continue
+        _remember_jev_cost(payload, "success")
+        return payload
     assert last is not None
     raise last
+
+
+def _remember_jev_cost(payload: dict | None, status: str) -> None:
+    """Best effort. A metering error must not change the Jev decision."""
+    try:
+        from pipeline.costs import record_jev_attempt
+
+        record_jev_attempt(requested_model=_model(), payload=payload, status=status)
+    except Exception as exc:
+        sys.stderr.write(f"WARNING: Cost log skipped for a Jev call: {exc}\n")

@@ -219,12 +219,24 @@ def _readonly_uri(path: Path) -> str:
     return f"file:{quoted}?mode=ro"
 
 
+def _remember_r2(**kwargs) -> None:
+    """Best effort. A usage-log error must not fail the corpus transfer."""
+    try:
+        from pipeline.costs import note_r2_usage
+
+        note_r2_usage(**kwargs)
+    except Exception as exc:
+        print(f"WARNING: R2 usage log skipped: {exc}", file=sys.stderr)
+
+
 def _download(config: R2Config, path: Path, opener) -> None:
     request = _signed_request(config, "GET", b"")
     response = _exchange(request, config.timeout, opener)
     partial = path.with_name(path.name + ".partial")
     try:
         status = _status(response)
+        if status != 401:
+            _remember_r2(class_b=1)
         if status == 404:
             raise CorpusAbsent(config.object_key)
         if status != 200:
@@ -256,7 +268,44 @@ def _upload(config: R2Config, path: Path, opener) -> None:
         status = _status(response)
         response.read()
         if status != 200:
+            if status != 401:
+                _remember_r2(class_a=1)
             raise RuntimeError(f"R2 upload failed with HTTP {status}")
+    finally:
+        _close(response)
+    stored = len(payload)
+    class_b = 0
+    try:
+        measured, class_b = _head_stored_bytes(config, opener)
+        if measured is not None:
+            stored = measured
+    except Exception as exc:
+        print(
+            f"WARNING: R2 storage size fell back to the uploaded byte length: {exc}",
+            file=sys.stderr,
+        )
+    _remember_r2(class_a=1, class_b=class_b, storage_bytes=stored)
+
+
+def _head_stored_bytes(config: R2Config, opener) -> tuple[int | None, int]:
+    """HEAD the corpus object. Returns ``(content_length, class_b count)``.
+
+    The count is 1 only after a response arrives. HTTP 401 is not billed.
+    Listing the bucket is not used: the signer has no query string, and the
+    bucket is meant to hold this one object.
+    """
+    request = _signed_request(config, "HEAD", b"")
+    response = _exchange(request, config.timeout, opener)
+    try:
+        status = _status(response)
+        try:
+            response.read()
+        except Exception:
+            pass
+        if status == 401:
+            return None, 0
+        length = _content_length(response) if status == 200 else None
+        return length, 1
     finally:
         _close(response)
 

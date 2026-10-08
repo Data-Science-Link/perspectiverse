@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import random
+import sys
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
@@ -96,6 +97,15 @@ def run_live(
     queries: list[str] | None = None,
     relabel: bool = False,
 ) -> Path:
+    started_at = datetime.now(timezone.utc)
+    # This process may already have recorded calls (a second live run, or
+    # tests). The artifact should be this run only.
+    try:
+        from pipeline.costs import reset_meter
+
+        reset_meter()
+    except Exception as exc:
+        print(f"WARNING: Cost meter reset skipped: {exc}", file=sys.stderr)
     settings = load_settings(config)
     target = int(settings.get("sample_size") or TARGET_POSTS)
     database = Path(db_path) if db_path else LIVE_CORPUS_DB
@@ -211,7 +221,22 @@ def run_live(
         f"from {len(cleaned)} posts in the window, "
         f"{clustered['noise_count']} excluded as noise, wrote {destination}"
     )
+    _write_cost_run(payload, started_at)
     return destination
+
+
+def _write_cost_run(payload: dict, started_at: datetime) -> None:
+    """Best effort. A cost-log error must not fail a snapshot that already wrote."""
+    try:
+        from pipeline.costs import count_published_planets, write_cost_run
+
+        write_cost_run(
+            posts_processed=int(payload.get("total_posts") or 0),
+            planets_published=count_published_planets(payload),
+            started_at=started_at,
+        )
+    except Exception as exc:
+        print(f"WARNING: Cost log skipped: {exc}", file=sys.stderr)
 
 
 def _topup_claims(
