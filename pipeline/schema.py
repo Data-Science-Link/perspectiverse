@@ -218,6 +218,17 @@ def category_for_members(name: str, terms: list[str], texts: list[str] | None, m
     return best
 
 
+def _check_face_distinctness(topic: dict[str, Any], label: str) -> None:
+    """Optional per-planet score. Absent is fine. Present must be in ``[0, 1]``."""
+    if "face_distinctness" not in topic or topic.get("face_distinctness") is None:
+        return
+    value = topic["face_distinctness"]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} face_distinctness must be a number from 0 to 1")
+    if not 0.0 <= float(value) <= 1.0:
+        raise ValueError(f"{label} face_distinctness must be from 0 to 1, found {value}")
+
+
 def validate_payload(payload: dict[str, Any]) -> None:
     """Fail fast if a snapshot drifts from the contract the UI expects."""
     if payload.get("mode") not in MODES:
@@ -249,6 +260,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
             raise ValueError(f"Topic {topic_id} is missing a name")
         if topic.get("category") not in ALLOWED_CATEGORIES:
             raise ValueError(f"Topic {topic_id} has an unknown category")
+        _check_face_distinctness(topic, f"Topic {topic_id}")
         perspectives = topic.get("perspectives") or []
         if not MIN_FACES <= len(perspectives) <= MAX_FACES:
             raise ValueError(
@@ -321,6 +333,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
                 seen_sec_ids.add(topic_id)
                 if not topic.get("name"):
                     raise ValueError(f"Section '{section_name}' topic {topic_id} is missing a name")
+                _check_face_distinctness(topic, f"Section '{section_name}' topic {topic_id}")
                 perspectives = topic.get("perspectives") or []
                 if not MIN_FACES <= len(perspectives) <= MAX_FACES:
                     raise ValueError(

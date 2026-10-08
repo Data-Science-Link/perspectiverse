@@ -21,6 +21,15 @@ const decorated = decorateTopics([{ id: 4, name: 'Example' }, { id: 9, name: 'Ot
 assert.equal(decorated[0].body.key, 'sun')
 assert.equal(decorated[1].body.key, 'mercury')
 
+const scored = decorateTopics([{ id: 1, name: 'Scored', face_distinctness: 0.42, perspectives: [] }])
+assert.equal(scored[0].face_distinctness, 0.42)
+assert.equal(scored[0].name, 'Scored')
+const unlabeled = decorateTopics([{ id: 2, name: 'Plain' }])
+assert.equal(Object.hasOwn(unlabeled[0], 'face_distinctness'), false)
+const odd = decorateTopics([{ id: 3, name: 'Odd', face_distinctness: 'n/a' }])
+assert.equal(odd[0].face_distinctness, 'n/a')
+assert.equal(odd[0].body.key, 'sun')
+
 globalThis.window = {
   location: { pathname: '/perspectiverse/', search: '' },
 }
