@@ -217,3 +217,16 @@ Append-only. Newest at the bottom.
 - **Why:** A 100K corpus should give larger, more natural planets, but not at the roughly $1.70/day the current design would cost.
 - **Alternatives:** A 50K-post window at the lower budget.
 - **Revisit when:** The cost ledger shows a sustained daily total above $0.30, or prices change.
+
+### 2026-10-08 — Group once; Jev picks the section per planet, not per post (#90, #87)
+- **Decision:** Michael approved this as the official plan on 2026-10-08. Each post goes through Jev once, for spam and claim only. The section question and section definitions come out of the per-post call. All claim posts are grouped in one natural (density-based) pass. Each planet then gets one Jev call on its summary and arguments, and Jev picks its section; a planet split between two sections may be listed in both. Planets are ranked by reach within each section, and each section shows its top 10. Each planet is labeled once, and that label is reused in the global and section lists. A section that can't fill 10 slots may be re-grouped on its own as a fallback. Switching over requires a shadow test, inside the approved ~$0.03 Jev budget, showing the planet-level section matches the majority of today's per-post sections for at least 90% of planets.
+- **Why:** Per-section re-grouping labels the same stories twice and classifies up to 100K posts by section. Judging a planet by what it actually argues handles mixed-section planets honestly, keeps the same story consistent across views, and cuts Jev section calls from one per post to one per planet (a few hundred a day). This also supports the $0.25/day target.
+- **Alternatives:** Re-group each section's posts separately (today's approach). Group once and assign a planet's section by majority vote of its posts' per-post Jev sections.
+- **Revisit when:** The shadow test misses the 90% bar, sections can't fill their top 10, or readers find planets in the wrong section.
+
+### 2026-10-08 — A named approval in the factory room is a merge instruction
+
+- **Decision:** When the human approver posts an approval naming a PR (e.g. "approve #88") in the project's factory room or a 1:1 chat with the worker, that message is a direct instruction for the worker to merge that PR on their behalf. The worker records the approval in the PR body, makes sure the branch is 0 behind the default branch with required checks green on the head commit, and merges, without asking for a second confirmation in another chat. Scope is the named PR only; it does not cover follow-ups, other PRs, or approvals relayed by another bot. If a catch-up changes the PR's behavior, the gate is re-asked.
+- **Why:** On Perspectiverse #88 the worker asked the approver to repeat an approval from the factory room in a 1:1 chat before it would merge. That duplicate step added friction and no safety: the PR body is the audit trail either way.
+- **Alternatives:** Require 1:1 confirmation for every merge (rejected: duplicate step); allow any room member or bot to approve (rejected: only the human approver holds the product gate).
+- **Revisit:** If a room ever includes humans who are not approvers, name the approvers explicitly.
