@@ -2,9 +2,10 @@
 
 The 2026-10-07 daily run died on ``Topic 2 should have 2-6 perspectives,
 found 1`` after face labels collapsed a split (a face with no shared claim,
-or two faces with the same title). These tests pin the honest behavior: pick
-2..6 faces by fit, keep small tight minorities, and drop a planet that cannot
-keep two distinct faces instead of padding it or failing the snapshot.
+or two faces with the same title). #53 dropped that planet. #76 keeps it:
+pick 2..6 faces by fit, keep small tight minorities, and when the split
+collapses, force two faces and record ``face_distinctness`` instead of
+dropping the planet or failing the snapshot.
 """
 
 from __future__ import annotations
@@ -71,7 +72,8 @@ def test_k_selection_never_leaves_two_to_six(seed):
     assert k is None or MIN_FACES <= k <= MAX_FACES
     split = split_perspectives(["post"] * matrix.shape[0], seed=seed, matrix=matrix)
     if k is None:
-        assert split["faces"] == []
+        assert len(split["faces"]) == 2
+        assert split["forced"] is True
     else:
         assert len(split["faces"]) == k
         assert all(face["size"] >= MIN_FACE_POSTS for face in split["faces"])
@@ -177,8 +179,8 @@ def _fake_labels(monkeypatch, titles_for):
     monkeypatch.setattr(live, "specific_shared_words", lambda faces: {"shared"})
 
 
-def test_planet_whose_faces_collapse_is_dropped_not_published(monkeypatch):
-    """The 2026-10-07 failure: labels merge every face into one. Drop the planet."""
+def test_planet_whose_faces_collapse_is_kept_with_a_score(monkeypatch):
+    """Labels that merge every face into one used to drop the planet. Keep it (#76)."""
     good = _planet_posts("ukraine", [30, 12], seed=11)
     collapsing = _planet_posts("medicare", [30, 12], seed=12)
 
@@ -190,14 +192,18 @@ def test_planet_whose_faces_collapse_is_dropped_not_published(monkeypatch):
     _fake_labels(monkeypatch, titles_for)
     posts, clustered = _clustered([good, collapsing])
     topics, membership, face_rows = live._build_topics(posts, clustered, SETTINGS, keep=10)
-    assert [len(topic["perspectives"]) for topic in topics] == [2]
-    assert {uri.split("/")[2] for uri, _topic in membership} == {"ukraine"}
-    assert {topic_id for _uri, topic_id, _face, _distance in face_rows} == {1}
+    assert [len(topic["perspectives"]) for topic in topics] == [2, 2]
+    assert {uri.split("/")[2] for uri, _topic in membership} == {"ukraine", "medicare"}
+    assert {topic_id for _uri, topic_id, _face, _distance in face_rows} == {1, 2}
+    medicare = next(topic for topic in topics if "Medicare" in topic["name"] or "medicare" in topic["name"].lower())
+    assert medicare["face_distinctness"] > 0
+    assert len({face["title"] for face in medicare["perspectives"]}) == 2
     payload = assemble_payload(topics, mode="live", source="fixture", total_posts=len(posts))
     assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in payload["topics"])
+    assert all("face_distinctness" in topic for topic in payload["topics"])
 
 
-def test_mixed_remarks_face_leaves_one_face_and_drops_the_planet(monkeypatch):
+def test_mixed_remarks_face_does_not_drop_the_planet(monkeypatch):
     collapsing = _planet_posts("medicare", [30, 12], seed=12)
 
     def titles_for(prefix, text):
@@ -206,7 +212,10 @@ def test_mixed_remarks_face_leaves_one_face_and_drops_the_planet(monkeypatch):
     _fake_labels(monkeypatch, titles_for)
     posts, clustered = _clustered([collapsing])
     topics, membership, face_rows = live._build_topics(posts, clustered, SETTINGS, keep=10)
-    assert topics == [] and membership == [] and face_rows == []
+    assert len(topics) == 1
+    assert len(topics[0]["perspectives"]) == 2
+    assert membership and face_rows
+    assert 0.0 <= topics[0]["face_distinctness"] <= 1.0
 
 
 def test_collapsed_split_retries_the_next_best_count(monkeypatch):
@@ -409,7 +418,9 @@ def test_unshared_face_cannot_leave_fewer_than_two_faces():
             },
         ],
     }
-    assert live._drop_unshared_planets([one_left]) == []
+    kept = live._drop_unshared_planets([one_left])
+    assert len(kept) == 1
+    assert [face["title"] for face in kept[0]["perspectives"]] == ["Real Claim", "Mixed remarks"]
 
 
 def test_dropping_one_unshared_face_keeps_two_and_realigns_rows():

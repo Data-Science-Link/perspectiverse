@@ -8,10 +8,11 @@ centroids closer than ``_FACE_COSINE`` (a paraphrase is not a second view),
 and every face at least as tight as the planet it came from. Faces do not
 have to be balanced; a small, tight minority is a face.
 
-When no count from two to six passes, the planet has no honest second
-perspective and ``choose_n_faces`` returns ``None``. The caller drops that
-planet instead of padding it (issues #41, #53). Representative posts are the
-closest rows to that face's embedding. Likes break a tie.
+When no count from two to six passes, ``choose_n_faces`` still returns
+``None`` so the gate stays visible. ``split_perspectives`` does not stop
+there: it forces a 2-way cut (issue #76) and records how distinct the two
+faces are. Representative posts are the closest rows to that face's
+embedding. Likes break a tie.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from pipeline.cluster_math import (
     silhouette_cosine,
     vectorize,
 )
+from pipeline.grouping import distinctness_score, force_two_labels
 from pipeline.schema import MAX_FACES, MIN_FACES
 
 # A face this small is noise, not a perspective. Set low enough that a tight
@@ -219,8 +221,9 @@ def split_perspectives(
     """Cluster ``texts`` into faces.
 
     With ``n_faces`` the count is forced. Otherwise the best count in 2..6 is
-    chosen; when none passes, ``faces`` is empty and ``reason`` says why, so
-    the caller can drop the planet.
+    chosen. When none passes, a 2-way cut is forced and ``forced`` is true.
+    The planet is kept either way (issue #76). ``distinctness`` is 0 when the
+    face centroids match and 1 when they are orthogonal.
     """
     values = _as_matrix(texts, matrix)
     chosen_row = None
@@ -232,15 +235,32 @@ def split_perspectives(
         chosen_row = _pick(rows)
         if chosen_row is None:
             reasons = "; ".join(f"k={row['k']}: {row['reason']}" for row in rows) or "too few posts"
-            return {
-                "assignments": [],
-                "distances": [],
-                "cosines": [],
-                "faces": [],
-                "k_scores": _summaries(rows),
-                "reason": f"no 2-6 face split passes ({reasons})",
-                "alternatives": [],
-            }
+            import numpy as np
+
+            if int(values.shape[0]) < 2:
+                return {
+                    "assignments": [],
+                    "distances": [],
+                    "cosines": [],
+                    "faces": [],
+                    "k_scores": _summaries(rows),
+                    "reason": f"no 2-6 face split passes ({reasons})",
+                    "alternatives": [],
+                    "forced": False,
+                    "distinctness": 0.0,
+                    "method": "",
+                }
+            forced_labels, method = force_two_labels(texts, values, seed=seed)
+            forced_labels = np.asarray(forced_labels, dtype=int)
+            centers = _mean_centers(values, forced_labels, 2)
+            result = _faces_from(texts, values, forced_labels, centers, 2)
+            result["k_scores"] = _summaries(rows)
+            result["reason"] = f"forced 2-split via {method}; no 2-6 face split passes ({reasons})"
+            result["alternatives"] = []
+            result["forced"] = True
+            result["distinctness"] = round(distinctness_score(values, forced_labels), 3)
+            result["method"] = method
+            return result
         n_faces = int(chosen_row["k"])
     if len(texts) < n_faces:
         raise ValueError(f"Need at least {n_faces} posts to cut {n_faces} faces, found {len(texts)}")
@@ -251,6 +271,9 @@ def split_perspectives(
     result = _faces_from(texts, values, labels, centers, n_faces)
     result["k_scores"] = _summaries(rows)
     result["reason"] = ""
+    result["forced"] = False
+    result["distinctness"] = round(distinctness_score(values, labels), 3)
+    result["method"] = "silhouette_kmeans"
     # Other passing counts, best fit first, for a caller whose labels collapse.
     result["alternatives"] = [
         _faces_from(texts, values, row["labels"], row["centers"], int(row["k"]))
@@ -258,6 +281,18 @@ def split_perspectives(
         if chosen_row is not None and row is not chosen_row
     ]
     return result
+
+
+def _mean_centers(matrix, labels, k: int):
+    import numpy as np
+
+    labels = np.asarray(labels)
+    centers = np.zeros((k, matrix.shape[1]), dtype=float)
+    for label in range(k):
+        members = matrix[labels == label]
+        if len(members):
+            centers[label] = members.mean(axis=0)
+    return centers
 
 
 def _faces_from(texts: list[str], values, labels, centers, n_faces: int) -> dict:

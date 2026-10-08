@@ -26,7 +26,8 @@ from pipeline.corpus import (
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
-from pipeline.cluster_math import salient_terms
+from pipeline.cluster_math import salient_terms, vectorize
+from pipeline.grouping import distinctness_score
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
@@ -434,11 +435,15 @@ def _label_faces(
     split: dict,
     terms: list[str],
     context: dict,
+    *,
+    lock_floor: bool = False,
 ) -> tuple[list[tuple[dict, list[tuple[str, int, float]], int]], int]:
     """Label each face of one split. Returns surviving drafts and how many were labeled.
 
     A face that admits no shared claim is dropped; faces whose titles are the
-    same stance are merged.
+    same stance are merged. If that would leave fewer than two faces, the
+    pre-collapse faces are kept and alike titles get a distinguishing term
+    (issue #76). ``lock_floor`` skips that collapse entirely.
     """
     backend = context["backend"]
     model = context["model"]
@@ -511,20 +516,57 @@ def _label_faces(
         ]
         drafted.append((perspective, rows, int(face["size"])))
     labeled = len(drafted)
+    if lock_floor:
+        return drafted[:MAX_FACES], labeled
+    snapshot = list(drafted)
     drafted = [item for item in drafted if not _face_has_no_shared_claim(item[0])]
     drafted = _merge_alike_drafts(drafted, limit)
+    if len(drafted) < MIN_FACES <= len(snapshot):
+        drafted = _keep_collapsed_faces(snapshot[:MAX_FACES])
     return drafted, labeled
+
+
+def _keep_collapsed_faces(
+    drafted: list[tuple[dict, list[tuple[str, int, float]], int]],
+) -> list[tuple[dict, list[tuple[str, int, float]], int]]:
+    """Keep a collapsed planet's faces and make alike titles readable."""
+    for index, (perspective, _rows, _size) in enumerate(drafted):
+        title = str(perspective.get("title") or "")
+        clash = any(
+            other != index and titles_alike(title, drafted[other][0].get("title"))
+            for other in range(len(drafted))
+        )
+        if not clash:
+            continue
+        used = {
+            str(drafted[other][0].get("title") or "").lower()
+            for other in range(len(drafted))
+            if other != index
+        }
+        extra = next(
+            (
+                term
+                for term in perspective.get("top_terms") or []
+                if term.lower() not in title.lower() and term.lower() not in " ".join(used)
+            ),
+            "",
+        )
+        if extra:
+            perspective["title"] = f"{title} ({extra})"
+    return drafted
 
 
 def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict) -> tuple[dict | None, list[str]]:
     """Split, label, and check one candidate planet. Returns (draft or None, log lines).
 
     Only this planet's posts are touched, so drafts can run in parallel.
-    The face count is the best fit in 2..6 (``split_perspectives``). If the
-    labels collapse that split below MIN_FACES (a face with no shared claim,
-    or two faces with the same stance), the next passing count is tried once;
-    after that the planet is not published (#53). The planet name and level
-    summaries are written only for a planet that survives.
+    The face count is the best fit in 2..6 (``split_perspectives``). If no
+    count passes, the split is already a forced 2-way cut. If the labels
+    collapse that split below MIN_FACES, the next passing count is tried
+    once; after that the pre-collapse faces are kept, or a fresh 2-way cut
+    is labeled and locked. The planet is not dropped for having one face
+    (#76, supersedes the drop in #53). The planet name and level summaries
+    are written only for a planet that survives.
     """
     log: list[str] = []
     backend = context["backend"]
@@ -550,6 +592,29 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         chosen_split = attempt
         if len(drafted) >= MIN_FACES:
             break
+    if len(drafted) < MIN_FACES and len(members) >= 2:
+        forced_matrix = member_matrix
+        if forced_matrix is None:
+            try:
+                forced_matrix = vectorize(member_texts)
+            except ValueError:
+                forced_matrix = None
+        if forced_matrix is not None:
+            from pipeline.grouping import force_two_labels
+            from pipeline.perspectives import _faces_from, _mean_centers
+
+            forced_labels, method = force_two_labels(member_texts, forced_matrix, seed=context["seed"])
+            chosen_split = _faces_from(
+                member_texts,
+                forced_matrix,
+                forced_labels,
+                _mean_centers(forced_matrix, forced_labels, 2),
+                2,
+            )
+            chosen_split["forced"] = True
+            chosen_split["method"] = method
+            drafted, labeled = _label_faces(members, chosen_split, terms, context, lock_floor=True)
+            tried.append(f"forced {method}: {len(drafted)} of {labeled}")
     if len(drafted) < MIN_FACES:
         log.append(
             f"Dropping {topic_name(terms)}: too few faces kept a distinct shared claim "
@@ -593,14 +658,17 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         "perspectives": perspectives,
     }
     apply_level_summaries(planet_out, generate=context["summary_model"])
+    distinctness = _face_distinctness(member_matrix, members, member_texts, drafted)
+    planet_out["face_distinctness"] = distinctness
     k_scores = ", ".join(
         f"k={row['k']}:{row['silhouette'] if row['valid'] else 'x'}" for row in split.get("k_scores") or []
     )
     retried = f" (retried k={chosen_split.get('k')})" if chosen_split is not split else ""
+    forced = " forced" if chosen_split.get("forced") or split.get("forced") else ""
     log.append(
         f"Planet {name}: "
         + " | ".join(f"{item['volume_percent']}% {item['title']}" for item in perspectives)
-        + (f"  [silhouette {k_scores}]{retried}" if k_scores else retried)
+        + (f"  [silhouette {k_scores}]{retried}{forced} distinctness={distinctness}" if k_scores else f"{retried}{forced} distinctness={distinctness}")
     )
     return {
         "planet": planet_out,
@@ -1220,19 +1288,52 @@ def _renumber_planets(
     return topics, kept_membership, kept_faces
 
 
-def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
-    """Drop a planet that cannot keep 2–6 faces with a shared claim.
+def _face_distinctness(matrix, members: list[dict], texts: list[str], drafted: list) -> float:
+    """Centroid separation of the published faces. 0 matches, 1 is orthogonal."""
+    import numpy as np
 
-    A face that admits no shared claim is removed. If that leaves the planet
-    outside 2–6 faces, the planet is dropped rather than published with one
-    face. If two or more faces remain, their volumes are recomputed so they
-    still sum to 100.
+    values = matrix
+    if values is None:
+        try:
+            values = vectorize(texts)
+        except ValueError:
+            return 0.0
+    values = np.asarray(values, dtype=float)
+    if values.shape[0] != len(members):
+        return 0.0
+    uri_index = {str(post.get("uri") or ""): index for index, post in enumerate(members)}
+    labels = np.full(len(members), -1, dtype=int)
+    for face_index, (_perspective, rows, _size) in enumerate(drafted):
+        for uri, _position, _distance in rows:
+            index = uri_index.get(str(uri))
+            if index is not None:
+                labels[index] = face_index
+    kept = labels >= 0
+    if int(kept.sum()) < 2 or len({int(item) for item in labels[kept]}) < 2:
+        return 0.0
+    return round(distinctness_score(values[kept], labels[kept]), 3)
+
+
+def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
+    """Remove a face with no shared claim, without deleting the planet for it.
+
+    If removing those faces would leave fewer than two, the planet is kept
+    as it was (#76). A planet that arrived already outside 2–6 faces is still
+    dropped here; drafting is what stops that from happening. If two or more
+    faces remain, their volumes are recomputed so they still sum to 100.
     """
     kept = []
     for topic in topics:
         original = list(topic.get("perspectives") or [])
         faces = [face for face in original if not _face_has_no_shared_claim(face)]
         if not MIN_FACES <= len(faces) <= MAX_FACES:
+            if MIN_FACES <= len(original) <= MAX_FACES:
+                print(
+                    f"Keeping {topic.get('name')}: filtering unshared claims would leave "
+                    f"{len(faces)} faces."
+                )
+                kept.append(topic)
+                continue
             print(
                 f"Dropping {topic.get('name')}: {len(faces)} faces left after "
                 f"removing unshared claims (need {MIN_FACES}-{MAX_FACES})."

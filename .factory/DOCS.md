@@ -34,6 +34,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Data sources | `pipeline/data_sources/README.md` | Bluesky extraction and source conventions. |
 | Pipeline config example | `pipeline/config/pipeline.example.yaml` | Config reference for operators. |
 | Main pipeline runner | `pipeline/run_pipeline.py` | `--live` flag runs the daily job; demo mode generates static data. |
+| Perspective grouping research | `docs/research/perspective-grouping.md` | Stance splits inside one planet, offline comparison, and the keep-and-score rule (#76). |
 | Settings | `pipeline/settings.py` | All env-var-driven settings; cross-reference `.env.example`. |
 | Schema | `pipeline/schema.py` | Canonical data contract between pipeline and frontend. |
 
