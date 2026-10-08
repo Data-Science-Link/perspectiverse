@@ -7,6 +7,11 @@
 
 Closes #
 
+## What changes in production on merge
+
+<!-- User-visible behavior after deploy / next pipeline run. -->
+
+
 ## Factory loop
 
 <!-- Required on every factory PR. Check what’s done; for N/A add a short note on the same line. -->
