@@ -21,6 +21,11 @@ DEFAULT_DEEPINFRA_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 # 36 sits in the roadmap's 20–50 band: enough evidence for readers and a future
 # clerk without blowing up Pages payload (most faces are smaller than the cap).
 EXAMPLE_POST_CAP = 36
+# Posts shown to labeling prompts for faces (MMR sample cap).
+DEFAULT_PROMPT_SAMPLE_SIZE = 40
+DEFAULT_DRAFT_PROMPT_SAMPLE_SIZE = 12
+# Planet / topic naming prompts use a smaller diverse slice.
+DEFAULT_PLANET_PROMPT_SAMPLE_SIZE = 20
 
 DEFAULTS: dict[str, Any] = {
     "window_hours": 168,
@@ -33,6 +38,9 @@ DEFAULTS: dict[str, Any] = {
     "ollama_model": "llama3.2",
     "openai_model": "gpt-4o-mini",
     "representative_posts": EXAMPLE_POST_CAP,
+    "prompt_sample_size": DEFAULT_PROMPT_SAMPLE_SIZE,
+    "draft_prompt_sample_size": DEFAULT_DRAFT_PROMPT_SAMPLE_SIZE,
+    "planet_prompt_sample_size": DEFAULT_PLANET_PROMPT_SAMPLE_SIZE,
     "language": "en",
     "seed": 0,
     "catalog_size": 10,

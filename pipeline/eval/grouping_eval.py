@@ -278,12 +278,12 @@ def _sample_planets(planets: list[dict], rows: dict, limit: int = 5) -> list[dic
 
 
 def _add_calls(total: dict, extra: dict) -> None:
-    for key in ("faces", "names", "briefs"):
+    for key in ("faces", "names", "briefs", "finalize_faces"):
         total[key] = int(total.get(key) or 0) + int(extra.get(key) or 0)
 
 
 def _zero_calls() -> dict:
-    return {"faces": 0, "names": 0, "briefs": 0}
+    return {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0}
 
 
 def _stamp_section(planets: list[dict], section: str) -> list[dict]:
