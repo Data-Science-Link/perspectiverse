@@ -31,7 +31,7 @@ DEFAULTS: dict[str, Any] = {
     "window_hours": 168,
     "refresh_hours": 24,
     "sample_size": TARGET_POSTS,
-    "min_cluster_size": 8,
+    "min_cluster_size": 5,
     "embedding_model": "all-MiniLM-L6-v2",
     "cluster_backend": "embedding",
     "label_backend": "auto",

@@ -58,8 +58,8 @@ const STEPS = [
     icon: <IconPlanets />,
   },
   {
-    title: '2–6 perspectives',
-    body: 'Inside a topic, different takes are grouped and shown by how common they are — not scored as right or wrong.',
+    title: '1–6 perspectives',
+    body: 'A topic can show one clear view. A second view appears only when it is actually different, and bars show how common each one is.',
     icon: <IconFaces />,
   },
   {

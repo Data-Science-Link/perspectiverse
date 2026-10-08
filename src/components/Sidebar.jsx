@@ -176,6 +176,9 @@ function TopicPanel({
         attention, not importance. Each bar below is a real opinion. Length shows
         how many posts sat there. A longer bar is the more common view.
       </p>
+      {ranked.length === 1 && (
+        <p className="lede">{topic.opposing_note || 'No clear opposing view found in this sample'}</p>
+      )}
       <MiniCube
         topic={topic}
         selectedPerspectiveId={selectedPerspectiveId}
@@ -255,7 +258,7 @@ function PerspectivePanel({
         {ranked.length === 1 ? (
           <>
             <strong>One view</strong>
-            <span>The posts kept on this planet share this claim. A second bar appears when another large view is actually different.</span>
+            <span>{topic.opposing_note || 'No clear opposing view found in this sample'}</span>
           </>
         ) : (
           <>

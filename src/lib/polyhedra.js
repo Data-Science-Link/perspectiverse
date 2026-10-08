@@ -1,7 +1,7 @@
 import { Vector3 } from 'three'
 
 const RADIUS = 0.72
-const MIN_FACES = 2
+const MIN_FACES = 1
 const MAX_FACES = 6
 
 function clampFaceCount(count) {
@@ -43,6 +43,13 @@ function solid(rawVertices, faces) {
   const vertices = scaleToRadius(rawVertices.map((vertex) => vertex.clone()))
   const normals = faces.map((loop) => normalOf(vertices, loop))
   return { vertices, faces, normals }
+}
+
+function point() {
+  return solid(
+    [vec(0, 1, 0), vec(0.9, -0.45, 0.15), vec(-0.9, -0.45, 0.15)],
+    [[0, 1, 2]],
+  )
 }
 
 function diamond() {
@@ -135,6 +142,7 @@ function cube() {
 }
 
 const BUILDERS = {
+  1: point,
   2: diamond,
   3: prism,
   4: tetrahedron,
