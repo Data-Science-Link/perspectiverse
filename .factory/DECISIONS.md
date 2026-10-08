@@ -193,3 +193,27 @@ Append-only. Newest at the bottom.
 - **Why:** GitHub delays or drops scheduled runs when many jobs start at once, and this is worst at :00. The 2026-10-08 06:00 UTC run did not start until 12:25 UTC, about 6.5 hours late.
 - **Alternatives:** Stay on `0 6 * * *`. Move the job to a different hour.
 - **Revisit when:** A 06:17 UTC run is still delayed by hours, or the about-2-hour start window stops matching how late GitHub actually is.
+
+### 2026-10-08 — A planet may show one clear perspective (#85)
+- **Decision:** This supersedes the at-least-two-views requirement in [2026-10-08 — Keep planets that collapse below two faces; record distinctness (#76)](#2026-10-08-keep-planets-that-collapse-below-two-faces-record-distinctness-76). Approved by Michael on 2026-10-08. A planet with only one real perspective publishes that one perspective, with a short note that no clear opposing view was found in this sample, instead of being padded to two with a "Mixed remarks" leftover pile. A second perspective is shown only when it is a genuinely distinct view. Popular topics are still never dropped for having one view. The implementation lands in the #85 PR.
+- **Why:** On 2026-10-08, 101 of 220 perspectives (46%) were "Mixed remarks", mostly tiny (median 4 posts), and 29 planets were nothing but Mixed remarks. The padding hid the planet's real view behind filler.
+- **Alternatives:** Keep forcing two views. Drop one-view planets.
+- **Revisit when:** Readers miss the contrast on one-view planets, or a better stance split finds a real opposing view where we now show one.
+
+### 2026-10-08 — Quality bars for cheaper Jev scoring (#87)
+- **Decision:** Michael left the bars to the factory worker on 2026-10-08. A cheaper scoring path (a local claim or section classifier, batching posts per request, or a free pre-filter) replaces a Jev decision only if, on a shadow test against Jev's own answers, it reaches at least 95% agreement on claim versus not-claim, at least 90% agreement on section, and loses no more than 3% of the posts Jev would keep as claims. Below any bar, Jev keeps that decision. A shadow test may spend about $0.03 of Jev (approved by Michael on 2026-10-08).
+- **Why:** The 100K-post window must cost about $0.25/day without lowering the quality of the claims and sections Jev decides today.
+- **Alternatives:** Require exact parity. Judge by eye on sample planets.
+- **Revisit when:** A bar turns out to let visibly worse planets through, or Jev's price or model changes.
+
+### 2026-10-08 — Pushes to main reuse cached labels (#87)
+- **Decision:** Approved by Michael on 2026-10-08 (option a). A pipeline run started by a push to `main` still publishes a fresh snapshot right away, but reuses saved LLM labels (planet names, perspective titles and arguments, briefs) for any planet or perspective whose inputs and prompt version have not changed. A change to labeling itself (prompt, sample, or model) bumps the prompt version and pays for a full relabel. The scheduled daily run labels only what is new or changed.
+- **Why:** Every push relabeled everything for about $0.10. On 2026-10-08 three runs cost $0.30 on an unchanged corpus.
+- **Alternatives:** (b) Only the scheduled run publishes, and pushes do not run the paid pipeline.
+- **Revisit when:** Cached labels go stale in a way readers notice, or the cache costs more to keep than it saves.
+
+### 2026-10-08 — Daily spend target $0.25, fallback $0.30 (#87, #27)
+- **Decision:** Approved by Michael on 2026-10-08. The target for total production spend (Jev, LLM labeling, and R2) at a 100,000-post window is about $0.25 per day. About $0.30 per day is the accepted fallback if $0.25 cannot be met at the quality bars above.
+- **Why:** A 100K corpus should give larger, more natural planets, but not at the roughly $1.70/day the current design would cost.
+- **Alternatives:** A 50K-post window at the lower budget.
+- **Revisit when:** The cost ledger shows a sustained daily total above $0.30, or prices change.
