@@ -24,7 +24,7 @@ The observatory ships a **live** `public/data.json`. The daily job holds a rolli
 | Live pipeline (`--live`) | Default command. Daily job embeds with MiniLM; pytest stays lexical |
 | React + R3F observatory | Newspaper-section filters; All topics stays unsupervised |
 | GitHub Pages | Workflow ready. Pages source is still a repo setting |
-| Daily refresh | `.github/workflows/pipeline.yml` — cron 06:00 UTC daily, on pipeline-code merges to `main`, and on `workflow_dispatch`. Site-only merges (no pipeline files changed) only redeploy Pages (`pages.yml`), no LLM spend. |
+| Daily refresh | `.github/workflows/pipeline.yml` — cron 06:17 UTC daily, on pipeline-code merges to `main`, and on `workflow_dispatch`. Site-only merges (no pipeline files changed) only redeploy Pages (`pages.yml`), no LLM spend. |
 | DeepInfra / OpenAI-compatible labels | Wired (`OPENAI_API_KEY` + `OPENAI_BASE_URL`); heuristic until a token is set |
 | Conversational LLM on a planet | Roadmap only (Horizon A) |
 | Custom solar system from `--query` | Ready for operators; not a public form |
@@ -133,7 +133,7 @@ Setting the repository homepage to that URL is optional and done in the same set
 
 | Trigger | What happens | LLM spend |
 | --- | --- | --- |
-| Cron 06:00 UTC | Full live pipeline — Bluesky fetch, Jev decisions on new posts only, embed, cluster, label, publish `data.json` | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
+| Cron 06:17 UTC | Full live pipeline — Bluesky fetch, Jev decisions on new posts only, embed, cluster, label, publish `data.json` | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
 | Push to `main` — pipeline code changed (`pipeline/**`, `pyproject.toml`, `uv.lock`, `.github/workflows/pipeline.yml`) | Same full live pipeline as cron | Same as cron |
 | Push to `main` — site-only files changed (frontend, `pipeline/README.md`, `pipeline/data/**`, docs) | `pages.yml` redeploy only — no pipeline run, no Bluesky fetch, no LLM spend | None |
 | `workflow_dispatch` | Full live pipeline | Same as cron |

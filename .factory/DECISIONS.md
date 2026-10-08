@@ -187,3 +187,9 @@ Append-only. Newest at the bottom.
 - **Why:** Michael wants the table and the chart to show actual spend. A negative row reads as a refund.
 - **Alternatives:** Record the negative so the month's rows sum to the month bill. Hold the ledger and the table until the SVG exists.
 - **Revisit when:** A monthly invoice needs that credit in order to reconcile.
+
+### 2026-10-08 — Daily pipeline cron at an odd minute (06:17 UTC)
+- **Decision:** The Daily Discourse Pipeline schedule is `cron: "17 6 * * *"` (06:17 UTC, 1:17 AM CT during daylight time). The daily health check treats a scheduled run that has not started within about 2 hours of that time as a finding.
+- **Why:** GitHub delays or drops scheduled runs when many jobs start at once, and this is worst at :00. The 2026-10-08 06:00 UTC run did not start until 12:25 UTC, about 6.5 hours late.
+- **Alternatives:** Stay on `0 6 * * *`. Move the job to a different hour.
+- **Revisit when:** A 06:17 UTC run is still delayed by hours, or the about-2-hour start window stops matching how late GitHub actually is.
