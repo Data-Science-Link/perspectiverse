@@ -49,6 +49,7 @@ from pipeline.label import (
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
+from pipeline.prompt_sample import planet_member_cosines, select_prompt_posts
 from pipeline.schema import (
     CATEGORIES,
     MAX_FACES,
@@ -446,6 +447,8 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         "chosen": chosen,
         "summary_model": summary_model,
         "limit": int(settings["representative_posts"]),
+        "prompt_sample_size": int(settings.get("prompt_sample_size") or 40),
+        "planet_prompt_sample_size": int(settings.get("planet_prompt_sample_size") or 20),
         "seed": int(settings["seed"]),
         "workers": workers,
         "min_planet_posts": _planet_post_floor(settings),
@@ -543,6 +546,7 @@ def _label_faces(
     backend = context["backend"]
     model = context["model"]
     limit = context["limit"]
+    prompt_cap = int(context.get("prompt_sample_size") or 40)
     face_volumes = to_percents([face["size"] for face in split["faces"]])
     drafted: list[tuple[dict, list[tuple[str, int, float]], int]] = []
     ordered_faces = sorted(
@@ -553,10 +557,37 @@ def _label_faces(
         face_posts = [members[index] for index in face["member_indices"]]
         face_distances = [split["distances"][index] for index in face["member_indices"]]
         face_cosines = [split["cosines"][index] for index in face["member_indices"]]
-        representatives = select_representatives(
-            face_posts, face_distances, limit=limit, matches=face_cosines
+        if context.get("chosen") == "heuristic":
+            labeling_posts = select_representatives(
+                face_posts,
+                face_distances,
+                limit=min(int(limit), len(face_posts)),
+                matches=face_cosines,
+            )
+            representatives = labeling_posts[: max(int(limit), 1)]
+            labeling_limit = len(labeling_posts)
+        else:
+            prompt_posts = select_prompt_posts(
+                face_posts,
+                face_cosines,
+                limit=min(prompt_cap, len(face_posts)),
+            )
+            representatives = sorted(
+                prompt_posts[: max(int(limit), 1)],
+                key=lambda post: (
+                    -(float(post["match"]) if post.get("match") is not None else 0.0),
+                    -int(post.get("likes") or 0),
+                ),
+            )
+            labeling_posts = prompt_posts
+            labeling_limit = len(prompt_posts)
+        label = label_perspective(
+            labeling_posts,
+            face["terms"] or terms,
+            backend=backend,
+            model=model,
+            post_limit=labeling_limit,
         )
-        label = label_perspective(representatives, face["terms"] or terms, backend=backend, model=model)
         arguments = label.get("arguments") or []
         title = str(label.get("title") or "")
         on_claim = [
@@ -565,12 +596,28 @@ def _label_faces(
             if shares_claim_word(str(post.get("text") or post.get("clean_text") or ""), title)
         ]
         if len(on_claim) >= 3:
-            representatives = select_representatives(
-                [post for post, _score in on_claim],
-                [0.0] * len(on_claim),
-                limit=limit,
-                matches=[score for _post, score in on_claim],
-            )
+            claim_posts = [post for post, _score in on_claim]
+            claim_scores = [score for _post, score in on_claim]
+            if context.get("chosen") == "heuristic":
+                representatives = select_representatives(
+                    claim_posts,
+                    [0.0] * len(claim_posts),
+                    limit=int(limit),
+                    matches=claim_scores,
+                )
+            else:
+                representatives = select_prompt_posts(
+                    claim_posts,
+                    claim_scores,
+                    limit=min(prompt_cap, len(claim_posts)),
+                )
+                representatives = sorted(
+                    representatives[: max(int(limit), 1)],
+                    key=lambda post: (
+                        -(float(post["match"]) if post.get("match") is not None else 0.0),
+                        -int(post.get("likes") or 0),
+                    ),
+                )
         focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
         representatives = _align_representatives(representatives, focus)
         summary = _without_ungrounded_tail(str(label.get("summary") or ""), representatives)
@@ -773,7 +820,30 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     if _below_planet_floor(shown, context):
         # Faces already labeled. Skip the name and the briefs, and do not publish.
         return _exclude_for_floor(context, log, topic_name(terms), shown, _post_samples(members))
-    planet = label_topic(members, terms, backend=backend, model=model)
+    planet_prompt_cap = int(context.get("planet_prompt_sample_size") or 20)
+    if context.get("chosen") == "heuristic":
+        planet_prompt_posts = members
+        planet_post_limit = 16
+    else:
+        member_cosines = planet_member_cosines(member_matrix, list(range(len(members))))
+        planet_prompt_posts = select_prompt_posts(
+            members,
+            member_cosines,
+            limit=min(planet_prompt_cap, len(members)),
+            vectors=member_matrix,
+        )
+        planet_post_limit = len(planet_prompt_posts)
+    print(
+        f"Planet naming sample for {topic_name(terms)}: "
+        f"{min(planet_post_limit, len(members))} of {len(members)} posts."
+    )
+    planet = label_topic(
+        planet_prompt_posts,
+        terms,
+        backend=backend,
+        model=model,
+        post_limit=planet_post_limit,
+    )
     context["story_calls"]["names"] += 1
     name = str(planet.get("name") or topic_name(terms))
     if (
@@ -781,7 +851,14 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         or topic_name_is_weak(name, members, terms)
         or _name_misses_faces(name, perspectives)
     ):
-        renamed = name_from_perspectives(members, perspectives, terms, backend=backend, model=model)
+        renamed = name_from_perspectives(
+            planet_prompt_posts,
+            perspectives,
+            terms,
+            backend=backend,
+            model=model,
+            post_limit=planet_post_limit,
+        )
         # Heuristic naming returns before any model call. A network backend
         # spends the call even when the answer is unusable.
         if context.get("chosen") != "heuristic":

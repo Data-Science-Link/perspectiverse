@@ -166,7 +166,7 @@ SETTINGS = {"label_backend": "heuristic", "representative_posts": 6, "seed": 0}
 def _fake_labels(monkeypatch, titles_for):
     """Faces get titles from ``titles_for(prefix, face_text)``; grounding checks pass."""
 
-    def label_perspective(posts, terms, backend="auto", model=None):
+    def label_perspective(posts, terms, backend="auto", model=None, **kwargs):
         text = str(posts[0].get("text") or "")
         prefix = text.split()[0]
         title = titles_for(prefix, text)
