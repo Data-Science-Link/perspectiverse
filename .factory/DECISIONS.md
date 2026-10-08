@@ -133,3 +133,21 @@ Append-only. Newest at the bottom.
 - **Why:** The pipeline pushes `data-snapshot` with `GITHUB_TOKEN`, which does not start `push` workflows, so new snapshots never auto-deployed. `workflow_run` does run after that, and its `GITHUB_REF` is `main`, which is the only branch the `github-pages` environment allows.
 - **Alternatives:** A final `gh workflow run` step in `pipeline.yml` (touches the pipeline and needs `actions: write`). A PAT push so the `data-snapshot` push trigger fires (that ref is not allowed to deploy to `github-pages`).
 - **Revisit when:** The Pages environment branch policy changes, or the pipeline stops publishing `data-snapshot`.
+
+### 2026-10-07 — Section labels share one pool; ceiling is 20 minutes (#71)
+- **Decision:** Section solar systems are ordered by post volume and labeled through one shared pool. The default `label_workers` of 8 stays the global cap and is widened to 12 in-flight calls for sections; any other `label_workers` is the section cap. `section_budget_minutes` defaults to 20. `0` still skips sections and `None` still means the default. Labeling still stops at `catalog_size` survivors per section, and one bad planet or section is logged and skipped.
+- **Why:** Run 37696485020 built 4 of 10 sections in 1,052s and skipped the rest with "the section time budget is spent." Sections ran one after another, so partial waves left workers idle. Sharing the pool keeps the biggest sections first if the ceiling hits, and 12 in flight fits the live planet counts inside 20 minutes.
+- **Alternatives:** Raise the ceiling to ~35 minutes and keep serial sections; cap each section at 6 planets.
+- **Revisit when:** Live logs show HTTP 429s under 12 in-flight calls, or a day still drops sections inside 20 minutes.
+
+### 2026-10-07 — 20-minute section ceiling supersedes the 15-minute default (#71)
+- **Decision:** The 15-minute `section_budget_minutes` default in "Label planets lazily and concurrently; section time budget (#53)" is superseded. Section solar systems are ordered by post volume and labeled through one shared pool: 12 calls in flight when `label_workers` is the default 8, and that configured value otherwise (`label_workers` 0 is one at a time). The ceiling default is 20 minutes. `0` still skips sections and `None` still means the default.
+- **Why:** The earlier bullet still says 15 minutes. Run 37696485020 published 4 of 10 sections under that serial ceiling. The shared pool and the 20-minute ceiling are the current default.
+- **Alternatives:** Editing the older bullet in place.
+- **Revisit when:** A live run under the 20-minute ceiling still drops sections, or HTTP 429s show up at 12 in flight.
+
+### 2026-10-07 — Shared pool and 20-minute ceiling supersede the 15-minute section budget (#71)
+- **Decision:** This supersedes the earlier entry dated 2026-10-07 headed "Label planets lazily and concurrently; section time budget (#53)" (that entry's `section_budget_minutes` default of 15). Section solar systems are ordered by post volume and labeled through one shared pool: 12 calls in flight when `label_workers` is the default 8, and that configured value otherwise (`label_workers` 0 is one at a time). The ceiling default is 20 minutes. `0` still skips sections and `None` still means the default. Pointer: [2026-10-07 — Label planets lazily and concurrently; section time budget (#53)](#2026-10-07-label-planets-lazily-and-concurrently-section-time-budget-53).
+- **Why:** The named entry still records a 15-minute default. Run 37696485020 published 4 of 10 sections under that serial ceiling. The shared pool and the 20-minute ceiling are the current default.
+- **Alternatives:** Editing that older entry in place.
+- **Revisit when:** A live run under the 20-minute ceiling still drops sections, or HTTP 429s show up at 12 in flight.

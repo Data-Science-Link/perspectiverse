@@ -28,10 +28,13 @@ openai_model: gpt-4o-mini
 
 # Planets labeled concurrently when a network label backend is on (the labeling
 # loop is I/O bound). The heuristic backend always runs one at a time.
+# Section solar systems share one pool: the default 8 is run as 12 calls in
+# flight across every section. Any other value is the cap for both.
 label_workers: 8
 # Minutes the per-section solar systems may spend after the global system is
-# built. Sections past the budget are skipped (logged) so the snapshot publishes.
-section_budget_minutes: 15
+# built. 0 skips sections. Omitting the key uses the default (20). Sections
+# past the ceiling are skipped (logged) so the snapshot publishes.
+section_budget_minutes: 20
 
 representative_posts: 36
 language: en
