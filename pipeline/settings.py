@@ -53,11 +53,6 @@ DEFAULTS: dict[str, Any] = {
     # Minutes the section solar systems may spend after the global system.
     # 0 skips sections. None (omit the key) uses this default.
     "section_budget_minutes": 20,
-    # cluster_once lists each planet under the section that holds most of its
-    # posts (both sections when the top two are each at least 35%). per_section
-    # clusters every Jev section again. cluster_once is the default: on the
-    # 10K corpus it fills every section and labels fewer planets.
-    "section_grouping": "cluster_once",
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
 }
 

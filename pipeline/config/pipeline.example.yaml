@@ -36,13 +36,6 @@ label_workers: 8
 # built. 0 skips sections. Omitting the key uses the default (20). Sections
 # past the ceiling are skipped (logged) so the snapshot publishes.
 section_budget_minutes: 20
-# cluster_once: one density pass over all posts. Each planet is listed in the
-# section that holds the most of its posts. When the top two sections are each
-# at least 35% of the planet, it is listed in both. Labels are written once
-# and reused in the global list and every section list. A section with fewer
-# than catalog_size planets is clustered on its own to fill the rest.
-# per_section: cluster each Jev section again, with the same fixed floor.
-section_grouping: cluster_once
 
 representative_posts: 36
 # MMR cap for face labeling prompts (title, summary, arguments).

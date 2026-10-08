@@ -30,46 +30,9 @@ So production grouping grows balls, not chains:
 
 Every ball is ranked by the reach measure already in the pipeline: distinct authors, then size. The global solar system publishes the top 10. Each newspaper section publishes its own top 10. Balls below that line are not labeled. Finding hundreds of candidates does not spend hundreds of model calls.
 
-A planet is still split into faces in its own space, trying 2 through 6. When that split finds real, separated views, they are published. When it does not, the planet is one perspective and carries `opposing_note`: “No clear opposing view found in this sample.” A second face is not invented to pad the count. A face that does not share a claim, judged on a spread of up to 40 posts rather than the five closest to the centroid, is not published. One remaining real face is kept. The decision to allow a single clear perspective is a product call from 2026-10-08. It is implemented here. Its log entry already sits in `.factory/DECISIONS.md` (one clear perspective, #85). This change logs the clustering method and the section-listing default.
+A planet is still split into faces in its own space, trying 2 through 6. When that split finds real, separated views, they are published. When it does not, the planet is one perspective and carries `opposing_note`: “No clear opposing view found in this sample.” A second face is not invented to pad the count. A face that does not share a claim, judged on a spread of up to 40 posts rather than the five closest to the centroid, is not published. One remaining real face is kept. The decision to allow a single clear perspective is a product call from 2026-10-08. It is implemented here. Its log entry already sits in `.factory/DECISIONS.md` (one clear perspective, #85). This change adds only the clustering-method entry.
 
-Sections do not each get their own clustering. `section_grouping: cluster_once` (the default) uses the one density pass above. A planet is listed in the section that holds the most of its posts. When the top two sections are each at least 35% of the planet, it is listed in both. The same labels are reused in the global list and in every section list. A section that publishes fewer than 10 planets is clustered on its own, and those extra planets fill the empty slots. `section_grouping: per_section` is the old path: cluster each Jev section again, with the same floor of 5, and label those planets separately.
-
-The #90 plan, a later Jev call that picks the section from the planet’s summary, is still waiting on its shadow test. This comparison uses the sections Jev already wrote on the posts. It does not spend a new Jev call.
-
-## One clustering or ten
-
-Both options were run on this same 10,000-claim artifact, with the heuristic labeler (no paid call). Names below are those heuristic titles. A paid run would rewrite the titles and would not add planets.
-
-A call here is one draft face label, one wide relabel of that face, one planet name, and a brief for the planet plus each face: `3 × faces + 2` calls per planet. Calls inside one planet stay serial. Twelve planets are labeled at once. Each call is taken as 9 seconds, the middle of the 7–11 second band measured on run 37696485020. The projected seconds are the resulting wall clock.
-
-| | A. Cluster once | B. Re-cluster each section |
-|---|---:|---:|
-| Sections that publish 10 planets | 10 of 10 | 10 of 10 |
-| Global top 10 that also appear in a section | 10 | 9 |
-| Planets labeled (unique) | 100 | 110 |
-| Faces labeled | 175 | 192 |
-| Labeling calls | 725 | 796 |
-| Projected labeling seconds | 567 | 612 |
-| Sections that ran the per-section fallback | 1 (Sports) | 0 (every section is clustered on its own) |
-
-A is the default. It fills every section, every global planet also appears in a section, and it labels 10 fewer planets. B’s section lists are a second clustering, so a story in the global ten is labeled again even when the same posts show up. The fallback ran once: Sports had enough shared planets to be a candidate list, and 8 of them published, so a Sports-only pass added the last two.
-
-Global top 10, same for both: Israel, Russia Ukraine, Rape, Iran Trump War, Labour Party, Scotland Scottish, Trump, Fascism Fascist, Men Women, Trans.
-
-Heuristic top 10 by section.
-
-| Section | A. Cluster once | B. Re-cluster each section |
-|---|---|---|
-| World | Israel; Russia Ukraine; Iran Trump War; Nazis Nazi; Genocide; China Much World; Netanyahu Iran Did; Kyiv Russia Russian; Colonialism History Imperialist; Peace Prize Nobel | Israel Gaza; Russia Ukraine; Iran War Trump; Trump War Day; Genocide Better Maniac; China Russia; Kyiv Bridge Russian; War Never World; Bail Iranian Released; Europe Daily European |
-| Politics | Rape; Labour Party; Scotland Scottish; Trump; Fascism Fascist; Men Women; Trans; Death Penalty; Canada; Treason | Labour Party; Fascism Fascist; Germany Country Far; Ads Trump Taxpayer; Trump Great Paying; Medicare Seniors Trump; Brexit Voted Scotland; Ice; Trump; Zionism Party Racism |
-| Business | System; America Private Bullshit; Gallon Cost Diesel; Money; Tariffs Tariff Refund; Heating Oil Home; Billionaires World Think; Never Wealth; Crypto News; Barrels Million Crude | Market; Gas Oil Prices; Housing Building Government; Oil Iran Trump; Economy Off Trying; Money New; Russia Putin Budget; Diesel Battery Crisis; Amazon Anyone Buying; Tourism Much Trade |
-| Technology | Llms Better Same; Point Years; Openai Anthropic Australia; Community Media Monetization; Ground Anti Drone; Local; Software; Books Anthropic Train; Many; Disc Digital Key | Data Centers Every; Llms Actually Machine; Openai Company Quit; Youtube Video Channels; Apps App Android; Science Baked; Current Let Off; Compromised Data Addressed; Robots Makes Sense; Technology Able Everyone |
-| Sports | City Man; Athletes America Did; Football Politics Sports; Uae City Investments; Tennis Upsets Women; Croatia England Night; Mercedes Ass Die; Chance Win; Most Real Rule; Mercedes Ass Die 2 | League Football; City Liverpool Clubs; City Down Football; Men Sports Women; Most Real Rule; Mercedes Ass Die; Step Wwe; Bad Calls Conference; Only Season; Game Players |
-| Culture | Lesbian Women Gay; Art Artist Artists; Women Industry Make; Humiliation Victim; Redemption Done Feel; Harry Potter; Feel Violence; Artists Make Much; Skydance Bros Discovery; Getting Gen | Rape Women Culture; Trans Anti Cares; Scotland; Book Books Banned; Media Newspapers Big; Harry Potter Other; Ahistorical; Content Fucking Advertisers; Music Rock; Masculine See |
-| Health | Covid; Medical Profit Healthcare; Measles Cases Pennsylvania; Plague Russia Pneumonic; Covid Flu Nhs; Medicaid; Masks Coverings Face; Milk Raw Ban; Cancer Research Time; Children | Healthcare Insurance Profit; Plague Russia Russian; Flu Covid Nhs; Measles Cases Pennsylvania; Parents Vaccinated Vaccine; Milk Raw Ban; Cancer; Mind; Masks Prevent; Health Rural Areas |
-| Environment | Climate Change; Environment Water; Beef Cattle Less; Heritage; Energy Fossil Fuels; Court Emissions Account; Local Food; Course Diesel Petrol; Beast West; Energy Data Example | Climate Change; Electrification Apparently Electricity; Farmers Energy Look; Energy Fossil Subsidies; Ocean; Climatechange Levels Rise; Hurricane Gulf Tropical; Local; Dirty; Neighbours Those |
-| Education | Schools Pay; Schools Education Numbers; School Kids Shootings; School Start; Bike Bus City; Fucking Ivy League; Kids Parents; Humanities Arts Challenges; Cornell Required University; Teachers Education Educators | Cornell Men Rape; Teachers Education Day; School Exam; School Students High; America College Education; School Schools Allows; University Management Only; Kids School Things; Students Going Making; High School College |
-| Other | Did Accountability Admitted; Live Someone True; Anything Haven Many; Cruelty Point Regime; Women Alone Always; Bluesky Fact; Article Read; History Future Only; Question Species Apart; Church Assault Boys | Men; Trans Making Anything; Child Minor; Rapists Abusers; Religion Cannot Control; Christians Believe Christianity; White Live Men; Women Bisexuality Lesbians; Substack; Church Assault Children |
+This change still clusters each section on its own posts, which is today’s path. The approved next step, logged as “group once; Jev picks the section per planet” (#90), is one density pass over the whole week and a later section call per planet. That switch waits on its shadow test and is not part of this change.
 
 Non-English posts and posts that are only a link are dropped before clustering, with a local word and script check. No model call.
 
@@ -81,7 +44,9 @@ At 100,000 posts an assignment of every post to `n / 5` centers would be an n×k
 
 ## Labeling cost
 
-Labeling still stops once `catalog_size` (10) planets survive. With `cluster_once`, a planet that is in the global ten and in a section is labeled once. On this corpus that is 100 planets and 175 faces, about 725 paid calls and about 567 seconds at the rate above. Re-clustering every section instead is 110 planets, 192 faces, about 796 calls and about 612 seconds. Both sit under the old ~1,025–1,080 DeepInfra calls from issue #86 and under the 20-minute section ceiling. A one-perspective planet makes one face call, not a forced pair. Candidate groups below the top 10 are not labeled.
+Labeling still stops once `catalog_size` (10) planets survive, for the global system and for each section. There are at most 11 solar systems. On this corpus the heuristic labeler published 10 planets in every section. Across those 110 planets it kept 192 faces: 6 of the global ten are a single view, and the sections are mixed. A one-perspective planet makes one face call, not a forced pair.
+
+Issue #86 measured about 1,025–1,080 DeepInfra calls and about $0.10 on a day that labeled forced pairs and retried collapsed faces. This change labels only the published top, and it does not spend a second pass to invent a second view. Face calls on the order of the ~192 published faces, plus a name and briefs for each published planet, and a repair when a label is unusable, stay well under that 1,025 and do not rise. The section ceiling stays 20 minutes (1,200 seconds). Candidate count does not add model calls.
 
 The census uses the heuristic labeler, so it does not measure a paid run. Published “Mixed remarks” faces in that heuristic pass are **zero** in every section, because a face that does not share a claim is dropped instead of published. A paid labeler can still say the words; the same drop applies, so the published rate should stay at the floor rather than the old 46% of faces (101 of 220).
 
@@ -111,7 +76,7 @@ Sections with at least 1,000 claims are Politics and World. Both clear the #32 b
 
 At floor 8 the same week is 264 global candidates, 4,755 posts in a group (47.5%), in 6.5 seconds. That is the ~268-group figure from the #32 comment. Floor 5 is what ships because it clears half the posts.
 
-Published top 10 when each section is clustered on its own posts (option B above), heuristic labels, not a paid model. Mixed-remarks columns are titles that still say “Mixed remarks” after the wide-sample check. Those faces are dropped, so the counts are zero.
+Published top 10, heuristic labels (not a paid model). Mixed-remarks columns are titles that still say “Mixed remarks” after the wide-sample check. Those faces are dropped, so the counts are zero.
 
 | Solar system | Published | One view | Two or more | Mixed-remarks faces | All-mixed planets | Mixed-remarks names |
 |---|---:|---:|---:|---:|---:|---:|
