@@ -277,6 +277,397 @@ def _sample_planets(planets: list[dict], rows: dict, limit: int = 5) -> list[dic
     return chosen
 
 
+def _add_calls(total: dict, extra: dict) -> None:
+    for key in ("faces", "names", "briefs"):
+        total[key] = int(total.get(key) or 0) + int(extra.get(key) or 0)
+
+
+def _zero_calls() -> dict:
+    return {"faces": 0, "names": 0, "briefs": 0}
+
+
+def _stamp_section(planets: list[dict], section: str) -> list[dict]:
+    stamped = []
+    for planet in planets:
+        row = dict(planet)
+        if section and not row.get("section"):
+            row["section"] = section
+        stamped.append(row)
+    return stamped
+
+
+def catalog_walk(records: list[dict], keep: int, *, split_stories: bool) -> dict:
+    """Publish up to ``keep`` planets in candidate order.
+
+    ``split_stories`` false is the old rule: a glued candidate is dropped and
+    the next candidate takes the slot. True keeps each story, still stopping
+    at the catalog ceiling. Pieces under the planet-post floor are already
+    absent from ``planet_objs``; ``floor_excluded`` counts them.
+    """
+    kept = []
+    dropped = 0
+    split_candidates = 0
+    skipped_stories = 0
+    floor_excluded = 0
+    drafted = 0
+    calls = _zero_calls()
+    # Face labels and names spent on the stories themselves, not on the
+    # glued candidate that was labeled only to notice the split.
+    gross_split = _zero_calls()
+    for record in records:
+        if len(kept) >= keep:
+            break
+        drafted += 1
+        spent = record.get("label_calls") or _zero_calls()
+        detection = int(record.get("detection_faces") or 0)
+        floor_excluded += int(record.get("floor_excluded") or 0)
+        section = str(record.get("section") or "")
+        if record.get("kind") == "split":
+            split_candidates += 1
+            skipped_stories += int(record.get("skipped") or 0)
+            if not split_stories:
+                calls["faces"] += detection
+                dropped += 1
+                continue
+            _add_calls(calls, spent)
+            gross_split["faces"] += max(0, int(spent.get("faces") or 0) - detection)
+            gross_split["names"] += int(spent.get("names") or 0)
+            gross_split["briefs"] += int(spent.get("briefs") or 0)
+            room = keep - len(kept)
+            chosen = _stamp_section(list(record.get("planet_objs") or [])[:room], section)
+            if not chosen:
+                dropped += 1
+                continue
+            kept.extend(chosen)
+            continue
+        _add_calls(calls, spent)
+        if record.get("kind") != "keep" or not record.get("planet_objs"):
+            dropped += 1
+            continue
+        kept.extend(_stamp_section([record["planet_objs"][0]], section))
+    return {
+        "candidates_drafted": drafted,
+        "kept": len(kept),
+        "dropped": dropped,
+        "split_candidates": split_candidates if split_stories else 0,
+        "skipped_stories": skipped_stories if split_stories else 0,
+        "floor_excluded": floor_excluded if split_stories else 0,
+        "label_calls": calls,
+        "gross_split_calls": gross_split,
+        "planets": kept,
+    }
+
+
+def _planet_brief(planet: dict) -> dict:
+    faces = []
+    for face in planet.get("perspectives") or []:
+        posts = []
+        for post in (face.get("representative_posts") or [])[:2]:
+            text = " ".join(str(post.get("text") or "").split())
+            if text:
+                posts.append(text[:220])
+        faces.append(
+            {
+                "title": face.get("title"),
+                "volume_percent": face.get("volume_percent"),
+                "posts": posts,
+            }
+        )
+    return {
+        "name": planet.get("name"),
+        "post_count": planet.get("post_count"),
+        "face_distinctness": planet.get("face_distinctness"),
+        "faces": faces,
+    }
+
+
+def _draft_record(section: str, posts: list[dict], matrix, topic: dict, base_context: dict) -> dict:
+    from pipeline.live import _draft_planet, _bundles_from
+
+    clustered = {"topics": [topic], "matrix": matrix, "assignments": [], "noise_count": 0}
+    stats: list[dict] = []
+    context = dict(base_context)
+    context["section"] = section
+    context["draft_stats"] = stats
+    context.pop("story_calls", None)
+    try:
+        result, log = _draft_planet(posts, clustered, topic, context)
+    except Exception as exc:  # noqa: BLE001 - one candidate must not hide the table
+        return {
+            "section": section,
+            "terms": " ".join(topic.get("terms") or []),
+            "posts": len(topic.get("member_indices") or []),
+            "kind": "drop",
+            "detection_faces": 0,
+            "skipped": 0,
+            "label_calls": _zero_calls(),
+            "planet_objs": [],
+            "log": [f"{type(exc).__name__}: {exc}"],
+        }
+    info = stats[0] if stats else {}
+    planets = [_planet_brief(bundle["planet"]) for bundle in _bundles_from(result)]
+    return {
+        "section": section,
+        "terms": " ".join(str(term) for term in (topic.get("terms") or [])),
+        "posts": len(topic.get("member_indices") or []),
+        "kind": info.get("kind") or ("drop" if not planets else "keep"),
+        "detection_faces": int((result or {}).get("detection_faces") or info.get("detection_faces") or 0),
+        "skipped": int((result or {}).get("skipped") or info.get("skipped") or 0),
+        "floor_excluded": int((result or {}).get("floor_excluded") or info.get("floor_excluded") or 0),
+        "excluded": list((result or {}).get("excluded") or info.get("excluded") or []),
+        "label_calls": dict(info.get("label_calls") or (result or {}).get("label_calls") or _zero_calls()),
+        "planet_objs": planets,
+        "log": list(log),
+    }
+
+
+def _section_candidates(posts: list[dict], matrix: np.ndarray, *, seed: int, catalog_size: int) -> list[dict]:
+    """Same section clustering as the harness, keeping the posts for drafting."""
+    from pipeline.schema import CATEGORIES
+    from pipeline.topics import cluster_texts
+
+    grouped: list[dict] = []
+    by_section: dict[str, list[int]] = {}
+    for index, post in enumerate(posts):
+        section = str(post.get("section") or "")
+        if section in CATEGORIES:
+            by_section.setdefault(section, []).append(index)
+    order = sorted(by_section, key=lambda name: (-len(by_section[name]), name))
+    pools = [("All topics", list(range(len(posts))))] + [(name, by_section[name]) for name in order]
+    for section, indices in pools:
+        floor = max(8, len(indices) // 200)
+        if len(indices) < floor:
+            print(f"{section}: {len(indices)} posts, below floor {floor}")
+            continue
+        sub = matrix[indices]
+        section_posts = [posts[index] for index in indices]
+        texts = [post["clean_text"] for post in section_posts]
+        try:
+            clustered = cluster_texts(
+                texts,
+                min_cluster_size=floor,
+                cluster_backend="embedding",
+                seed=seed,
+                catalog_size=min(20, catalog_size + 10),
+                embed=lambda _texts, rows=sub: rows,
+                authors=[str(post.get("author") or "") for post in section_posts],
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"{section}: clustering failed ({type(exc).__name__}: {exc})")
+            continue
+        print(f"{section}: {len(clustered['topics'])} candidate planets from {len(indices)} posts")
+        grouped.append(
+            {
+                "section": section,
+                "posts": section_posts,
+                "matrix": sub,
+                "topics": list(clustered["topics"]),
+            }
+        )
+    return grouped
+
+
+def _post_mass(planets: list[dict], section: str | None = None) -> int:
+    chosen = planets
+    if section is not None:
+        chosen = [planet for planet in planets if planet.get("section") == section]
+    return sum(int(planet.get("post_count") or 0) for planet in chosen)
+
+
+def _smallest_planet(planets: list[dict]) -> dict | None:
+    if not planets:
+        return None
+    planet = min(planets, key=lambda item: (int(item.get("post_count") or 0), str(item.get("name") or "")))
+    return {
+        "name": planet.get("name"),
+        "section": planet.get("section"),
+        "posts": int(planet.get("post_count") or 0),
+    }
+
+
+def evaluate_story_splits(
+    posts: list[dict],
+    matrix: np.ndarray,
+    *,
+    seed: int,
+    catalog_size: int,
+    min_planet_posts: int | None = None,
+) -> dict:
+    """Before/after the different-stories drop, on the same candidate planets.
+
+    Labels are the local heuristic, so this spends no model calls. The split
+    itself uses ``specific_shared_words``, the same signal as the daily job.
+    Call counts are the face labels plus planet names the network backend
+    would spend (a repair call or a brief rewrite is not included).
+    """
+    from pipeline.live import _label_context
+
+    from pipeline.grouping import MIN_PLANET_POSTS
+
+    floor = MIN_PLANET_POSTS if min_planet_posts is None else int(min_planet_posts)
+    context = _label_context(
+        {
+            "label_backend": "heuristic",
+            "representative_posts": 12,
+            "seed": seed,
+            "label_workers": 0,
+            "min_planet_posts": floor,
+        }
+    )
+    sections = _section_candidates(posts, matrix, seed=seed, catalog_size=catalog_size)
+    drafted: dict[str, list[dict]] = {}
+    for block in sections:
+        rows = []
+        topics = block["topics"]
+        for number, topic in enumerate(topics, start=1):
+            if number == 1 or number % 10 == 0 or number == len(topics):
+                print(f"Drafting {block['section']} {number}/{len(topics)}")
+            rows.append(_draft_record(block["section"], block["posts"], block["matrix"], topic, context))
+        drafted[block["section"]] = rows
+
+    def combine(mode: str) -> dict:
+        kept = dropped = split_candidates = skipped = floor_excluded = drafted_n = 0
+        calls = _zero_calls()
+        gross_split = _zero_calls()
+        published: list[dict] = []
+        per_section = []
+        for section, rows in drafted.items():
+            walked = catalog_walk(rows, catalog_size, split_stories=mode == "after")
+            kept += walked["kept"]
+            dropped += walked["dropped"]
+            split_candidates += walked["split_candidates"]
+            skipped += walked["skipped_stories"]
+            floor_excluded += walked["floor_excluded"]
+            drafted_n += walked["candidates_drafted"]
+            published.extend(walked["planets"])
+            _add_calls(calls, walked["label_calls"])
+            _add_calls(gross_split, walked["gross_split_calls"])
+            per_section.append(
+                {
+                    "section": section,
+                    "candidates": len(rows),
+                    "drafted": walked["candidates_drafted"],
+                    "kept": walked["kept"],
+                    "dropped": walked["dropped"],
+                    "split_candidates": walked["split_candidates"],
+                    "skipped_stories": walked["skipped_stories"],
+                    "floor_excluded": walked["floor_excluded"],
+                    "post_mass": _post_mass(walked["planets"]),
+                    "smallest_posts": (_smallest_planet(walked["planets"]) or {}).get("posts"),
+                    "label_calls": walked["label_calls"],
+                }
+            )
+        smallest = _smallest_planet(published)
+        return {
+            "candidates_in_pool": sum(len(rows) for rows in drafted.values()),
+            "candidates_drafted": drafted_n,
+            "kept": kept,
+            "dropped": dropped,
+            "split_candidates": split_candidates,
+            "skipped_stories": skipped,
+            "floor_excluded": floor_excluded,
+            "post_mass": _post_mass(published),
+            "post_mass_politics": _post_mass(published, "Politics"),
+            "post_mass_health": _post_mass(published, "Health"),
+            "smallest_planet": smallest,
+            "label_calls": calls,
+            "gross_split_calls": gross_split,
+            "sections": per_section,
+        }
+
+    before = combine("before")
+    after = combine("after")
+    extra = {
+        key: int(after["label_calls"][key]) - int(before["label_calls"][key])
+        for key in ("faces", "names", "briefs")
+    }
+    extra["total"] = extra["faces"] + extra["names"] + extra["briefs"]
+
+    examples = []
+    for rows in drafted.values():
+        for record in rows:
+            if record["kind"] != "split" or len(record["planet_objs"]) < 2:
+                continue
+            examples.append(record)
+    examples.sort(key=lambda record: (-record["posts"], record["section"], record["terms"]))
+    shown = []
+    for record in examples[:3]:
+        shown.append(
+            {
+                "section": record["section"],
+                "candidate_terms": record["terms"],
+                "posts": record["posts"],
+                "skipped": record["skipped"],
+                "detection_face_labels": record["detection_faces"],
+                "planets": record["planet_objs"],
+            }
+        )
+    uncapped = {"candidates": 0, "before_kept": 0, "before_dropped": 0, "after_planets": 0, "after_dropped": 0, "split": 0}
+    for rows in drafted.values():
+        for record in rows:
+            uncapped["candidates"] += 1
+            if record["kind"] == "split":
+                uncapped["before_dropped"] += 1
+                uncapped["split"] += 1
+                published = len(record["planet_objs"])
+                uncapped["after_planets"] += published
+                if published == 0:
+                    uncapped["after_dropped"] += 1
+            elif record["kind"] == "keep":
+                uncapped["before_kept"] += 1
+                uncapped["after_planets"] += 1
+            else:
+                uncapped["before_dropped"] += 1
+                uncapped["after_dropped"] += 1
+    excluded_examples = []
+    surviving = []
+    for rows in drafted.values():
+        for record in rows:
+            for piece in record.get("excluded") or []:
+                excluded_examples.append(
+                    {
+                        "section": piece.get("section") or record["section"],
+                        "label": piece.get("label"),
+                        "posts": piece.get("posts"),
+                        "parent_terms": record["terms"],
+                        "parent_posts": record["posts"],
+                        "samples": piece.get("samples") or [],
+                    }
+                )
+            planets = [
+                planet
+                for planet in record.get("planet_objs") or []
+                if int(planet.get("post_count") or 0) >= floor
+            ]
+            if record.get("kind") == "split" and len(planets) >= 2:
+                surviving.append(
+                    {
+                        "section": record["section"],
+                        "candidate_terms": record["terms"],
+                        "posts": record["posts"],
+                        "planets": planets,
+                    }
+                )
+    excluded_examples.sort(key=lambda item: (-int(item.get("posts") or 0), item.get("section") or "", item.get("label") or ""))
+    surviving.sort(key=lambda item: (-int(item.get("posts") or 0), item.get("section") or "", item.get("candidate_terms") or ""))
+    pool_floor_excluded = sum(int(record.get("floor_excluded") or 0) for rows in drafted.values() for record in rows)
+    return {
+        "label_backend": "heuristic",
+        "catalog_size": catalog_size,
+        "min_planet_posts": floor,
+        "pool_floor_excluded": pool_floor_excluded,
+        "excluded_examples": excluded_examples[:12],
+        "surviving_splits": surviving[:12],
+        "before": before,
+        "after": after,
+        "extra_label_calls": extra,
+        "gross_split_label_calls": after["gross_split_calls"],
+        "uncapped_pool": uncapped,
+        "examples": shown,
+        "split_count": uncapped["split"],
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare face-grouping approaches on a corpus snapshot")
     parser.add_argument("--db", type=Path, required=True)
@@ -286,6 +677,17 @@ def main() -> None:
     parser.add_argument("--catalog-size", type=int, default=10)
     parser.add_argument("--llm", action="store_true", help="Spend a few model calls on hard planets")
     parser.add_argument("--llm-max", type=int, default=8)
+    parser.add_argument(
+        "--stories",
+        action="store_true",
+        help="Also compare dropping glued different-stories planets with splitting them",
+    )
+    parser.add_argument(
+        "--planet-floor",
+        type=int,
+        default=None,
+        help="Minimum posts for a published planet (default: MIN_PLANET_POSTS). 0 disables the floor.",
+    )
     args = parser.parse_args()
     connection = connect(args.db)
     try:
@@ -388,6 +790,58 @@ def main() -> None:
                 "keep_note": kept["note"],
             }
         )
+    story_report = None
+    if args.stories:
+        print("Comparing the different-stories drop with a split")
+        story_clock = time.perf_counter()
+        story_report = evaluate_story_splits(
+            posts,
+            matrix,
+            seed=args.seed,
+            catalog_size=args.catalog_size,
+            min_planet_posts=args.planet_floor,
+        )
+        print(f"Story comparison finished in {time.perf_counter() - story_clock:.1f}s")
+        before = story_report["before"]
+        after = story_report["after"]
+        extra = story_report["extra_label_calls"]
+        print(
+            f"Planet floor {story_report['min_planet_posts']}. "
+            f"Catalog walk before (main: drop glued stories): drafted {before['candidates_drafted']} "
+            f"kept {before['kept']} dropped {before['dropped']} "
+            f"calls faces {before['label_calls']['faces']} names {before['label_calls']['names']} "
+            f"briefs {before['label_calls']['briefs']}"
+        )
+        print(
+            f"Catalog walk after: drafted {after['candidates_drafted']} "
+            f"kept {after['kept']} dropped {after['dropped']} "
+            f"split {after['split_candidates']} "
+            f"floor_excluded {after['floor_excluded']} "
+            f"pool_floor_excluded {story_report['pool_floor_excluded']} "
+            f"smallest {after['smallest_planet']} "
+            f"post_mass {after['post_mass']} politics {after['post_mass_politics']} "
+            f"health {after['post_mass_health']}"
+        )
+        for section in after["sections"]:
+            print(
+                f"  {section['section']}: kept {section['kept']} "
+                f"floor_excluded {section['floor_excluded']} "
+                f"post_mass {section['post_mass']} smallest {section['smallest_posts']}"
+            )
+        print(
+            f"Catalog walk after calls: faces {after['label_calls']['faces']} "
+            f"names {after['label_calls']['names']} briefs {after['label_calls']['briefs']}"
+        )
+        gross = story_report["gross_split_label_calls"]
+        print(
+            f"Extra label calls per run: {extra['total']} "
+            f"(faces {extra['faces']}, names {extra['names']}, briefs {extra['briefs']})"
+        )
+        print(
+            "Gross calls on the split planets themselves: "
+            f"faces {gross['faces']} names {gross['names']} briefs {gross['briefs']}"
+        )
+
     payload = {
         "posts": len(posts),
         "candidate_planets": len(planets),
@@ -397,6 +851,7 @@ def main() -> None:
         "hard_cases": hard,
         "qualitative": qualitative,
         "llm_opposing": llm_rows,
+        "story_splits": story_report,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

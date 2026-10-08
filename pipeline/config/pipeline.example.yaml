@@ -40,6 +40,11 @@ representative_posts: 36
 language: en
 seed: 0
 catalog_size: 10
+# A planet needs at least this many posts to be published. The check runs
+# before face labels, names, and briefs, for split stories and for a whole
+# candidate. Pieces under the floor are not glued onto a sibling and do not
+# fill a catalog slot. 0 disables the floor.
+min_planet_posts: 5
 
 # Content-neutral search tokens. Bluesky search has no random-post endpoint.
 # These words do not steer the week toward a beat. --query still overrides them.
