@@ -156,3 +156,38 @@ def test_every_local_approach_returns_the_metric_keys():
             assert abs(sum(packed["sizes"]) - len(texts)) == 0
             assert 0.0 <= packed["distinctness"] <= 1.0
             assert 0.0 <= packed["balance"] <= 1.0
+
+
+def test_catalog_walk_splits_fill_the_ceiling_and_drops_do_not():
+    from pipeline.eval.grouping_eval import catalog_walk
+
+    records = [
+        {
+            "kind": "split",
+            "detection_faces": 4,
+            "skipped": 1,
+            "label_calls": {"faces": 8, "names": 2, "briefs": 0},
+            "planet_objs": [{"name": "Diesel"}, {"name": "Measles"}],
+        },
+        {
+            "kind": "keep",
+            "detection_faces": 2,
+            "label_calls": {"faces": 2, "names": 1, "briefs": 0},
+            "planet_objs": [{"name": "Spare"}],
+        },
+    ]
+    before = catalog_walk(records, 2, split_stories=False)
+    after = catalog_walk(records, 2, split_stories=True)
+    assert before["kept"] == 1
+    assert before["dropped"] == 1
+    assert before["split_candidates"] == 0
+    assert [planet["name"] for planet in before["planets"]] == ["Spare"]
+    assert before["label_calls"] == {"faces": 6, "names": 1, "briefs": 0}
+    assert after["kept"] == 2
+    assert after["dropped"] == 0
+    assert after["split_candidates"] == 1
+    assert after["candidates_drafted"] == 1
+    assert [planet["name"] for planet in after["planets"]] == ["Diesel", "Measles"]
+    assert after["gross_split_calls"]["faces"] == 4
+    assert after["gross_split_calls"]["names"] == 2
+    assert after["label_calls"]["faces"] == 8

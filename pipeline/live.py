@@ -37,6 +37,8 @@ from pipeline.label import (
     name_from_perspectives,
     shares_claim_word,
     specific_shared_words,
+    specific_subject_words,
+    story_groups,
     subject_stem,
     titles_alike,
     topic_name_is_weak,
@@ -428,6 +430,9 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
 # A planet whose labels collapse below MIN_FACES may try this many other
 # passing face counts (best fit first) before it is dropped.
 _FACE_RETRIES = 1
+# A glued candidate is split into stories, and each story is split again
+# the same way. This stops a grab-bag from being cut one post at a time.
+_STORY_SPLIT_LIMIT = 3
 
 
 def _label_faces(
@@ -565,9 +570,17 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     collapse that split below MIN_FACES, the next passing count is tried
     once; after that the pre-collapse faces are kept, or a fresh 2-way cut
     is labeled and locked. The planet is not dropped for having one face
-    (#76, supersedes the drop in #53). The planet name and level summaries
-    are written only for a planet that survives.
+    (#76, supersedes the drop in #53). When the faces are different stories
+    (no specific shared subject word), the candidate is split into one
+    planet per story and each story goes through this same split (#78).
+    The planet name and level summaries are written only for a planet that
+    survives. A single-planet draft keeps the ``planet`` / ``membership`` /
+    ``face_rows`` keys. A split draft returns ``planets`` instead.
     """
+    depth = int(context.get("story_depth") or 0)
+    if "story_calls" not in context:
+        context = dict(context)
+        context["story_calls"] = {"faces": 0, "names": 0, "briefs": 0}
     log: list[str] = []
     backend = context["backend"]
     model = context["model"]
@@ -581,13 +594,14 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     split = split_perspectives(member_texts, seed=context["seed"], matrix=member_matrix)
     if len(split["faces"]) < MIN_FACES:
         log.append(f"Dropping {topic_name(terms)}: {split.get('reason') or 'no two faces'}.")
-        return None, log
+        return _emit_draft(context, None, log, split=False, detection_faces=0)
     attempts = [split, *(split.get("alternatives") or [])[:_FACE_RETRIES]]
     drafted: list = []
     tried: list[str] = []
     chosen_split = split
     for attempt in attempts:
         drafted, labeled = _label_faces(members, attempt, terms, context)
+        context["story_calls"]["faces"] += int(labeled)
         tried.append(f"k={attempt.get('k', len(attempt['faces']))}: {len(drafted)} of {labeled}")
         chosen_split = attempt
         if len(drafted) >= MIN_FACES:
@@ -614,19 +628,51 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
             chosen_split["forced"] = True
             chosen_split["method"] = method
             drafted, labeled = _label_faces(members, chosen_split, terms, context, lock_floor=True)
+            context["story_calls"]["faces"] += int(labeled)
             tried.append(f"forced {method}: {len(drafted)} of {labeled}")
     if len(drafted) < MIN_FACES:
         log.append(
             f"Dropping {topic_name(terms)}: too few faces kept a distinct shared claim "
             f"({'; '.join(tried)}; need {MIN_FACES})."
         )
-        return None, log
+        return _emit_draft(
+            context,
+            None,
+            log,
+            split=False,
+            detection_faces=int(context["story_calls"]["faces"]),
+        )
     drafted = drafted[:MAX_FACES]
     perspectives = [item[0] for item in drafted]
     if not specific_shared_words(perspectives):
-        log.append(f"Dropping {topic_name(terms)}: its faces are different stories.")
-        return None, log
+        if depth < _STORY_SPLIT_LIMIT:
+            detection_faces = int(context["story_calls"]["faces"])
+            handled, split_result, split_log = _split_different_stories(
+                posts, clustered, topic, context, members, drafted, log
+            )
+            log.extend(split_log)
+            if handled:
+                if split_result is not None:
+                    split_result["detection_faces"] = detection_faces
+                return _emit_draft(
+                    context,
+                    split_result,
+                    log,
+                    split=True,
+                    detection_faces=detection_faces,
+                    skipped=0 if split_result is None else int(split_result.get("skipped") or 0),
+                )
+            log.append(
+                f"Keeping {topic_name(terms)}: faces share no single subject word, "
+                "but they do not separate into stories."
+            )
+        else:
+            log.append(
+                f"Publishing {topic_name(terms)}: further cuts still share no subject word, "
+                "so this is the smallest planet."
+            )
     planet = label_topic(members, terms, backend=backend, model=model)
+    context["story_calls"]["names"] += 1
     name = str(planet.get("name") or topic_name(terms))
     if (
         planet.get("label_source") == "heuristic"
@@ -634,6 +680,10 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         or _name_misses_faces(name, perspectives)
     ):
         renamed = name_from_perspectives(members, perspectives, terms, backend=backend, model=model)
+        # Heuristic naming returns before any model call. A network backend
+        # spends the call even when the answer is unusable.
+        if context.get("chosen") != "heuristic":
+            context["story_calls"]["names"] += 1
         fallback = str(perspectives[0].get("title") or "") if perspectives else ""
         if renamed and not _name_misses_faces(renamed, perspectives):
             name = renamed
@@ -658,6 +708,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         "perspectives": perspectives,
     }
     apply_level_summaries(planet_out, generate=context["summary_model"])
+    if context.get("summary_model") is not None and perspectives:
+        context["story_calls"]["briefs"] += len(perspectives) + 1
     distinctness = _face_distinctness(member_matrix, members, member_texts, drafted)
     planet_out["face_distinctness"] = distinctness
     k_scores = ", ".join(
@@ -670,10 +722,172 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         + " | ".join(f"{item['volume_percent']}% {item['title']}" for item in perspectives)
         + (f"  [silhouette {k_scores}]{retried}{forced} distinctness={distinctness}" if k_scores else f"{retried}{forced} distinctness={distinctness}")
     )
-    return {
-        "planet": planet_out,
-        "membership": [post["uri"] for post in members],
-        "face_rows": face_rows,
+    return _emit_draft(
+        context,
+        {
+            "planet": planet_out,
+            "membership": [post["uri"] for post in members],
+            "face_rows": face_rows,
+            "split": False,
+            "detection_faces": int(context["story_calls"]["faces"]),
+        },
+        log,
+        split=False,
+        detection_faces=int(context["story_calls"]["faces"]),
+    )
+
+
+def _emit_draft(context: dict, result: dict | None, log: list[str], **meta):
+    """Record one top-level draft. Nested story splits share the call counter."""
+    if int(context.get("story_depth") or 0) != 0:
+        return result, log
+    calls = dict(context.get("story_calls") or {"faces": 0, "names": 0, "briefs": 0})
+    if result is not None:
+        result["label_calls"] = calls
+    stats = context.get("draft_stats")
+    if isinstance(stats, list):
+        stats.append(
+            {
+                "kind": "drop" if result is None else ("split" if result.get("split") else "keep"),
+                "label_calls": calls,
+                "planets": len(_bundles_from(result)),
+                **meta,
+            }
+        )
+    return result, log
+
+
+def _bundles_from(result: dict | None) -> list[dict]:
+    """Planet bundles inside one draft. A split carries ``planets``; one planet does not."""
+    if not result:
+        return []
+    planets = result.get("planets")
+    if planets:
+        return list(planets)
+    if result.get("planet") is not None:
+        return [result]
+    return []
+
+
+def _member_subject_words(members: list[dict], indices: list[int]) -> set[str]:
+    posts = [
+        {"text": str(members[index].get("clean_text") or members[index].get("text") or "")}
+        for index in indices[:6]
+    ]
+    return specific_subject_words({"title": "", "summary": "", "representative_posts": posts})
+
+
+def _split_different_stories(
+    posts: list[dict],
+    clustered: dict,
+    topic: dict,
+    context: dict,
+    members: list[dict],
+    drafted: list,
+    parent_log: list[str],
+) -> tuple[bool, dict | None, list[str]]:
+    """Turn one glued candidate into a planet per story.
+
+    Returns ``(handled, result, log)``. ``handled`` is false when the faces
+    do not separate, and the caller publishes the original planet. A handled
+    split with ``result is None`` produced no planet (each story was too
+    small, and the log says so). The stories are not glued back together.
+    """
+    del parent_log
+    log: list[str] = []
+    uri_index = {str(post.get("uri") or ""): index for index, post in enumerate(members)}
+    faces = []
+    for perspective, rows, size in drafted:
+        indices = []
+        seen: set[int] = set()
+        for uri, _position, _distance in rows:
+            index = uri_index.get(str(uri))
+            if index is None or index in seen:
+                continue
+            seen.add(index)
+            indices.append(index)
+        faces.append(
+            {
+                "title": perspective.get("title") or "",
+                "summary": perspective.get("summary") or "",
+                "representative_posts": perspective.get("representative_posts") or [],
+                "member_indices": indices,
+            }
+        )
+        del size
+    groups = story_groups(faces)
+    buckets: list[list[int]] = []
+    for group in groups:
+        indices = []
+        seen = set()
+        for face_index in group:
+            for index in faces[face_index]["member_indices"]:
+                if index in seen:
+                    continue
+                seen.add(index)
+                indices.append(index)
+        if indices:
+            buckets.append(indices)
+    if len(buckets) < 2:
+        return False, None, log
+    terms = list(topic.get("terms") or [])
+    label = topic_name(terms)
+    large = [indices for indices in buckets if len(indices) >= 2]
+    tiny = [indices for indices in buckets if len(indices) < 2]
+    skipped = 0
+    for indices in tiny:
+        bag = _member_subject_words(members, indices)
+        host = None
+        best = 0
+        for candidate in large:
+            overlap = len(bag & _member_subject_words(members, candidate))
+            if overlap > best:
+                best = overlap
+                host = candidate
+        if host is not None and best > 0:
+            host.extend(indices)
+            log.append(f"Folding 1 post in {label} into a neighbouring story that shares a subject word.")
+            continue
+        skipped += 1
+        log.append(f"Skipping a story in {label}: {len(indices)} post is too small to publish on its own.")
+    if not large:
+        log.insert(0, f"Splitting {label}: its faces are different stories ({len(buckets)} stories).")
+        return True, {
+            "planets": [],
+            "split": True,
+            "stories": len(buckets),
+            "skipped": skipped,
+        }, log
+    log.insert(0, f"Splitting {label}: its faces are different stories ({len(large) + skipped} stories).")
+    child_context = dict(context)
+    child_context["story_depth"] = int(context.get("story_depth") or 0) + 1
+    bundles = []
+    for indices in sorted(large, key=len, reverse=True):
+        texts = [str(members[index].get("clean_text") or "") for index in indices]
+        sub_terms = salient_terms(texts, limit=6) or list(terms)
+        subtopic = {
+            "id": topic.get("id"),
+            "terms": sub_terms,
+            "member_indices": [topic["member_indices"][index] for index in indices],
+            "size": len(indices),
+        }
+        child, child_log = _draft_planet(posts, clustered, subtopic, child_context)
+        log.extend(child_log)
+        bundles.extend(_bundles_from(child))
+        if child is not None:
+            skipped += int(child.get("skipped") or 0)
+    if not bundles:
+        return True, {
+            "planets": [],
+            "split": True,
+            "stories": len(large) + skipped,
+            "skipped": skipped,
+        }, log
+    return True, {
+        "planets": bundles,
+        "split": True,
+        "stories": len(large) + skipped,
+        "skipped": skipped,
     }, log
 
 
@@ -808,16 +1022,20 @@ def _build_topics(
             else:
                 results = [draft(topic) for topic in wave]
             for result, log in results:
-                if len(built) >= target:
-                    break
                 for line in log:
                     print(line)
-                if result is None:
-                    continue
-                planet = _stage_planet(built, seen_names, result)
-                topic_id = int(planet["id"])
-                membership.extend((uri, topic_id) for uri in result["membership"])
-                face_rows.extend((uri, topic_id, position, distance) for uri, position, distance in result["face_rows"])
+                for bundle in _bundles_from(result):
+                    if len(built) >= target:
+                        name = str((bundle.get("planet") or {}).get("name") or "story")
+                        print(f"Not publishing {name}: the catalog already has {target} planets.")
+                        continue
+                    planet = _stage_planet(built, seen_names, bundle)
+                    topic_id = int(planet["id"])
+                    membership.extend((uri, topic_id) for uri in bundle["membership"])
+                    face_rows.extend(
+                        (uri, topic_id, position, distance)
+                        for uri, position, distance in bundle["face_rows"]
+                    )
     finally:
         if executor is not None:
             executor.shutdown(wait=True)
@@ -880,6 +1098,13 @@ class _SectionLabelJob:
     def can_submit(self) -> bool:
         if self.done or self.budget_hit or self.skipped_budget:
             return False
+        if len(self.built) >= self.keep:
+            # A split candidate can fill the catalog mid-wave. Do not label
+            # another candidate just to throw it away.
+            self.wave_left = 0
+            self.wave_open = False
+            self.done = True
+            return False
         if not self.wave_open:
             if len(self.built) >= self.keep or self.cursor >= len(self.candidates):
                 self.done = True
@@ -921,8 +1146,12 @@ class _SectionLabelJob:
             result, log = self.pending.pop(index)
             for line in log:
                 print(line)
-            if result is not None and len(self.built) < self.keep:
-                _stage_planet(self.built, self.seen, result)
+            for bundle in _bundles_from(result):
+                if len(self.built) >= self.keep:
+                    name = str((bundle.get("planet") or {}).get("name") or "story")
+                    print(f"Not publishing {name}: the catalog already has {self.keep} planets.")
+                    continue
+                _stage_planet(self.built, self.seen, bundle)
             self.applied += 1
 
     def _close_wave_if_idle(self) -> None:
@@ -1318,9 +1547,11 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
     """Remove a face with no shared claim, without deleting the planet for it.
 
     If removing those faces would leave fewer than two, the planet is kept
-    as it was (#76). A planet that arrived already outside 2–6 faces is still
-    dropped here; drafting is what stops that from happening. If two or more
-    faces remain, their volumes are recomputed so they still sum to 100.
+    as it was (#76). Different stories are not dropped here: drafting splits
+    them into separate planets before this guard (#78). A planet that arrived
+    already outside 2–6 faces is still dropped here; drafting is what stops
+    that from happening. If two or more faces remain, their volumes are
+    recomputed so they still sum to 100.
     """
     kept = []
     for topic in topics:

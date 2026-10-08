@@ -545,3 +545,146 @@ def test_section_budget_skips_remaining_sections(monkeypatch):
     settings = {**SETTINGS, "min_cluster_size": 8, "cluster_backend": "embedding", "embedding_model": "unused"}
     sections = live._cluster_sections(posts, clustered["matrix"], settings, 10, 8, deadline=0.0)
     assert sections == {}
+
+
+def _story_blob(word: str, size: int, seed: int):
+    """One tight embedding group whose posts repeat a single subject word."""
+    matrix = _blobs([size], seed=seed)
+    posts = []
+    for copy in range(size):
+        extra = {"diesel": "stockpile refinery", "measles": "vaccine outbreak", "bitcoin": "wallet ledger"}.get(
+            word, "remark detail"
+        )
+        text = f"{word} {word} {word} {extra} {copy}"
+        posts.append(
+            {
+                "uri": f"at://{word}/{copy}",
+                "author": f"{word}.{copy}",
+                "clean_text": text,
+                "text": text,
+                "likes": copy,
+            }
+        )
+    return posts, matrix
+
+
+def _glued_candidate(stories):
+    posts, blocks = [], []
+    for group_posts, matrix in stories:
+        posts.extend(group_posts)
+        blocks.append(matrix)
+    clustered = {
+        "topics": [
+            {
+                "id": 0,
+                "size": len(posts),
+                "member_indices": list(range(len(posts))),
+                "terms": ["glued"],
+            }
+        ],
+        "matrix": np.vstack(blocks),
+        "assignments": [],
+        "noise_count": 0,
+    }
+    return posts, clustered
+
+
+def test_glued_stories_split_instead_of_dropping(capsys):
+    """A candidate whose faces share no subject word becomes one planet per story."""
+    posts, clustered = _glued_candidate(
+        [
+            _story_blob("diesel", 24, seed=3),
+            _story_blob("measles", 20, seed=11),
+        ]
+    )
+    topics, membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=10)
+    logged = capsys.readouterr().out
+    assert "its faces are different stories." not in logged
+    assert "Splitting" in logged
+    assert len(topics) == 2
+    names = " ".join(topic["name"].lower() for topic in topics)
+    assert "diesel" in names
+    assert "measles" in names
+    assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in topics)
+    authors = {uri.split("/")[2] for uri, _topic in membership}
+    assert authors == {"diesel", "measles"}
+    for topic in topics:
+        words = {word for face in topic["perspectives"] for word in (face.get("top_terms") or [])}
+        assert words
+        # Each planet's faces are one story, so they share that story's word.
+        blob = "diesel" if "diesel" in topic["name"].lower() else "measles"
+        assert all(blob in str(face.get("title") or "").lower() or blob in str(face.get("summary") or "").lower() or blob in " ".join(face.get("top_terms") or []) for face in topic["perspectives"])
+
+
+def test_no_different_stories_drop_path_remains():
+    source = open("pipeline/live.py", encoding="utf-8").read()
+    assert "Dropping {topic_name(terms)}: its faces are different stories." not in source
+    assert "def _drop_unshared_planets" in source
+    # The guard still exists for a planet that arrives outside 2-6 faces.
+    # It does not mention the different-stories rule.
+    start = source.index("def _drop_unshared_planets")
+    end = source.index("\ndef ", start + 1)
+    body = source[start:end]
+    assert "its faces are different stories" not in body
+    assert "specific_shared_words" not in body
+
+
+def test_split_planets_stay_within_the_catalog(capsys):
+    posts, clustered = _glued_candidate(
+        [
+            _story_blob("diesel", 24, seed=3),
+            _story_blob("measles", 20, seed=11),
+            _story_blob("bitcoin", 18, seed=19),
+        ]
+    )
+    topics, membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=2)
+    logged = capsys.readouterr().out
+    assert len(topics) == 2
+    assert "the catalog already has 2 planets" in logged
+    assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in topics)
+    assert len({topic_id for _uri, topic_id in membership}) == 2
+
+
+def test_single_post_story_is_skipped_with_a_reason(capsys):
+    diesel_posts, diesel_matrix = _story_blob("diesel", 16, seed=4)
+    lone = {
+        "uri": "at://hurricane/0",
+        "author": "hurricane.0",
+        "clean_text": "hurricane hurricane landfall warning",
+        "text": "hurricane hurricane landfall warning",
+        "likes": 1,
+    }
+    # A 1-post face cannot come from the face splitter's floors, so build the
+    # drafted rows the splitter would hand to the story cut.
+    members = diesel_posts + [lone]
+    drafted = [
+        (
+            {
+                "title": "Diesel",
+                "summary": "Diesel exports are the claim.",
+                "representative_posts": [{"text": post["text"]} for post in diesel_posts[:3]],
+            },
+            [(post["uri"], 0, 0.1) for post in diesel_posts],
+            len(diesel_posts),
+        ),
+        (
+            {
+                "title": "Hurricane",
+                "summary": "A hurricane is the claim.",
+                "representative_posts": [{"text": lone["text"]}],
+            },
+            [(lone["uri"], 1, 0.2)],
+            1,
+        ),
+    ]
+    topic = {"id": 0, "terms": ["glued"], "member_indices": list(range(len(members))), "size": len(members)}
+    clustered = {"matrix": np.vstack([diesel_matrix, _blobs([1], seed=8)]), "topics": [topic]}
+    handled, result, log = live._split_different_stories(
+        members, clustered, topic, live._label_context(SETTINGS), members, drafted, []
+    )
+    assert handled is True
+    assert any("too small to publish" in line for line in log)
+    assert result is not None
+    assert len(result["planets"]) == 1
+    assert "diesel" in result["planets"][0]["planet"]["name"].lower()
+    del capsys
