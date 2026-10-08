@@ -217,3 +217,9 @@ Append-only. Newest at the bottom.
 - **Why:** A 100K corpus should give larger, more natural planets, but not at the roughly $1.70/day the current design would cost.
 - **Alternatives:** A 50K-post window at the lower budget.
 - **Revisit when:** The cost ledger shows a sustained daily total above $0.30, or prices change.
+
+### 2026-10-08 — Group once; Jev picks the section per planet, not per post (#90, #87)
+- **Decision:** Michael approved this as the official plan on 2026-10-08. Each post goes through Jev once, for spam and claim only. The section question and section definitions come out of the per-post call. All claim posts are grouped in one natural (density-based) pass. Each planet then gets one Jev call on its summary and arguments, and Jev picks its section; a planet split between two sections may be listed in both. Planets are ranked by reach within each section, and each section shows its top 10. Each planet is labeled once, and that label is reused in the global and section lists. A section that can't fill 10 slots may be re-grouped on its own as a fallback. Switching over requires a shadow test, inside the approved ~$0.03 Jev budget, showing the planet-level section matches the majority of today's per-post sections for at least 90% of planets.
+- **Why:** Per-section re-grouping labels the same stories twice and classifies up to 100K posts by section. Judging a planet by what it actually argues handles mixed-section planets honestly, keeps the same story consistent across views, and cuts Jev section calls from one per post to one per planet (a few hundred a day). This also supports the $0.25/day target.
+- **Alternatives:** Re-group each section's posts separately (today's approach). Group once and assign a planet's section by majority vote of its posts' per-post Jev sections.
+- **Revisit when:** The shadow test misses the 90% bar, sections can't fill their top 10, or readers find planets in the wrong section.
