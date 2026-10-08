@@ -28,7 +28,7 @@ So production grouping grows balls, not chains:
 
 ## What the site shows
 
-Every ball is ranked by the reach measure already in the pipeline: distinct authors, then size. The global solar system publishes the top 10. Each newspaper section publishes its own top 10. Balls below that line are not labeled. Finding hundreds of candidates does not spend hundreds of model calls.
+Every ball is ranked by the reach measure already in the pipeline: distinct authors, then size. The global solar system publishes the top 10. Each newspaper section publishes its own top 10. Drafting walks that ranking until 10 planets survive. A candidate that is dropped or split still pays for its draft, and the next candidate is drafted. Candidates after the catalog fills are not labeled.
 
 A planet is still split into faces in its own space, trying 2 through 6. When that split finds real, separated views, they are published. When it does not, the planet is one perspective and carries `opposing_note`: “No clear opposing view found in this sample.” A second face is not invented to pad the count. A face that does not share a claim, judged on a spread of up to 40 posts rather than the five closest to the centroid, is not published. One remaining real face is kept. The decision to allow a single clear perspective is a product call from 2026-10-08. It is implemented here. Its log entry already sits in `.factory/DECISIONS.md` (one clear perspective, #85). This change adds only the clustering-method entry.
 
@@ -44,9 +44,11 @@ At 100,000 posts an assignment of every post to `n / 5` centers would be an n×k
 
 ## Labeling cost
 
-Labeling still stops once `catalog_size` (10) planets survive, for the global system and for each section. There are at most 11 solar systems. On this corpus the heuristic labeler published 10 planets in every section. Across those 110 planets it kept 192 faces: 6 of the global ten are a single view, and the sections are mixed. A one-perspective planet makes one face call, not a forced pair.
+Labeling walks ranked candidates until `catalog_size` (10) planets survive, for the global system and for each section. Only the wide relabel is limited to planets that made the catalog. On this 10,000-claim artifact the heuristic labeler, walked the same way as the daily job, published 100 section planets (178 faces) and 10 global planets (14 faces). Six of the global ten are a single view.
 
-Issue #86 measured about 1,025–1,080 DeepInfra calls and about $0.10 on a day that labeled forced pairs and retried collapsed faces. This change labels only the published top, and it does not spend a second pass to invent a second view. Face calls on the order of the ~192 published faces, plus a name and briefs for each published planet, and a repair when a label is unusable, stay well under that 1,025 and do not rise. The section ceiling stays 20 minutes (1,200 seconds). Candidate count does not add model calls.
+Face-draft calls were 361 in the sections and 389 including the global list. Ranked candidates drafted were 133 in the sections and 144 including global. Counting the extra `_draft_planet` call inside a story split, those are 150 and 161. Wide relabels, one per published face, are 178 and 192. Names recorded on that walk were 102 and 112. Briefs, one for each published planet and each published face, add 278 and 302. The sum is 919 paid calls for the sections and 995 including global. About 796 is only the floor from one draft per published face (`3 × 192 + 2 × 110`). It leaves out candidates that were drafted and then dropped or split.
+
+Issue #86 measured about 1,025–1,080 DeepInfra calls. This walk is about 995, in that same band. It does not spend a second pass to invent a second view. A paid labeler can drop different candidates, so a real run can draft further than this count. The section budget stays 20 minutes (1,200 seconds). On current main the section phase does not fit under that budget; parallel relabel is #95 and has to merge first.
 
 The census uses the heuristic labeler, so it does not measure a paid run. Published “Mixed remarks” faces in that heuristic pass are **zero** in every section, because a face that does not share a claim is dropped instead of published. A paid labeler can still say the words; the same drop applies, so the published rate should stay at the floor rather than the old 46% of faces (101 of 220).
 
