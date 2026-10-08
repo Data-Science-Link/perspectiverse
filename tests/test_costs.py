@@ -23,6 +23,7 @@ from pipeline.costs import (
     append_ledger,
     append_run_files,
     count_published_planets,
+    format_axis_tick_usd,
     format_chart_usd,
     format_ledger_usd,
     format_usd,
@@ -503,7 +504,10 @@ def test_format_chart_usd_prefixes_dollars_and_rounds():
     assert format_chart_usd(Decimal("0.20065354")) == "$0.20"
     assert format_chart_usd(Decimal("1.542")) == "$1.54"
     assert format_chart_usd(Decimal("0.000021")) == "$0.000021"
-    assert format_chart_usd(Decimal("0.00999")) == "$0.0100"
+    assert format_chart_usd(Decimal("0.00999")) == "$0.01"
+    assert format_axis_tick_usd(Decimal("0.125")) == "$0.125"
+    assert format_axis_tick_usd(Decimal("0.375")) == "$0.375"
+    assert format_axis_tick_usd(Decimal("0.5")) == "$0.50"
 
 
 def test_ledger_usd_rounds_to_eight_decimals_on_write(tmp_path):
@@ -733,8 +737,25 @@ def test_daily_spend_svg_is_fourteen_days_with_gaps_and_valid_xml():
     assert "UTC day" in labels
     assert "$1.54" in labels
     assert "$0.25" in labels
-    assert all(label is None or not label.startswith("0.") for label in labels if label and label[0].isdigit())
+    assert _money_chart_labels(labels) == {label for label in labels if label and label.startswith("$")}
     assert text.startswith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+
+
+def test_daily_spend_svg_axis_ticks_show_unrounded_scale_at_half_dollar_max():
+    import xml.etree.ElementTree as ET
+
+    today = date(2026, 10, 8)
+    rows = [_row("run-a", "2026-10-08", SERVICE_R2, "0.40", 10, 1)]
+    text = render_daily_spend_svg(rows, today=today)
+    labels = [
+        element.text
+        for element in ET.parse(io.StringIO(text)).getroot().iter()
+        if element.tag.endswith("text")
+    ]
+    assert "$0.125" in labels
+    assert "$0.375" in labels
+    assert "$0.50" in labels
+    assert _money_chart_labels(labels) == {label for label in labels if label and label.startswith("$")}
 
 
 def test_legacy_header_migrates_without_dropping_rows(tmp_path):
@@ -853,6 +874,19 @@ def test_r2_usage_appends_a_row_and_notes_the_free_tier(tmp_path):
     root = ET.parse(io.StringIO(chart)).getroot()
     assert root.tag.endswith("svg")
     assert len([element for element in root.iter() if element.tag.endswith("g") and element.get("data-date")]) == 14
+
+
+def _money_chart_labels(labels: list[str | None]) -> set[str]:
+    skip = {"LLM labeling", "Jev", "R2", "UTC day"}
+    money: set[str] = set()
+    for label in labels:
+        if not label or label in skip:
+            continue
+        if len(label) == 5 and label[2] == "-" and label[:2].isdigit() and label[3:].isdigit():
+            continue
+        money.add(label)
+        assert label.startswith("$")
+    return money
 
 
 def _r2_row(day: str, storage_bytes: int, *, class_a: int, class_b: int) -> dict[str, str]:

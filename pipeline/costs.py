@@ -708,13 +708,26 @@ def format_usd(amount: Decimal) -> str:
     return text + ".00"
 
 
+def format_axis_tick_usd(amount: Decimal) -> str:
+    """Y-axis tick label: ``$`` prefix, at least two decimals, trailing zeros stripped."""
+    quantized = amount.quantize(_LEDGER_USD_QUANTUM, rounding=ROUND_HALF_UP)
+    text = format(quantized, "f")
+    if "." in text:
+        whole, fraction = text.split(".", 1)
+        fraction = fraction.rstrip("0")
+        if len(fraction) < 2:
+            fraction = fraction.ljust(2, "0")
+        return f"${whole}.{fraction}"
+    return f"${text}.00"
+
+
 def format_chart_usd(amount: Decimal) -> str:
-    """Dollar label for the 14-day SVG (``$`` prefix; 2 decimals at or above one cent)."""
-    if amount >= Decimal("0.01"):
-        rounded = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        return f"${format(rounded, 'f')}"
+    """Dollar label for stacked bar totals (``$`` prefix; 2 decimals at or above one cent)."""
     if amount == 0:
         return "$0.00"
+    rounded_cent = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if rounded_cent >= Decimal("0.01"):
+        return f"${format(rounded_cent, 'f')}"
     rounded = amount.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
     if rounded != 0:
         return f"${format(rounded, 'f')}"
@@ -1098,7 +1111,7 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
                 "fill": "#333333",
             },
         )
-        label.text = format_chart_usd(tick)
+        label.text = format_axis_tick_usd(tick)
     ET.SubElement(
         svg,
         "line",
