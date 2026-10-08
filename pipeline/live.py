@@ -27,7 +27,7 @@ from pipeline.corpus import (
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev
 from pipeline.cluster_math import salient_terms, vectorize
-from pipeline.grouping import distinctness_score
+from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
@@ -37,7 +37,6 @@ from pipeline.label import (
     name_from_perspectives,
     shares_claim_word,
     specific_shared_words,
-    specific_subject_words,
     story_groups,
     subject_stem,
     titles_alike,
@@ -424,6 +423,7 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         "limit": int(settings["representative_posts"]),
         "seed": int(settings["seed"]),
         "workers": workers,
+        "min_planet_posts": _planet_post_floor(settings),
     }
 
 
@@ -433,6 +433,71 @@ _FACE_RETRIES = 1
 # A glued candidate is split into stories, and each story is split again
 # the same way. This stops a grab-bag from being cut one post at a time.
 _STORY_SPLIT_LIMIT = 3
+
+
+def _planet_post_floor(settings: dict) -> int:
+    """Posts a planet must already have before it is labeled. 0 disables the floor."""
+    raw = settings.get("min_planet_posts")
+    if raw is None:
+        return MIN_PLANET_POSTS
+    return max(0, int(raw))
+
+
+def _below_planet_floor(count: int, context: dict) -> bool:
+    floor = _planet_post_floor(context)
+    return floor > 0 and count < floor
+
+
+def _floor_log(context: dict, label: str, count: int) -> str:
+    """One INFO line: section, label hint, and how many posts were left out."""
+    section = str(context.get("section") or "All topics")
+    noun = "post" if count == 1 else "posts"
+    return f"INFO {section}: not publishing {label} ({count} {noun})."
+
+
+def _exclude_for_floor(context: dict, log: list[str], label: str, count: int, samples: list[str]):
+    """Leave a planet out. Nested splits return a count the parent can add up.
+
+    A top-level miss is a drop, so the next candidate fills the catalog slot.
+    Face labels already spent stay in the call counter. Name and brief calls
+    have not been made.
+    """
+    log.append(_floor_log(context, label, count))
+    excluded = [
+        {
+            "section": str(context.get("section") or "All topics"),
+            "label": label,
+            "posts": count,
+            "samples": samples,
+        }
+    ]
+    if int(context.get("story_depth") or 0) == 0:
+        return _emit_draft(
+            context,
+            None,
+            log,
+            split=False,
+            detection_faces=int(context["story_calls"]["faces"]),
+            skipped=1,
+            floor_excluded=1,
+            excluded=excluded,
+        )
+    return {
+        "planets": [],
+        "skipped": 1,
+        "floor_excluded": 1,
+        "excluded": excluded,
+        "detection_faces": int(context["story_calls"]["faces"]),
+    }, log
+
+
+def _post_samples(posts: list[dict], limit: int = 2) -> list[str]:
+    samples = []
+    for post in posts[:limit]:
+        text = " ".join(str(post.get("text") or post.get("clean_text") or "").split())
+        if text:
+            samples.append(text[:220])
+    return samples
 
 
 def _label_faces(
@@ -573,8 +638,11 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     (#76, supersedes the drop in #53). When the faces are different stories
     (no specific shared subject word), the candidate is split into one
     planet per story and each story goes through this same split (#78).
-    The planet name and level summaries are written only for a planet that
-    survives. A single-planet draft keeps the ``planet`` / ``membership`` /
+    A planet, or a story inside one, with fewer than ``min_planet_posts``
+    posts is left out before any label, name, or brief call. It is not
+    glued onto a sibling and it does not fill a catalog slot. The planet
+    name and level summaries are written only for a planet that survives.
+    A single-planet draft keeps the ``planet`` / ``membership`` /
     ``face_rows`` keys. A split draft returns ``planets`` instead.
     """
     depth = int(context.get("story_depth") or 0)
@@ -582,9 +650,12 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         context = dict(context)
         context["story_calls"] = {"faces": 0, "names": 0, "briefs": 0}
     log: list[str] = []
+    members = [posts[index] for index in topic["member_indices"]]
+    if _below_planet_floor(len(members), context):
+        label = topic_name(list(topic.get("terms") or []))
+        return _exclude_for_floor(context, log, label, len(members), _post_samples(members))
     backend = context["backend"]
     model = context["model"]
-    members = [posts[index] for index in topic["member_indices"]]
     member_texts = [post["clean_text"] for post in members]
     matrix = clustered.get("matrix")
     member_matrix = None
@@ -661,6 +732,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
                     split=True,
                     detection_faces=detection_faces,
                     skipped=0 if split_result is None else int(split_result.get("skipped") or 0),
+                    floor_excluded=0 if split_result is None else int(split_result.get("floor_excluded") or 0),
+                    excluded=[] if split_result is None else list(split_result.get("excluded") or []),
                 )
             log.append(
                 f"Keeping {topic_name(terms)}: faces share no single subject word, "
@@ -671,6 +744,10 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
                 f"Publishing {topic_name(terms)}: further cuts still share no subject word, "
                 "so this is the smallest planet."
             )
+    shown = sum(int(item[2]) for item in drafted)
+    if _below_planet_floor(shown, context):
+        # Faces already labeled. Skip the name and the briefs, and do not publish.
+        return _exclude_for_floor(context, log, topic_name(terms), shown, _post_samples(members))
     planet = label_topic(members, terms, backend=backend, model=model)
     context["story_calls"]["names"] += 1
     name = str(planet.get("name") or topic_name(terms))
@@ -769,14 +846,6 @@ def _bundles_from(result: dict | None) -> list[dict]:
     return []
 
 
-def _member_subject_words(members: list[dict], indices: list[int]) -> set[str]:
-    posts = [
-        {"text": str(members[index].get("clean_text") or members[index].get("text") or "")}
-        for index in indices[:6]
-    ]
-    return specific_subject_words({"title": "", "summary": "", "representative_posts": posts})
-
-
 def _split_different_stories(
     posts: list[dict],
     clustered: dict,
@@ -789,9 +858,9 @@ def _split_different_stories(
     """Turn one glued candidate into a planet per story.
 
     Returns ``(handled, result, log)``. ``handled`` is false when the faces
-    do not separate, and the caller publishes the original planet. A handled
-    split with ``result is None`` produced no planet (each story was too
-    small, and the log says so). The stories are not glued back together.
+    do not separate, and the caller publishes the original planet. A story
+    under the planet-post floor is not labeled, not published, and not glued
+    onto a sibling. The log has one INFO line per story left out.
     """
     del parent_log
     log: list[str] = []
@@ -832,37 +901,44 @@ def _split_different_stories(
         return False, None, log
     terms = list(topic.get("terms") or [])
     label = topic_name(terms)
-    large = [indices for indices in buckets if len(indices) >= 2]
-    tiny = [indices for indices in buckets if len(indices) < 2]
+    eligible: list[list[int]] = []
     skipped = 0
-    for indices in tiny:
-        bag = _member_subject_words(members, indices)
-        host = None
-        best = 0
-        for candidate in large:
-            overlap = len(bag & _member_subject_words(members, candidate))
-            if overlap > best:
-                best = overlap
-                host = candidate
-        if host is not None and best > 0:
-            host.extend(indices)
-            log.append(f"Folding 1 post in {label} into a neighbouring story that shares a subject word.")
+    floor_excluded = 0
+    excluded: list[dict] = []
+    for indices in buckets:
+        if not _below_planet_floor(len(indices), context):
+            eligible.append(indices)
             continue
+        texts = [str(members[index].get("clean_text") or members[index].get("text") or "") for index in indices]
+        hint = topic_name(salient_terms(texts, limit=6) or list(terms))
+        log.append(_floor_log(context, hint, len(indices)))
         skipped += 1
-        log.append(f"Skipping a story in {label}: {len(indices)} post is too small to publish on its own.")
-    if not large:
+        floor_excluded += 1
+        excluded.append(
+            {
+                "section": str(context.get("section") or "All topics"),
+                "label": hint,
+                "posts": len(indices),
+                "samples": _post_samples(
+                    [{"text": text} for text in texts]
+                ),
+            }
+        )
+    if not eligible:
         log.insert(0, f"Splitting {label}: its faces are different stories ({len(buckets)} stories).")
         return True, {
             "planets": [],
             "split": True,
             "stories": len(buckets),
             "skipped": skipped,
+            "floor_excluded": floor_excluded,
+            "excluded": excluded,
         }, log
-    log.insert(0, f"Splitting {label}: its faces are different stories ({len(large) + skipped} stories).")
+    log.insert(0, f"Splitting {label}: its faces are different stories ({len(buckets)} stories).")
     child_context = dict(context)
     child_context["story_depth"] = int(context.get("story_depth") or 0) + 1
     bundles = []
-    for indices in sorted(large, key=len, reverse=True):
+    for indices in sorted(eligible, key=len, reverse=True):
         texts = [str(members[index].get("clean_text") or "") for index in indices]
         sub_terms = salient_terms(texts, limit=6) or list(terms)
         subtopic = {
@@ -876,18 +952,24 @@ def _split_different_stories(
         bundles.extend(_bundles_from(child))
         if child is not None:
             skipped += int(child.get("skipped") or 0)
+            floor_excluded += int(child.get("floor_excluded") or 0)
+            excluded.extend(child.get("excluded") or [])
     if not bundles:
         return True, {
             "planets": [],
             "split": True,
-            "stories": len(large) + skipped,
+            "stories": len(buckets),
             "skipped": skipped,
+            "floor_excluded": floor_excluded,
+            "excluded": excluded,
         }, log
     return True, {
         "planets": bundles,
         "split": True,
-        "stories": len(large) + skipped,
+        "stories": len(buckets),
         "skipped": skipped,
+        "floor_excluded": floor_excluded,
+        "excluded": excluded,
     }, log
 
 
@@ -992,7 +1074,9 @@ def _build_topics(
     without paying for labels nobody sees (#53). One candidate that raises is
     logged and skipped instead of failing the snapshot.
     """
-    context = context or _label_context(settings)
+    context = dict(context or _label_context(settings))
+    context.setdefault("section", "All topics")
+    context.setdefault("min_planet_posts", _planet_post_floor(settings))
     candidates = list(clustered["topics"])
     target = len(candidates) if keep is None else max(int(keep), 1)
     workers = int(context.get("workers") or 1)
@@ -1079,7 +1163,8 @@ class _SectionLabelJob:
         self.posts = posts
         self.clustered = clustered
         self.keep = max(int(keep), 1)
-        self.context = context
+        self.context = dict(context)
+        self.context["section"] = name
         self.post_count = int(post_count)
         self.candidates = list(clustered["topics"])
         self.cursor = 0

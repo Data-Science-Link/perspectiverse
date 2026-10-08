@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from pipeline.corpus import TARGET_POSTS
+from pipeline.grouping import MIN_PLANET_POSTS
 
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parent
@@ -35,6 +36,9 @@ DEFAULTS: dict[str, Any] = {
     "language": "en",
     "seed": 0,
     "catalog_size": 10,
+    # Published planets, split stories, and global topics below this many
+    # posts are left out before any label, name, or brief call. 0 disables it.
+    "min_planet_posts": MIN_PLANET_POSTS,
     # Planets labeled at once when a network label backend is on.
     # Section labeling shares one pool and widens this default of 8 to 12.
     "label_workers": 8,
@@ -68,6 +72,8 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
         settings["label_backend"] = os.environ["PERSPECTIVERSE_LABEL_BACKEND"]
     if os.getenv("PERSPECTIVERSE_LABEL_WORKERS"):
         settings["label_workers"] = int(os.environ["PERSPECTIVERSE_LABEL_WORKERS"])
+    if os.getenv("PERSPECTIVERSE_MIN_PLANET_POSTS"):
+        settings["min_planet_posts"] = int(os.environ["PERSPECTIVERSE_MIN_PLANET_POSTS"])
     ollama_model = (os.getenv("OLLAMA_MODEL") or "").strip()
     if ollama_model:
         settings["ollama_model"] = ollama_model

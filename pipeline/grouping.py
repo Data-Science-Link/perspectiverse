@@ -22,6 +22,9 @@ from pipeline.cluster_math import (
 # does not import pipeline.perspectives (that module imports us).
 MIN_FACE_POSTS = 2
 MIN_FACE_SHARE = 0.05
+# A published planet, including a story split out of a glued candidate.
+# Overridable via settings ``min_planet_posts`` and PERSPECTIVERSE_MIN_PLANET_POSTS.
+MIN_PLANET_POSTS = 5
 
 
 def l2_rows(matrix: np.ndarray) -> np.ndarray:

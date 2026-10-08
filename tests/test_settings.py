@@ -29,6 +29,20 @@ def test_dotenv_fills_missing_names_without_overriding(monkeypatch, tmp_path):
     assert os.environ["KEEP_ME"] == "from-process"
 
 
+def test_min_planet_posts_defaults_to_five_and_env_overrides(monkeypatch, tmp_path):
+    from pipeline.grouping import MIN_PLANET_POSTS
+
+    config = tmp_path / "pipeline.yaml"
+    config.write_text("seed: 0\n", encoding="utf-8")
+    monkeypatch.delenv("PERSPECTIVERSE_MIN_PLANET_POSTS", raising=False)
+    assert MIN_PLANET_POSTS == 5
+    assert load_settings(config)["min_planet_posts"] == 5
+    config.write_text("min_planet_posts: 10\n", encoding="utf-8")
+    assert load_settings(config)["min_planet_posts"] == 10
+    monkeypatch.setenv("PERSPECTIVERSE_MIN_PLANET_POSTS", "8")
+    assert load_settings(config)["min_planet_posts"] == 8
+
+
 def test_deepinfra_base_url_selects_llama_in_settings(monkeypatch, tmp_path):
     config = tmp_path / "pipeline.yaml"
     config.write_text("label_backend: auto\nopenai_model: gpt-4o-mini\n", encoding="utf-8")
