@@ -37,6 +37,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Perspective grouping research | `docs/research/perspective-grouping.md` | Stance splits inside one planet, offline comparison, and the keep-and-score rule (#76). |
 | Settings | `pipeline/settings.py` | All env-var-driven settings; cross-reference `.env.example`. |
 | Schema | `pipeline/schema.py` | Canonical data contract between pipeline and frontend. |
+| Production call costs | `pipeline/costs.py` | Meter for DeepInfra and Jev. Ledger and weekly table are committed on `data-snapshot` (`costs/`), not `main`. |
 
 ## Frontend (React + R3F)
 

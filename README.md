@@ -140,6 +140,8 @@ Setting the repository homepage to that URL is optional and done in the same set
 
 Same-UTC-day reruns are safe: `pipeline/live.py` records each fetched UTC date in `fetched_days` and skips Bluesky if that day is already present. Jev (`pipeline/jev.py`) only classifies posts that have no `section` yet, so existing posts are never re-scored. R2 and `data-snapshot` writes are guarded by `concurrency: discourse-pipeline` (cancel-in-progress: false), so runs never overlap.
 
+Weekly DeepInfra and Jev spend is appended on the `data-snapshot` branch ([costs/README.md](https://github.com/Data-Science-Link/perspectiverse/blob/data-snapshot/costs/README.md)).
+
 ## Security
 
 Automated scanning still runs on every push and pull request, weekly on Mondays, and on demand (`workflow_dispatch`):

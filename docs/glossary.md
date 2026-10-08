@@ -22,4 +22,4 @@ Words used in the README, the pipeline, and the frontend. The published JSON con
 
 **`data.json`.** The file the site loads. Written to `public/data.json` by [`pipeline/assemble.py`](../pipeline/assemble.py). Fields include `last_updated`, `total_posts`, `window_hours`, `source`, `mode` (`live` or `demo`), `topics`, optional `sections`, and `noise_policy`.
 
-**`data-snapshot`.** The git branch the daily workflow pushes `public/data.json` to. GitHub Pages copies that file over the `main` copy at build time ([`.github/workflows/pages.yml`](../.github/workflows/pages.yml)). The daily job does not commit the snapshot to `main`.
+**`data-snapshot`.** The git branch the daily workflow pushes `public/data.json` to. GitHub Pages copies that file over the `main` copy at build time ([`.github/workflows/pages.yml`](../.github/workflows/pages.yml)). The daily job does not commit the snapshot to `main`. The branch also keeps `costs/ledger.csv` and `costs/README.md` (DeepInfra and Jev spend). Those files are not copied onto the Pages site.
