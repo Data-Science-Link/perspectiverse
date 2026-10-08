@@ -707,12 +707,10 @@ def _draft_needs_priority_relabel(draft: dict) -> bool:
 
 
 def _should_apply_wide_label(draft: dict, wide: dict) -> bool:
-    """Never replace a named draft that already has real arguments with Mixed."""
+    """Never replace a named (non-Mixed) draft with a Mixed wide relabel."""
     if not _face_has_no_shared_claim(wide):
         return True
-    if _face_has_no_shared_claim(draft):
-        return True
-    return len(draft.get("arguments") or []) < 2
+    return _face_has_no_shared_claim(draft)
 
 
 class _FinalizeFaceJob:
@@ -866,7 +864,7 @@ def _run_finalize_faces_parallel(
     *,
     scope: str,
 ) -> set[str]:
-    """Run wide relabels with a bounded pool. Returns sections that did not finish."""
+    """Run wide relabels with a bounded pool. Returns sections with queued calls left."""
     if not jobs:
         return set()
     workers = max(1, int(workers))
@@ -879,13 +877,10 @@ def _run_finalize_faces_parallel(
     inflight: dict = {}
     cursor = 0
     budget_exhausted = False
+    last_finish_at: float | None = None
     try:
         while cursor < len(order) or inflight:
-            while (
-                not budget_exhausted
-                and cursor < len(order)
-                and len(inflight) < workers
-            ):
+            while not budget_exhausted and cursor < len(order) and len(inflight) < workers:
                 if deadline is not None and time.monotonic() >= deadline:
                     budget_exhausted = True
                     break
@@ -904,16 +899,19 @@ def _run_finalize_faces_parallel(
                     print(f"Wide face relabel failed ({type(exc).__name__}); keeping draft label.")
                     continue
                 completed_calls += 1
+                last_finish_at = time.monotonic()
                 _bump_finalize_calls(job.context)
                 _apply_wide_label_to_face(job.face, job.draft, wide)
         if budget_exhausted:
             for job in order[cursor:]:
                 incomplete.add(job.section)
-            for job in inflight.values():
-                incomplete.add(job.section)
     finally:
         executor.shutdown(wait=True)
     elapsed = time.monotonic() - started
+    if budget_exhausted and deadline is not None and last_finish_at is not None:
+        past = last_finish_at - deadline
+        if past > 0:
+            print(f"Wide face relabel: last in-flight call finished {past:.1f}s past the section deadline.")
     if incomplete:
         sections = ", ".join(sorted(incomplete))
         print(
@@ -1034,7 +1032,7 @@ def _finalize_published_planets(
         _strip_internal_planet_fields(topics)
         return set()
     jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
-    workers = max(1, int(context.get("workers") or 1))
+    workers = _section_pool_size(context)
     incomplete = _run_finalize_faces_parallel(jobs, workers, deadline, scope=section)
     _strip_internal_planet_fields(topics)
     return incomplete
@@ -1054,7 +1052,7 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
         face_jobs.extend(
             _collect_finalize_face_jobs(job.built, job.posts, job.clustered, job.context, section=section)
         )
-    workers = max(1, int(jobs[0].context.get("workers") or 1))
+    workers = _section_pool_size(jobs[0].context)
     incomplete = _run_finalize_faces_parallel(
         face_jobs,
         workers,
@@ -1812,9 +1810,9 @@ def _finish_section_planets(
     finalize: bool = True,
 ) -> list[dict]:
     """Same last guards as the global catalog: drop collapses, renumber, volumes."""
-    built = _drop_unshared_planets(built)
-    built = _publishable_planets(built)
     if finalize:
+        built = _drop_unshared_planets(built)
+        built = _publishable_planets(built)
         _finalize_published_planets(built, posts, clustered, context, deadline=deadline)
     publish_volumes(built)
     topics, _membership, _faces = _renumber_planets(built, [], [])

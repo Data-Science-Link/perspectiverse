@@ -44,7 +44,7 @@ def test_priority_order_puts_mixed_and_thin_faces_first():
     assert order[1].draft["title"] == "Named claim"
 
 
-def test_mixed_relabel_never_overwrites_named_draft_with_arguments():
+def test_mixed_relabel_never_overwrites_named_draft():
     posts, clustered = _posts_and_matrix()
     topic = _topic_with_face(posts, "Medicare Payments")
     context = _context()
@@ -63,6 +63,108 @@ def test_mixed_relabel_never_overwrites_named_draft_with_arguments():
     assert face["title"] == "Medicare Payments"
     assert face.get("summary") == "Summary here."
     assert context["story_calls"]["finalize_faces"] == 1
+
+
+def test_mixed_relabel_never_overwrites_thin_named_draft():
+    posts, clustered = _posts_and_matrix()
+    topic = _topic_with_face(posts, "Thin named")
+    topic["perspectives"][0]["_draft_face_label"]["arguments"] = ["only one"]
+    context = _context()
+
+    def wide(*_args, **_kwargs):
+        return {
+            "title": "Mixed remarks",
+            "summary": "These posts do not share a claim.",
+            "representative_posts": [{"author": "u", "text": "x", "likes": 0}],
+            "arguments": None,
+        }
+
+    with patch.object(live, "_wide_label_face_from_posts", side_effect=wide):
+        live._finalize_published_planets([topic], posts, clustered, context)
+    assert topic["perspectives"][0]["title"] == "Thin named"
+
+
+def test_mixed_draft_gets_named_wide_relabel():
+    posts, clustered = _posts_and_matrix()
+    topic = _topic_with_face(posts, "Mixed remarks")
+    topic["perspectives"][0]["title"] = "Mixed remarks"
+    topic["perspectives"][0]["_draft_face_label"] = {
+        "title": "Mixed remarks",
+        "summary": "These posts do not share a claim.",
+        "representative_posts": topic["perspectives"][0]["representative_posts"],
+        "arguments": None,
+    }
+    context = _context()
+
+    def wide(*_args, **_kwargs):
+        return {
+            "title": "Medicare Payments",
+            "summary": "Posts about Medicare funding.",
+            "representative_posts": [{"author": "u", "text": "medicare payments", "likes": 1}],
+            "arguments": ["a", "b"],
+        }
+
+    with patch.object(live, "_wide_label_face_from_posts", side_effect=wide):
+        live._finalize_published_planets([topic], posts, clustered, context)
+    assert topic["perspectives"][0]["title"] == "Medicare Payments"
+
+
+def test_thin_named_survives_mixed_relabel_after_section_finish():
+    posts, clustered = _posts_and_matrix()
+    planet = _topic_with_face(posts, "Solid face")
+    rep = planet["perspectives"][0]["representative_posts"][0]
+    uris = list(planet["perspectives"][0]["_face_member_uris"])
+    planet["perspectives"].append(
+        {
+            "id": "1B",
+            "title": "Thin named",
+            "summary": "Thin summary.",
+            "volume_percent": 0.0,
+            "post_count": len(posts),
+            "top_terms": ["diesel"],
+            "representative_posts": [rep],
+            "_draft_face_label": {
+                "title": "Thin named",
+                "summary": "Thin summary.",
+                "representative_posts": [rep],
+                "arguments": ["one"],
+            },
+            "_face_member_uris": uris,
+        }
+    )
+    planet["perspectives"][0]["_draft_face_label"]["arguments"] = ["a", "b"]
+    context = _context()
+    wide_results = [
+        {
+            "title": "Mixed remarks",
+            "summary": "These posts do not share a claim.",
+            "representative_posts": [{"author": "u", "text": "x", "likes": 0}],
+            "arguments": None,
+        },
+        {
+            "title": "Solid face",
+            "summary": "Still solid.",
+            "representative_posts": [{"author": "u", "text": "diesel", "likes": 1}],
+            "arguments": ["a", "b"],
+        },
+    ]
+
+    def wide(*_args, **_kwargs):
+        return wide_results.pop(0)
+
+    with patch.object(live, "_wide_label_face_from_posts", side_effect=wide):
+        built = live._drop_unshared_planets([planet])
+        live._finalize_published_planets(built, posts, clustered, context)
+        finished = live._finish_section_planets(
+            built,
+            posts,
+            clustered,
+            context,
+            finalize=False,
+        )
+    titles = [face["title"] for face in finished[0]["perspectives"]]
+    assert "Thin named" in titles
+    assert "Solid face" in titles
 
 
 def test_parallel_finalize_respects_deadline(monkeypatch):
@@ -85,6 +187,29 @@ def test_parallel_finalize_respects_deadline(monkeypatch):
     incomplete = live._finalize_published_planets([topic for topic in topics], posts, clustered, context, deadline=deadline)
     assert incomplete == {"All topics"}
     assert context["story_calls"]["finalize_faces"] < 6
+
+
+def test_inflight_results_after_deadline_are_still_applied(monkeypatch, capsys):
+    posts, clustered = _posts_and_matrix()
+    topics = [_topic_with_face(posts, f"Face {index}") for index in range(2)]
+    context = _context()
+    context["workers"] = 1
+    deadline = time.monotonic() + 0.02
+
+    def slow(*_args, **_kwargs):
+        time.sleep(0.08)
+        return {
+            "title": "Upgraded",
+            "summary": "Wide summary.",
+            "representative_posts": [{"author": "u", "text": "diesel", "likes": 1}],
+            "arguments": ["a", "b"],
+        }
+
+    monkeypatch.setattr(live, "_wide_label_face_from_posts", slow)
+    live._finalize_published_planets(topics, posts, clustered, context, deadline=deadline)
+    assert topics[0]["perspectives"][0]["title"] == "Upgraded"
+    out = capsys.readouterr().out
+    assert "past the section deadline" in out
 
 
 def test_finalize_logs_call_count(capsys):
