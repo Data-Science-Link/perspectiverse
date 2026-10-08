@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from pipeline.costs import (
-    format_jev_filters,
+    JEV_BATCH_SPAM_CLAIM_TOKENS_PER_POST,
+    JEV_PLANET_SECTION_TOKENS,
+    JEV_PLANETS_PER_DAY,
     get_meter,
     jev_cost_usd,
     jev_filter_counts,
@@ -15,7 +17,7 @@ from pipeline.costs import (
     reset_meter,
     write_cost_run,
 )
-from pipeline.jev import apply_jev, claim_batch_body, per_post_body, reset_jev_state, section_batch_body
+from pipeline.jev import apply_jev, per_post_body, planet_section_body, reset_jev_state, spam_claim_batch_body
 from pipeline.jev_prefilter import MIN_WORDS, measure_claim_loss, prefilter_reason, DuplicateIndex
 from pipeline.settings import DEFAULTS
 from pipeline.store import (
@@ -224,48 +226,54 @@ def test_verdict_rows_stay_small(tmp_path):
     assert per_row < 400
 
 
-def test_batch_request_sends_definitions_once_and_sections_only_for_claims(monkeypatch):
+def test_batch_request_asks_spam_and_claim_and_not_section(monkeypatch, tmp_path):
     _enable(monkeypatch)
     seen = []
 
     def fake(url, **kwargs):
         body = json.loads(kwargs["data"].decode("utf-8"))
         seen.append(body)
-        state = body["state"]
-        if "claim_true" in state:
-            assert "spam" not in body["questions"]
-            assert "section" not in body["questions"]
-            assert "advertisement" in state["claim_false"]
-            return {
-                "model": "jev-1.13.0",
-                "answers": {"c0": {"type": "noul", "noul": 0.91}, "c1": {"type": "noul", "noul": 0.08}},
-                "usage": {"input_tokens": 410, "output_tokens": 12},
-            }
-        assert "sections" in state
         encoded = kwargs["data"].decode("utf-8")
-        assert encoded.count("International conflict") == 1
-        assert state["posts"] == ["Congress should publish the mail ballot rules before November."]
+        assert "International conflict" not in encoded
+        assert "section" not in body["questions"]
+        assert "sections" not in body["state"]
+        assert body["state"]["spam_true"]
+        assert body["state"]["claim_true"]
+        assert list(body["questions"]) == ["p0", "c0", "p1", "c1"]
+        assert encoded.count(body["state"]["spam_true"]) == 1
         return {
             "model": "jev-1.13.0",
             "answers": {
-                "s0": {"type": "choice", "choice": "Politics", "confidence": 0.8, "probabilities": {"Politics": 0.8}}
+                "p0": {"type": "noul", "noul": 0.05},
+                "c0": {"type": "noul", "noul": 0.91},
+                "p1": {"type": "noul", "noul": 0.04},
+                "c1": {"type": "noul", "noul": 0.08},
             },
-            "usage": {"input_tokens": 250, "output_tokens": 8},
+            "usage": {"input_tokens": 410, "output_tokens": 12},
         }
 
     monkeypatch.setattr("pipeline.jev.read_json", fake)
     claim = _post("at://claim", "Congress should publish the mail ballot rules before November.")
     aside = _post("at://aside", "The Phillies bullpen was worthless again and I cannot watch.")
-    kept = apply_jev([claim, aside], batch=True)
-    assert len(seen) == 2
+    connection = connect(tmp_path / "corpus.db")
+    kept = apply_jev([claim, aside], connection=connection, batch=True)
+    assert len(seen) == 1
     assert [post["uri"] for post in kept if post.get("is_claim") is True] == ["at://claim"]
-    assert kept[0]["section"] == "Politics"
+    assert not kept[0].get("section")
     by_uri = {post["uri"]: post for post in kept}
     assert by_uri["at://aside"]["is_claim"] is False
-    tokens = sorted(attempt.input_tokens for attempt in get_meter().attempts())
-    assert tokens == [250, 410]
-    sample = section_batch_body(["one post", "two post"])
-    assert list(sample["questions"]) == ["s0", "s1"]
+    tokens = [attempt.input_tokens for attempt in get_meter().attempts()]
+    assert tokens == [410]
+    stored = connection.execute(
+        "SELECT uri, section, spam_score, claim_score FROM jev_verdicts ORDER BY uri"
+    ).fetchall()
+    assert stored == [("at://aside", None, 0.04, 0.08), ("at://claim", None, 0.05, 0.91)]
+    planet = planet_section_body("States should publish the rules.", "Voters need them before November.")
+    assert list(planet["questions"]) == ["section"]
+    assert planet["state"]["sections"]["World"].startswith("International")
+    sample = spam_claim_batch_body(["one post"])
+    assert "section" not in sample["questions"]
+    connection.close()
 
 
 def test_filter_counts_are_in_the_run_output_and_tokens_stay_real(tmp_path, capsys):
@@ -300,12 +308,16 @@ def test_filter_counts_are_in_the_run_output_and_tokens_stay_real(tmp_path, caps
 def test_projection_uses_the_issue_token_assumptions():
     phases_12_10k = project_jev_daily_usd(10_000)
     phases_12_100k = project_jev_daily_usd(100_000)
-    phase3_10k = project_jev_daily_usd(10_000, phase3=True)
-    phase3_100k = project_jev_daily_usd(100_000, phase3=True)
+    batched_10k = project_jev_daily_usd(10_000, batched=True)
+    batched_100k = project_jev_daily_usd(100_000, batched=True)
     assert phases_12_100k.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) == Decimal("1.03")
-    assert phase3_100k.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) == Decimal("0.19")
     assert phases_12_10k * 10 == phases_12_100k
-    assert phase3_10k * 10 == phase3_100k
+    assert JEV_BATCH_SPAM_CLAIM_TOKENS_PER_POST == 103
+    assert JEV_PLANET_SECTION_TOKENS == 490
+    assert JEV_PLANETS_PER_DAY == 300
+    assert batched_100k.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP) == Decimal("0.182745")
+    assert batched_10k.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP) == Decimal("0.023831")
+    assert batched_10k * 10 != batched_100k
     assert jev_cost_usd(1_000_000) == Decimal("0.042")
 
 

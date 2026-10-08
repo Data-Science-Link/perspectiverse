@@ -165,16 +165,32 @@ def jev_cost_usd(input_tokens: int) -> Decimal:
     return tokens * JEV_USD_PER_MILLION_INPUT_TOKENS / Decimal(1_000_000)
 
 
-# #27 assumed 600 input tokens for one per-post Jev call. #87's phase 2
-# assumes the free pre-filter lifts the claim yield from 22.6% to 35%, and
-# does not stack the phase-1 re-score discount on top of that yield. Phase 3
-# token splits (77 per scored post, 103 per kept claim) are the #87 batch
-# estimate. These are projections, not a bill.
+# #27 assumed 600 input tokens for one per-post Jev call (about 280 of fixed
+# overhead, about 320 of questions, of which SECTION_CRITERIA is about 170,
+# and about 40 of post text). #87's phase 2 assumes the free pre-filter lifts
+# the claim yield from 22.6% to 35%, and does not stack the phase-1 re-score
+# discount on top of that yield. These are projections, not a bill.
 JEV_ASSUMED_TOKENS_PER_CALL = 600
 JEV_PHASE2_CLAIM_YIELD = Decimal("0.35")
-JEV_PHASE3_TOKENS_PER_POST = 77
-JEV_PHASE3_TOKENS_PER_CLAIM = 103
 JEV_WINDOW_DAYS = 7
+JEV_BATCH_POSTS = 25
+# #87's batched stage 1 was ~77 tokens per post: overhead spread across 25
+# posts (280/25 = 11), ~40 tokens of post text, and one ~26-token question.
+# The #90 batch asks spam and claim as two questions and does not send
+# SECTION_CRITERIA. Overhead and the post are counted once:
+# 11 + 40 + 26*2 = 103 tokens per scored post.
+JEV_REQUEST_OVERHEAD_TOKENS = 280
+JEV_POST_TEXT_TOKENS = 40
+JEV_BATCH_QUESTION_TOKENS = 26
+JEV_SECTION_CRITERIA_TOKENS = 170
+JEV_BATCH_SPAM_CLAIM_TOKENS_PER_POST = (
+    JEV_REQUEST_OVERHEAD_TOKENS // JEV_BATCH_POSTS + JEV_POST_TEXT_TOKENS + 2 * JEV_BATCH_QUESTION_TOKENS
+)
+# One section call per planet: the same overhead, SECTION_CRITERIA once, and
+# a short summary standing in for the post. #90 plans a few hundred planets
+# a day; the projection uses 300 at both window sizes.
+JEV_PLANET_SECTION_TOKENS = JEV_REQUEST_OVERHEAD_TOKENS + JEV_SECTION_CRITERIA_TOKENS + JEV_POST_TEXT_TOKENS
+JEV_PLANETS_PER_DAY = 300
 
 _JEV_FILTER_REASONS = ("short", "language", "link", "duplicate")
 
@@ -251,20 +267,22 @@ def format_jev_filters(counts: dict[str, int] | None = None) -> str:
     )
 
 
-def project_jev_daily_usd(window_posts: int, *, phase3: bool = False) -> Decimal:
+def project_jev_daily_usd(window_posts: int, *, batched: bool = False) -> Decimal:
     """Projected Jev dollars per day at a retained-claim window.
 
-    Phases 1–2 are the default (``phase3=False``): new claims divided by the
-    35% yield, at 600 tokens per call. ``phase3=True`` uses the batched token
-    split and is not the live path.
+    The default is phases 1–2: new claims divided by the 35% yield, at 600
+    tokens per per-post call (spam, section, and claim). ``batched=True`` is
+    the #90 shape, which is not the live path: spam and claim batched per
+    post, plus one section call for each of ``JEV_PLANETS_PER_DAY`` planets.
     """
     posts = int(window_posts)
     if posts < 0:
         raise ValueError("window_posts must be >= 0")
     claims = Decimal(posts) / Decimal(JEV_WINDOW_DAYS)
     scored = claims / JEV_PHASE2_CLAIM_YIELD
-    if phase3:
-        tokens = scored * Decimal(JEV_PHASE3_TOKENS_PER_POST) + claims * Decimal(JEV_PHASE3_TOKENS_PER_CLAIM)
+    if batched:
+        tokens = scored * Decimal(JEV_BATCH_SPAM_CLAIM_TOKENS_PER_POST)
+        tokens += Decimal(JEV_PLANETS_PER_DAY) * Decimal(JEV_PLANET_SECTION_TOKENS)
     else:
         tokens = scored * Decimal(JEV_ASSUMED_TOKENS_PER_CALL)
     return tokens * JEV_USD_PER_MILLION_INPUT_TOKENS / Decimal(1_000_000)

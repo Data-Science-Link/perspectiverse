@@ -54,8 +54,9 @@ DEFAULTS: dict[str, Any] = {
     # 0 skips sections. None (omit the key) uses this default.
     "section_budget_minutes": 20,
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
-    # Phase 3 packs about 25 posts into one Jev request. Off until a shadow
-    # test clears the quality bars. See scripts/jev_shadow_test.py.
+    # Phase 3 packs about 25 posts into one spam+claim request. It does not
+    # ask for a section. Off until a shadow test clears the quality bars.
+    # See scripts/jev_shadow_test.py. The planet-level section call is #90.
     "jev_batch": False,
 }
 

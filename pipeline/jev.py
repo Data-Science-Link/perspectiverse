@@ -1,11 +1,13 @@
 """Spam, public-claim, and newspaper-section decisions via Jev.
 
 Jev does not write planet names or steelmans. The default is one call per
-post: a spam noul, a section choice, and a claim noul. Answers are cached
-on the retained corpus for 14 days, including non-claims and spam, so a
-URI is not scored twice inside that window. A free pre-filter drops posts
-Jev is very unlikely to keep. Batching many posts into one request is
-implemented and left off (``jev_batch``).
+post: a spam noul, a section choice, and a claim noul. That section
+question stays until #90 picks a section once per planet. Answers are
+cached on the retained corpus for 14 days, including non-claims and spam,
+so a URI is not scored twice inside that window. A free pre-filter drops
+posts Jev is very unlikely to keep. Batching many posts into one request
+is implemented and left off (``jev_batch``). That request asks spam and
+claim only. It does not send the section question or ``SECTION_CRITERIA``.
 
 A missing key, a rejected key, or a failed call keeps the post and leaves
 the section blank so the keyword map can still label the planet.
@@ -36,15 +38,12 @@ DEFAULT_MODEL = "jev-latest"
 SPAM_THRESHOLD = 0.8
 CLAIM_THRESHOLD = 0.5
 _WORKERS = 8
-# Phase 3. Off unless jev_batch is set. About 25 posts share one request.
+# Phase 3. Off unless jev_batch is set. About 25 posts share one spam+claim request.
 BATCH_SIZE = 25
 CLAIM_TRUE = "A position about an event, policy, institution, or public issue"
 CLAIM_FALSE = "Personal status, a joke, fandom aside, small talk, or promo"
-# Phase 3 folds the spam question into the claim's no criteria.
-CLAIM_FALSE_WITH_SPAM = (
-    "Personal status, a joke, fandom aside, small talk, promo, bot, giveaway, "
-    "follow-bait, or an advertisement"
-)
+SPAM_TRUE = "Promo, bot, giveaway, follow-bait, or an advertisement"
+SPAM_FALSE = "A person saying something, including a messy or informal remark"
 
 SECTION_CRITERIA = {
     "World": "International conflict, diplomacy, wars, and foreign governments",
@@ -268,7 +267,11 @@ def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | N
                 continue
             if decision.get("prefilter") or decision.get("cached"):
                 continue
-            if decision.get("is_claim") is True and not decision.get("section"):
+            section = decision.get("section") or None
+            # A per-post claim with no section is a failed section answer, so it
+            # is left uncached and can be retried. The batch path does not ask
+            # for a section; null is the stored value until #90.
+            if decision.get("is_claim") is True and not section and not decision.get("section_deferred"):
                 continue
             if decision.get("claim_score") is None and decision.get("spam_score") is None:
                 continue
@@ -277,7 +280,7 @@ def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | N
                     uri,
                     decision.get("spam_score"),
                     decision.get("claim_score"),
-                    decision.get("section") or "",
+                    section,
                     str(decision.get("model") or "") or _model(),
                     today,
                     text_fingerprint(post_text(by_uri.get(uri, {}))),
@@ -342,8 +345,8 @@ def per_post_body(text: str) -> dict:
                 "type": "noul",
                 "instructions": "Is this post promotional, a bot, engagement bait, or spam rather than a real remark?",
                 "criteria": {
-                    "true": "Promo, bot, giveaway, follow-bait, or an advertisement",
-                    "false": "A person saying something, including a messy or informal remark",
+                    "true": SPAM_TRUE,
+                    "false": SPAM_FALSE,
                 },
             },
             "section": {
@@ -365,10 +368,23 @@ def per_post_body(text: str) -> dict:
     }
 
 
-def claim_batch_body(texts: list[str]) -> dict:
-    """Phase 3 stage 1. Spam is folded into the claim question. Definitions are sent once."""
+def spam_claim_batch_body(texts: list[str]) -> dict:
+    """Phase 3. Spam and claim for every post. No section question and no section definitions.
+
+    The criteria text is in ``state`` once. Each post is two short questions
+    that point at ``posts[i]``. The live pipeline does not use this unless
+    ``jev_batch`` is on, and that setting defaults off.
+    """
     questions = {}
     for index in range(len(texts)):
+        questions[f"p{index}"] = {
+            "type": "noul",
+            "instructions": f"Is `posts[{index}]` spam, as defined by `spam_true`, rather than `spam_false`?",
+            "criteria": {
+                "true": "Matches `spam_true`",
+                "false": "Matches `spam_false`",
+            },
+        }
         questions[f"c{index}"] = {
             "type": "noul",
             "instructions": (
@@ -381,8 +397,10 @@ def claim_batch_body(texts: list[str]) -> dict:
         }
     return {
         "state": {
+            "spam_true": SPAM_TRUE,
+            "spam_false": SPAM_FALSE,
             "claim_true": CLAIM_TRUE,
-            "claim_false": CLAIM_FALSE_WITH_SPAM,
+            "claim_false": CLAIM_FALSE,
             "posts": list(texts),
         },
         "model": _model(),
@@ -390,25 +408,30 @@ def claim_batch_body(texts: list[str]) -> dict:
     }
 
 
-def section_batch_body(texts: list[str]) -> dict:
-    """Phase 3 stage 2. Section definitions live in state once. Asked only for claims."""
-    questions = {}
+def planet_section_body(summary: str, arguments: str) -> dict:
+    """One section question for a planet's summary and arguments.
+
+    The live pipeline does not call this. #90 will, after #85. The shadow
+    test is the only caller, and only when ``--planets`` is passed.
+    """
     pointers = {name: f"See `sections.{name}`" for name in SECTION_CRITERIA}
-    for index in range(len(texts)):
-        questions[f"s{index}"] = {
-            "type": "choice",
-            "instructions": (
-                f"Which newspaper section in `sections` is the primary subject of `posts[{index}]`?"
-            ),
-            "criteria": pointers,
-        }
     return {
         "state": {
+            "summary": summary,
+            "arguments": arguments,
             "sections": SECTION_CRITERIA,
-            "posts": list(texts),
         },
         "model": _model(),
-        "questions": questions,
+        "questions": {
+            "section": {
+                "type": "choice",
+                "instructions": (
+                    "Which newspaper section in `sections` is the primary subject of this planet, "
+                    "given `summary` and `arguments`?"
+                ),
+                "criteria": pointers,
+            }
+        },
     }
 
 
@@ -449,45 +472,42 @@ def parse_per_post(payload: dict) -> dict | None:
     }
 
 
-def parse_claim_batch(payload: dict, count: int) -> tuple[str, list[float | None]]:
-    """Claim nouls aligned to the posts in the request. ``None`` is a missing answer."""
+def parse_spam_claim_batch(payload: dict, count: int) -> tuple[str, list[tuple[float, float] | None]]:
+    """Spam and claim nouls for each post. ``None`` is a missing half of the pair."""
     answers = payload.get("answers") if isinstance(payload, dict) else None
     model = str(payload.get("model") or "") if isinstance(payload, dict) else ""
-    scores: list[float | None] = []
+    scores: list[tuple[float, float] | None] = []
     if not isinstance(answers, dict):
         return model, [None] * count
     for index in range(count):
+        spam = answers.get(f"p{index}") or {}
         claim = answers.get(f"c{index}") or {}
         try:
-            scores.append(float(claim.get("noul")))
+            scores.append((float(spam.get("noul")), float(claim.get("noul"))))
         except (TypeError, ValueError):
             scores.append(None)
     return model, scores
 
 
-def parse_section_batch(payload: dict, count: int) -> tuple[str, list[tuple[str, float] | None]]:
+def parse_planet_section(payload: dict) -> tuple[str, str, float] | None:
+    """``(model, section, confidence)`` from one planet-level section call."""
     answers = payload.get("answers") if isinstance(payload, dict) else None
-    model = str(payload.get("model") or "") if isinstance(payload, dict) else ""
-    found: list[tuple[str, float] | None] = []
     if not isinstance(answers, dict):
-        return model, [None] * count
-    for index in range(count):
-        section = answers.get(f"s{index}") or {}
-        choice = str(section.get("choice") or "")
-        if not choice:
-            found.append(None)
-            continue
-        confidence = section.get("confidence")
-        try:
-            confidence_value = (
-                float(confidence)
-                if confidence is not None
-                else float((section.get("probabilities") or {}).get(choice) or 0.0)
-            )
-        except (TypeError, ValueError):
-            confidence_value = 0.0
-        found.append((choice, confidence_value))
-    return model, found
+        return None
+    section = answers.get("section") or {}
+    choice = str(section.get("choice") or "")
+    if not choice:
+        return None
+    confidence = section.get("confidence")
+    try:
+        confidence_value = (
+            float(confidence)
+            if confidence is not None
+            else float((section.get("probabilities") or {}).get(choice) or 0.0)
+        )
+    except (TypeError, ValueError):
+        confidence_value = 0.0
+    return str(payload.get("model") or ""), choice, confidence_value
 
 
 def _classify_post(post: dict) -> dict | None:
@@ -502,7 +522,7 @@ def _classify_post(post: dict) -> dict | None:
 
 
 def _classify_batched(posts: list[dict]) -> dict[str, dict | None]:
-    """Phase 3. Claim question for every post, section question only for claims."""
+    """Phase 3. One spam question and one claim question per post. No section."""
     found: dict[str, dict | None] = {}
     chunks = [posts[start : start + BATCH_SIZE] for start in range(0, len(posts), BATCH_SIZE)]
     workers = max(1, min(_WORKERS, len(chunks)))
@@ -518,49 +538,27 @@ def _classify_batch_chunk(posts: list[dict]) -> list[dict | None]:
     if any(not text for text in texts):
         return [None] * len(posts)
     try:
-        claim_payload = _post_systemone(claim_batch_body(texts))
+        payload = _post_systemone(spam_claim_batch_body(texts))
     except (RuntimeError, json.JSONDecodeError, KeyError, TypeError):
         return [None] * len(posts)
-    model, scores = parse_claim_batch(claim_payload, len(posts))
+    model, scores = parse_spam_claim_batch(payload, len(posts))
     decisions: list[dict | None] = []
-    claim_indexes = []
-    for index, score in enumerate(scores):
-        if score is None:
+    for pair in scores:
+        if pair is None:
             decisions.append(None)
             continue
-        is_claim = score >= CLAIM_THRESHOLD
+        spam_score, claim_score = pair
         decisions.append(
             {
-                "spam_score": None,
-                "claim_score": score,
-                "section": "",
+                "spam_score": spam_score,
+                "claim_score": claim_score,
+                "section": None,
                 "section_confidence": None,
-                "is_claim": is_claim,
-                "model": model or str(claim_payload.get("model") or ""),
+                "is_claim": claim_score >= CLAIM_THRESHOLD,
+                "model": model or str(payload.get("model") or ""),
+                "section_deferred": True,
             }
         )
-        if is_claim:
-            claim_indexes.append(index)
-    if not claim_indexes:
-        return decisions
-    claim_texts = [texts[index] for index in claim_indexes]
-    try:
-        section_payload = _post_systemone(section_batch_body(claim_texts))
-    except (RuntimeError, json.JSONDecodeError, KeyError, TypeError):
-        for index in claim_indexes:
-            decisions[index] = None
-        return decisions
-    _section_model, sections = parse_section_batch(section_payload, len(claim_texts))
-    for offset, index in enumerate(claim_indexes):
-        parsed = sections[offset] if offset < len(sections) else None
-        if parsed is None or decisions[index] is None:
-            decisions[index] = None
-            continue
-        choice, confidence = parsed
-        decisions[index]["section"] = choice
-        decisions[index]["section_confidence"] = confidence
-        if _section_model:
-            decisions[index]["model"] = _section_model
     return decisions
 
 

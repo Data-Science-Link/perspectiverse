@@ -63,7 +63,7 @@ neutral_queries:
   - in
   - for
 
-# Phase 3: about 25 posts per Jev request, section definitions sent once,
-# spam folded into the claim question, section asked only for claims.
+# Phase 3: about 25 posts per Jev request, spam and claim only.
+# The section question stays on the per-post call until #90.
 # Off until scripts/jev_shadow_test.py clears the quality bars.
 jev_batch: false

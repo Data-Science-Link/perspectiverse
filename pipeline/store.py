@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS jev_verdicts (
     uri TEXT PRIMARY KEY,
     spam_score REAL,
     claim_score REAL,
-    section TEXT,
+    section TEXT, -- null when the call did not ask for a section
     model TEXT NOT NULL,
     scored_on TEXT NOT NULL,
     text_fp TEXT NOT NULL DEFAULT ''
