@@ -550,6 +550,91 @@ def test_section_columns_round_trip(tmp_path):
     assert loaded[0]["spam_score"] == 0.05
 
 
+def test_morning_fetch_and_topup_skip_already_scored_uris(monkeypatch, tmp_path):
+    """A URI already in the verdict cache is not fetched again, in either path."""
+    from datetime import datetime, timezone
+
+    from pipeline.live import _collect_posts, _topup_claims
+    from pipeline.store import connect, save_jev_verdicts
+
+    scored = "at://already-scored"
+    fresh = "at://brand-new"
+    kept = "at://kept-claim"
+    moment = datetime(2026, 10, 8, 15, tzinfo=timezone.utc)
+    scored_text = "The city council should keep the evening bus route through the winter."
+    fresh_text = "Congress should publish the mail ballot rules before November."
+    connection = connect(tmp_path / "live.db")
+    save_jev_verdicts(
+        connection,
+        [(scored, 0.1, 0.1, "", "jev-1.13.0", "2026-10-08", "abcd")],
+    )
+    existing = {
+        "uri": kept,
+        "author": "ada",
+        "text": "States should print the ballot instructions before election day.",
+        "clean_text": "States should print the ballot instructions before election day.",
+        "likes": 2,
+        "created_at": "2026-10-07T12:00:00Z",
+        "section": "Politics",
+        "is_claim": True,
+    }
+    skips = []
+
+    def fake_extract(**kwargs):
+        skips.append(set(kwargs.get("skip_uris") or ()))
+        return [
+            {
+                "uri": scored,
+                "author": "bee",
+                "text": scored_text,
+                "likes": 1,
+                "created_at": "2026-10-08T12:00:00Z",
+            },
+            {
+                "uri": fresh,
+                "author": "bee",
+                "text": fresh_text,
+                "likes": 1,
+                "created_at": "2026-10-08T12:00:00Z",
+            },
+        ]
+
+    monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
+    cleaned, _source, refreshed = _collect_posts(
+        [existing],
+        {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the"]},
+        None,
+        None,
+        10,
+        connection,
+        now=moment,
+    )
+    assert refreshed is True
+    assert scored in skips[0]
+    assert scored not in {post["uri"] for post in cleaned}
+    assert fresh in {post["uri"] for post in cleaned}
+
+    scored_by_jev = []
+
+    def fake_jev(posts, **_kwargs):
+        scored_by_jev.extend(post["uri"] for post in posts)
+        return [{**post, "is_claim": True, "section": "Politics"} for post in posts]
+
+    monkeypatch.setattr("pipeline.live.apply_jev", fake_jev)
+    skips.clear()
+    result = _topup_claims(
+        [existing],
+        target=4,
+        settings={"seed": 1, "neutral_queries": ["the"], "refresh_hours": 24},
+        connection=connection,
+    )
+    assert scored in skips[0]
+    assert scored not in scored_by_jev
+    assert fresh in scored_by_jev
+    assert scored not in {post["uri"] for post in result}
+    connection.close()
+
+
 def test_planet_volume_follows_the_posts_still_on_it():
     topics = [
         {"name": "Small", "post_count": 4, "total_volume_percent": 14.1},

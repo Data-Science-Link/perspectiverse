@@ -321,6 +321,41 @@ def test_projection_uses_the_issue_token_assumptions():
     assert jev_cost_usd(1_000_000) == Decimal("0.042")
 
 
+def test_corrupt_verdict_is_warned_and_rescored(monkeypatch, tmp_path, capsys):
+    """A bad spam_score fails the cache read open. The post is scored, not dropped."""
+    _enable(monkeypatch)
+    connection = connect(tmp_path / "corpus.db")
+    connection.execute(
+        """
+        INSERT INTO jev_verdicts (
+            uri, spam_score, claim_score, section, model, scored_on, text_fp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        ("at://claim", "not-a-score", 0.2, "", "jev-1.13.0", "2026-10-08", ""),
+    )
+    connection.commit()
+    calls = {"n": 0}
+
+    def fake(url, **kwargs):
+        calls["n"] += 1
+        return _answer(0.1, "Politics", claim=0.91, tokens=600)
+
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    text = "Congress should publish the mail ballot rules before November."
+    kept = apply_jev(
+        [_post("at://claim", text)],
+        connection=connection,
+        now=datetime(2026, 10, 8, tzinfo=timezone.utc),
+    )
+    err = capsys.readouterr().err
+    assert "WARNING: Jev verdict cache was not read" in err
+    assert calls["n"] == 1
+    assert [post["uri"] for post in kept] == ["at://claim"]
+    assert kept[0]["is_claim"] is True
+    assert kept[0]["section"] == "Politics"
+    connection.close()
+
+
 def test_measure_claim_loss_counts_each_post_once():
     posts = [
         _post("at://a", "Pay for his crimes now"),
