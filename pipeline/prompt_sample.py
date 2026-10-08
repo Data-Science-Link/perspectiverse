@@ -20,6 +20,8 @@ DEFAULT_DEDUPE_COSINE = 0.92
 DEFAULT_LAMBDA = 0.65
 # log1p(likes) is scaled by this before adding to relevance.
 LIKE_BOOST_SCALE = 0.04
+# MMR runs only on the strongest fraction of centroid cosines (issue #86 review).
+DEFAULT_RELEVANCE_POOL_FRACTION = 0.7
 
 
 def _normalize_rows(matrix: np.ndarray) -> np.ndarray:
@@ -41,6 +43,33 @@ def _pairwise_cosines(matrix: np.ndarray) -> np.ndarray:
     return normalized @ normalized.T
 
 
+def relevance_pool_indices(
+    cosines: Sequence[float],
+    *,
+    fraction: float = DEFAULT_RELEVANCE_POOL_FRACTION,
+) -> list[int]:
+    """Indices of the top ``fraction`` of members by centroid cosine."""
+    count = len(cosines)
+    if count == 0:
+        return []
+    pool_size = int(math.ceil(count * float(fraction)))
+    pool_size = max(1, min(pool_size, count))
+    ranked = sorted(range(count), key=lambda index: (-float(cosines[index]), index))
+    return sorted(ranked[:pool_size])
+
+
+def cosines_to_matrix_centroid(matrix: np.ndarray) -> list[float]:
+    """Cosine of each row to the mean of normalized rows."""
+    values = np.asarray(matrix, dtype=float)
+    if values.size == 0:
+        return []
+    normalized = _normalize_rows(values)
+    center = normalized.mean(axis=0)
+    norm = np.linalg.norm(center) or 1.0
+    center = center / norm
+    return [float(row @ center) for row in normalized]
+
+
 def select_prompt_posts(
     posts: list[dict],
     cosines: Sequence[float] | None,
@@ -49,6 +78,7 @@ def select_prompt_posts(
     vectors: np.ndarray | None = None,
     lambda_mmr: float = DEFAULT_LAMBDA,
     dedupe_cosine: float = DEFAULT_DEDUPE_COSINE,
+    relevance_pool_fraction: float = DEFAULT_RELEVANCE_POOL_FRACTION,
 ) -> list[dict]:
     """Return up to ``limit`` posts: centroid-relevant, diverse, deduped.
 
@@ -75,12 +105,25 @@ def select_prompt_posts(
         else:
             cosines = [0.0] * len(posts)
 
-    relevance = _relevance_scores(cosines, posts)
-    sim = _pairwise_cosines(vectors) if vectors is not None else np.zeros((len(posts), len(posts)))
+    pool = relevance_pool_indices(cosines, fraction=relevance_pool_fraction)
+    if not pool:
+        return []
+    cap = min(cap, len(pool))
+
+    pool_posts = [posts[index] for index in pool]
+    pool_cosines = [float(cosines[index]) for index in pool]
+    pool_vectors = np.asarray(vectors, dtype=float)[pool] if vectors is not None else None
+
+    relevance = _relevance_scores(pool_cosines, pool_posts)
+    sim = (
+        _pairwise_cosines(pool_vectors)
+        if pool_vectors is not None
+        else np.zeros((len(pool), len(pool)))
+    )
 
     lam = float(lambda_mmr)
     chosen: list[int] = []
-    candidates = list(range(len(posts)))
+    candidates = list(range(len(pool)))
 
     # Seed the set with the strongest relevance (stable index tie-break).
     first = max(candidates, key=lambda index: (relevance[index], -index))
@@ -107,7 +150,7 @@ def select_prompt_posts(
         chosen.append(best_index)
         candidates.remove(best_index)
 
-    return [_record(posts[index], index, cosines) for index in chosen]
+    return [_record(pool_posts[index], pool[index], cosines) for index in chosen]
 
 
 def _record(post: dict, index: int, cosines: Sequence[float] | None) -> dict:

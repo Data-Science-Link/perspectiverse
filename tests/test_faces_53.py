@@ -264,8 +264,8 @@ def test_collapsed_best_k_retries_the_next_count(monkeypatch):
     calls = []
     original = live._label_faces
 
-    def collapse_first(members, split, terms, context):
-        drafted, labeled = original(members, split, terms, context)
+    def collapse_first(members, split, terms, context, **kwargs):
+        drafted, labeled = original(members, split, terms, context, **kwargs)
         calls.append(split.get("k"))
         if len(calls) == 1:
             return drafted[:1], labeled
@@ -837,8 +837,8 @@ def test_min_planet_posts_override_excludes_a_child_the_default_keeps(monkeypatc
 def test_planet_that_shrinks_below_the_floor_is_not_named(monkeypatch, capsys):
     """Face labels can leave fewer posts than the floor. Skip the name and do not publish."""
 
-    def fake_faces(members, split, terms, context, lock_floor=False):
-        del split, terms, context, lock_floor
+    def fake_faces(members, split, terms, context, lock_floor=False, **kwargs):
+        del split, terms, context, lock_floor, kwargs
         drafted = []
         cursor = 0
         for position, size in enumerate((2, 1)):

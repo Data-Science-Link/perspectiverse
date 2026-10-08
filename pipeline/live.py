@@ -49,7 +49,7 @@ from pipeline.label import (
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
-from pipeline.prompt_sample import planet_member_cosines, select_prompt_posts
+from pipeline.prompt_sample import cosines_to_matrix_centroid, planet_member_cosines, select_prompt_posts
 from pipeline.schema import (
     CATEGORIES,
     MAX_FACES,
@@ -448,6 +448,7 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         "summary_model": summary_model,
         "limit": int(settings["representative_posts"]),
         "prompt_sample_size": int(settings.get("prompt_sample_size") or 40),
+        "draft_prompt_sample_size": int(settings.get("draft_prompt_sample_size") or 12),
         "planet_prompt_sample_size": int(settings.get("planet_prompt_sample_size") or 20),
         "seed": int(settings["seed"]),
         "workers": workers,
@@ -534,7 +535,9 @@ def _label_faces(
     terms: list[str],
     context: dict,
     *,
+    member_matrix=None,
     lock_floor: bool = False,
+    prompt_cap: int | None = None,
 ) -> tuple[list[tuple[dict, list[tuple[str, int, float]], int]], int]:
     """Label each face of one split. Returns surviving drafts and how many were labeled.
 
@@ -546,7 +549,8 @@ def _label_faces(
     backend = context["backend"]
     model = context["model"]
     limit = context["limit"]
-    prompt_cap = int(context.get("prompt_sample_size") or 40)
+    if prompt_cap is None:
+        prompt_cap = int(context.get("draft_prompt_sample_size") or 12)
     face_volumes = to_percents([face["size"] for face in split["faces"]])
     drafted: list[tuple[dict, list[tuple[str, int, float]], int]] = []
     ordered_faces = sorted(
@@ -557,6 +561,9 @@ def _label_faces(
         face_posts = [members[index] for index in face["member_indices"]]
         face_distances = [split["distances"][index] for index in face["member_indices"]]
         face_cosines = [split["cosines"][index] for index in face["member_indices"]]
+        face_vectors = None
+        if member_matrix is not None:
+            face_vectors = member_matrix[face["member_indices"]]
         if context.get("chosen") == "heuristic":
             labeling_posts = select_representatives(
                 face_posts,
@@ -571,6 +578,7 @@ def _label_faces(
                 face_posts,
                 face_cosines,
                 limit=min(prompt_cap, len(face_posts)),
+                vectors=face_vectors,
             )
             representatives = sorted(
                 prompt_posts[: max(int(limit), 1)],
@@ -591,13 +599,14 @@ def _label_faces(
         arguments = label.get("arguments") or []
         title = str(label.get("title") or "")
         on_claim = [
-            (post, score)
-            for post, score in zip(face_posts, face_cosines)
+            (index, post, score)
+            for index, (post, score) in enumerate(zip(face_posts, face_cosines))
             if shares_claim_word(str(post.get("text") or post.get("clean_text") or ""), title)
         ]
         if len(on_claim) >= 3:
-            claim_posts = [post for post, _score in on_claim]
-            claim_scores = [score for _post, score in on_claim]
+            claim_posts = [post for _index, post, _score in on_claim]
+            claim_scores = [score for _index, _post, score in on_claim]
+            claim_member_indices = [index for index, _post, _score in on_claim]
             if context.get("chosen") == "heuristic":
                 representatives = select_representatives(
                     claim_posts,
@@ -606,10 +615,14 @@ def _label_faces(
                     matches=claim_scores,
                 )
             else:
+                claim_vectors = (
+                    face_vectors[claim_member_indices] if face_vectors is not None else None
+                )
                 representatives = select_prompt_posts(
                     claim_posts,
                     claim_scores,
                     limit=min(prompt_cap, len(claim_posts)),
+                    vectors=claim_vectors,
                 )
                 representatives = sorted(
                     representatives[: max(int(limit), 1)],
@@ -666,6 +679,112 @@ def _label_faces(
     if len(drafted) < MIN_FACES <= len(snapshot):
         drafted = _keep_collapsed_faces(snapshot[:MAX_FACES])
     return drafted, labeled
+
+
+def _finalize_face_labels(
+    members: list[dict],
+    drafted: list[tuple[dict, list[tuple[str, int, float]], int]],
+    terms: list[str],
+    context: dict,
+    member_matrix,
+) -> list[tuple[dict, list[tuple[str, int, float]], int]]:
+    """Re-label published faces with the wide MMR prompt (network backends only)."""
+    final_cap = int(context.get("prompt_sample_size") or 40)
+    backend = context["backend"]
+    model = context["model"]
+    limit = int(context["limit"])
+    uri_index = {str(post.get("uri") or ""): index for index, post in enumerate(members)}
+    refreshed: list[tuple[dict, list[tuple[str, int, float]], int]] = []
+    for perspective, rows, size in drafted:
+        indices = []
+        for uri, _position, _distance in rows:
+            index = uri_index.get(str(uri))
+            if index is not None:
+                indices.append(index)
+        face_posts = [members[index] for index in indices]
+        if member_matrix is not None and indices:
+            face_vectors = member_matrix[indices]
+            face_cosines = cosines_to_matrix_centroid(face_vectors)
+        else:
+            face_vectors = None
+            face_cosines = [0.0] * len(face_posts)
+        prompt_posts = select_prompt_posts(
+            face_posts,
+            face_cosines,
+            limit=min(final_cap, len(face_posts)),
+            vectors=face_vectors,
+        )
+        representatives = sorted(
+            prompt_posts[: max(limit, 1)],
+            key=lambda post: (
+                -(float(post["match"]) if post.get("match") is not None else 0.0),
+                -int(post.get("likes") or 0),
+            ),
+        )
+        face_terms = list(perspective.get("top_terms") or terms)
+        label = label_perspective(
+            prompt_posts,
+            face_terms,
+            backend=backend,
+            model=model,
+            post_limit=len(prompt_posts),
+        )
+        arguments = label.get("arguments") or []
+        title = str(label.get("title") or "")
+        on_claim = [
+            (index, post, score)
+            for index, (post, score) in enumerate(zip(face_posts, face_cosines))
+            if shares_claim_word(str(post.get("text") or post.get("clean_text") or ""), title)
+        ]
+        if len(on_claim) >= 3:
+            claim_posts = [post for _index, post, _score in on_claim]
+            claim_scores = [score for _index, _post, score in on_claim]
+            claim_member_indices = [index for index, _post, _score in on_claim]
+            claim_vectors = face_vectors[claim_member_indices] if face_vectors is not None else None
+            representatives = select_prompt_posts(
+                claim_posts,
+                claim_scores,
+                limit=min(final_cap, len(claim_posts)),
+                vectors=claim_vectors,
+            )
+            representatives = sorted(
+                representatives[: max(limit, 1)],
+                key=lambda post: (
+                    -(float(post["match"]) if post.get("match") is not None else 0.0),
+                    -int(post.get("likes") or 0),
+                ),
+            )
+        focus = " ".join([str(label.get("title") or ""), str(label.get("summary") or ""), *arguments])
+        representatives = _align_representatives(representatives, focus)
+        summary = _without_ungrounded_tail(str(label.get("summary") or ""), representatives)
+        label["summary"] = summary
+        if content_tokens(title) and (
+            not _claim_words_overlap(title, summary) or not _title_covers_posts(title, representatives)
+        ):
+            label = {
+                "title": "Mixed remarks",
+                "summary": "These posts do not share a claim.",
+                "label_source": "heuristic",
+            }
+            arguments = []
+        elif len(representatives) < 2 or not _posts_share_a_subject(representatives):
+            label = {
+                "title": "Mixed remarks",
+                "summary": "These posts do not share a claim.",
+                "label_source": "heuristic",
+            }
+            arguments = []
+            representatives = _align_representatives(representatives, label["title"])
+        updated = dict(perspective)
+        updated["title"] = label["title"]
+        updated["summary"] = label["summary"]
+        updated["representative_posts"] = representatives
+        if len(arguments) >= 2:
+            updated["arguments"] = arguments[:6]
+        else:
+            updated.pop("arguments", None)
+        refreshed.append((updated, rows, size))
+    return refreshed
 
 
 def _keep_collapsed_faces(
@@ -743,7 +862,7 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     tried: list[str] = []
     chosen_split = split
     for attempt in attempts:
-        drafted, labeled = _label_faces(members, attempt, terms, context)
+        drafted, labeled = _label_faces(members, attempt, terms, context, member_matrix=member_matrix)
         context["story_calls"]["faces"] += int(labeled)
         tried.append(f"k={attempt.get('k', len(attempt['faces']))}: {len(drafted)} of {labeled}")
         chosen_split = attempt
@@ -770,7 +889,9 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
             )
             chosen_split["forced"] = True
             chosen_split["method"] = method
-            drafted, labeled = _label_faces(members, chosen_split, terms, context, lock_floor=True)
+            drafted, labeled = _label_faces(
+                members, chosen_split, terms, context, member_matrix=member_matrix, lock_floor=True
+            )
             context["story_calls"]["faces"] += int(labeled)
             tried.append(f"forced {method}: {len(drafted)} of {labeled}")
     if len(drafted) < MIN_FACES:
@@ -786,6 +907,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
             detection_faces=int(context["story_calls"]["faces"]),
         )
     drafted = drafted[:MAX_FACES]
+    if context.get("chosen") != "heuristic":
+        drafted = _finalize_face_labels(members, drafted, terms, context, member_matrix)
     perspectives = [item[0] for item in drafted]
     if not specific_shared_words(perspectives):
         if depth < _STORY_SPLIT_LIMIT:

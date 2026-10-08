@@ -39,6 +39,8 @@ section_budget_minutes: 20
 representative_posts: 36
 # MMR cap for face labeling prompts (title, summary, arguments).
 prompt_sample_size: 40
+# Face labeling during k-retry / forced-cut / story split (final publish pass uses prompt_sample_size).
+draft_prompt_sample_size: 12
 # Diverse slice for planet / topic naming prompts (not oldest members).
 planet_prompt_sample_size: 20
 language: en
