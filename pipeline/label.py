@@ -26,8 +26,8 @@ def build_prompt(posts: list[dict]) -> str:
     return build_perspective_prompt(posts)
 
 
-def build_perspective_prompt(posts: list[dict]) -> str:
-    body = _post_lines(posts)
+def build_perspective_prompt(posts: list[dict], *, post_limit: int | None = None) -> str:
+    body = _post_lines(posts, limit=post_limit)
     return (
         "These posts are meant to be one perspective. Name the claim they share.\n"
         "Return JSON only, with no markdown: "
@@ -51,8 +51,8 @@ def build_perspective_prompt(posts: list[dict]) -> str:
     )
 
 
-def build_repair_prompt(posts: list[dict], draft: dict) -> str:
-    body = _post_lines(posts)
+def build_repair_prompt(posts: list[dict], draft: dict, *, post_limit: int | None = None) -> str:
+    body = _post_lines(posts, limit=post_limit)
     title = str(draft.get("title") or "")
     summary = str(draft.get("summary") or "")
     return (
@@ -97,9 +97,14 @@ def build_same_subject_prompt(faces: list[dict]) -> str:
     )
 
 
-def build_planet_name_prompt(posts: list[dict], faces: list[dict]) -> str:
+def build_planet_name_prompt(
+    posts: list[dict],
+    faces: list[dict],
+    *,
+    post_limit: int | None = None,
+) -> str:
     lines = [f"- {face.get('title')}: {face.get('summary')}" for face in faces]
-    body = _post_lines(posts, limit=10)
+    body = _post_lines(posts, limit=post_limit if post_limit is not None else 10)
     return (
         "Name the one subject these perspectives share.\n"
         "Return JSON only: {\"name\": \"2-4 words\"}.\n"
@@ -111,9 +116,9 @@ def build_planet_name_prompt(posts: list[dict], faces: list[dict]) -> str:
     )
 
 
-def build_topic_prompt(posts: list[dict], terms: list[str]) -> str:
+def build_topic_prompt(posts: list[dict], terms: list[str], *, post_limit: int | None = None) -> str:
     shown = ", ".join(terms[:6]) if terms else "unknown"
-    body = _post_lines(posts, limit=16)
+    body = _post_lines(posts, limit=post_limit if post_limit is not None else 16)
     return (
         "Name one public-conversation topic clustered from social posts.\n"
         "Return JSON only, with no markdown: "
@@ -126,9 +131,10 @@ def build_topic_prompt(posts: list[dict], terms: list[str]) -> str:
     )
 
 
-def _post_lines(posts: list[dict], limit: int = 12) -> str:
+def _post_lines(posts: list[dict], limit: int | None = 12) -> str:
     lines = []
-    for post in posts[:limit]:
+    shown = posts if limit is None else posts[:limit]
+    for post in shown:
         likes = int(post.get("likes") or 0)
         text = str(post.get("text") or post.get("clean_text") or "")[:280]
         lines.append(f"- ({likes} likes) {text}")
@@ -1118,21 +1124,27 @@ def label_perspective(
     backend: str = "auto",
     generate: Callable[[str], str] | None = None,
     model: str | None = None,
+    post_limit: int | None = None,
 ) -> dict:
     """Return title, summary, arguments, and label_source."""
+    prompt_limit = post_limit if post_limit is not None else min(len(posts), 12)
     if generate is not None:
-        labeled = _from_generator(generate, build_perspective_prompt(posts), terms, posts)
-        labeled = _repair_perspective(labeled, posts, terms, generate)
+        labeled = _from_generator(
+            generate, build_perspective_prompt(posts, post_limit=prompt_limit), terms, posts
+        )
+        labeled = _repair_perspective(labeled, posts, terms, generate, post_limit=prompt_limit)
         return _finish_perspective(labeled, posts, terms, drop_if_unrepaired=True)
 
     chosen = _resolve_backend(backend)
     if chosen == "heuristic":
         return _finish_perspective(heuristic_label(terms, posts), posts, terms, drop_if_unrepaired=False)
     generator = _generator_for(chosen, model)
-    labeled = _from_generator(generator, build_perspective_prompt(posts), terms, posts)
+    labeled = _from_generator(
+        generator, build_perspective_prompt(posts, post_limit=prompt_limit), terms, posts
+    )
     if labeled["label_source"] != "fallback":
         labeled["label_source"] = chosen
-    labeled = _repair_perspective(labeled, posts, terms, generator)
+    labeled = _repair_perspective(labeled, posts, terms, generator, post_limit=prompt_limit)
     return _finish_perspective(labeled, posts, terms, drop_if_unrepaired=True)
 
 
@@ -1141,10 +1153,14 @@ def _repair_perspective(
     posts: list[dict],
     terms: list[str],
     generate: Callable[[str], str],
+    *,
+    post_limit: int | None = None,
 ) -> dict:
     if not perspective_needs_repair(labeled, posts):
         return labeled
-    repaired = _from_generator(generate, build_repair_prompt(posts, labeled), terms, posts)
+    repaired = _from_generator(
+        generate, build_repair_prompt(posts, labeled, post_limit=post_limit), terms, posts
+    )
     if repaired.get("label_source") == "fallback":
         return labeled
     merged = dict(labeled)
@@ -1207,6 +1223,7 @@ def name_from_perspectives(
     *,
     backend: str = "auto",
     model: str | None = None,
+    post_limit: int | None = None,
 ) -> str | None:
     """A newsbeat name that the posts actually use."""
     if not faces:
@@ -1215,7 +1232,9 @@ def name_from_perspectives(
     if chosen == "heuristic":
         return None
     try:
-        raw = _generator_for(chosen, model)(build_planet_name_prompt(posts, faces)) or ""
+        raw = _generator_for(chosen, model)(
+            build_planet_name_prompt(posts, faces, post_limit=post_limit)
+        ) or ""
     except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError):
         return None
     parsed = parse_label(raw) or _load_object(raw)
@@ -1261,10 +1280,13 @@ def label_topic(
     backend: str = "auto",
     generate: Callable[[str], str] | None = None,
     model: str | None = None,
+    post_limit: int | None = None,
 ) -> dict:
     """Return a planet name and one-sentence summary."""
     if generate is not None:
-        labeled = _from_generator(generate, build_topic_prompt(posts, terms), terms, posts)
+        labeled = _from_generator(
+            generate, build_topic_prompt(posts, terms, post_limit=post_limit), terms, posts
+        )
         if "name" not in labeled:
             labeled["name"] = labeled.get("title") or heuristic_topic_label(terms, posts)["name"]
         return ground_topic(labeled, posts, terms)
@@ -1272,7 +1294,9 @@ def label_topic(
     chosen = _resolve_backend(backend)
     if chosen == "heuristic":
         return ground_topic(heuristic_topic_label(terms, posts), posts, terms)
-    labeled = _via_model(chosen, build_topic_prompt(posts, terms), terms, posts, model)
+    labeled = _via_model(
+        chosen, build_topic_prompt(posts, terms, post_limit=post_limit), terms, posts, model
+    )
     if "name" not in labeled:
         labeled["name"] = labeled.get("title") or heuristic_topic_label(terms, posts)["name"]
     return ground_topic(labeled, posts, terms)
