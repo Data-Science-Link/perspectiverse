@@ -1,9 +1,14 @@
-"""Per-post spam and newspaper-section decisions via Jev.
+"""Spam, public-claim, and newspaper-section decisions via Jev.
 
-Jev does not write planet names or steelmans. One call per post asks a spam
-noul and a section choice together. A missing key, a rejected key, or a
-failed call keeps the post and leaves the section blank so the keyword map
-can still label the planet.
+Jev does not write planet names or steelmans. The default is one call per
+post: a spam noul, a section choice, and a claim noul. Answers are cached
+on the retained corpus for 14 days, including non-claims and spam, so a
+URI is not scored twice inside that window. A free pre-filter drops posts
+Jev is very unlikely to keep. Batching many posts into one request is
+implemented and left off (``jev_batch``).
+
+A missing key, a rejected key, or a failed call keeps the post and leaves
+the section blank so the keyword map can still label the planet.
 """
 
 from __future__ import annotations
@@ -12,9 +17,17 @@ import json
 import os
 import sys
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 
 from pipeline.http_json import read_json, read_json_value
+from pipeline.jev_prefilter import (
+    DuplicateIndex,
+    post_text,
+    prefilter_reason,
+    text_fingerprint,
+)
 from pipeline.schema import CATEGORIES
 
 SYSTEMONE_URL = "https://api.typesafe.ai/v1/systemone"
@@ -23,6 +36,15 @@ DEFAULT_MODEL = "jev-latest"
 SPAM_THRESHOLD = 0.8
 CLAIM_THRESHOLD = 0.5
 _WORKERS = 8
+# Phase 3. Off unless jev_batch is set. About 25 posts share one request.
+BATCH_SIZE = 25
+CLAIM_TRUE = "A position about an event, policy, institution, or public issue"
+CLAIM_FALSE = "Personal status, a joke, fandom aside, small talk, or promo"
+# Phase 3 folds the spam question into the claim's no criteria.
+CLAIM_FALSE_WITH_SPAM = (
+    "Personal status, a joke, fandom aside, small talk, promo, bot, giveaway, "
+    "follow-bait, or an advertisement"
+)
 
 SECTION_CRITERIA = {
     "World": "International conflict, diplomacy, wars, and foreign governments",
@@ -73,56 +95,324 @@ def describe_jev() -> str:
     return f"Jev: on (model {_model()})."
 
 
-def apply_jev(posts: list[dict]) -> list[dict]:
-    """Drop high-confidence spam and attach a section. Unlabeled posts are the only calls."""
+def known_scored_uris(connection, posts: list[dict] | None = None, now: datetime | None = None) -> set[str]:
+    """URIs already scored, so a fetch does not pull them back for a second call.
+
+    A cache error returns an empty set. The run still scores; it just cannot
+    skip the URIs it failed to read.
+    """
+    try:
+        _prepare_cache(connection, posts or [], now)
+        from pipeline.store import jev_verdict_uris
+
+        return jev_verdict_uris(connection)
+    except Exception as exc:
+        sys.stderr.write(f"WARNING: Jev verdict cache was not read: {exc}\n")
+        return set()
+
+
+def apply_jev(
+    posts: list[dict],
+    *,
+    connection=None,
+    now: datetime | None = None,
+    batch: bool = False,
+) -> list[dict]:
+    """Drop high-confidence spam and attach a section. Unlabeled posts are the only calls.
+
+    ``connection`` is the retained corpus. Verdicts, including non-claims and
+    spam, are written there. ``batch`` is the phase-3 request shape and
+    defaults off.
+    """
     if _disabled_reason or not _api_key():
         return list(posts)
-    pending = [post for post in posts if not post.get("section")]
-    if not pending:
-        return list(posts)
-    decisions = _classify_many(pending)
+    cached, index = _open_cache(connection, posts, now)
+    decisions = _decisions_for(posts, cached, index, batch=batch)
+    if connection is not None:
+        _store_verdicts(connection, posts, decisions, now)
+    return _apply_decisions(posts, decisions)
+
+
+def _open_cache(connection, posts: list[dict], now: datetime | None) -> tuple[dict[str, dict], DuplicateIndex]:
+    index = DuplicateIndex()
+    if connection is None:
+        return {}, index
+    try:
+        _prepare_cache(connection, posts, now)
+        from pipeline.store import load_jev_fingerprints, load_jev_verdicts
+
+        uris = [str(post.get("uri") or "") for post in posts]
+        cached = {uri: _decision_from_row(row) for uri, row in load_jev_verdicts(connection, uris).items()}
+        for fingerprint in load_jev_fingerprints(connection):
+            index.add_fingerprint(fingerprint)
+        return cached, index
+    except Exception as exc:
+        sys.stderr.write(f"WARNING: Jev verdict cache was not read: {exc}\n")
+        return {}, DuplicateIndex()
+
+
+def _prepare_cache(connection, posts: list[dict], now: datetime | None) -> None:
+    from pipeline.store import expire_jev_verdicts, remember_retained_verdicts
+
+    today = _today(now)
+    expire_jev_verdicts(connection, today)
+    retained = []
+    for post in posts:
+        uri = str(post.get("uri") or "")
+        section = str(post.get("section") or "")
+        if not uri or not section or post.get("is_claim") is False:
+            continue
+        # Retained claims were already kept. The score is not a Jev noul.
+        spam = post.get("spam_score")
+        retained.append(
+            (
+                uri,
+                None if spam is None else float(spam),
+                1.0,
+                section,
+                "retained",
+                today,
+                text_fingerprint(post_text(post)),
+            )
+        )
+    if retained:
+        remember_retained_verdicts(connection, retained)
+
+
+def _today(now: datetime | None) -> str:
+    moment = now or datetime.now(timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).date().isoformat()
+
+
+def _decision_from_row(row: tuple) -> dict:
+    _uri, spam_score, claim_score, section, model, _scored_on, _fingerprint = row
+    claim_noul = None if claim_score is None else float(claim_score)
+    is_claim = None if claim_noul is None else claim_noul >= CLAIM_THRESHOLD
+    spam = None if spam_score is None else float(spam_score)
+    return {
+        "spam_score": spam,
+        "claim_score": claim_noul,
+        "section": str(section or ""),
+        "section_confidence": None,
+        "is_claim": is_claim,
+        "model": str(model or ""),
+        "cached": True,
+    }
+
+
+def _decisions_for(
+    posts: list[dict],
+    cached: dict[str, dict],
+    index: DuplicateIndex,
+    *,
+    batch: bool,
+) -> dict[str, dict | None]:
+    """Decisions keyed by URI. Posts that still need Jev are classified here."""
+    decisions: dict[str, dict | None] = {}
+    pending: list[dict] = []
+    skips: Counter[str] = Counter()
+    hits = 0
+    for post in posts:
+        if post.get("section"):
+            index.add_text(post_text(post))
+            continue
+        uri = str(post.get("uri") or "")
+        if uri and uri in cached:
+            decisions[uri] = cached[uri]
+            hits += 1
+            index.add_text(post_text(post))
+            continue
+        reason = prefilter_reason(post, index)
+        if reason:
+            skips[reason] += 1
+            decisions[uri] = {"prefilter": reason}
+            continue
+        index.add_text(post_text(post))
+        pending.append(post)
+    _note_filters(hits, skips)
+    if hits or skips:
+        print(
+            f"Jev cache hits: {hits}. Pre-filter skips: {sum(skips.values())} "
+            f"(short {skips['short']}, language {skips['language']}, "
+            f"link {skips['link']}, duplicate {skips['duplicate']})."
+        )
+    if pending:
+        decisions.update(_classify_many(pending, batch=batch))
+    return decisions
+
+
+def _note_filters(hits: int, skips: Counter[str]) -> None:
+    try:
+        from pipeline.costs import note_jev_cache_hits, note_jev_prefilter
+
+        if hits:
+            note_jev_cache_hits(hits)
+        for reason, count in skips.items():
+            note_jev_prefilter(reason, count)
+    except Exception as exc:
+        sys.stderr.write(f"WARNING: Cost log skipped for a Jev filter count: {exc}\n")
+
+
+def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | None], now: datetime | None) -> None:
+    """Persist answers Jev actually returned. Failures and pre-filter skips are not stored."""
+    try:
+        from pipeline.store import save_jev_verdicts
+
+        today = _today(now)
+        by_uri = {str(post.get("uri") or ""): post for post in posts}
+        rows = []
+        for uri, decision in decisions.items():
+            if not uri or not isinstance(decision, dict):
+                continue
+            if decision.get("prefilter") or decision.get("cached"):
+                continue
+            if decision.get("is_claim") is True and not decision.get("section"):
+                continue
+            if decision.get("claim_score") is None and decision.get("spam_score") is None:
+                continue
+            rows.append(
+                (
+                    uri,
+                    decision.get("spam_score"),
+                    decision.get("claim_score"),
+                    decision.get("section") or "",
+                    str(decision.get("model") or "") or _model(),
+                    today,
+                    text_fingerprint(post_text(by_uri.get(uri, {}))),
+                )
+            )
+        if rows:
+            save_jev_verdicts(connection, rows)
+    except Exception as exc:
+        sys.stderr.write(f"WARNING: Jev verdict cache was not written: {exc}\n")
+
+
+def _apply_decisions(posts: list[dict], decisions: dict[str, dict | None]) -> list[dict]:
     kept: list[dict] = []
     for post in posts:
         if post.get("section"):
             kept.append(post)
             continue
-        decision = decisions.get(str(post.get("uri") or ""))
-        if decision is None:
-            kept.append(post)
+        uri = str(post.get("uri") or "")
+        decision = decisions.get(uri)
+        if not isinstance(decision, dict) or decision.get("prefilter"):
+            if decision is None:
+                kept.append(post)
             continue
         updated = dict(post)
-        updated["spam_score"] = decision["spam_score"]
-        if decision["spam_score"] >= SPAM_THRESHOLD:
-            continue
-        section = decision["section"] if decision["section"] in CATEGORIES else "Other"
-        updated["section"] = section
-        updated["section_confidence"] = decision["section_confidence"]
+        if decision.get("spam_score") is not None:
+            updated["spam_score"] = decision["spam_score"]
+            if float(decision["spam_score"]) >= SPAM_THRESHOLD:
+                continue
+        section = str(decision.get("section") or "")
+        if section:
+            updated["section"] = section if section in CATEGORIES else "Other"
+        if decision.get("section_confidence") is not None:
+            updated["section_confidence"] = decision["section_confidence"]
         if decision.get("is_claim") is not None:
             updated["is_claim"] = bool(decision["is_claim"])
         kept.append(updated)
     return kept
 
 
-def _classify_many(posts: list[dict]) -> dict[str, dict | None]:
-    workers = max(1, min(_WORKERS, len(posts)))
-    found: dict[str, dict | None] = {}
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        for post, decision in zip(posts, pool.map(_classify_post, posts)):
-            found[str(post.get("uri") or "")] = decision
+def _classify_many(posts: list[dict], *, batch: bool = False) -> dict[str, dict | None]:
+    if batch:
+        found = _classify_batched(posts)
+    else:
+        workers = max(1, min(_WORKERS, len(posts)))
+        found = {}
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for post, decision in zip(posts, pool.map(_classify_post, posts)):
+                found[str(post.get("uri") or "")] = decision
     answered = next((item.get("model") for item in found.values() if item and item.get("model")), "")
     if answered:
         print(f"Jev answered as {answered}.")
     return found
 
 
-def _classify_post(post: dict) -> dict | None:
-    text = str(post.get("clean_text") or post.get("text") or "")[:4000]
-    if not text:
-        return None
-    try:
-        payload = _post_systemone(text)
-    except (RuntimeError, json.JSONDecodeError, KeyError, TypeError):
-        return None
+def per_post_body(text: str) -> dict:
+    """Today's one-post request. Three questions, definitions repeated each call."""
+    return {
+        "state": text,
+        "model": _model(),
+        "questions": {
+            "spam": {
+                "type": "noul",
+                "instructions": "Is this post promotional, a bot, engagement bait, or spam rather than a real remark?",
+                "criteria": {
+                    "true": "Promo, bot, giveaway, follow-bait, or an advertisement",
+                    "false": "A person saying something, including a messy or informal remark",
+                },
+            },
+            "section": {
+                "type": "choice",
+                "instructions": "Which newspaper section is this post's primary subject?",
+                "criteria": SECTION_CRITERIA,
+            },
+            "claim": {
+                "type": "noul",
+                "instructions": (
+                    "Is this a public claim: a position on an event, policy, institution, or shared issue?"
+                ),
+                "criteria": {
+                    "true": CLAIM_TRUE,
+                    "false": CLAIM_FALSE,
+                },
+            },
+        },
+    }
+
+
+def claim_batch_body(texts: list[str]) -> dict:
+    """Phase 3 stage 1. Spam is folded into the claim question. Definitions are sent once."""
+    questions = {}
+    for index in range(len(texts)):
+        questions[f"c{index}"] = {
+            "type": "noul",
+            "instructions": (
+                f"Is `posts[{index}]` a public claim, as defined by `claim_true`, rather than `claim_false`?"
+            ),
+            "criteria": {
+                "true": "Matches `claim_true`",
+                "false": "Matches `claim_false`",
+            },
+        }
+    return {
+        "state": {
+            "claim_true": CLAIM_TRUE,
+            "claim_false": CLAIM_FALSE_WITH_SPAM,
+            "posts": list(texts),
+        },
+        "model": _model(),
+        "questions": questions,
+    }
+
+
+def section_batch_body(texts: list[str]) -> dict:
+    """Phase 3 stage 2. Section definitions live in state once. Asked only for claims."""
+    questions = {}
+    pointers = {name: f"See `sections.{name}`" for name in SECTION_CRITERIA}
+    for index in range(len(texts)):
+        questions[f"s{index}"] = {
+            "type": "choice",
+            "instructions": (
+                f"Which newspaper section in `sections` is the primary subject of `posts[{index}]`?"
+            ),
+            "criteria": pointers,
+        }
+    return {
+        "state": {
+            "sections": SECTION_CRITERIA,
+            "posts": list(texts),
+        },
+        "model": _model(),
+        "questions": questions,
+    }
+
+
+def parse_per_post(payload: dict) -> dict | None:
     answers = payload.get("answers") if isinstance(payload, dict) else None
     if not isinstance(answers, dict):
         return None
@@ -135,17 +425,23 @@ def _classify_post(post: dict) -> dict | None:
     choice = str(section.get("choice") or "Other")
     confidence = section.get("confidence")
     try:
-        confidence_value = float(confidence) if confidence is not None else float((section.get("probabilities") or {}).get(choice) or 0.0)
+        confidence_value = (
+            float(confidence)
+            if confidence is not None
+            else float((section.get("probabilities") or {}).get(choice) or 0.0)
+        )
     except (TypeError, ValueError):
         confidence_value = 0.0
     claim = answers.get("claim") or {}
     try:
-        claim_noul = float(claim.get("noul"))
+        claim_noul: float | None = float(claim.get("noul"))
         is_claim: bool | None = claim_noul >= CLAIM_THRESHOLD
     except (TypeError, ValueError):
+        claim_noul = None
         is_claim = None
     return {
         "spam_score": spam_score,
+        "claim_score": claim_noul,
         "section": choice,
         "section_confidence": confidence_value,
         "is_claim": is_claim,
@@ -153,38 +449,123 @@ def _classify_post(post: dict) -> dict | None:
     }
 
 
-def _post_systemone(text: str) -> dict:
-    body = json.dumps(
-        {
-            "state": text,
-            "model": _model(),
-            "questions": {
-                "spam": {
-                    "type": "noul",
-                    "instructions": "Is this post promotional, a bot, engagement bait, or spam rather than a real remark?",
-                    "criteria": {
-                        "true": "Promo, bot, giveaway, follow-bait, or an advertisement",
-                        "false": "A person saying something, including a messy or informal remark",
-                    },
-                },
-                "section": {
-                    "type": "choice",
-                    "instructions": "Which newspaper section is this post's primary subject?",
-                    "criteria": SECTION_CRITERIA,
-                },
-                "claim": {
-                    "type": "noul",
-                    "instructions": (
-                        "Is this a public claim: a position on an event, policy, institution, or shared issue?"
-                    ),
-                    "criteria": {
-                        "true": "A position about an event, policy, institution, or public issue",
-                        "false": "Personal status, a joke, fandom aside, small talk, or promo",
-                    },
-                },
-            },
-        }
-    ).encode("utf-8")
+def parse_claim_batch(payload: dict, count: int) -> tuple[str, list[float | None]]:
+    """Claim nouls aligned to the posts in the request. ``None`` is a missing answer."""
+    answers = payload.get("answers") if isinstance(payload, dict) else None
+    model = str(payload.get("model") or "") if isinstance(payload, dict) else ""
+    scores: list[float | None] = []
+    if not isinstance(answers, dict):
+        return model, [None] * count
+    for index in range(count):
+        claim = answers.get(f"c{index}") or {}
+        try:
+            scores.append(float(claim.get("noul")))
+        except (TypeError, ValueError):
+            scores.append(None)
+    return model, scores
+
+
+def parse_section_batch(payload: dict, count: int) -> tuple[str, list[tuple[str, float] | None]]:
+    answers = payload.get("answers") if isinstance(payload, dict) else None
+    model = str(payload.get("model") or "") if isinstance(payload, dict) else ""
+    found: list[tuple[str, float] | None] = []
+    if not isinstance(answers, dict):
+        return model, [None] * count
+    for index in range(count):
+        section = answers.get(f"s{index}") or {}
+        choice = str(section.get("choice") or "")
+        if not choice:
+            found.append(None)
+            continue
+        confidence = section.get("confidence")
+        try:
+            confidence_value = (
+                float(confidence)
+                if confidence is not None
+                else float((section.get("probabilities") or {}).get(choice) or 0.0)
+            )
+        except (TypeError, ValueError):
+            confidence_value = 0.0
+        found.append((choice, confidence_value))
+    return model, found
+
+
+def _classify_post(post: dict) -> dict | None:
+    text = post_text(post)[:4000]
+    if not text:
+        return None
+    try:
+        payload = _post_systemone(per_post_body(text))
+    except (RuntimeError, json.JSONDecodeError, KeyError, TypeError):
+        return None
+    return parse_per_post(payload)
+
+
+def _classify_batched(posts: list[dict]) -> dict[str, dict | None]:
+    """Phase 3. Claim question for every post, section question only for claims."""
+    found: dict[str, dict | None] = {}
+    chunks = [posts[start : start + BATCH_SIZE] for start in range(0, len(posts), BATCH_SIZE)]
+    workers = max(1, min(_WORKERS, len(chunks)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for chunk, decisions in zip(chunks, pool.map(_classify_batch_chunk, chunks)):
+            for post, decision in zip(chunk, decisions):
+                found[str(post.get("uri") or "")] = decision
+    return found
+
+
+def _classify_batch_chunk(posts: list[dict]) -> list[dict | None]:
+    texts = [post_text(post)[:4000] for post in posts]
+    if any(not text for text in texts):
+        return [None] * len(posts)
+    try:
+        claim_payload = _post_systemone(claim_batch_body(texts))
+    except (RuntimeError, json.JSONDecodeError, KeyError, TypeError):
+        return [None] * len(posts)
+    model, scores = parse_claim_batch(claim_payload, len(posts))
+    decisions: list[dict | None] = []
+    claim_indexes = []
+    for index, score in enumerate(scores):
+        if score is None:
+            decisions.append(None)
+            continue
+        is_claim = score >= CLAIM_THRESHOLD
+        decisions.append(
+            {
+                "spam_score": None,
+                "claim_score": score,
+                "section": "",
+                "section_confidence": None,
+                "is_claim": is_claim,
+                "model": model or str(claim_payload.get("model") or ""),
+            }
+        )
+        if is_claim:
+            claim_indexes.append(index)
+    if not claim_indexes:
+        return decisions
+    claim_texts = [texts[index] for index in claim_indexes]
+    try:
+        section_payload = _post_systemone(section_batch_body(claim_texts))
+    except (RuntimeError, json.JSONDecodeError, KeyError, TypeError):
+        for index in claim_indexes:
+            decisions[index] = None
+        return decisions
+    _section_model, sections = parse_section_batch(section_payload, len(claim_texts))
+    for offset, index in enumerate(claim_indexes):
+        parsed = sections[offset] if offset < len(sections) else None
+        if parsed is None or decisions[index] is None:
+            decisions[index] = None
+            continue
+        choice, confidence = parsed
+        decisions[index]["section"] = choice
+        decisions[index]["section_confidence"] = confidence
+        if _section_model:
+            decisions[index]["model"] = _section_model
+    return decisions
+
+
+def _post_systemone(body: dict) -> dict:
+    encoded = json.dumps(body).encode("utf-8")
     headers = {
         "Authorization": f"Bearer {_api_key()}",
         "Content-Type": "application/json",
@@ -194,7 +575,7 @@ def _post_systemone(text: str) -> dict:
     last: RuntimeError | None = None
     for attempt in range(4):
         try:
-            payload = read_json(SYSTEMONE_URL, timeout=30, data=body, headers=headers)
+            payload = read_json(SYSTEMONE_URL, timeout=30, data=encoded, headers=headers)
         except RuntimeError as exc:
             last = exc
             message = str(exc)

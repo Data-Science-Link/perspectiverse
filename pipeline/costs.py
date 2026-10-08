@@ -152,6 +152,7 @@ def reset_meter() -> None:
     """Test seam. Production runs start a fresh process."""
     global _meter
     _meter = CostMeter()
+    reset_jev_filters()
 
 
 def warn(message: str) -> None:
@@ -161,6 +162,111 @@ def warn(message: str) -> None:
 def jev_cost_usd(input_tokens: int) -> Decimal:
     """Dollar cost of one Jev call. Output tokens are not billed."""
     tokens = Decimal(max(0, int(input_tokens)))
+    return tokens * JEV_USD_PER_MILLION_INPUT_TOKENS / Decimal(1_000_000)
+
+
+# #27 assumed 600 input tokens for one per-post Jev call. #87's phase 2
+# assumes the free pre-filter lifts the claim yield from 22.6% to 35%, and
+# does not stack the phase-1 re-score discount on top of that yield. Phase 3
+# token splits (77 per scored post, 103 per kept claim) are the #87 batch
+# estimate. These are projections, not a bill.
+JEV_ASSUMED_TOKENS_PER_CALL = 600
+JEV_PHASE2_CLAIM_YIELD = Decimal("0.35")
+JEV_PHASE3_TOKENS_PER_POST = 77
+JEV_PHASE3_TOKENS_PER_CLAIM = 103
+JEV_WINDOW_DAYS = 7
+
+_JEV_FILTER_REASONS = ("short", "language", "link", "duplicate")
+
+
+@dataclass
+class JevFilterCounts:
+    """Cache hits and pre-filter skips. These are not paid calls."""
+
+    cache_hits: int = 0
+    short: int = 0
+    language: int = 0
+    link: int = 0
+    duplicate: int = 0
+
+
+_filters = JevFilterCounts()
+_filter_lock = threading.Lock()
+
+
+def reset_jev_filters() -> None:
+    """Test seam. ``reset_meter`` clears these too."""
+    global _filters
+    with _filter_lock:
+        _filters = JevFilterCounts()
+
+
+def note_jev_cache_hits(count: int) -> None:
+    """Count posts answered from the verdict cache. Never raises."""
+    try:
+        with _filter_lock:
+            _filters.cache_hits += max(0, int(count))
+    except Exception as exc:
+        warn(f"Cost meter dropped a Jev cache hit: {exc}")
+
+
+def note_jev_prefilter(reason: str, count: int = 1) -> None:
+    """Count posts that were not sent to Jev. Never raises."""
+    try:
+        if reason not in _JEV_FILTER_REASONS:
+            return
+        amount = max(0, int(count))
+        with _filter_lock:
+            setattr(_filters, reason, getattr(_filters, reason) + amount)
+    except Exception as exc:
+        warn(f"Cost meter dropped a Jev pre-filter skip: {exc}")
+
+
+def jev_filter_counts() -> dict[str, int]:
+    with _filter_lock:
+        return {
+            "cache_hits": _filters.cache_hits,
+            "short": _filters.short,
+            "language": _filters.language,
+            "link": _filters.link,
+            "duplicate": _filters.duplicate,
+        }
+
+
+def jev_filter_skip_total(counts: dict[str, int] | None = None) -> int:
+    current = counts if counts is not None else jev_filter_counts()
+    return sum(int(current.get(reason) or 0) for reason in _JEV_FILTER_REASONS)
+
+
+def format_jev_filters(counts: dict[str, int] | None = None) -> str:
+    current = counts if counts is not None else jev_filter_counts()
+    skips = jev_filter_skip_total(current)
+    return (
+        f"Jev filters: {int(current.get('cache_hits') or 0)} cache hits, "
+        f"{skips} pre-filter skips "
+        f"(short {int(current.get('short') or 0)}, "
+        f"language {int(current.get('language') or 0)}, "
+        f"link {int(current.get('link') or 0)}, "
+        f"duplicate {int(current.get('duplicate') or 0)})."
+    )
+
+
+def project_jev_daily_usd(window_posts: int, *, phase3: bool = False) -> Decimal:
+    """Projected Jev dollars per day at a retained-claim window.
+
+    Phases 1–2 are the default (``phase3=False``): new claims divided by the
+    35% yield, at 600 tokens per call. ``phase3=True`` uses the batched token
+    split and is not the live path.
+    """
+    posts = int(window_posts)
+    if posts < 0:
+        raise ValueError("window_posts must be >= 0")
+    claims = Decimal(posts) / Decimal(JEV_WINDOW_DAYS)
+    scored = claims / JEV_PHASE2_CLAIM_YIELD
+    if phase3:
+        tokens = scored * Decimal(JEV_PHASE3_TOKENS_PER_POST) + claims * Decimal(JEV_PHASE3_TOKENS_PER_CLAIM)
+    else:
+        tokens = scored * Decimal(JEV_ASSUMED_TOKENS_PER_CALL)
     return tokens * JEV_USD_PER_MILLION_INPUT_TOKENS / Decimal(1_000_000)
 
 
@@ -454,6 +560,7 @@ def write_cost_run(
         )
         destination.parent.mkdir(parents=True, exist_ok=True)
         identity = run_identity(started_at)
+        filters = jev_filter_counts()
         payload = {
             "rows": rows,
             "run_id": identity["run_id"],
@@ -462,12 +569,21 @@ def write_cost_run(
             "trigger": identity["trigger"],
             "posts_processed": int(posts_processed),
             "planets_published": int(planets_published),
+            "jev_cache_hits": int(filters["cache_hits"]),
+            "jev_prefilter_skips": {
+                "short": int(filters["short"]),
+                "language": int(filters["language"]),
+                "link": int(filters["link"]),
+                "duplicate": int(filters["duplicate"]),
+            },
         }
         _atomic_write(destination, json.dumps(payload, indent=2) + "\n")
         if rows:
             print(f"Cost run file: {destination} ({len(rows)} service row(s)).")
         else:
             print(f"Cost run file: {destination} (no paid calls).")
+        if filters["cache_hits"] or jev_filter_skip_total(filters):
+            print(format_jev_filters(filters))
         return destination
     except Exception as exc:
         warn(f"Cost log skipped: {exc}")

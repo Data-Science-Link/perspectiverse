@@ -39,6 +39,15 @@ CREATE TABLE IF NOT EXISTS fetched_days (
     fetched_at TEXT NOT NULL,
     kept INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS jev_verdicts (
+    uri TEXT PRIMARY KEY,
+    spam_score REAL,
+    claim_score REAL,
+    section TEXT,
+    model TEXT NOT NULL,
+    scored_on TEXT NOT NULL,
+    text_fp TEXT NOT NULL DEFAULT ''
+);
 """
 
 _POST_COLUMNS = (
@@ -145,6 +154,109 @@ def record_fetched_days(connection: sqlite3.Connection, dates: list[str], *, fet
             kept = excluded.kept
         """,
         [(day, fetched_at, int(kept)) for day in dates],
+    )
+    connection.commit()
+
+
+# Verdicts older than this many days are deleted. A row dated today minus
+# this many days is still inside the window.
+JEV_VERDICT_TTL_DAYS = 14
+RETAINED_VERDICT_MODEL = "retained"
+
+
+def expire_jev_verdicts(connection: sqlite3.Connection, today: str, *, ttl_days: int = JEV_VERDICT_TTL_DAYS) -> int:
+    """Drop verdicts older than the cache window. ``today`` is a UTC date."""
+    from datetime import date, timedelta
+
+    cutoff = (date.fromisoformat(today) - timedelta(days=int(ttl_days))).isoformat()
+    cursor = connection.execute("DELETE FROM jev_verdicts WHERE scored_on < ?", (cutoff,))
+    connection.commit()
+    return int(cursor.rowcount)
+
+
+def load_jev_verdicts(connection: sqlite3.Connection, uris: list[str]) -> dict[str, tuple]:
+    """Return cache rows for these URIs. Missing URIs are absent."""
+    found: dict[str, tuple] = {}
+    unique = [uri for uri in dict.fromkeys(uris) if uri]
+    if not unique:
+        return found
+    connection.execute("CREATE TEMP TABLE IF NOT EXISTS _jev_lookup (uri TEXT PRIMARY KEY)")
+    connection.execute("DELETE FROM _jev_lookup")
+    chunk = 400
+    for start in range(0, len(unique), chunk):
+        part = [(uri,) for uri in unique[start : start + chunk]]
+        connection.executemany("INSERT OR IGNORE INTO _jev_lookup (uri) VALUES (?)", part)
+    rows = connection.execute(
+        """
+        SELECT verdict.uri, verdict.spam_score, verdict.claim_score, verdict.section,
+               verdict.model, verdict.scored_on, verdict.text_fp
+        FROM jev_verdicts AS verdict
+        JOIN _jev_lookup AS wanted ON wanted.uri = verdict.uri
+        """
+    ).fetchall()
+    connection.execute("DELETE FROM _jev_lookup")
+    for row in rows:
+        found[str(row[0])] = row
+    return found
+
+
+def load_jev_fingerprints(connection: sqlite3.Connection) -> list[str]:
+    """Simhashes of scored posts, for the near-duplicate index."""
+    rows = connection.execute(
+        "SELECT text_fp FROM jev_verdicts WHERE text_fp != ''"
+    ).fetchall()
+    return [str(row[0]) for row in rows]
+
+
+def jev_verdict_uris(connection: sqlite3.Connection) -> set[str]:
+    """Every URI still inside the cache window."""
+    rows = connection.execute("SELECT uri FROM jev_verdicts").fetchall()
+    return {str(row[0]) for row in rows}
+
+
+def save_jev_verdicts(connection: sqlite3.Connection, rows: list[tuple]) -> None:
+    """Insert Jev answers. A real answer replaces a retained-corpus backfill."""
+    connection.executemany(
+        """
+        INSERT INTO jev_verdicts (
+            uri, spam_score, claim_score, section, model, scored_on, text_fp
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(uri) DO UPDATE SET
+            spam_score = excluded.spam_score,
+            claim_score = excluded.claim_score,
+            section = excluded.section,
+            model = excluded.model,
+            scored_on = excluded.scored_on,
+            text_fp = excluded.text_fp
+        """,
+        rows,
+    )
+    connection.commit()
+
+
+def remember_retained_verdicts(connection: sqlite3.Connection, rows: list[tuple]) -> None:
+    """Remember claims already in the corpus without a second Jev call.
+
+    A row already scored by Jev is left alone. A backfill row's date is
+    refreshed while the claim is still in the window, and it then expires
+    ``JEV_VERDICT_TTL_DAYS`` after the claim leaves.
+    """
+    connection.executemany(
+        """
+        INSERT INTO jev_verdicts (
+            uri, spam_score, claim_score, section, model, scored_on, text_fp
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(uri) DO UPDATE SET
+            scored_on = excluded.scored_on,
+            text_fp = CASE
+                WHEN jev_verdicts.text_fp = '' THEN excluded.text_fp
+                ELSE jev_verdicts.text_fp
+            END
+        WHERE jev_verdicts.model = ?
+        """,
+        [(*row, RETAINED_VERDICT_MODEL) for row in rows],
     )
     connection.commit()
 

@@ -26,7 +26,7 @@ from pipeline.corpus import (
     window_utc_dates,
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
-from pipeline.jev import apply_jev, describe_jev
+from pipeline.jev import apply_jev, describe_jev, known_scored_uris
 from pipeline.cluster_math import salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
 from pipeline.schema import TOP_TERMS_LIMIT
@@ -124,14 +124,19 @@ def run_live(
             relabel=relabel,
         )
         if source == "bluesky" and not relabel:
-            cleaned = apply_jev(cleaned)
-            # Keep only public claims; non-claims are discarded and not stored.
+            cleaned = apply_jev(cleaned, connection=connection, batch=_jev_batch(settings))
+            # Keep only public claims. Non-claims stay in the verdict cache, not the post table.
             cleaned = [p for p in cleaned if p.get("is_claim") is True]
             if refreshed:
                 # Top up: keep fetching until claim count reaches target so the
                 # rolling window stays at the threshold, not below it.
                 if len(cleaned) < target:
-                    cleaned = _topup_claims(cleaned, target=target, settings=settings)
+                    cleaned = _topup_claims(
+                        cleaned,
+                        target=target,
+                        settings=settings,
+                        connection=connection,
+                    )
                 before = len(cleaned)
                 cleaned = retire_oldest(
                     cleaned,
@@ -240,12 +245,18 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
         print(f"WARNING: Cost log skipped: {exc}", file=sys.stderr)
 
 
+def _jev_batch(settings: dict) -> bool:
+    """Phase 3 stays off unless the pipeline setting says otherwise."""
+    return bool(settings.get("jev_batch"))
+
+
 def _topup_claims(
     claims: list[dict],
     *,
     target: int,
     settings: dict,
     max_rounds: int = 6,
+    connection=None,
 ) -> list[dict]:
     """Fetch additional posts and Jev-classify them until claim count reaches target.
 
@@ -255,11 +266,13 @@ def _topup_claims(
     """
     result = list(claims)
     seen = {post.get("uri") for post in result if post.get("uri")}
+    now = datetime.now(timezone.utc)
+    if connection is not None:
+        seen.update(known_scored_uris(connection, result, now=now))
     neutral = [item for item in (settings.get("neutral_queries") or []) if item]
     refresh_hours = int(settings.get("refresh_hours") or 24)
     # Use a shifted seed so each round samples a different slice of Bluesky.
     rng = random.Random(int(settings["seed"]) + len(result))
-    now = datetime.now(timezone.utc)
 
     for round_num in range(1, max_rounds + 1):
         gap = target - len(result)
@@ -289,7 +302,9 @@ def _topup_claims(
         if not fresh:
             print(f"Top-up {round_num}: no new posts from Bluesky; stopping.")
             break
-        new_claims = [p for p in apply_jev(fresh) if p.get("is_claim") is True]
+        new_claims = [
+            p for p in apply_jev(fresh, connection=connection, batch=_jev_batch(settings)) if p.get("is_claim") is True
+        ]
         result.extend(new_claims)
         print(
             f"Top-up {round_num}: {len(new_claims)} claims from {len(fresh)} posts "
@@ -368,6 +383,7 @@ def _collect_posts(
 
     pulled: list[dict] = []
     seen = {post.get("uri") for post in existing if post.get("uri")}
+    seen.update(known_scored_uris(connection, existing, now=moment))
     rounds = 0
     while len(pulled) < quota and rounds < 6:
         rounds += 1

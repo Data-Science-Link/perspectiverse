@@ -282,7 +282,7 @@ def test_bluesky_403_does_not_shrink_retained_corpus(monkeypatch, tmp_path):
 
     monkeypatch.setattr("pipeline.live.extract_posts", forbidden)
 
-    def keep_as_claims(posts):
+    def keep_as_claims(posts, **_kwargs):
         return [{**post, "is_claim": True, "section": post.get("section") or "Other"} for post in posts]
 
     monkeypatch.setattr("pipeline.live.apply_jev", keep_as_claims)
