@@ -140,9 +140,9 @@ Setting the repository homepage to that URL is optional and done in the same set
 
 Same-UTC-day reruns are safe: `pipeline/live.py` records each fetched UTC date in `fetched_days` and skips Bluesky if that day is already present. Jev (`pipeline/jev.py`) only classifies posts that have no `section` yet, so existing posts are never re-scored. R2 and `data-snapshot` writes are guarded by `concurrency: discourse-pipeline` (cancel-in-progress: false), so runs never overlap.
 
-Weekly DeepInfra, Jev, and Cloudflare R2 spend is appended on the `data-snapshot` branch ([costs/README.md](https://github.com/Data-Science-Link/perspectiverse/blob/data-snapshot/costs/README.md)). The trailing 14 UTC days are redrawn there after each successful run. The image below is that file. Until the first run writes it, the alt text is what GitHub shows.
+Weekly DeepInfra, Jev, and Cloudflare R2 spend is appended on the `data-snapshot` branch ([costs/README.md](https://github.com/Data-Science-Link/perspectiverse/blob/data-snapshot/costs/README.md)). The trailing 14 UTC days are redrawn there after each successful run. The image below is the live chart from that branch.
 
-[![Trailing 14-day production spend by service. The chart appears after the next pipeline run writes costs/daily_spend_14d.svg on data-snapshot.](https://raw.githubusercontent.com/Data-Science-Link/perspectiverse/data-snapshot/costs/daily_spend_14d.svg)](https://github.com/Data-Science-Link/perspectiverse/blob/data-snapshot/costs/README.md)
+[![Trailing 14 UTC days of billed production spend by service (LLM labeling, Jev, and Cloudflare R2), stacked by day.](https://raw.githubusercontent.com/Data-Science-Link/perspectiverse/data-snapshot/costs/daily_spend_14d.svg)](https://github.com/Data-Science-Link/perspectiverse/blob/data-snapshot/costs/README.md)
 
 ## Security
 
