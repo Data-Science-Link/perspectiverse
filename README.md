@@ -23,7 +23,7 @@ The observatory ships a **live** `public/data.json`. The daily job holds a rolli
 | Spam filter | Regex, then Jev when `TYPESAFE_API_KEY` is set |
 | Live pipeline (`--live`) | Default command. Daily job embeds with MiniLM; pytest stays lexical |
 | React + R3F observatory | Newspaper-section filters; All topics stays unsupervised |
-| GitHub Pages | Workflow ready. Pages source is still a repo setting |
+| GitHub Pages | Live at `data-science-link.github.io/perspectiverse/` (GitHub Actions deploy) |
 | Daily refresh | `.github/workflows/pipeline.yml` — cron 06:17 UTC daily, on pipeline-code merges to `main`, and on `workflow_dispatch`. Site-only merges (no pipeline files changed) only redeploy Pages (`pages.yml`), no LLM spend. |
 | DeepInfra / OpenAI-compatible labels | Wired (`OPENAI_API_KEY` + `OPENAI_BASE_URL`); heuristic until a token is set |
 | Conversational LLM on a planet | Roadmap only (Horizon A) |
@@ -117,15 +117,11 @@ The **Main Branch Protections** ruleset requires one approving review from a cod
 
 ## GitHub Pages
 
-The site is not live until Pages is switched on. The merge deploy failed because the source was never set (`Ensure GitHub Pages has been enabled`).
-
-1. Open https://github.com/Data-Science-Link/perspectiverse/settings/pages
-2. Set **Source** to **GitHub Actions**
-3. Re-run **Deploy GitHub Pages**
-
-The workflow builds with `base: /perspectiverse/`. After a green deploy the site is:
+The public observatory is live at:
 
 `https://data-science-link.github.io/perspectiverse/`
+
+The workflow builds with `base: /perspectiverse/`. If you fork the repo or Pages stops deploying, open https://github.com/Data-Science-Link/perspectiverse/settings/pages, set **Source** to **GitHub Actions**, and re-run **Deploy GitHub Pages**.
 
 Setting the repository homepage to that URL is optional and done in the same settings screen. The daily job does not push to `main` (the ruleset would block it). It commits `data.json` on the unprotected `data-snapshot` branch. The Pages build uses that file when the branch exists. The SQLite corpus is uploaded to a private R2 bucket when those secrets exist, and stays on `data-snapshot` until they do.
 

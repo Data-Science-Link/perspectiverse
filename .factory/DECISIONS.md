@@ -8,6 +8,7 @@ Append-only. Newest at the bottom.
 ### YYYY-MM-DD — Short title
 - **Decision:** what we chose
 - **Why:** one or two sentences
+- **Decided by:** who made the call (optional; use when attributing credit matters)
 - **Alternatives:** what we rejected (optional)
 - **Revisit when:** trigger to reconsider (optional)
 ```
@@ -293,8 +294,44 @@ Append-only. Newest at the bottom.
 - **Alternatives:** Ship grouping changes without the bar; lower the top-planet floor without owner sign-off.
 - **Revisit when:** Michael confirms revised bars or the corpus window grows enough to support a 500-post top planet.
 
-### 2026-10-09 — Same-story posts stay on the planet; the 500-post bar is dropped (#104, #103)
-- **Decision:** Michael dropped the absolute 500-post bar. The metric is attachment recall plus coherence: posts that are clearly one story should land on that story's planet, and distinct stories must not be glued (#79). After clustering, a noise post joins the nearest planet of at least 20 posts only when its cosine to that planet's original center is at least 0.42 and its longest subject stem is already that planet's subject. A smaller planet folds into one larger planet only when the cosine is at least 0.55 and at least 60% of its posts match that larger planet's subject. Centers and stems are taken before either step, and a planet that is folding is not a parent, so there is no chain. A face the claim gate drops gives a post back to a kept face only when the subject matches. After the wide relabel, faces on one planet with the same or near-same title are merged. `titles_alike` is unchanged, so "Iran War" and "Iran Conflict" stay distinct. The author cap is not undone. The 0.72 center merge, 0.50 peel, and 0.60 mean gate are unchanged.
-- **Why:** The face gate cut same-war posts off Ukraine (159 to 108) and Epstein (47 to 21), and the same story was split across neighboring planets, while a transitive merge glued separate stories. Recall against a story reference fixed before the code change is the check, not a size target.
-- **Alternatives:** Transitive merge at cosine 0.62 (rejected: it glues distinct stories). Loosening `titles_alike` so "Iran War" matches "Iran Conflict" (rejected: an existing test keeps them apart). Chasing the old 500-post bar by gluing.
-- **Revisit when:** A later corpus has a coherent story large enough that the size bars and the recall bar disagree, or a fold sample fails the one-story check.
+### 2026-10-09 — Daily production cost cap at 100K posts (#87, #27)
+- **Decision:** Approved by Michael on 2026-10-09. Total production spend (Jev, LLM labeling, and R2) at a 100,000-post window must stay under $0.50 per day; lower is better. This supersedes the $0.30-per-day accepted fallback as a hard ceiling in [2026-10-08 — Daily spend target $0.25, fallback $0.30 (#87, #27)](#2026-10-08-daily-spend-target-025-fallback-030-87-27). About $0.25 per day remains the target and about $0.30 remains an aspiration, not a cap.
+- **Why:** A 100K corpus should scale without the roughly $1.70/day the pre-#87 design implied, while leaving headroom above the earlier $0.25–$0.30 figures when quality bars require it.
+- **Alternatives:** Keep $0.30 as the hard ceiling; shrink the corpus window instead of raising the cap.
+- **Revisit when:** The cost ledger shows a sustained daily total above $0.50 at 100K, or prices change.
+
+### 2026-10-09 — #104: fix missing posts (approved)
+- **Decision:** Michael on 2026-10-09: "Fix missing posts - yes." The factory builds the fix: restore dropped posts, attach strays, fold split-offs, and address duplicate faces (#103). Each change on the #104 PR shows before-and-after evidence.
+- **Why:** Popular stories today land incomplete on their planets (for example Ukraine at roughly 108 of ~380 posts on the live site).
+- **Alternatives:** Accept smaller planets as correct grouping; change only labeling.
+- **Revisit when:** The attachment-recall bar below is met on the fixed keyword/labeled story sample.
+
+### 2026-10-09 — #104 done bar: attachment recall replaces the 500-post floor
+- **Decision:** This supersedes the absolute top-planet ≥500 bar in [2026-10-09 — #104 done bar: Michael confirmed size bars](#2026-10-09-104-done-bar-michael-confirmed-size-bars). Michael on 2026-10-09 (revised 10:38 AM): for truly popular stuff with a lot of posts, posts must properly attach to the right planet and the planet must have all the right ones attached. The done bar is **attachment recall**: for each story with ≥100 posts (story size counted on a fixed keyword/labeled sample, set before the change, independent of grouping code), ≥80% of that story's posts land on its planet, with the coherence check and without gluing separate stories ([2026-10-08 — Split glued different-stories planets instead of dropping them (#78)](#2026-10-08-split-glued-different-stories-planets-instead-of-dropping-them-78); [2026-10-08 — Do not publish a planet with fewer than five posts (#78)](#2026-10-08-do-not-publish-a-planet-with-fewer-than-five-posts-78) / #77/#79). Still in force unless Michael says otherwise: top-10 coverage ≥30%, noise ≤25%, Politics coverage ≥25%, World/Politics lead ≥100, no duplicate faces (#103), no Mixed remarks, labeling <1,000s.
+- **Why:** At a 10K window no coherent 500-post story exists; the owner cares that high-volume stories are whole and on the right planet, not a single arbitrary size floor.
+- **Alternatives:** Keep the ≥500 top-planet bar; judge only by top-10 coverage and noise.
+- **Revisit when:** Michael changes the recall threshold or story sample, or the corpus window makes a size floor meaningful again.
+
+### 2026-10-09 — #90 cluster-once (PR #102) parked
+- **Decision:** #90 and PR #102 stay parked. Cluster-once does not ship until Jetstream speed headroom is reclaimed from the label cache path in #87 first.
+- **Why:** Paid testing put section labeling at 1,287s (above the 1,200s ceiling), with 80 failed calls and 72.9% section agreement — below the quality bars for replacing today's per-post section path.
+- **Alternatives:** Merge #102 and accept slower or weaker section labeling; drop section solar systems.
+- **Revisit when:** Label-cache savings show up in live runs and a retest clears section agreement and the labeling-time bar.
+
+### 2026-10-09 — Room voice: Factory Manager speaks for Michael
+- **Decision:** In the project's factory room, the Factory Manager is Michael's one voice. The Giver tracks quietly on pinned issue #106 (Asks ledger) and challenges the Manager when plans, status, or done claims drift from the ledger or agreed bars. This narrows [2026-10-09 — Roles: Factory Manager (renamed from factory worker) and an optional Giver](#2026-10-09-roles-factory-manager-renamed-from-factory-worker-and-an-optional-giver) to room behavior; the Manager still commits `DECISIONS.md`.
+- **Why:** Michael asked for a single coordinating voice in the room while keeping durable memory and challenge off the main thread.
+- **Alternatives:** Owner speaks directly in the room for every update; Giver speaks in the room by default.
+- **Revisit when:** The Giver's challenge catches misses without adding room noise, or Michael wants a different split.
+
+### 2026-10-09 — Correction: "#90 / PR #102 parked" attribution
+- **Decision:** Correction to the 2026-10-09 entry "#90 / PR #102 parked": that was the Factory Manager's own sequencing call, not Michael's decision.
+- **Decided by:** Factory Manager
+- **Basis:** Michael set the order (grouping quality first, then Jetstream), and the paid test on #102 showed 1,287s section labeling (over the 1,200s ceiling), 80 failed calls, and 72.9% section agreement.
+- **Revisit when:** Michael wants #90 prioritized.
+
+### 2026-10-09 — Same-story attach, fold, restore, and post-relabel title merge (#104, #103)
+- **Decision:** Implement the approved missing-post fix without a transitive merge. A noise post joins the nearest planet of at least 20 posts only when its cosine to that planet's original center is at least 0.42 and its longest subject stem is already that planet's subject. A smaller planet folds into one larger planet only when the cosine is at least 0.55 and at least 60% of its posts match. Centers and stems are fixed before either step, and a planet that is folding is not a parent, so nothing chains. A face the claim gate drops gives a post back only when the subject matches. After the wide relabel, faces on one planet whose titles `titles_alike` already treats as the same are merged. `titles_alike` is unchanged, so "Iran War" and "Iran Conflict" stay distinct. The author cap is not undone. The 0.72 center merge, 0.50 peel, and 0.60 mean gate are unchanged.
+- **Why:** The face gate cut same-war posts off Ukraine (159 to 108) and Epstein (47 to 21), and the same story was split across neighboring planets. A transitive merge at 0.62 glued separate stories.
+- **Alternatives:** Transitive merge at cosine 0.62 (rejected: it glues distinct stories). Loosening `titles_alike` (rejected: an existing test keeps "Iran War" and "Iran Conflict" apart).
+- **Revisit when:** A fold sample fails the one-story check, or the fixed story reference shows recall can rise without lowering the cosine gates.
