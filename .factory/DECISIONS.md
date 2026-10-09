@@ -236,3 +236,17 @@ Append-only. Newest at the bottom.
 - **Why:** A formula for the cell count was deciding how many topics existed before the posts were read. About 200 cells at 10K, then a floor of `n // 200`, left 12 candidates and 85.8% of posts as noise. On this embedding a topic is a ball of posts near one center. Single-linkage on mutual reachability, the HDBSCAN distance, was measured and does not separate the week: nearest-neighbor distances inside a topic and between topics are almost the same, so the graph becomes one chain (one group of about 2,800 posts and a handful of specks). The ball count stays near 250–270 at floor 8 when the grid moves from 800 to 1,600 seeds, so the grid is not the answer.
 - **Alternatives:** Lower the k-means floor and publish `k = n / floor` cells. Keep single-linkage anyway. Build an n×k distance matrix at 100K.
 - **Revisit when:** A 10K week produces only a handful of candidates, the share of posts in a group falls back near 14%, or a 100K run cannot finish the sample-and-assign path in about 10 minutes.
+
+### 2026-10-08 — PRs state what changes in production on merge
+
+- **Decision:** The PR template gains a "What changes in production on merge" section, required for normal and high-risk PRs: what users, live data, or scheduled jobs see differently as soon as the PR merges, which parts stay off, and what would turn them on.
+- **Why:** On Perspectiverse #92 the summary said nothing in the daily run would change until a test passed, but a filter and cache with no switch went live on merge and dropped real data. The human gate only means something if the approver knows what goes live.
+- **Alternatives:** Rely on the summary (rejected: it was wrong once already); require feature flags for everything (rejected: too heavy for small changes).
+- **Revisit:** If the section is routinely boilerplate, fold it into Verify.
+
+### 2026-10-09 — Daily run freshness: GitHub-only scheduling, deadline flag
+
+- **Decision:** Michael decided scheduling stays inside GitHub Actions because it is free, with no outside scheduler (it adds a dependency on another system). The primary cron stays at `17 6 * * *` UTC (about 1:17 AM CT). #97 adds a guarded backup cron at `17 8` UTC that no-ops if today's scheduled or manual run already succeeded on `main`; both share the `discourse-pipeline` concurrency group. GitHub started scheduled runs 4.5–7 hours late all week, so late starts are expected and not flagged. The daily check flags only when no successful run on `main` has finished by 10 AM CT. This replaces the earlier "not started within 2 hours" rule.
+- **Why:** Free, no extra dependency, and data fresh by late morning is good enough.
+- **Alternatives:** Outside scheduler calling the manual trigger (rejected: extra dependency); keep the 2-hour late-start flag (rejected: noise after a week of multi-hour delays).
+- **Revisit when:** A job truly needs on-time runs, reconsider an outside trigger for that job only.
