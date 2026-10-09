@@ -8,6 +8,7 @@ Append-only. Newest at the bottom.
 ### YYYY-MM-DD — Short title
 - **Decision:** what we chose
 - **Why:** one or two sentences
+- **Decided by:** who made the call (optional; use when attributing credit matters)
 - **Alternatives:** what we rejected (optional)
 - **Revisit when:** trigger to reconsider (optional)
 ```
@@ -322,3 +323,9 @@ Append-only. Newest at the bottom.
 - **Why:** Michael asked for a single coordinating voice in the room while keeping durable memory and challenge off the main thread.
 - **Alternatives:** Owner speaks directly in the room for every update; Giver speaks in the room by default.
 - **Revisit when:** The Giver's challenge catches misses without adding room noise, or Michael wants a different split.
+
+### 2026-10-09 — Correction: "#90 / PR #102 parked" attribution
+- **Decision:** Correction to the 2026-10-09 entry "#90 / PR #102 parked": that was the Factory Manager's own sequencing call, not Michael's decision.
+- **Decided by:** Factory Manager
+- **Basis:** Michael set the order (grouping quality first, then Jetstream), and the paid test on #102 showed 1,287s section labeling (over the 1,200s ceiling), 80 failed calls, and 72.9% section agreement.
+- **Revisit when:** Michael wants #90 prioritized.
