@@ -15,14 +15,22 @@ from pipeline.costs import (
     LEDGER_COLUMNS,
     LEDGER_PATH,
     LEGACY_LEDGER_COLUMNS,
+    PRE_TRIGGER_LEDGER_COLUMNS,
+    PRODUCTION_SPEND_FALLBACK_USD,
     README_PATH,
     SERVICE_DEEPINFRA,
     SERVICE_JEV,
     SERVICE_R2,
+    TRIGGER_DISPATCH,
+    TRIGGER_PUSH,
+    TRIGGER_SCHEDULE,
+    TRIGGER_UNKNOWN,
     CostLedgerError,
     append_ledger,
     append_run_files,
+    backfill_triggers,
     count_published_planets,
+    daily_spend_findings,
     format_axis_tick_usd,
     format_chart_usd,
     format_ledger_usd,
@@ -31,6 +39,7 @@ from pipeline.costs import (
     iso_week_label,
     jev_cost_usd,
     main,
+    production_triggers_for_day,
     r2_billed_increment_usd,
     r2_ledger_row,
     r2_list_price_usd,
@@ -720,20 +729,19 @@ def test_daily_spend_svg_is_fourteen_days_with_gaps_and_valid_xml():
     assert list(by_date)[0] == "2026-09-25"
     assert list(by_date)[-1] == "2026-10-08"
     gap = by_date["2026-10-01"]
-    assert gap.get("data-llm") == "0"
-    assert gap.get("data-jev") == "0"
-    assert gap.get("data-r2") == "0"
+    assert gap.get("data-production-total") == "0"
+    assert gap.get("data-other-total") == "0"
     assert gap.get("data-total") == "0"
     present = by_date["2026-10-08"]
-    assert Decimal(present.get("data-llm")) == Decimal("1.50")
-    assert Decimal(present.get("data-jev")) == Decimal("0.042")
-    assert Decimal(present.get("data-r2")) == Decimal("0")
+    assert Decimal(present.get("data-production-total")) == Decimal("1.542")
+    assert Decimal(present.get("data-other-total")) == Decimal("0")
     assert Decimal(present.get("data-total")) == Decimal("1.542")
-    assert Decimal(by_date["2026-10-03"].get("data-r2")) == Decimal("0.25")
+    assert Decimal(by_date["2026-10-03"].get("data-production-total")) == Decimal("0.25")
     labels = [element.text for element in root.iter() if element.tag.endswith("text")]
-    assert "LLM labeling" in labels
-    assert "Jev" in labels
-    assert "R2" in labels
+    assert "Production LLM" in labels
+    assert "Production Jev" in labels
+    assert "Production R2" in labels
+    assert "Merge / test" in labels
     assert "UTC day" in labels
     assert "$1.54" in labels
     assert "$0.25" in labels
@@ -876,8 +884,113 @@ def test_r2_usage_appends_a_row_and_notes_the_free_tier(tmp_path):
     assert len([element for element in root.iter() if element.tag.endswith("g") and element.get("data-date")]) == 14
 
 
+def test_daily_spend_splits_push_from_production():
+    today = date(2026, 10, 8)
+    rows = [
+        _row("sched", "2026-10-08", SERVICE_DEEPINFRA, "0.20", 10, 1, trigger=TRIGGER_SCHEDULE),
+        _row("sched", "2026-10-08", SERVICE_JEV, "0.05", 10, 1, trigger=TRIGGER_SCHEDULE),
+        _row("merge", "2026-10-08", SERVICE_DEEPINFRA, "0.10", 10, 1, trigger=TRIGGER_PUSH),
+    ]
+    from pipeline.costs import daily_spend
+
+    day = next(item for item in daily_spend(rows, today=today) if item["date"] == today)
+    assert Decimal(day["production_total"]) == Decimal("0.25")
+    assert Decimal(day["merge_total"]) == Decimal("0.10")
+    assert Decimal(day["other_total"]) == Decimal("0.10")
+    assert production_triggers_for_day(rows, today) == {TRIGGER_SCHEDULE}
+
+
+def test_dispatch_counts_as_production_when_schedule_missed():
+    today = date(2026, 10, 8)
+    rows = [
+        _row("manual", "2026-10-08", SERVICE_DEEPINFRA, "0.30", 10, 1, trigger=TRIGGER_DISPATCH),
+    ]
+    assert production_triggers_for_day(rows, today) == {TRIGGER_DISPATCH}
+    from pipeline.costs import daily_spend
+
+    day = next(item for item in daily_spend(rows, today=today) if item["date"] == today)
+    assert Decimal(day["production_total"]) == Decimal("0.30")
+    assert Decimal(day["test_total"]) == Decimal("0")
+
+
+def test_dispatch_is_test_when_schedule_also_ran():
+    today = date(2026, 10, 8)
+    rows = [
+        _row("sched", "2026-10-08", SERVICE_DEEPINFRA, "0.20", 10, 1, trigger=TRIGGER_SCHEDULE),
+        _row("manual", "2026-10-08", SERVICE_DEEPINFRA, "0.10", 10, 1, trigger=TRIGGER_DISPATCH),
+    ]
+    from pipeline.costs import daily_spend
+
+    day = next(item for item in daily_spend(rows, today=today) if item["date"] == today)
+    assert Decimal(day["production_total"]) == Decimal("0.20")
+    assert Decimal(day["test_total"]) == Decimal("0.10")
+
+
+def test_backfill_triggers_from_actions_lookup():
+    rows = [
+        _row("4242", "2026-10-08", SERVICE_JEV, "0.01", 1, 1, trigger=TRIGGER_UNKNOWN),
+        _row("4242", "2026-10-08", SERVICE_DEEPINFRA, "0.02", 1, 1, trigger=TRIGGER_UNKNOWN),
+    ]
+
+    def lookup(run_id: str) -> str | None:
+        assert run_id == "4242"
+        return TRIGGER_SCHEDULE
+
+    updated, changes = backfill_triggers(rows, lookup=lookup)
+    assert changes == 2
+    assert updated[0]["trigger"] == TRIGGER_SCHEDULE
+    assert updated[1]["trigger"] == TRIGGER_SCHEDULE
+
+
+def test_pre_trigger_header_migrates_and_backfills(tmp_path):
+    import csv
+
+    ledger = tmp_path / "ledger.csv"
+    with ledger.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=PRE_TRIGGER_LEDGER_COLUMNS, lineterminator="\n")
+        writer.writeheader()
+        writer.writerow(
+            {
+                "run_id": "9001",
+                "run_started_utc": "2026-10-01T06:00:00Z",
+                "date_utc": "2026-10-01",
+                "service": SERVICE_JEV,
+                "model": "jev-1.13.0",
+                "calls": "1",
+                "failed_calls": "0",
+                "input_tokens": "1",
+                "output_tokens": "0",
+                "cost_usd": "0.01",
+                "cost_source": "computed",
+                "posts_processed": "1",
+                "planets_published": "1",
+            }
+        )
+    peeked = read_ledger(ledger)
+    assert peeked[0]["trigger"] == TRIGGER_UNKNOWN
+    updated, changes = backfill_triggers(
+        peeked,
+        lookup=lambda run_id: TRIGGER_PUSH if run_id == "9001" else None,
+    )
+    assert changes == 1
+    assert updated[0]["trigger"] == TRIGGER_PUSH
+
+
+def test_daily_spend_check_flags_production_not_merge():
+    today = date(2026, 10, 8)
+    rows = [
+        _row("sched", "2026-10-08", SERVICE_DEEPINFRA, "0.35", 10, 1, trigger=TRIGGER_SCHEDULE),
+        _row("merge", "2026-10-08", SERVICE_DEEPINFRA, "0.50", 10, 1, trigger=TRIGGER_PUSH),
+    ]
+    findings = daily_spend_findings(rows, today=today)
+    assert PRODUCTION_SPEND_FALLBACK_USD == Decimal("0.30")
+    assert any("Production spend 2026-10-08" in item for item in findings)
+    assert any("Merge-triggered spend" in item for item in findings)
+    assert not any("0.50" in item and "Production spend" in item for item in findings)
+
+
 def _money_chart_labels(labels: list[str | None]) -> set[str]:
-    skip = {"LLM labeling", "Jev", "R2", "UTC day"}
+    skip = {"Production LLM", "Production Jev", "Production R2", "Merge / test", "UTC day"}
     money: set[str] = set()
     for label in labels:
         if not label or label in skip:
@@ -912,14 +1025,14 @@ def _r2_row(day: str, storage_bytes: int, *, class_a: int, class_b: int) -> dict
     }
 
 
-def _row(run_id, day, service, cost, posts, planets):
+def _row(run_id, day, service, cost, posts, planets, *, trigger=TRIGGER_SCHEDULE):
     model = "jev-1.13.0" if service == SERVICE_JEV else "unit-test-llm"
     source = "computed" if service == SERVICE_JEV else "reported"
     return {
         "run_id": run_id,
         "run_started_utc": f"{day}T06:00:00Z",
         "date_utc": day,
-        "trigger": "schedule",
+        "trigger": trigger,
         "service": service,
         "model": model,
         "calls": "1",
