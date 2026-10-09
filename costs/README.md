@@ -8,15 +8,15 @@ Posts are the `total_posts` figure in that run's `data.json` (claims that entere
 
 ## Last 14 days
 
-[![Trailing 14 UTC days of billed production spend, stacked as LLM labeling, Jev, and Cloudflare R2. A day with no run is zero.](daily_spend_14d.svg)](#by-iso-week)
+[![Trailing 14 UTC days: production spend (scheduled, or manual when no schedule) stacked below merge and test spend.](daily_spend_14d.svg)](#by-iso-week)
 
-One bar per UTC day. The label on a bar is that day's billed total. The chart is rewritten on this branch each run. It links to the weekly table below.
+One bar per UTC day. The main label is production billed spend for that day (target about 0.25, fallback 0.30). A smaller gray label is merge- or test-triggered spend on the same day. The weekly table below still totals every row. The chart is rewritten on this branch each run.
 
 ## By ISO week
 
 | ISO week | runs | LLM $ | Jev $ | R2 $ | total $ | posts processed | planets published | $ per 1,000 posts | $ per planet |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2026-W41 | 8 | 0.81741674 | 0.03977194 | 0.00 | 0.85718868 | 79496 | 832 | 0.01078279 | 0.00103027 |
+| 2026-W41 | 9 | 0.88968552 | 0.03977194 | 0.00 | 0.92945746 | 89328 | 932 | 0.010405 | 0.00099727 |
 
 ## Last 30 days
 
@@ -24,4 +24,4 @@ Runs whose `date_utc` is on or after 2026-09-09 (through 2026-10-09).
 
 | runs | LLM $ | Jev $ | R2 $ | total $ | posts processed | planets published | $ per 1,000 posts | $ per planet |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 8 | 0.81741674 | 0.03977194 | 0.00 | 0.85718868 | 79496 | 832 | 0.01078279 | 0.00103027 |
+| 9 | 0.88968552 | 0.03977194 | 0.00 | 0.92945746 | 89328 | 932 | 0.010405 | 0.00099727 |

@@ -16,3 +16,5 @@ run_id,run_started_utc,date_utc,trigger,service,model,calls,failed_calls,input_t
 37942713535,2026-10-09T14:14:49Z,2026-10-09,push,cloudflare-r2,r2-standard,3,0,0,0,0,computed,9832,108,14356480,1,2,0.0000124
 37945033853,2026-10-09T14:33:23Z,2026-10-09,push,deepinfra,meta-llama/Llama-3.3-70B-Instruct-Turbo,1166,0,588499,130418,0.10058366,reported,9832,108,0,0,0,0.10058366
 37945033853,2026-10-09T14:33:23Z,2026-10-09,push,cloudflare-r2,r2-standard,3,0,0,0,0,computed,9832,108,14356480,1,2,0.0000124
+37946621071,2026-10-09T14:52:01Z,2026-10-09,push,deepinfra,meta-llama/Llama-3.3-70B-Instruct-Turbo,947,86,442195,87654,0.07226878,reported,9832,100,0,0,0,0.07226878
+37946621071,2026-10-09T14:52:01Z,2026-10-09,push,cloudflare-r2,r2-standard,3,0,0,0,0,computed,9832,100,14356480,1,2,0.0000124
