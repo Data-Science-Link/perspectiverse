@@ -288,6 +288,7 @@ def test_main_schedule_fail_open_on_missing_token(capsys, monkeypatch):
     monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
     assert main([]) == 0
     captured = capsys.readouterr()
     assert "skip=false" in captured.out
