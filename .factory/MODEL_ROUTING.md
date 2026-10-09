@@ -1,6 +1,6 @@
 # Model routing
 
-How the factory worker picks a model for each cloud agent it launches. The goal is the cheapest model that can do the job well, with escalation only when needed. Each repo may tune this table; keep the structure.
+How the factory manager picks a model for each cloud agent it launches. The goal is the cheapest model that can do the job well, with escalation only when needed. Each repo may tune this table; keep the structure.
 
 Defaults below assume **Cursor Pro+** (as of 2026-10). Cursor has two monthly pools:
 - **Cursor Models** (Grok 4.7 / 4.6 / 4.5, Composer 2.5): much larger included allowance; use first.
@@ -24,7 +24,7 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 1. **Always pin the model** on every launch. Don't leave it on Auto — Auto can route to a third-party model and draw from Other Models.
 2. **No Fast mode, no long-context (500k / 1M) variants** unless a human asks; both roughly double the price.
 3. Escalate one step at a time, and say why on the issue.
-4. Record the model used in the PR body (AI disclosure → Model).
+4. Record the model used and the cloud agent run ID(s) in the PR body (AI disclosure). The run IDs let dev cost be matched to each PR later.
 
 ## When limits are hit
 
