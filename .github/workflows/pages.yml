@@ -20,10 +20,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pipeline_publish_gate:
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.gate.outputs.should_deploy }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Skip deploy when pipeline did not push data-snapshot
+        id: gate
+        env:
+          RUN_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
+        run: |
+          set -euo pipefail
+          if ! git ls-remote --exit-code --heads origin data-snapshot >/dev/null 2>&1; then
+            echo "No data-snapshot branch; skip Pages deploy for this pipeline run"
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --depth 1 origin data-snapshot
+          commit_epoch=$(git log -1 --format=%ct origin/data-snapshot)
+          run_epoch=$(date -u -d "$RUN_STARTED_AT" +%s)
+          if [ "$commit_epoch" -ge "$run_epoch" ]; then
+            echo "data-snapshot updated during this pipeline run; deploy"
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No new data-snapshot commit since pipeline run started (schedule guard no-op); skip deploy"
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
-    # workflow_run fires for every conclusion. Deploy only after a successful pipeline.
-    # push and workflow_dispatch are unchanged. deploy needs this job, so a skip here skips deploy.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    needs: pipeline_publish_gate
+    # workflow_run: deploy only when the pipeline succeeded and pushed a new snapshot.
+    # push and workflow_dispatch on this workflow are unchanged.
+    if: >-
+      ${{
+        always() &&
+        (
+          github.event_name != 'workflow_run' ||
+          (
+            github.event.workflow_run.conclusion == 'success' &&
+            needs.pipeline_publish_gate.outputs.should_deploy == 'true'
+          )
+        )
+      }}
     runs-on: ubuntu-latest
     steps:
       # No ref: for workflow_run, GITHUB_REF and GITHUB_SHA are the default branch (main),

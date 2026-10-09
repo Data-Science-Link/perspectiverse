@@ -2,10 +2,14 @@ name: Daily Discourse Pipeline
 
 on:
   schedule:
-    # Once per day. This runs the live path, not the demo writer.
-    # Avoid :00 because GitHub delays or skips scheduled runs at the top of the hour.
+    # Staggered UTC slots (#96): GitHub often creates scheduled runs 5–7h after the
+    # cron time under load (docs + actions/runner#4468). All slots share the schedule
+    # guard so the first run that actually starts does the work; later ones no-op.
+    # Every slot is after 00:00 UTC so the guard's UTC-day logic stays consistent.
+    - cron: "43 0 * * *"
+    - cron: "29 2 * * *"
+    - cron: "13 4 * * *"
     - cron: "17 6 * * *"
-    # Backup if GitHub skips the primary cron (see issue #96).
     - cron: "17 8 * * *"
   push:
     branches: [main]

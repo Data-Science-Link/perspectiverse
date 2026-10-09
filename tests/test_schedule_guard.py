@@ -294,12 +294,30 @@ def test_main_schedule_fail_open_on_missing_token(capsys, monkeypatch):
     assert "skip=false" in captured.out
 
 
-def test_daily_workflow_has_backup_cron_and_schedule_guard():
+EXPECTED_SCHEDULE_CRONS = (
+    "43 0 * * *",
+    "29 2 * * *",
+    "13 4 * * *",
+    "17 6 * * *",
+    "17 8 * * *",
+)
+
+
+def test_daily_workflow_has_staggered_crons_and_schedule_guard():
     workflow = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
-    assert 'cron: "17 6 * * *"' in workflow
-    assert 'cron: "17 8 * * *"' in workflow
+    for cron in EXPECTED_SCHEDULE_CRONS:
+        assert f'cron: "{cron}"' in workflow
+    assert "#96" in workflow
     assert "pipeline.schedule_guard" in workflow
     assert "actions: read" in workflow
     assert "discourse-pipeline" in workflow
     assert "cancel-in-progress: false" in workflow
     assert "pull_request" not in workflow
+
+
+def test_pages_skips_workflow_run_when_snapshot_unchanged():
+    pages = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
+    assert "pipeline_publish_gate" in pages
+    assert "should_deploy" in pages
+    assert "needs.pipeline_publish_gate.outputs.should_deploy" in pages
+    assert "run_started_at" in pages.lower() or "RUN_STARTED_AT" in pages
