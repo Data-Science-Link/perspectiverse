@@ -1,0 +1,234 @@
+{
+  "model": "gte-base",
+  "fastembed": "thenlper/gte-base",
+  "embed": {
+    "model": "gte-base",
+    "fastembed": "thenlper/gte-base",
+    "prefix": "",
+    "dim": 768,
+    "rows": 9832,
+    "embed_seconds": 200.25,
+    "load_seconds": 3.28,
+    "rss_before_mb": 657.1,
+    "rss_after_load_mb": 761.9,
+    "rss_after_embed_mb": 1196.1,
+    "hwm_mb": 1568.0,
+    "catalog_size_gb": 0.44,
+    "cache": true
+  },
+  "calibration": {
+    "mode": "same rank in the raw k-means cell distributions on posts that are not in the story reference. MiniLM's peel and mean gate are near the floor of those cells; the merge is near the closest cell pairs.",
+    "ranks": {
+      "member": 0.0079,
+      "attach": 0.0,
+      "fold": 0.038,
+      "mean": 0.0056,
+      "merge": 0.9184
+    },
+    "thresholds": {
+      "attach": 0.8604,
+      "member": 0.8869,
+      "fold": 0.8953,
+      "mean": 0.9051,
+      "merge": 0.9621
+    },
+    "cell_mean_p50": 0.9416,
+    "member_p50": 0.9229,
+    "nearest_center_p50": 0.9207
+  },
+  "tuning_diagnostic": {
+    "mean_keep": 0.832,
+    "stories_passing_mean": 4,
+    "stories": 8,
+    "cross_merges": 1,
+    "per_story": [
+      {
+        "stem": "congres",
+        "keep": 0.647,
+        "kept_mean": 0.901
+      },
+      {
+        "stem": "senat",
+        "keep": 0.727,
+        "kept_mean": 0.899
+      },
+      {
+        "stem": "british",
+        "keep": 0.667,
+        "kept_mean": 0.903
+      },
+      {
+        "stem": "medicar",
+        "keep": 1.0,
+        "kept_mean": 0.921
+      },
+      {
+        "stem": "labour",
+        "keep": 0.818,
+        "kept_mean": 0.908
+      },
+      {
+        "stem": "covid",
+        "keep": 0.8,
+        "kept_mean": 0.903
+      },
+      {
+        "stem": "constitution",
+        "keep": 1.0,
+        "kept_mean": 0.918
+      },
+      {
+        "stem": "christian",
+        "keep": 1.0,
+        "kept_mean": 0.912
+      }
+    ]
+  },
+  "repair": [],
+  "cluster_seconds": 24.65,
+  "attach": {
+    "attached": 338,
+    "folded_planets": 19,
+    "folded_posts": 128
+  },
+  "global": {
+    "noise": 4525,
+    "noise_pct": 46.02,
+    "majority_section_lead": {
+      "World": 268,
+      "Politics": 87
+    },
+    "planets": 503,
+    "largest": 268,
+    "top10_posts": 1120,
+    "top10_pct": 11.39,
+    "size_top10_posts": 1121
+  },
+  "stories": {
+    "ukraine_russia": {
+      "reference": 198,
+      "on_best": 57,
+      "recall": 0.2879,
+      "planet": 121,
+      "planet_size": 160,
+      "meets_100": true
+    },
+    "gaza_israel": {
+      "reference": 208,
+      "on_best": 134,
+      "recall": 0.6442,
+      "planet": 196,
+      "planet_size": 268,
+      "meets_100": true
+    },
+    "iran_war": {
+      "reference": 173,
+      "on_best": 107,
+      "recall": 0.6185,
+      "planet": 77,
+      "planet_size": 130,
+      "meets_100": true
+    },
+    "epstein": {
+      "reference": 72,
+      "on_best": 51,
+      "recall": 0.7083,
+      "planet": 152,
+      "planet_size": 55,
+      "meets_100": false
+    },
+    "ice": {
+      "reference": 110,
+      "on_best": 58,
+      "recall": 0.5273,
+      "planet": 227,
+      "planet_size": 68,
+      "meets_100": true
+    },
+    "zionism_motion": {
+      "reference": 100,
+      "on_best": 69,
+      "recall": 0.69,
+      "planet": 196,
+      "planet_size": 268,
+      "meets_100": true
+    },
+    "zionism_on_gaza_planet": 69
+  },
+  "reference_spread": {
+    "ukraine_russia": {
+      "posts": 198,
+      "median_to_centroid": 0.893,
+      "p20_to_centroid": 0.879
+    },
+    "gaza_israel": {
+      "posts": 208,
+      "median_to_centroid": 0.901,
+      "p20_to_centroid": 0.883
+    },
+    "iran_war": {
+      "posts": 173,
+      "median_to_centroid": 0.9,
+      "p20_to_centroid": 0.877
+    },
+    "epstein": {
+      "posts": 72,
+      "median_to_centroid": 0.907,
+      "p20_to_centroid": 0.891
+    },
+    "ice": {
+      "posts": 110,
+      "median_to_centroid": 0.894,
+      "p20_to_centroid": 0.878
+    },
+    "zionism_motion": {
+      "posts": 100,
+      "median_to_centroid": 0.912,
+      "p20_to_centroid": 0.898
+    }
+  },
+  "sections": {
+    "World": {
+      "posts": 1263,
+      "lead": 246,
+      "top10_posts": 572,
+      "top10_pct": 45.29,
+      "planets": 62,
+      "largest_ids": [
+        8,
+        61,
+        21
+      ],
+      "attach": {
+        "attached": 66,
+        "folded_planets": 9,
+        "folded_posts": 73
+      },
+      "seconds": 0.49
+    },
+    "Politics": {
+      "posts": 5071,
+      "lead": 69,
+      "top10_posts": 472,
+      "top10_pct": 9.31,
+      "planets": 287,
+      "largest_ids": [
+        185,
+        17,
+        66
+      ],
+      "attach": {
+        "attached": 146,
+        "folded_planets": 1,
+        "folded_posts": 6
+      },
+      "seconds": 5.55
+    }
+  },
+  "faces": {
+    "planets": 110,
+    "faces": 123,
+    "multi_face_planets": 8,
+    "planets_with_identical_face_terms": 0
+  }
+}
