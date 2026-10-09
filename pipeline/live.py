@@ -73,6 +73,7 @@ from pipeline.store import (
     replace_posts,
     write_clusters,
 )
+from pipeline.story_attach import merge_alike_published_faces, return_same_story_posts
 from pipeline.topics import CANDIDATE_POOL, cluster_texts
 
 # Planets drafted at once when a network label backend is on (I/O bound).
@@ -713,8 +714,10 @@ def _label_faces(
     labeled = len(drafted)
     if lock_floor:
         return drafted[:MAX_FACES], labeled
-    drafted = [item for item in drafted if not _face_has_no_shared_claim(item[0])]
-    drafted = _merge_alike_drafts(drafted, limit)
+    kept = [item for item in drafted if not _face_has_no_shared_claim(item[0])]
+    dropped = [item for item in drafted if _face_has_no_shared_claim(item[0])]
+    kept, _restored = return_same_story_posts(kept, dropped, members)
+    drafted = _merge_alike_drafts(kept, limit)
     return drafted, labeled
 
 
@@ -1057,11 +1060,14 @@ def _finalize_published_planets(
     """Wide 40-post relabel for catalog planets only (after slot selection)."""
     section = str(context.get("section") or "All topics")
     if context.get("chosen") == "heuristic" or not topics:
+        merge_alike_published_faces(topics)
         _strip_internal_planet_fields(topics)
         return set()
     jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
     workers = _section_pool_size(context)
     incomplete = _run_finalize_faces_parallel(jobs, workers, deadline, scope=section)
+    # Relabel can rename two faces onto one title after the draft merge already ran.
+    merge_alike_published_faces(topics)
     _strip_internal_planet_fields(topics)
     return incomplete
 
@@ -1072,6 +1078,7 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
         return set()
     if jobs[0].context.get("chosen") == "heuristic":
         for job in jobs:
+            merge_alike_published_faces(job.built)
             _strip_internal_planet_fields(job.built)
         return set()
     face_jobs: list[_FinalizeFaceJob] = []
@@ -1088,6 +1095,7 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
         scope=f"{len(jobs)} section(s)",
     )
     for job in jobs:
+        merge_alike_published_faces(job.built)
         _strip_internal_planet_fields(job.built)
     return incomplete
 

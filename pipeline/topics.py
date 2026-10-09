@@ -14,6 +14,7 @@ from __future__ import annotations
 from pipeline.schema import SYSTEM_SIZE
 from pipeline.cluster_math import cluster_kmeans, salient_terms, vectorize
 from pipeline.grouping import density_labels
+from pipeline.story_attach import attach_same_story
 
 # Ranking can see every group the density pass kept. Publishing still stops
 # at catalog_size in the labeler, so extra candidates are not extra LLM calls.
@@ -58,8 +59,25 @@ def cluster_texts(
         )
     else:
         raise ValueError(f"Unknown cluster_backend {cluster_backend}")
+    before_cap = list(raw_labels)
     if authors is not None:
         raw_labels = _cap_author_posts(raw_labels, authors, author_cap)
+    # Extra posts by one author stay noise. Same-story attach must not put them back.
+    author_skip = [
+        index
+        for index, (before, after) in enumerate(zip(before_cap, raw_labels))
+        if int(before) >= 0 and int(after) < 0
+    ]
+    same_story = None
+    if matrix is not None:
+        raw_labels, same_story = attach_same_story(matrix, texts, raw_labels, skip=author_skip)
+        if same_story["attached"] or same_story["folded_planets"]:
+            print(
+                "Same-story attach: "
+                f"{same_story['attached']} noise post(s), "
+                f"{same_story['folded_planets']} sibling planet(s) "
+                f"({same_story['folded_posts']} posts)."
+            )
     # Lexical fixtures rely on a size-6 publish floor. Embedding groups use the
     # fixed min_cluster_size the caller passed (about 5–8), not n // 200.
     if cluster_backend == "lexical":
@@ -77,6 +95,8 @@ def cluster_texts(
     )
     if matrix is not None:
         kept["matrix"] = matrix
+    if same_story is not None:
+        kept["same_story"] = same_story
     return kept
 
 
