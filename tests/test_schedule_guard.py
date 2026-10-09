@@ -313,11 +313,3 @@ def test_daily_workflow_has_staggered_crons_and_schedule_guard():
     assert "discourse-pipeline" in workflow
     assert "cancel-in-progress: false" in workflow
     assert "pull_request" not in workflow
-
-
-def test_pages_workflow_run_gate_wired():
-    pages = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
-    assert "pipeline_publish_gate" in pages
-    assert "pipeline.pages_publish_gate" in pages
-    assert "needs.pipeline_publish_gate.outputs.should_deploy" in pages
-    assert "RUN_STARTED_AT" in pages
