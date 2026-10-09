@@ -236,7 +236,14 @@ def run_live(
                 "deadline": started + budget * 60.0,
             }
             if grouping == "cluster_once":
-                print("Sections: one clustering. Each planet is labeled once and listed by its section call.")
+                if context.get("section_assignment") == "jev":
+                    print(
+                        "Sections: one clustering. Each planet is labeled once and listed by its section call."
+                    )
+                else:
+                    print(
+                        "Sections: one clustering. Each planet is labeled once and listed by the majority of its posts."
+                    )
                 sections = _cluster_sections_once(
                     planet_posts,
                     global_matrix,
@@ -1899,7 +1906,7 @@ def _section_grouping(settings: dict) -> str:
 
 def _section_assignment_mode(settings: dict, context: dict) -> str:
     """``jev`` asks one section question per planet. Pytest and a missing key use majority."""
-    mode = str(settings.get("section_assignment") or context.get("section_assignment") or "jev")
+    mode = str(settings.get("section_assignment") or context.get("section_assignment") or "majority")
     if mode not in {"jev", "majority"}:
         raise ValueError(f"Unknown section_assignment {mode!r}. Use jev or majority.")
     if mode == "jev" and os.getenv("PYTEST_CURRENT_TEST") and not context.get("allow_jev_in_tests"):

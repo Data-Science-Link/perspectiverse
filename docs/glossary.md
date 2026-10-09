@@ -8,7 +8,7 @@ Words used in the README, the pipeline, and the frontend. The published JSON con
 
 **Solar system.** The view of those planets. "All topics" is one clustering of the whole window. The dropdown filters by newspaper section ([`src/lib/categories.js`](../src/lib/categories.js)). The README calls that control the Solar System dropdown. The label string in [`src/lib/copy.js`](../src/lib/copy.js) is `Filter topics`.
 
-**Section.** A newspaper category: World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, or Other (`CATEGORIES`). Jev assigns one section per post. With `section_grouping: cluster_once`, choosing a section shows planets from the one clustering, placed by one Jev section call on that planet's summary and arguments (both sections when the top two are close). The same labels are reused in All topics. With `per_section`, that list is a separate clustering of the section's posts.
+**Section.** A newspaper category: World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, or Other (`CATEGORIES`). Jev assigns one section per post. With `section_grouping: cluster_once`, choosing a section shows planets from the one clustering, placed by the section that holds the most of each planet's posts (both sections when the top two are each at least 35%). The same labels are reused in All topics. `section_assignment: jev` would place each planet from one section call instead, and is not the default. With `per_section`, that list is a separate clustering of the section's posts.
 
 **Steelman.** A short argument for a face, stored as `arguments` (2–6 strings when the field is present). [`pipeline/label.py`](../pipeline/label.py) writes them. Jev does not.
 

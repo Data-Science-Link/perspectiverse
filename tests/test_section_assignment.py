@@ -28,7 +28,8 @@ def _posts(sections: list[str]) -> list[dict]:
 
 def test_one_clustering_is_the_default_and_pytest_does_not_call_jev():
     assert DEFAULTS["section_grouping"] == "cluster_once"
-    assert DEFAULTS["section_assignment"] == "jev"
+    # The October shadow was 78/107 (72.9%). Jev stays available, not the default.
+    assert DEFAULTS["section_assignment"] == "majority"
     assert live._section_assignment_mode(DEFAULTS, {}) == "majority"
 
 
