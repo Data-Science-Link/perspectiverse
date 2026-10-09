@@ -18,12 +18,16 @@ import json
 import os
 import sys
 import threading
+import urllib.error
+import urllib.parse
+import urllib.request
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
+from typing import Callable
 
 # Published TypeSafe price for Jev. Dated 2026-10-08.
 # Output tokens are free. Change this only when the published price changes,
@@ -57,6 +61,19 @@ SERVICE_R2 = "cloudflare-r2"
 R2_MODEL = "r2-standard"
 LLM_SERVICES = frozenset({SERVICE_DEEPINFRA, SERVICE_OPENAI_COMPATIBLE})
 
+TRIGGER_SCHEDULE = "schedule"
+TRIGGER_PUSH = "push"
+TRIGGER_DISPATCH = "workflow_dispatch"
+TRIGGER_LOCAL = "local"
+TRIGGER_UNKNOWN = "unknown"
+KNOWN_TRIGGERS = frozenset(
+    {TRIGGER_SCHEDULE, TRIGGER_PUSH, TRIGGER_DISPATCH, TRIGGER_LOCAL, TRIGGER_UNKNOWN}
+)
+# Michael approved 2026-10-08 (.factory/DECISIONS.md). The daily check uses the fallback.
+PRODUCTION_SPEND_TARGET_USD = Decimal("0.25")
+PRODUCTION_SPEND_FALLBACK_USD = Decimal("0.30")
+DEFAULT_GITHUB_REPOSITORY = "Data-Science-Link/perspectiverse"
+
 # Columns appended for #80. A ledger that still has this header is migrated
 # in place: every existing row is kept, and the new fields are filled.
 LEGACY_LEDGER_COLUMNS = [
@@ -64,6 +81,22 @@ LEGACY_LEDGER_COLUMNS = [
     "run_started_utc",
     "date_utc",
     "trigger",
+    "service",
+    "model",
+    "calls",
+    "failed_calls",
+    "input_tokens",
+    "output_tokens",
+    "cost_usd",
+    "cost_source",
+    "posts_processed",
+    "planets_published",
+]
+# Earliest ledger rows omitted ``trigger``; backfill fills it from Actions when possible.
+PRE_TRIGGER_LEDGER_COLUMNS = [
+    "run_id",
+    "run_started_utc",
+    "date_utc",
     "service",
     "model",
     "calls",
@@ -107,6 +140,9 @@ _CHART_DAYS = 14
 _LLM_COLOR = "#3b6ea5"
 _JEV_COLOR = "#2f7d4a"
 _R2_COLOR = "#c46b1a"
+_OTHER_LLM_COLOR = "#9eb6d4"
+_OTHER_JEV_COLOR = "#8fb89a"
+_OTHER_R2_COLOR = "#e0b48a"
 
 
 class CostLedgerError(RuntimeError):
@@ -156,6 +192,182 @@ def reset_meter() -> None:
 
 def warn(message: str) -> None:
     print(f"WARNING: {message}", file=sys.stderr)
+
+
+def normalize_trigger(value: str | None) -> str:
+    text = (value or "").strip()
+    if not text:
+        return TRIGGER_UNKNOWN
+    if text in KNOWN_TRIGGERS:
+        return text
+    return text
+
+
+def github_run_id_base(run_id: str | None) -> str | None:
+    """Numeric Actions run id, without a re-run attempt suffix."""
+    text = (run_id or "").strip()
+    if not text or text.startswith("local-"):
+        return None
+    base = text.split(".", 1)[0]
+    return base if base.isdigit() else None
+
+
+def trigger_needs_backfill(trigger: str | None) -> bool:
+    return normalize_trigger(trigger) in {TRIGGER_UNKNOWN, TRIGGER_LOCAL, ""}
+
+
+def _github_repository() -> str:
+    return (os.getenv("GITHUB_REPOSITORY") or DEFAULT_GITHUB_REPOSITORY).strip()
+
+
+def fetch_run_trigger(
+    run_id: str,
+    *,
+    repository: str,
+    token: str,
+    opener: Callable[..., object] | None = None,
+) -> str | None:
+    """Return ``GITHUB_EVENT_NAME`` for one Actions run, or ``None`` when unknown."""
+    base = github_run_id_base(run_id)
+    if base is None:
+        return None
+    if opener is None:
+        opener = urllib.request.urlopen
+    api = os.environ.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
+    owner, repo = repository.split("/", 1)
+    url = f"{api}/repos/{owner}/{repo}/actions/runs/{base}"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        method="GET",
+    )
+    try:
+        with opener(request, timeout=60) as response:  # type: ignore[call-arg]
+            status = getattr(response, "status", 200)
+            if status and int(status) >= 400:
+                return None
+            body = response.read().decode("utf-8")
+        payload = json.loads(body)
+    except (
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+    ):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    event = (payload.get("event") or "").strip()
+    return event or None
+
+
+def backfill_triggers(
+    rows: list[dict[str, str]],
+    *,
+    repository: str | None = None,
+    token: str | None = None,
+    lookup: Callable[[str], str | None] | None = None,
+) -> tuple[list[dict[str, str]], int]:
+    """Fill ``trigger`` from Actions history. Returns updated rows and a change count."""
+    repo = repository or _github_repository()
+    auth = (token or os.getenv("GITHUB_TOKEN") or "").strip()
+    resolver = lookup
+    if resolver is None and auth:
+        cache: dict[str, str | None] = {}
+
+        def resolver(run_id: str) -> str | None:
+            base = github_run_id_base(run_id)
+            if base is None:
+                return None
+            if base not in cache:
+                cache[base] = fetch_run_trigger(run_id, repository=repo, token=auth)
+            return cache[base]
+
+    updated: list[dict[str, str]] = []
+    changes = 0
+    seen_run: dict[str, str] = {}
+    for row in rows:
+        copy = dict(row)
+        run_id = copy.get("run_id") or ""
+        trigger = normalize_trigger(copy.get("trigger"))
+        if run_id in seen_run and trigger_needs_backfill(trigger):
+            trigger = seen_run[run_id]
+        if trigger_needs_backfill(trigger) and resolver is not None:
+            resolved = resolver(run_id)
+            if resolved:
+                trigger = normalize_trigger(resolved)
+        if trigger_needs_backfill(trigger):
+            trigger = TRIGGER_UNKNOWN if github_run_id_base(run_id) else TRIGGER_LOCAL
+        if trigger != normalize_trigger(copy.get("trigger")):
+            changes += 1
+        copy["trigger"] = trigger
+        seen_run[run_id] = trigger
+        updated.append(copy)
+    return updated, changes
+
+
+def production_triggers_for_day(rows: list[dict[str, str]], day: date) -> set[str]:
+    """Triggers whose spend counts as daily production on ``day``."""
+    triggers = {
+        normalize_trigger(row.get("trigger"))
+        for row in rows
+        if date.fromisoformat(row["date_utc"]) == day
+    }
+    if TRIGGER_SCHEDULE in triggers:
+        return {TRIGGER_SCHEDULE}
+    if TRIGGER_DISPATCH in triggers:
+        return {TRIGGER_DISPATCH}
+    return set()
+
+
+def row_counts_as_production(row: dict[str, str], *, production_triggers: dict[date, set[str]]) -> bool:
+    day = date.fromisoformat(row["date_utc"])
+    allowed = production_triggers.get(day, set())
+    return normalize_trigger(row.get("trigger")) in allowed
+
+
+def production_triggers_by_day(rows: list[dict[str, str]]) -> dict[date, set[str]]:
+    days = {date.fromisoformat(row["date_utc"]) for row in rows}
+    return {day: production_triggers_for_day(rows, day) for day in days}
+
+
+def daily_spend_findings(rows: list[dict[str, str]], *, today: date) -> list[str]:
+    """Warnings for production days over the fallback; notes merge and test spend."""
+    production_by_day = production_triggers_by_day(rows)
+    merge = Decimal("0")
+    test = Decimal("0")
+    findings: list[str] = []
+    for item in daily_spend(rows, today=today):
+        day = item["date"]
+        assert isinstance(day, date)
+        prod = Decimal(item["production_total"])
+        other = Decimal(item["other_total"])
+        merge += Decimal(item["merge_total"])
+        test += Decimal(item["test_total"])
+        if prod > PRODUCTION_SPEND_FALLBACK_USD:
+            findings.append(
+                "Production spend "
+                f"{day.isoformat()} is {format_usd(prod)} "
+                f"(fallback {format_usd(PRODUCTION_SPEND_FALLBACK_USD)})."
+            )
+    if merge > 0:
+        findings.append(f"Merge-triggered spend in the last {_CHART_DAYS} UTC days: {format_usd(merge)}.")
+    if test > 0:
+        findings.append(
+            f"Manual test spend (workflow_dispatch) in the last {_CHART_DAYS} UTC days: {format_usd(test)}."
+        )
+    return findings
+
+
+def emit_daily_spend_findings(rows: list[dict[str, str]], *, today: date) -> None:
+    for message in daily_spend_findings(rows, today=today):
+        warn(message)
 
 
 def jev_cost_usd(input_tokens: int) -> Decimal:
@@ -505,6 +717,8 @@ def _header_kind(fieldnames: list[str]) -> str:
         return "current"
     if fieldnames == LEGACY_LEDGER_COLUMNS:
         return "legacy"
+    if fieldnames == PRE_TRIGGER_LEDGER_COLUMNS:
+        return "pre_trigger"
     return "foreign"
 
 
@@ -521,6 +735,27 @@ def _upgrade_legacy_row(raw: dict) -> dict[str, str]:
     row["class_b_ops"] = "0"
     row["list_price_usd"] = row["cost_usd"]
     return row
+
+
+def _upgrade_pre_trigger_row(raw: dict) -> dict[str, str]:
+    base = {column: raw.get(column) or "" for column in PRE_TRIGGER_LEDGER_COLUMNS}
+    legacy = {
+        "run_id": base["run_id"],
+        "run_started_utc": base["run_started_utc"],
+        "date_utc": base["date_utc"],
+        "trigger": TRIGGER_UNKNOWN,
+        "service": base["service"],
+        "model": base["model"],
+        "calls": base["calls"],
+        "failed_calls": base["failed_calls"],
+        "input_tokens": base["input_tokens"],
+        "output_tokens": base["output_tokens"],
+        "cost_usd": base["cost_usd"],
+        "cost_source": base["cost_source"],
+        "posts_processed": base["posts_processed"],
+        "planets_published": base["planets_published"],
+    }
+    return _upgrade_legacy_row(legacy)
 
 
 def read_ledger(path: Path) -> list[dict[str, str]]:
@@ -545,7 +780,9 @@ def read_ledger(path: Path) -> list[dict[str, str]]:
                 continue
             if all(not (value or "").strip() for value in raw.values()):
                 continue
-            if kind == "legacy":
+            if kind == "pre_trigger":
+                rows.append(_upgrade_pre_trigger_row(raw))
+            elif kind == "legacy":
                 rows.append(_upgrade_legacy_row(raw))
             else:
                 rows.append({column: raw.get(column) or "" for column in LEDGER_COLUMNS})
@@ -587,6 +824,10 @@ def append_ledger(path: Path, new_rows: list[dict]) -> list[dict[str, str]]:
             f"{path} header does not match the cost ledger; refusing to rewrite it"
         )
     existing = read_ledger(path)
+    if kind == "pre_trigger":
+        combined = existing + normalized
+        _atomic_write(path, _csv_body(combined, header=True))
+        return combined
     if kind == "legacy":
         combined = existing + normalized
         _atomic_write(path, _csv_body(combined, header=True))
@@ -991,20 +1232,50 @@ def _r2_free_tier_sentence(rows: list[dict[str, str]], *, today: date) -> str:
     )
 
 
+def _empty_spend_bucket(day: date) -> dict[str, Decimal | date]:
+    zero = Decimal("0")
+    return {
+        "date": day,
+        "prod_llm": zero,
+        "prod_jev": zero,
+        "prod_r2": zero,
+        "other_llm": zero,
+        "other_jev": zero,
+        "other_r2": zero,
+        "merge_total": zero,
+        "test_total": zero,
+        "production_total": zero,
+        "other_total": zero,
+        # Legacy keys: production-only service totals (chart tests and rollups).
+        "llm": zero,
+        "jev": zero,
+        "r2": zero,
+    }
+
+
+def _add_service_cost(bucket: dict[str, Decimal | date], service: str, cost: Decimal, *, production: bool) -> None:
+    if service == SERVICE_JEV:
+        key = "prod_jev" if production else "other_jev"
+    elif service == SERVICE_R2:
+        key = "prod_r2" if production else "other_r2"
+    elif service in LLM_SERVICES:
+        key = "prod_llm" if production else "other_llm"
+    else:
+        return
+    bucket[key] = Decimal(bucket[key]) + cost
+    if production:
+        legacy = {"prod_llm": "llm", "prod_jev": "jev", "prod_r2": "r2"}[key]
+        bucket[legacy] = Decimal(bucket[legacy]) + cost
+
+
 def daily_spend(rows: list[dict[str, str]], *, today: date) -> list[dict[str, Decimal | date]]:
-    """Trailing 14 UTC days ending on ``today``. A missing day is zero."""
+    """Trailing 14 UTC days ending on ``today``. Production and merge/test are split."""
     start = today - timedelta(days=_CHART_DAYS - 1)
+    production_by_day = production_triggers_by_day(rows)
     series: list[dict[str, Decimal | date]] = []
     for offset in range(_CHART_DAYS):
         day = start + timedelta(days=offset)
-        series.append(
-            {
-                "date": day,
-                "llm": Decimal("0"),
-                "jev": Decimal("0"),
-                "r2": Decimal("0"),
-            }
-        )
+        series.append(_empty_spend_bucket(day))
     index = {item["date"]: item for item in series}
     for row in rows:
         day = date.fromisoformat(row["date_utc"])
@@ -1012,13 +1283,17 @@ def daily_spend(rows: list[dict[str, str]], *, today: date) -> list[dict[str, De
         if bucket is None:
             continue
         cost = _nonnegative_cost(row)
-        service = row.get("service")
-        if service == SERVICE_JEV:
-            bucket["jev"] = Decimal(bucket["jev"]) + cost
-        elif service == SERVICE_R2:
-            bucket["r2"] = Decimal(bucket["r2"]) + cost
-        elif service in LLM_SERVICES:
-            bucket["llm"] = Decimal(bucket["llm"]) + cost
+        trigger = normalize_trigger(row.get("trigger"))
+        production = row_counts_as_production(row, production_triggers=production_by_day)
+        _add_service_cost(bucket, row.get("service") or "", cost, production=production)
+        if not production:
+            if trigger == TRIGGER_PUSH:
+                bucket["merge_total"] = Decimal(bucket["merge_total"]) + cost
+            elif trigger == TRIGGER_DISPATCH:
+                bucket["test_total"] = Decimal(bucket["test_total"]) + cost
+            bucket["other_total"] = Decimal(bucket["other_total"]) + cost
+        else:
+            bucket["production_total"] = Decimal(bucket["production_total"]) + cost
     return series
 
 
@@ -1049,10 +1324,9 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
     moment = today or datetime.now(timezone.utc).date()
     series = daily_spend(rows, today=moment)
     totals = [
-        Decimal(item["llm"]) + Decimal(item["jev"]) + Decimal(item["r2"])
-        for item in series
+        Decimal(item["production_total"]) + Decimal(item["other_total"]) for item in series
     ]
-    ymax = _axis_max(max(totals))
+    ymax = _axis_max(max(totals) if totals else Decimal(0))
     width = 760
     height = 390
     left = 68
@@ -1077,10 +1351,11 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
             "role": "img",
         },
     )
-    ET.SubElement(svg, "title").text = "Production spend, last 14 UTC days"
+    ET.SubElement(svg, "title").text = "Production and merge or test spend, last 14 UTC days"
     ET.SubElement(svg, "desc").text = (
-        "Stacked bars of billed dollars for LLM labeling, Jev, and Cloudflare R2. "
-        "A day with no ledger row is zero."
+        "Stacked bars of billed dollars. The lower stack is daily production "
+        "(scheduled runs, or a manual run that replaced a missed schedule). "
+        "The upper stack is merge or manual test spend. A day with no ledger row is zero."
     )
     ET.SubElement(svg, "rect", {"width": str(width), "height": str(height), "fill": "#ffffff"})
     baseline = y_of(Decimal(0))
@@ -1137,24 +1412,35 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
         },
     )
     for index, item in enumerate(series):
-        llm = Decimal(item["llm"])
-        jev = Decimal(item["jev"])
-        r2 = Decimal(item["r2"])
-        total = llm + jev + r2
+        prod_llm = Decimal(item["prod_llm"])
+        prod_jev = Decimal(item["prod_jev"])
+        prod_r2 = Decimal(item["prod_r2"])
+        other_llm = Decimal(item["other_llm"])
+        other_jev = Decimal(item["other_jev"])
+        other_r2 = Decimal(item["other_r2"])
+        production_total = Decimal(item["production_total"])
+        other_total = Decimal(item["other_total"])
+        total = production_total + other_total
         x = left + index * slot + (slot - bar_width) / 2
         group = ET.SubElement(
             svg,
             "g",
             {
                 "data-date": item["date"].isoformat(),
-                "data-llm": format(llm, "f"),
-                "data-jev": format(jev, "f"),
-                "data-r2": format(r2, "f"),
+                "data-production-total": format(production_total, "f"),
+                "data-other-total": format(other_total, "f"),
                 "data-total": format(total, "f"),
             },
         )
         cursor = Decimal(0)
-        for amount, color in ((llm, _LLM_COLOR), (jev, _JEV_COLOR), (r2, _R2_COLOR)):
+        for amount, color in (
+            (prod_llm, _LLM_COLOR),
+            (prod_jev, _JEV_COLOR),
+            (prod_r2, _R2_COLOR),
+            (other_llm, _OTHER_LLM_COLOR),
+            (other_jev, _OTHER_JEV_COLOR),
+            (other_r2, _OTHER_R2_COLOR),
+        ):
             if amount <= 0:
                 continue
             y = y_of(cursor + amount)
@@ -1171,19 +1457,36 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
                 },
             )
             cursor += amount
-        total_text = ET.SubElement(
-            group,
-            "text",
-            {
-                "x": _px(x + bar_width / 2),
-                "y": _px(y_of(total) - 4),
-                "text-anchor": "middle",
-                "font-family": "ui-sans-serif, system-ui, sans-serif",
-                "font-size": "9",
-                "fill": "#333333",
-            },
-        )
-        total_text.text = format_chart_usd(total)
+        label_y = y_of(total) - 4
+        if production_total > 0:
+            prod_text = ET.SubElement(
+                group,
+                "text",
+                {
+                    "x": _px(x + bar_width / 2),
+                    "y": _px(label_y),
+                    "text-anchor": "middle",
+                    "font-family": "ui-sans-serif, system-ui, sans-serif",
+                    "font-size": "9",
+                    "fill": "#333333",
+                },
+            )
+            prod_text.text = format_chart_usd(production_total)
+            label_y -= 11
+        if other_total > 0:
+            other_text = ET.SubElement(
+                group,
+                "text",
+                {
+                    "x": _px(x + bar_width / 2),
+                    "y": _px(label_y),
+                    "text-anchor": "middle",
+                    "font-family": "ui-sans-serif, system-ui, sans-serif",
+                    "font-size": "8",
+                    "fill": "#666666",
+                },
+            )
+            other_text.text = format_chart_usd(other_total)
         day_label = ET.SubElement(
             svg,
             "text",
@@ -1212,7 +1515,12 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
     axis_name.text = "UTC day"
     legend_y = height - 22
     legend_x = left
-    for color, name in ((_LLM_COLOR, "LLM labeling"), (_JEV_COLOR, "Jev"), (_R2_COLOR, "R2")):
+    for color, name in (
+        (_LLM_COLOR, "Production LLM"),
+        (_JEV_COLOR, "Production Jev"),
+        (_R2_COLOR, "Production R2"),
+        (_OTHER_LLM_COLOR, "Merge / test"),
+    ):
         ET.SubElement(
             svg,
             "rect",
@@ -1236,7 +1544,7 @@ def render_daily_spend_svg(rows: list[dict[str, str]], *, today: date | None = N
             },
         )
         legend.text = name
-        legend_x += 130
+        legend_x += 170
     body = ET.tostring(svg, encoding="unicode")
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + body + "\n"
 
@@ -1275,9 +1583,12 @@ def render_readme(rows: list[dict[str, str]], *, today: date | None = None) -> s
         "",
         "## Last 14 days",
         "",
-        "[![Trailing 14 UTC days of billed production spend, stacked as LLM labeling, Jev, and Cloudflare R2. A day with no run is zero.](daily_spend_14d.svg)](#by-iso-week)",
+        "[![Trailing 14 UTC days: production spend (scheduled, or manual when no schedule) stacked below merge and test spend.](daily_spend_14d.svg)](#by-iso-week)",
         "",
-        "One bar per UTC day. The label on a bar is that day's billed total. The chart is rewritten on this branch each run. It links to the weekly table below.",
+        "One bar per UTC day. The main label is production billed spend for that day (target about "
+        f"{format_usd(PRODUCTION_SPEND_TARGET_USD)}, fallback {format_usd(PRODUCTION_SPEND_FALLBACK_USD)}). "
+        "A smaller gray label is merge- or test-triggered spend on the same day. "
+        "The weekly table below still totals every row. The chart is rewritten on this branch each run.",
         "",
         "## By ISO week",
         "",
@@ -1341,6 +1652,29 @@ def _publish_cost_views(readme_path: Path, rows: list[dict[str, str]], *, today:
         write_daily_spend_svg(readme_path.parent / CHART_PATH.name, rows, today=today)
     except Exception as exc:
         warn(f"Cost chart update failed: {exc}")
+    emit_daily_spend_findings(rows, today=today)
+
+
+def _rewrite_ledger(path: Path, rows: list[dict[str, str]]) -> None:
+    _atomic_write(path, _csv_body(rows, header=True))
+
+
+def backfill_ledger_file(
+    ledger_path: Path,
+    readme_path: Path | None = None,
+    *,
+    today: date | None = None,
+) -> int:
+    """Backfill triggers in place. Regenerates the table and chart when ``readme_path`` is set."""
+    rows = read_ledger(ledger_path)
+    updated, changes = backfill_triggers(rows)
+    if changes:
+        _rewrite_ledger(ledger_path, updated)
+        print(f"Backfilled trigger on {changes} ledger row(s).")
+    if readme_path is not None and rows:
+        chart_day = today or datetime.now(timezone.utc).date()
+        _publish_cost_views(readme_path, updated if changes else rows, today=chart_day)
+    return changes
 
 
 def append_run_files(
@@ -1360,6 +1694,10 @@ def append_run_files(
         if today is not None:
             chart_day = today
         prior = read_ledger(ledger_path) if ledger_path.exists() else []
+        if prior:
+            prior, filled = backfill_triggers(prior)
+            if filled:
+                _rewrite_ledger(ledger_path, prior)
         if r2_usage_path is not None and Path(r2_usage_path).exists():
             usage = load_r2_usage(Path(r2_usage_path))
             posts = int(payload.get("posts_processed") or 0)
@@ -1384,6 +1722,9 @@ def append_run_files(
             print("No paid calls in this run; cost ledger left unchanged.")
             return 0
         combined = append_ledger(ledger_path, new_rows)
+        combined, filled = backfill_triggers(combined)
+        if filled:
+            _rewrite_ledger(ledger_path, combined)
         _publish_cost_views(readme_path, combined, today=chart_day)
     except Exception as exc:
         warn(f"Cost ledger update failed: {exc}")
@@ -1400,9 +1741,21 @@ def main(argv: list[str] | None = None) -> int:
     append.add_argument("--ledger", type=Path, required=True)
     append.add_argument("--readme", type=Path, required=True)
     append.add_argument("--r2-usage", type=Path, default=None, help="r2_usage.json written by the R2 client")
+    backfill = sub.add_parser("backfill", help="Backfill ledger triggers from GitHub Actions run history")
+    backfill.add_argument("--ledger", type=Path, required=True)
+    backfill.add_argument("--readme", type=Path, default=None)
+    check = sub.add_parser("check", help="Warn when production spend exceeds the daily fallback")
+    check.add_argument("--ledger", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.command == "append":
         return append_run_files(args.run, args.ledger, args.readme, r2_usage_path=args.r2_usage)
+    if args.command == "backfill":
+        return 0 if backfill_ledger_file(args.ledger, args.readme) >= 0 else 1
+    if args.command == "check":
+        rows = read_ledger(args.ledger)
+        rows, _filled = backfill_triggers(rows)
+        emit_daily_spend_findings(rows, today=datetime.now(timezone.utc).date())
+        return 0
     return 1
 
 
