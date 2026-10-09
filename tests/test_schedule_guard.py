@@ -295,11 +295,11 @@ def test_main_schedule_fail_open_on_missing_token(capsys, monkeypatch):
 
 
 EXPECTED_SCHEDULE_CRONS = (
-    "43 0 * * *",
-    "29 2 * * *",
-    "13 4 * * *",
     "17 6 * * *",
-    "17 8 * * *",
+    "47 7 * * *",
+    "17 9 * * *",
+    "47 10 * * *",
+    "17 12 * * *",
 )
 
 

@@ -5,12 +5,14 @@ on:
     # Staggered UTC slots (#96): GitHub often creates scheduled runs 5–7h after the
     # cron time under load (docs + actions/runner#4468). All slots share the schedule
     # guard so the first run that actually starts does the work; later ones no-op.
-    # Every slot is after 00:00 UTC so the guard's UTC-day logic stays consistent.
-    - cron: "43 0 * * *"
-    - cron: "29 2 * * *"
-    - cron: "13 4 * * *"
+    # No cron before 06:17 UTC — an on-time early run could lock a thin UTC day in
+    # live.py (fetched_days). At 5–7h delay the first created run lands ~11–13 UTC
+    # (6–8 AM CT), before the 10 AM CT product deadline; on-time 06:17 matches today.
     - cron: "17 6 * * *"
-    - cron: "17 8 * * *"
+    - cron: "47 7 * * *"
+    - cron: "17 9 * * *"
+    - cron: "47 10 * * *"
+    - cron: "17 12 * * *"
   push:
     branches: [main]
     paths:
