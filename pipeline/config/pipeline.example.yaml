@@ -1,7 +1,8 @@
 # Copy to pipeline/config/pipeline.yaml to override locally (gitignored).
-# Public claims kept in the rolling window. Non-claims are discarded after Jev
-# classification and never stored. Each morning adds ~1/7 of this count and
-# retire_oldest evicts the oldest claims until the total is back at this ceiling.
+# Public claims kept in the rolling window. Non-claims are not stored as posts.
+# Their Jev verdicts stay in the corpus database for 14 days so the same URI
+# is not scored twice. Each morning adds ~1/7 of this count and retire_oldest
+# evicts the oldest claims until the total is back at this ceiling.
 window_hours: 168
 refresh_hours: 24
 sample_size: 10000
@@ -62,3 +63,8 @@ neutral_queries:
   - of
   - in
   - for
+
+# Phase 3: about 25 posts per Jev request, spam and claim only.
+# The section question stays on the per-post call until #90.
+# The shadow test failed batched claims, so this stays false.
+jev_batch: false
