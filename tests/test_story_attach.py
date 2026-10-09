@@ -4,6 +4,7 @@ import numpy as np
 
 from pipeline.schema import SINGLE_VIEW_NOTE
 from pipeline.story_attach import (
+    _without_global_glue,
     attach_same_story,
     attachment_stems,
     merge_alike_published_faces,
@@ -36,6 +37,17 @@ def test_ukraine_noise_attaches_and_hockey_does_not():
     assert updated[21] == -1
 
 
+def test_long_place_name_does_not_block_a_ukraine_post():
+    parent, parent_vec = _repeat("Ukraine Russia invasion of Kyiv", 20, _unit(1, 0))
+    near = "Russian strikes damage Zaporizhzhia in the Ukraine invasion"
+    texts = parent + [near]
+    matrix = np.vstack([parent_vec, _unit(0.55, 0.835)])
+    labels = [0] * 20 + [-1]
+    updated, stats = attach_same_story(matrix, texts, labels, fold=False)
+    assert stats["attached"] == 1
+    assert updated[-1] == 0
+
+
 def test_zionism_post_does_not_attach_to_a_gaza_planet():
     parent, parent_vec = _repeat("Gaza Israel Hamas Palestine fighting", 20, _unit(1, 0))
     zionism = "The Greens motion says Zionism is racism"
@@ -46,6 +58,20 @@ def test_zionism_post_does_not_attach_to_a_gaza_planet():
     assert stats["attached"] == 0
     assert updated[-1] == -1
     assert "zionism" not in attachment_stems(parent)
+
+
+def test_glue_stem_stays_on_the_largest_planet_that_it_names():
+    stories = {
+        0: ("iran", {"iran"}),
+        1: ("iran", {"iran"}),
+        2: ("iran", {"iran"}),
+        3: ("midterm", {"iran", "midterm"}),
+    }
+    cleaned = _without_global_glue(stories, {0: 48, 1: 14, 2: 9, 3: 20})
+    assert cleaned[0] == {"iran"}
+    assert cleaned[1] == set()
+    assert cleaned[2] == set()
+    assert cleaned[3] == {"midterm"}
 
 
 def test_author_cap_skip_stays_noise():
@@ -61,7 +87,7 @@ def test_author_cap_skip_stays_noise():
 
 def test_kyiv_sibling_folds_and_genocide_ball_does_not():
     parent, parent_vec = _repeat("Ukraine Russia invasion of Kyiv", 22, _unit(1, 0, 0))
-    kyiv, kyiv_vec = _repeat("Kyiv bridge strikes by Russian drones in Ukraine", 6, _unit(0.70, 0.714, 0))
+    kyiv, kyiv_vec = _repeat("Kyiv bridge strikes by Russian drones in the Ukraine invasion", 6, _unit(0.70, 0.714, 0))
     genocide = ["The holocaust and genocide memorial remembered the victims"] * 7
     genocide.append("Ukraine genocide")
     genocide_vec = np.vstack([_unit(0.72, 0.694, 0)] * 8)
@@ -73,6 +99,21 @@ def test_kyiv_sibling_folds_and_genocide_ball_does_not():
     assert stats["folded_posts"] == 6
     assert set(updated[:28]) == {0}
     assert set(updated[28:]) == {2}
+
+
+def test_russia_plague_outbreak_does_not_fold_into_ukraine():
+    parent, parent_vec = _repeat("Ukraine Russia invasion of Kyiv", 22, _unit(1, 0, 0))
+    plague, plague_vec = _repeat(
+        "Pneumonic plague outbreak in a Russia hospital after laboratory contact",
+        8,
+        _unit(0.66, 0.751, 0),
+    )
+    texts = parent + plague
+    matrix = np.vstack([parent_vec, plague_vec])
+    labels = [0] * 22 + [1] * 8
+    updated, stats = attach_same_story(matrix, texts, labels, noise=False)
+    assert stats["folded_planets"] == 0
+    assert set(updated[22:]) == {1}
 
 
 def test_putin_planet_does_not_fold_into_ukraine():
@@ -89,10 +130,10 @@ def test_putin_planet_does_not_fold_into_ukraine():
 def test_chain_does_not_follow_the_middle_planet():
     """C is close to B, and B folds into A. C does not follow B into A."""
     parent, parent_vec = _repeat("Ukraine Russia invasion of Kyiv", 30, _unit(1, 0, 0))
-    middle, middle_vec = _repeat("Kyiv bridge strikes by Russian drones in Ukraine", 22, _unit(0.70, 0.714, 0))
+    middle, middle_vec = _repeat("Kyiv bridge strikes by Russian drones in the Ukraine invasion", 22, _unit(0.70, 0.714, 0))
     # Cosine to the middle planet is about 0.70. Cosine to the parent is 0.30.
     child_vec = _unit(0.30, 0.686, 0.663)
-    child, child_rows = _repeat("Kyiv bridge strikes by Russian drones in Ukraine", 8, child_vec)
+    child, child_rows = _repeat("Kyiv bridge strikes by Russian drones in the Ukraine invasion", 8, child_vec)
     texts = parent + middle + child
     matrix = np.vstack([parent_vec, middle_vec, child_rows])
     labels = [0] * 30 + [1] * 22 + [2] * 8
@@ -177,7 +218,7 @@ def test_face_restore_returns_kyiv_and_not_zionism():
         _member("u1", "Ukraine Russia invasion of Kyiv"),
         _member("u2", "Ukraine Russia invasion of Kyiv"),
         _member("u5", "Ukraine Russia invasion of Kyiv"),
-        _member("u3", "Kyiv drone strike hit Ukraine and Russia again"),
+        _member("u3", "Kyiv drone strike hit Ukraine during the invasion"),
         _member("u4", "The Greens motion says Zionism is racism"),
     ]
     kept = [_draft("Russia Invasion", ["u1", "u2", "u5"])]

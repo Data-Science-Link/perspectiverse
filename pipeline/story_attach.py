@@ -91,8 +91,10 @@ _ACRONYM_STOP = frozenset(
         "you",
     }
 )
+# Race words and other generics are not a story. "White" must not fold two moods together.
+_GENERIC_STEMS = frozenset({"whit", "white", "black", "human", "peopl", "people"})
 # A person is not a story. Putin alone must not pull a planet into Ukraine.
-_PERSON_STEMS = _PERSON_GLUE | frozenset(
+_PERSON_STEMS = _PERSON_GLUE | _GENERIC_STEMS | frozenset(
     {
         "putin",
         "netanyahu",
@@ -144,16 +146,16 @@ def _stem_counts(texts: list[str]) -> dict[str, int]:
     return counts
 
 
-def attachment_stems(texts: list[str]) -> set[str]:
-    """Stems that name this planet's story, not a second story sitting inside it.
+def story_of(texts: list[str]) -> tuple[str | None, set[str]]:
+    """The planet's top stem, and the other stems that travel with it.
 
-    The top stem is the story. Another stem is included only when posts that
-    use it usually also use the top stem. Zionism posts inside a Gaza planet
-    mostly do not say Gaza, so Zionism is not a reason to attach more posts.
+    Another stem is included only when posts that use it usually also use the
+    top stem. Zionism posts inside a Gaza planet mostly do not say Gaza, so
+    Zionism is not a reason to attach more posts.
     """
     count = len(texts)
     if count == 0:
-        return set()
+        return None, set()
     counts = _stem_counts(texts)
     ranked = sorted(counts, key=lambda stem: (-counts[stem], -len(stem), stem))
     dominant = []
@@ -166,7 +168,7 @@ def attachment_stems(texts: list[str]) -> set[str]:
         elif not acronym and seen >= DOMINANT_MIN and share >= DOMINANT_SHARE:
             dominant.append(stem)
     if not dominant:
-        return set()
+        return None, set()
     top = dominant[0]
     kept = {top}
     for stem in dominant[1:]:
@@ -176,22 +178,38 @@ def attachment_stems(texts: list[str]) -> set[str]:
         both = sum(1 for text in own if stem_in(top, specific_stems(text)))
         if both / len(own) >= COOCCUR_WITH_TOP:
             kept.add(stem)
+    return top, kept
+
+
+def attachment_stems(texts: list[str]) -> set[str]:
+    """Stems that name this planet's story, not a second story sitting inside it."""
+    _top, kept = story_of(texts)
     return kept
 
 
-def post_matches(text: str, story: set[str]) -> bool:
-    """True when the post's longest subject stem is already this story.
+def post_matches(text: str, story: set[str], required: str | None = None) -> bool:
+    """True when the post's subject is already this story.
 
-    A longer unmatched stem is a different subject. "Zionism" does not
-    match a Gaza story even if the post also says Israel.
+    ``required`` is the planet's top stem. A secondary stem such as "russia"
+    on a Ukraine planet is not enough by itself, or a plague outbreak in
+    Russia would join the war. A stem just a character or two longer than the
+    story word is a different subject: "zionism" does not match a Gaza story
+    even if the post also says Israel. A much longer token is a place name or
+    a hashtag ("Zaporizhzhia") and does not cancel a story word already there.
     """
     found = specific_stems(text)
     if not found or not story:
         return False
-    if not any(stem_in(stem, story) for stem in found):
+    if required and not stem_in(required, found):
+        return False
+    matching = [stem for stem in found if stem_in(stem, story)]
+    if not matching:
         return False
     longest = max(found, key=lambda stem: (len(stem), stem))
-    return stem_in(longest, story)
+    if stem_in(longest, story):
+        return True
+    longest_match = max(matching, key=lambda stem: (len(stem), stem))
+    return len(longest) > len(longest_match) + 1
 
 
 def _groups(labels: np.ndarray) -> dict[int, np.ndarray]:
@@ -218,20 +236,48 @@ def _l2(matrix: np.ndarray) -> np.ndarray:
     return values / norms
 
 
-def _without_global_glue(story_stems: dict[int, set[str]]) -> dict[int, set[str]]:
+def _without_global_glue(
+    stories: dict[int, tuple[str | None, set[str]]],
+    sizes: dict[int, int],
+) -> dict[int, set[str]]:
+    """Drop a stem that names many planets, except on the planet it names.
+
+    "Iran" is the subject of several sibling planets, so the largest of those
+    keeps it and the others can fold in. "Midterm" on many unrelated planets
+    is not kept as a second magnet.
+    """
     counts: dict[str, int] = {}
-    for stems in story_stems.values():
+    for _top, stems in stories.values():
         for stem in stems:
             counts[stem] = counts.get(stem, 0) + 1
     glue = {stem for stem, seen in counts.items() if seen >= GLOBAL_GLUE_PLANETS}
     if not glue:
-        return story_stems
-    return {label: stems - glue for label, stems in story_stems.items()}
+        return {label: set(stems) for label, (_top, stems) in stories.items()}
+    owner: dict[str, int] = {}
+    for label, (top, stems) in stories.items():
+        for stem in stems & glue:
+            if top != stem:
+                continue
+            current = owner.get(stem)
+            if current is None or sizes.get(label, 0) > sizes.get(current, 0):
+                owner[stem] = label
+    for label, (_top, stems) in stories.items():
+        for stem in stems & glue:
+            if stem in owner:
+                continue
+            current = owner.get(stem)
+            if current is None or sizes.get(label, 0) > sizes.get(current, 0):
+                owner[stem] = label
+    cleaned: dict[int, set[str]] = {}
+    for label, (_top, stems) in stories.items():
+        cleaned[label] = {stem for stem in stems if stem not in glue or owner.get(stem) == label}
+    return cleaned
 
 
 def _fold_targets(
     groups: dict[int, np.ndarray],
     story_stems: dict[int, set[str]],
+    tops: dict[int, str | None],
     centroids: dict[int, np.ndarray],
     texts: list[str],
 ) -> dict[int, int]:
@@ -249,7 +295,11 @@ def _fold_targets(
             cosine = float(centroids[child] @ centroids[parent])
             if cosine < FOLD_COSINE:
                 continue
-            hits = sum(1 for index in members if post_matches(texts[int(index)], story_stems[parent]))
+            hits = sum(
+                1
+                for index in members
+                if post_matches(texts[int(index)], story_stems[parent], required=tops.get(parent))
+            )
             if hits / members.size < SIBLING_MAJORITY:
                 continue
             ranked.append((cosine, parent))
@@ -275,6 +325,7 @@ def _attach_noise(
     texts: list[str],
     groups: dict[int, np.ndarray],
     story_stems: dict[int, set[str]],
+    tops: dict[int, str | None],
     centroids: dict[int, np.ndarray],
     skip: set[int],
     folded_away: set[int],
@@ -282,7 +333,7 @@ def _attach_noise(
     parents = [
         label
         for label, members in groups.items()
-        if members.size >= BIG_PLANET and label not in folded_away and story_stems.get(label)
+        if members.size >= BIG_PLANET and label not in folded_away and tops.get(label) and story_stems.get(label)
     ]
     if not parents:
         return 0
@@ -297,7 +348,7 @@ def _attach_noise(
             cosine = float(unit[index] @ centroids[label])
             if cosine < ATTACH_COSINE:
                 continue
-            if not post_matches(texts[index], story_stems[label]):
+            if not post_matches(texts[index], story_stems[label], required=tops.get(label)):
                 continue
             ranked.append((cosine, label))
         if not ranked:
@@ -330,11 +381,12 @@ def attach_same_story(
         return [], {"attached": 0, "folded_planets": 0, "folded_posts": 0}
     unit = _l2(matrix)
     groups = _groups(original)
-    story_stems = _without_global_glue(
-        {label: attachment_stems([texts[int(index)] for index in members]) for label, members in groups.items()}
-    )
+    sizes = {label: int(members.size) for label, members in groups.items()}
+    stories = {label: story_of([texts[int(index)] for index in members]) for label, members in groups.items()}
+    tops = {label: top for label, (top, _stems) in stories.items()}
+    story_stems = _without_global_glue(stories, sizes)
     centroids = {label: _center(unit, members) for label, members in groups.items()}
-    folded = _fold_targets(groups, story_stems, centroids, texts) if fold else {}
+    folded = _fold_targets(groups, story_stems, tops, centroids, texts) if fold else {}
     updated = original.copy()
     folded_posts = 0
     for child, parent in folded.items():
@@ -349,6 +401,7 @@ def attach_same_story(
             texts,
             groups,
             story_stems,
+            tops,
             centroids,
             set(skip or ()),
             set(folded),
@@ -384,7 +437,7 @@ def return_same_story_posts(
             found.append(str(post.get("clean_text") or post.get("text") or ""))
         return found
 
-    story = [attachment_stems(face_texts(rows)) for _perspective, rows, _size in kept]
+    parsed = [story_of(face_texts(rows)) for _perspective, rows, _size in kept]
     updated = [[perspective, list(rows), int(size)] for perspective, rows, size in kept]
     restored = 0
     for _perspective, rows, _size in dropped:
@@ -395,7 +448,9 @@ def return_same_story_posts(
             text = str(post.get("clean_text") or post.get("text") or "")
             best = None
             best_size = -1
-            for index, stems in enumerate(story):
+            for index, (_top, stems) in enumerate(parsed):
+                # The kept face already had its posts dropped. Match the whole
+                # story, not only the word that is most common on what remains.
                 if not post_matches(text, stems):
                     continue
                 if updated[index][2] > best_size:
