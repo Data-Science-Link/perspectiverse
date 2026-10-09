@@ -274,3 +274,21 @@ Append-only. Newest at the bottom.
 - **Why:** A cheaper request replaces a Jev decision only when the shadow test clears the bars. This one did not, on claims.
 - **Alternatives:** Turn `jev_batch` on anyway. Remove the batched request.
 - **Revisit when:** A later shadow test clears claim agreement ≥ 95% and claims lost ≤ 3%.
+
+### 2026-10-09 — Acceptance includes the original ask's metric
+- **Decision:** Normal and high PRs state the success metric from the original request (baseline, target, measured or projected value) and the post-merge check reports it. Proxy checks alone don't make a PR done.
+- **Why:** On Perspectiverse, a grouping PR passed its own checks (fewer filler faces, labeling time) and shipped, but the owner's actual complaint (top planets too small) got worse: 297 to 165 posts.
+- **Alternatives:** Trust proxy metrics (rejected: this miss).
+- **Revisit:** If the metric can't be measured pre-merge, say so and make the post-merge check mandatory.
+
+### 2026-10-09 — Roles: Factory Manager (renamed from factory worker) and an optional Giver
+- **Decision:** The repo's coordinating bot is the **factory manager** (previously "factory worker"); child cloud agents are the **workers**. Add a recommended **giver** role per repo (`skills/giver.md`): asks ledger as a pinned issue, decision drafts for the manager to commit, healthy challenge, daily digest; never builds, merges, approves, or spends. Earlier entries that say "factory worker" mean the factory manager.
+- **Why:** On Perspectiverse the coordinating bot spent most of its effort facilitating, and the owner wanted dedicated memory of asks and decisions plus a challenger; a grouping PR shipped that passed its checks but missed the owner's actual ask.
+- **Alternatives:** Keep one bot for everything (rejected: overloaded memory); have the cross-repo methodology bot do it (rejected: its memory spans repos and should stay generic).
+- **Revisit:** If the giver adds noise without catching misses after two weeks, drop it to digest-only.
+
+### 2026-10-09 — #104 done bar: Michael confirmed size bars
+- **Decision:** Michael confirmed size bars (top planet ≥500, top-10 coverage ≥30%, noise ≤25%, World/Politics lead ≥100, Politics coverage ≥25%, no duplicate faces, labeling <1,000s, coherence check). Diagnosis showed no coherent 500-post story exists at 10K posts; the bar is under review with Michael.
+- **Why:** #104 needs explicit acceptance numbers before grouping changes ship; the diagnosis prevents chasing an impossible bar on the current corpus size.
+- **Alternatives:** Ship grouping changes without the bar; lower the top-planet floor without owner sign-off.
+- **Revisit when:** Michael confirms revised bars or the corpus window grows enough to support a 500-post top planet.
