@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import random
 import sys
+import threading
 import time
+from collections import defaultdict, deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -698,6 +700,229 @@ def _restore_draft_face(face: dict, draft: dict) -> None:
         face.pop("arguments", None)
 
 
+def _draft_needs_priority_relabel(draft: dict) -> bool:
+    """Wide relabel first when the 12-post draft is thin or unshared."""
+    args = draft.get("arguments") or []
+    return _face_has_no_shared_claim(draft) or len(args) < 2
+
+
+def _should_apply_wide_label(draft: dict, wide: dict) -> bool:
+    """Never replace a named (non-Mixed) draft with a Mixed wide relabel."""
+    if not _face_has_no_shared_claim(wide):
+        return True
+    return _face_has_no_shared_claim(draft)
+
+
+class _FinalizeFaceJob:
+    """One wide 40-post relabel for a published face."""
+
+    __slots__ = (
+        "section",
+        "face",
+        "draft",
+        "face_posts",
+        "face_vectors",
+        "face_cosines",
+        "face_terms",
+        "context",
+        "limit",
+        "priority",
+    )
+
+    def __init__(
+        self,
+        *,
+        section: str,
+        face: dict,
+        draft: dict,
+        face_posts: list[dict],
+        face_vectors,
+        face_cosines: list[float],
+        face_terms: list[str],
+        context: dict,
+        limit: int,
+    ):
+        self.section = section
+        self.face = face
+        self.draft = draft
+        self.face_posts = face_posts
+        self.face_vectors = face_vectors
+        self.face_cosines = face_cosines
+        self.face_terms = face_terms
+        self.context = context
+        self.limit = limit
+        self.priority = 0 if _draft_needs_priority_relabel(draft) else 1
+
+
+def _collect_finalize_face_jobs(
+    topics: list[dict],
+    posts: list[dict],
+    clustered: dict,
+    context: dict,
+    *,
+    section: str,
+) -> list[_FinalizeFaceJob]:
+    post_by_uri = {str(post.get("uri") or ""): post for post in posts}
+    uri_to_row = {str(post.get("uri") or ""): index for index, post in enumerate(posts)}
+    matrix = clustered.get("matrix")
+    limit = int(context.get("limit") or 36)
+    jobs: list[_FinalizeFaceJob] = []
+    for topic in topics:
+        member_uris = list(topic.get("_member_uris") or [])
+        if not member_uris:
+            continue
+        row_indices = [uri_to_row[uri] for uri in member_uris if uri in uri_to_row]
+        member_matrix = matrix[row_indices] if matrix is not None and row_indices else None
+        for face in topic.get("perspectives") or []:
+            draft = face.get("_draft_face_label")
+            face_uris = list(face.get("_face_member_uris") or [])
+            if not draft or not face_uris:
+                continue
+            local_indices = []
+            face_posts = []
+            for uri in face_uris:
+                if uri not in post_by_uri or uri not in member_uris:
+                    continue
+                local_indices.append(member_uris.index(uri))
+                face_posts.append(post_by_uri[uri])
+            if not face_posts:
+                continue
+            face_vectors = member_matrix[local_indices] if member_matrix is not None else None
+            face_cosines = (
+                cosines_to_matrix_centroid(face_vectors)
+                if face_vectors is not None
+                else [0.0] * len(face_posts)
+            )
+            face_terms = list(face.get("top_terms") or [])
+            jobs.append(
+                _FinalizeFaceJob(
+                    section=section,
+                    face=face,
+                    draft=dict(draft),
+                    face_posts=face_posts,
+                    face_vectors=face_vectors,
+                    face_cosines=face_cosines,
+                    face_terms=face_terms,
+                    context=context,
+                    limit=limit,
+                )
+            )
+    return jobs
+
+
+def _fair_finalize_order(jobs: list[_FinalizeFaceJob]) -> list[_FinalizeFaceJob]:
+    """Priority relabels first; within each tier, round-robin sections fairly."""
+    ordered: list[_FinalizeFaceJob] = []
+    for priority in (0, 1):
+        tier = [job for job in jobs if job.priority == priority]
+        by_section: dict[str, deque[_FinalizeFaceJob]] = defaultdict(deque)
+        for job in sorted(tier, key=lambda item: (item.section, str(item.face.get("id") or ""))):
+            by_section[job.section].append(job)
+        sections = sorted(by_section)
+        while any(by_section[name] for name in sections):
+            for name in sections:
+                if by_section[name]:
+                    ordered.append(by_section[name].popleft())
+    return ordered
+
+
+def _apply_wide_label_to_face(face: dict, draft: dict, wide: dict) -> None:
+    if not _should_apply_wide_label(draft, wide):
+        return
+    face["title"] = wide["title"]
+    face["summary"] = wide["summary"]
+    face["representative_posts"] = wide["representative_posts"]
+    if wide.get("arguments"):
+        face["arguments"] = wide["arguments"]
+    else:
+        face.pop("arguments", None)
+
+
+def _run_one_finalize_job(job: _FinalizeFaceJob) -> dict | None:
+    return _wide_label_face_from_posts(
+        job.face_posts,
+        job.face_vectors,
+        job.face_cosines,
+        job.face_terms,
+        job.context,
+        limit=job.limit,
+    )
+
+
+def _bump_finalize_calls(context: dict) -> None:
+    calls = context.setdefault("story_calls", {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0})
+    lock = context.setdefault("_finalize_lock", threading.Lock())
+    with lock:
+        calls["finalize_faces"] = int(calls.get("finalize_faces") or 0) + 1
+        calls["faces"] = int(calls.get("faces") or 0) + 1
+
+
+def _run_finalize_faces_parallel(
+    jobs: list[_FinalizeFaceJob],
+    workers: int,
+    deadline: float | None,
+    *,
+    scope: str,
+) -> set[str]:
+    """Run wide relabels with a bounded pool. Returns sections with queued calls left."""
+    if not jobs:
+        return set()
+    workers = max(1, int(workers))
+    order = _fair_finalize_order(jobs)
+    started = time.monotonic()
+    completed_calls = 0
+    incomplete: set[str] = set()
+    print(f"Wide face relabel: {len(order)} call(s) queued, {workers} in flight ({scope}).")
+    executor = ThreadPoolExecutor(max_workers=workers)
+    inflight: dict = {}
+    cursor = 0
+    budget_exhausted = False
+    last_finish_at: float | None = None
+    try:
+        while cursor < len(order) or inflight:
+            while not budget_exhausted and cursor < len(order) and len(inflight) < workers:
+                if deadline is not None and time.monotonic() >= deadline:
+                    budget_exhausted = True
+                    break
+                job = order[cursor]
+                cursor += 1
+                future = executor.submit(_run_one_finalize_job, job)
+                inflight[future] = job
+            if not inflight:
+                break
+            done, _pending = wait(set(inflight), return_when=FIRST_COMPLETED)
+            for future in done:
+                job = inflight.pop(future)
+                try:
+                    wide = future.result()
+                except Exception as exc:  # noqa: BLE001 - keep draft label on failure
+                    print(f"Wide face relabel failed ({type(exc).__name__}); keeping draft label.")
+                    continue
+                completed_calls += 1
+                last_finish_at = time.monotonic()
+                _bump_finalize_calls(job.context)
+                _apply_wide_label_to_face(job.face, job.draft, wide)
+        if budget_exhausted:
+            for job in order[cursor:]:
+                incomplete.add(job.section)
+    finally:
+        executor.shutdown(wait=True)
+    elapsed = time.monotonic() - started
+    if budget_exhausted and deadline is not None and last_finish_at is not None:
+        past = last_finish_at - deadline
+        if past > 0:
+            print(f"Wide face relabel: last in-flight call finished {past:.1f}s past the section deadline.")
+    if incomplete:
+        sections = ", ".join(sorted(incomplete))
+        print(
+            f"Wide face relabel: {completed_calls} call(s) in {elapsed:.1f}s; "
+            f"time budget spent before finishing {sections}."
+        )
+    else:
+        print(f"Wide face relabel: {completed_calls} call(s) in {elapsed:.1f}s.")
+    return incomplete
+
+
 def _wide_label_face_from_posts(
     face_posts: list[dict],
     face_vectors,
@@ -800,75 +1025,43 @@ def _finalize_published_planets(
     context: dict,
     *,
     deadline: float | None = None,
-) -> None:
+) -> set[str]:
     """Wide 40-post relabel for catalog planets only (after slot selection)."""
+    section = str(context.get("section") or "All topics")
     if context.get("chosen") == "heuristic" or not topics:
         _strip_internal_planet_fields(topics)
-        return
-    post_by_uri = {str(post.get("uri") or ""): post for post in posts}
-    uri_to_row = {str(post.get("uri") or ""): index for index, post in enumerate(posts)}
-    matrix = clustered.get("matrix")
-    limit = int(context.get("limit") or 36)
-    calls = context.setdefault("story_calls", {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0})
-    stopped = False
-    for topic in topics:
-        member_uris = list(topic.get("_member_uris") or [])
-        if not member_uris:
-            continue
-        members = [post_by_uri[uri] for uri in member_uris if uri in post_by_uri]
-        row_indices = [uri_to_row[uri] for uri in member_uris if uri in uri_to_row]
-        member_matrix = matrix[row_indices] if matrix is not None and row_indices else None
-        for face in topic.get("perspectives") or []:
-            if stopped:
-                break
-            if deadline is not None and time.monotonic() >= deadline:
-                print("Wide face relabel stopped: time budget spent.")
-                stopped = True
-                break
-            draft = face.get("_draft_face_label")
-            face_uris = list(face.get("_face_member_uris") or [])
-            if not draft or not face_uris:
-                continue
-            local_indices = []
-            face_posts = []
-            for uri in face_uris:
-                if uri not in post_by_uri or uri not in member_uris:
-                    continue
-                local_indices.append(member_uris.index(uri))
-                face_posts.append(post_by_uri[uri])
-            if not face_posts:
-                continue
-            face_vectors = member_matrix[local_indices] if member_matrix is not None else None
-            face_cosines = (
-                cosines_to_matrix_centroid(face_vectors)
-                if face_vectors is not None
-                else [0.0] * len(face_posts)
-            )
-            face_terms = list(face.get("top_terms") or [])
-            try:
-                wide = _wide_label_face_from_posts(
-                    face_posts,
-                    face_vectors,
-                    face_cosines,
-                    face_terms,
-                    context,
-                    limit=limit,
-                )
-            except Exception as exc:  # noqa: BLE001 - keep draft label on failure
-                print(f"Wide face relabel failed ({type(exc).__name__}); keeping draft label.")
-                continue
-            calls["finalize_faces"] = int(calls.get("finalize_faces") or 0) + 1
-            calls["faces"] = int(calls.get("faces") or 0) + 1
-            if _face_has_no_shared_claim(wide) and not _face_has_no_shared_claim(draft):
-                continue
-            face["title"] = wide["title"]
-            face["summary"] = wide["summary"]
-            face["representative_posts"] = wide["representative_posts"]
-            if wide.get("arguments"):
-                face["arguments"] = wide["arguments"]
-            else:
-                face.pop("arguments", None)
+        return set()
+    jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
+    workers = _section_pool_size(context)
+    incomplete = _run_finalize_faces_parallel(jobs, workers, deadline, scope=section)
     _strip_internal_planet_fields(topics)
+    return incomplete
+
+
+def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: float | None) -> set[str]:
+    """One shared pool for every section's wide relabel after all drafts finish."""
+    if not jobs:
+        return set()
+    if jobs[0].context.get("chosen") == "heuristic":
+        for job in jobs:
+            _strip_internal_planet_fields(job.built)
+        return set()
+    face_jobs: list[_FinalizeFaceJob] = []
+    for job in jobs:
+        section = job.name
+        face_jobs.extend(
+            _collect_finalize_face_jobs(job.built, job.posts, job.clustered, job.context, section=section)
+        )
+    workers = _section_pool_size(jobs[0].context)
+    incomplete = _run_finalize_faces_parallel(
+        face_jobs,
+        workers,
+        deadline,
+        scope=f"{len(jobs)} section(s)",
+    )
+    for job in jobs:
+        _strip_internal_planet_fields(job.built)
+    return incomplete
 
 
 def _keep_collapsed_faces(
@@ -1614,11 +1807,13 @@ def _finish_section_planets(
     context: dict,
     *,
     deadline: float | None = None,
+    finalize: bool = True,
 ) -> list[dict]:
     """Same last guards as the global catalog: drop collapses, renumber, volumes."""
-    built = _drop_unshared_planets(built)
-    built = _publishable_planets(built)
-    _finalize_published_planets(built, posts, clustered, context, deadline=deadline)
+    if finalize:
+        built = _drop_unshared_planets(built)
+        built = _publishable_planets(built)
+        _finalize_published_planets(built, posts, clustered, context, deadline=deadline)
     publish_volumes(built)
     topics, _membership, _faces = _renumber_planets(built, [], [])
     return topics
@@ -1707,6 +1902,12 @@ def _cluster_sections(
         )
 
     _label_section_jobs(jobs, _section_pool_size(context), deadline)
+    active_jobs = [job for job in jobs if not job.skipped_budget]
+    for job in active_jobs:
+        job.built = _drop_unshared_planets(job.built)
+        job.built = _publishable_planets(job.built)
+    if active_jobs:
+        _finalize_section_planets_batch(active_jobs, deadline)
     for job in jobs:
         if job.skipped_budget:
             continue
@@ -1716,6 +1917,7 @@ def _cluster_sections(
             job.clustered,
             job.context,
             deadline=deadline,
+            finalize=False,
         )
         if topics:
             result[job.name] = topics
