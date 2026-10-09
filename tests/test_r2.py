@@ -412,3 +412,8 @@ def test_daily_workflow_uploads_only_after_a_successful_run():
     assert "if [ -f /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg ]" in workflow
     assert "public/data.json" in pages
     assert "live_corpus.db" not in pages
+    assert "python -m pipeline.publish_guard" in workflow
+    assert '"$guard_status" -eq 10' in workflow
+    assert "HOLD" in workflow
+    assert "label_run.json" in workflow
+    assert "not replacing public/data.json" in workflow

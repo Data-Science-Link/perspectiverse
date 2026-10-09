@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 from collections.abc import Callable
 
@@ -1409,11 +1410,91 @@ def resolve_openai_model(explicit: str | None = None) -> str:
     return DEFAULT_OPENAI_MODEL
 
 
-# Planets are labeled concurrently (pipeline.live), so a rate limit or a
-# gateway blip is retried with a short backoff instead of becoming a fallback
-# label (which drops the face). Timeouts are not retried; they already cost 60s.
-_RETRY_STATUSES = ("HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504")
+# Planets are labeled concurrently (pipeline.live), so a rate limit, a
+# gateway blip, or a timeout is retried with a short bounded backoff instead
+# of becoming a fallback label (which drops the face). Two retries, 2s then
+# 6s. A retry that would run past the section deadline is not started: a
+# timeout retry needs another full request timeout still inside the ceiling.
+OPENAI_REQUEST_TIMEOUT = 60.0
+_RETRY_CLASSES = frozenset({"429", "5xx", "timeout"})
 _RETRY_DELAYS = (2.0, 6.0)
+
+_label_deadline_lock = threading.Lock()
+_label_deadline_monotonic: float | None = None
+
+
+def set_label_deadline(deadline: float | None) -> None:
+    """Section ceiling (``time.monotonic``) shared with label worker threads.
+
+    ``None`` clears it. Global labeling has no ceiling. The value is a module
+    global, not a context var: pool threads are created before the deadline
+    is known, so they would not see a context copied at thread start.
+    """
+    global _label_deadline_monotonic
+    with _label_deadline_lock:
+        _label_deadline_monotonic = deadline
+
+
+def get_label_deadline() -> float | None:
+    with _label_deadline_lock:
+        return _label_deadline_monotonic
+
+
+def classify_label_error(exc: BaseException) -> str:
+    """Map a labeling transport error to 429, 5xx, timeout, or other."""
+    message = str(exc)
+    if message.startswith("HTTP 429"):
+        return "429"
+    if message.startswith("HTTP "):
+        code_text = message.split(" ", 2)[1]
+        if code_text.isdigit():
+            code = int(code_text)
+            if code == 408:
+                return "timeout"
+            if 500 <= code <= 599:
+                return "5xx"
+            return "other"
+    if _looks_like_timeout(exc):
+        return "timeout"
+    return "other"
+
+
+def _looks_like_timeout(exc: BaseException) -> bool:
+    if isinstance(exc, TimeoutError):
+        return True
+    cause = exc.__cause__
+    if isinstance(cause, TimeoutError):
+        return True
+    text = str(exc).lower()
+    if "timed out" in text or "timeout" in text:
+        return True
+    if cause is not None:
+        cause_text = str(cause).lower()
+        if "timed out" in cause_text or "timeout" in cause_text:
+            return True
+    return False
+
+
+def _retry_fits_budget(delay: float, error_class: str) -> tuple[bool, str]:
+    """A retry must finish inside the section ceiling when one is set."""
+    deadline = get_label_deadline()
+    if deadline is None:
+        return True, ""
+    remaining = deadline - time.monotonic()
+    needed = float(delay)
+    if error_class == "timeout":
+        needed += OPENAI_REQUEST_TIMEOUT
+    if remaining >= needed:
+        return True, ""
+    return False, (
+        f"retry skipped; {remaining:.1f}s left in the section time budget, need {needed:.1f}s"
+    )
+
+
+def _log_label_error(exc: BaseException, error_class: str, *, retried: bool, skip_reason: str) -> None:
+    kind = "retried attempt" if retried else "final failure"
+    extra = f" ({skip_reason})" if skip_reason else ""
+    print(f"DeepInfra {error_class} {kind}{extra}: {exc}", file=sys.stderr)
 
 
 def _openai_generate(prompt: str, model: str) -> str:
@@ -1435,17 +1516,30 @@ def _openai_generate(prompt: str, model: str) -> str:
     payload: dict | None = None
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
-            payload = read_json(f"{base}/chat/completions", timeout=60, data=body, headers=headers)
+            payload = read_json(
+                f"{base}/chat/completions",
+                timeout=OPENAI_REQUEST_TIMEOUT,
+                data=body,
+                headers=headers,
+            )
         except RuntimeError as exc:
-            will_retry = attempt < len(_RETRY_DELAYS) and str(exc).startswith(_RETRY_STATUSES)
+            error_class = classify_label_error(exc)
+            delay = _RETRY_DELAYS[attempt] if attempt < len(_RETRY_DELAYS) else None
+            fits = False
+            skip_reason = ""
+            if delay is not None and error_class in _RETRY_CLASSES:
+                fits, skip_reason = _retry_fits_budget(delay, error_class)
+            will_retry = delay is not None and error_class in _RETRY_CLASSES and fits
             _remember_label_cost(
                 model,
                 getattr(exc, "payload", None),
                 "retry" if will_retry else "failure",
+                error_class=error_class,
             )
+            _log_label_error(exc, error_class, retried=will_retry, skip_reason="" if will_retry else skip_reason)
             if not will_retry:
                 raise
-            time.sleep(_RETRY_DELAYS[attempt])
+            time.sleep(float(delay))
             continue
         _remember_label_cost(model, payload, "success")
         break
@@ -1453,7 +1547,12 @@ def _openai_generate(prompt: str, model: str) -> str:
     return str(payload["choices"][0]["message"]["content"])
 
 
-def _remember_label_cost(model: str, payload: dict | None, status: str) -> None:
+def _remember_label_cost(
+    model: str,
+    payload: dict | None,
+    status: str,
+    error_class: str = "",
+) -> None:
     """Best effort. A metering error must not change the label result."""
     try:
         from pipeline.costs import llm_service_for_base_url, record_llm_attempt
@@ -1463,6 +1562,7 @@ def _remember_label_cost(model: str, payload: dict | None, status: str) -> None:
             requested_model=model,
             payload=payload,
             status=status,
+            error_class="" if status == "success" else error_class,
         )
     except Exception as exc:
         sys.stderr.write(f"WARNING: Cost log skipped for a labeling call: {exc}\n")

@@ -154,6 +154,11 @@ jobs:
           if [ -f pipeline/data/cost_run.json ]; then
             cp pipeline/data/cost_run.json /tmp/perspectiverse-snapshot/cost_run.json
           fi
+          # label_run.json is gitignored. The publish guard reads it to tell a
+          # failure-driven drop from a real day with fewer planets.
+          if [ -f pipeline/data/label_run.json ]; then
+            cp pipeline/data/label_run.json /tmp/perspectiverse-snapshot/label_run.json
+          fi
           # r2_usage.json is gitignored and written by restore plus upload,
           # which are separate processes from the live step.
           if [ -f pipeline/data/r2_usage.json ]; then
@@ -214,7 +219,39 @@ jobs:
             git checkout --force -B data-snapshot
           fi
           mkdir -p pipeline/data
-          cp /tmp/perspectiverse-snapshot/data.json public/data.json
+          # Keep the previous public/data.json when this run is degraded by
+          # labeling failures. A missing live file, a broken report, or any
+          # guard error other than exit 10 publishes (fail open).
+          HOLD=0
+          if [ -f public/data.json ]; then
+            set +e
+            source .venv/bin/activate
+            if [ -f /tmp/perspectiverse-snapshot/label_run.json ]; then
+              python -m pipeline.publish_guard \
+                --live public/data.json \
+                --new /tmp/perspectiverse-snapshot/data.json \
+                --label-run /tmp/perspectiverse-snapshot/label_run.json
+            else
+              python -m pipeline.publish_guard \
+                --live public/data.json \
+                --new /tmp/perspectiverse-snapshot/data.json
+            fi
+            guard_status=$?
+            set -e
+            if [ "$guard_status" -eq 10 ]; then
+              HOLD=1
+              echo "::error::Publish guard kept the previous data.json. This run's labeling output is degraded."
+            elif [ "$guard_status" -ne 0 ]; then
+              echo "::warning::Publish guard exited ${guard_status}; publishing (fail open)."
+            fi
+          else
+            echo "Publish guard: no live data.json on data-snapshot; publishing (fail open)."
+          fi
+          if [ "$HOLD" != "1" ]; then
+            cp /tmp/perspectiverse-snapshot/data.json public/data.json
+          else
+            echo "Publish guard: not replacing public/data.json."
+          fi
           # Pages publishes data.json. Once R2 is configured, stop committing
           # the SQLite file so the blob cannot grow toward GitHub's 100 MB limit.
           if [ "${{ steps.r2.outputs.status }}" = "unconfigured" ]; then
@@ -246,7 +283,19 @@ jobs:
           fi
           if git diff --cached --quiet; then
             echo "Snapshot unchanged"
+            if [ "$HOLD" = "1" ]; then
+              echo "::error::Degraded labeling run was not published. The live data.json is unchanged."
+              exit 1
+            fi
             exit 0
           fi
-          git commit -m "Update discourse snapshot and cost ledger"
+          if [ "$HOLD" = "1" ]; then
+            git commit -m "Record cost ledger; keep previous discourse snapshot (labeling degraded)"
+          else
+            git commit -m "Update discourse snapshot and cost ledger"
+          fi
           git push origin data-snapshot
+          if [ "$HOLD" = "1" ]; then
+            echo "::error::Degraded labeling run was not published. Previous data.json is still what Pages serves."
+            exit 1
+          fi
