@@ -5,6 +5,8 @@ on:
     # Once per day. This runs the live path, not the demo writer.
     # Avoid :00 because GitHub delays or skips scheduled runs at the top of the hour.
     - cron: "17 6 * * *"
+    # Backup if GitHub skips the primary cron (see issue #96).
+    - cron: "17 8 * * *"
   push:
     branches: [main]
     paths:
@@ -22,6 +24,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   pipeline:
@@ -32,7 +35,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Skip scheduled run when pipeline already succeeded today (UTC)
+        if: github.event_name == 'schedule'
+        id: schedule_guard
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m pipeline.schedule_guard
+
+      - name: Scheduled run skipped (already succeeded today)
+        if: github.event_name == 'schedule' && steps.schedule_guard.outputs.skip == 'true'
+        run: echo "Daily Discourse Pipeline already succeeded today (UTC); no work to do."
+
       - name: Restore retained corpus from git
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
           mkdir -p pipeline/data
           if git ls-remote --exit-code --heads origin data-snapshot >/dev/null 2>&1; then
@@ -44,16 +59,19 @@ jobs:
           fi
 
       - name: Install uv
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
 
       - name: Set up Python
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install pipeline
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
           uv venv
           # MiniLM embeddings are ONNX (fastembed). Skip torch and BERTopic.
@@ -62,6 +80,7 @@ jobs:
           uv pip install pyyaml "numpy>=1.24,<2" atproto fastembed
 
       - name: Download corpus from R2
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         id: r2
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -78,6 +97,7 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
 
       - name: Run live pipeline
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         id: live
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
@@ -95,7 +115,7 @@ jobs:
 
       - name: Upload corpus to R2
         id: r2upload
-        if: steps.live.outcome == 'success'
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success'
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -108,7 +128,7 @@ jobs:
           python -m pipeline.r2 upload pipeline/data/live_corpus.db
 
       - name: Upload data.json
-        if: steps.live.outcome == 'success'
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: data-json
@@ -118,7 +138,7 @@ jobs:
           retention-days: 14
 
       - name: Publish data-snapshot branch
-        if: steps.live.outcome == 'success' && steps.r2upload.outcome == 'success'
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success' && steps.r2upload.outcome == 'success'
         run: |
           mkdir -p /tmp/perspectiverse-snapshot
           cp public/data.json /tmp/perspectiverse-snapshot/data.json
