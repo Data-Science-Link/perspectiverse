@@ -8,6 +8,7 @@ Append-only. Newest at the bottom.
 ### YYYY-MM-DD — Short title
 - **Decision:** what we chose
 - **Why:** one or two sentences
+- **Decided by:** who made the call (optional; use when attributing credit matters)
 - **Alternatives:** what we rejected (optional)
 - **Revisit when:** trigger to reconsider (optional)
 ```
@@ -274,3 +275,9 @@ Append-only. Newest at the bottom.
 - **Why:** A cheaper request replaces a Jev decision only when the shadow test clears the bars. This one did not, on claims.
 - **Alternatives:** Turn `jev_batch` on anyway. Remove the batched request.
 - **Revisit when:** A later shadow test clears claim agreement ≥ 95% and claims lost ≤ 3%.
+
+### 2026-10-09 — Correction: "#90 / PR #102 parked" attribution
+- **Decision:** Correction to the 2026-10-09 entry "#90 / PR #102 parked": that was the Factory Manager's own sequencing call, not Michael's decision.
+- **Decided by:** Factory Manager
+- **Basis:** Michael set the order (grouping quality first, then Jetstream), and the paid test on #102 showed 1,287s section labeling (over the 1,200s ceiling), 80 failed calls, and 72.9% section agreement.
+- **Revisit when:** Michael wants #90 prioritized.
