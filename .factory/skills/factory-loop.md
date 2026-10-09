@@ -37,7 +37,7 @@ Also follow `liability-gates.md` on every change.
 
 | Class | Merge rule |
 |---|---|
-| **trivial** | Typos, docs-only, comment-only, pure `.factory/` playbook with **no** product/behavior change. Worker **may** merge after green required CI. |
+| **trivial** | Typos, docs-only, comment-only, pure `.factory/` playbook with **no** product/behavior change. Manager **may** merge after green required CI. |
 | **normal** | Features, bugfixes, behavior changes, **any UI**. **Wait for human product gate** — never auto-merge. |
 | **high** | License/secrets/auth/crypto/safety/workflows/CODEOWNERS/supply chain. **Human required** before merge. |
 
@@ -69,5 +69,5 @@ The PR body is the durable audit trail. Chat is ephemeral relative to GitHub.
   6. **Bypass merges:** If you merge with an admin/ruleset bypass, the bypass skips every rule including the up-to-date check, so first verify by hand that the branch is 0 commits behind the default branch and that all required checks are green on the current head SHA; use a merge method the ruleset allows.
 - **After merge — monitor deploy:** watch pages / deploy / CD workflows on the default branch. If deploy CI is red or stuck, open a fix promptly (same issue or new); comment status on the issue. Do not walk away after PR CI alone was green.
 - Close or update the issue when ship + deploy are good (or note follow-ups).
-- **Scheduled jobs:** at the start of each session, check the latest scheduled (cron) workflow runs on the default branch. A failed run becomes a bug issue (failing step + log excerpt), is reported to the human, and goes to the top of the queue. Flag big jumps in run duration too.
+- **Scheduled jobs:** at the start of each session, check the latest scheduled (cron) workflow runs on the default branch. A failed run becomes a bug issue (failing step + log excerpt), is reported to the human, and goes to the top of the queue. Flag big jumps in run duration too. Also confirm the job's output actually went live (a data commit pushed with the default workflow token won't trigger a deploy workflow). Cron jobs run early, at an odd minute, with a guarded backup cron for important daily jobs; flag a finding when no run has finished by the project's freshness deadline (GitHub often starts scheduled runs hours late).
 - Failures, monitor hits, process lessons → new GitHub issues and/or skill updates. Not chat-only.

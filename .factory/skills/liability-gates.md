@@ -10,7 +10,7 @@ Read this with `factory-loop.md` on every change.
 2. Change `LICENSE`, `NOTICE`, copyright headers, or SPDX identifiers without a human decision logged in `.factory/DECISIONS.md`.
 3. Disable, bypass, or weaken required CI, branch protection, CODEOWNERS, or secret scanning.
 4. Merge (or ask to auto-merge) when required checks are red, pending, or skipped — or when the branch is behind the default branch, or the green CI is from a stale commit.
-5. **Auto-merge non-trivial work.** Only **trivial** risk-class PRs may be merged by the factory worker without a human. **Normal** (incl. any UI/behavior change) and **high** require a human before merge.
+5. **Auto-merge non-trivial work.** Only **trivial** risk-class PRs may be merged by the factory manager without a human. **Normal** (incl. any UI/behavior change) and **high** require a human before merge.
 6. Add dependencies with unknown or disallowed licenses (especially strong copyleft like GPL/AGPL) without human approval.
 7. Invent or “fix” license/attribution metadata the agent cannot verify from the source.
 8. Over-claim safety, medical, security, or compliance outcomes in README/docs/marketing copy.
@@ -37,7 +37,7 @@ Read this with `factory-loop.md` on every change.
 
 | Class | Examples | Gate |
 |---|---|---|
-| **trivial** | Typos, docs-only, comment fixes, playbook-only with no product change | Agent self-review + green CI → worker **may** merge |
+| **trivial** | Typos, docs-only, comment fixes, playbook-only with no product change | Agent self-review + green CI → manager **may** merge |
 | **normal** | Feature/bugfix, behavior change, **any UI / frontend / pages** | Agent review + green CI + **screenshots in Evidence if UI** + **human product gate** before merge |
 | **high** | License, secrets, auth, crypto, safety claims, workflows, supply chain | **Human required** before merge |
 

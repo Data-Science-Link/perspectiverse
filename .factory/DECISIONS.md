@@ -274,3 +274,51 @@ Append-only. Newest at the bottom.
 - **Why:** A cheaper request replaces a Jev decision only when the shadow test clears the bars. This one did not, on claims.
 - **Alternatives:** Turn `jev_batch` on anyway. Remove the batched request.
 - **Revisit when:** A later shadow test clears claim agreement ≥ 95% and claims lost ≤ 3%.
+
+### 2026-10-09 — Acceptance includes the original ask's metric
+- **Decision:** Normal and high PRs state the success metric from the original request (baseline, target, measured or projected value) and the post-merge check reports it. Proxy checks alone don't make a PR done.
+- **Why:** On Perspectiverse, a grouping PR passed its own checks (fewer filler faces, labeling time) and shipped, but the owner's actual complaint (top planets too small) got worse: 297 to 165 posts.
+- **Alternatives:** Trust proxy metrics (rejected: this miss).
+- **Revisit:** If the metric can't be measured pre-merge, say so and make the post-merge check mandatory.
+
+### 2026-10-09 — Roles: Factory Manager (renamed from factory worker) and an optional Giver
+- **Decision:** The repo's coordinating bot is the **factory manager** (previously "factory worker"); child cloud agents are the **workers**. Add a recommended **giver** role per repo (`skills/giver.md`): asks ledger as a pinned issue, decision drafts for the manager to commit, healthy challenge, daily digest; never builds, merges, approves, or spends. Earlier entries that say "factory worker" mean the factory manager.
+- **Why:** On Perspectiverse the coordinating bot spent most of its effort facilitating, and the owner wanted dedicated memory of asks and decisions plus a challenger; a grouping PR shipped that passed its checks but missed the owner's actual ask.
+- **Alternatives:** Keep one bot for everything (rejected: overloaded memory); have the cross-repo methodology bot do it (rejected: its memory spans repos and should stay generic).
+- **Revisit:** If the giver adds noise without catching misses after two weeks, drop it to digest-only.
+
+### 2026-10-09 — #104 done bar: Michael confirmed size bars
+- **Decision:** Michael confirmed size bars (top planet ≥500, top-10 coverage ≥30%, noise ≤25%, World/Politics lead ≥100, Politics coverage ≥25%, no duplicate faces, labeling <1,000s, coherence check). Diagnosis showed no coherent 500-post story exists at 10K posts; the bar is under review with Michael.
+- **Why:** #104 needs explicit acceptance numbers before grouping changes ship; the diagnosis prevents chasing an impossible bar on the current corpus size.
+- **Alternatives:** Ship grouping changes without the bar; lower the top-planet floor without owner sign-off.
+- **Revisit when:** Michael confirms revised bars or the corpus window grows enough to support a 500-post top planet.
+
+### 2026-10-09 — Daily production cost cap at 100K posts (#87, #27)
+- **Decision:** Approved by Michael on 2026-10-09. Total production spend (Jev, LLM labeling, and R2) at a 100,000-post window must stay under $0.50 per day; lower is better. This supersedes the $0.30-per-day accepted fallback as a hard ceiling in [2026-10-08 — Daily spend target $0.25, fallback $0.30 (#87, #27)](#2026-10-08-daily-spend-target-025-fallback-030-87-27). About $0.25 per day remains the target and about $0.30 remains an aspiration, not a cap.
+- **Why:** A 100K corpus should scale without the roughly $1.70/day the pre-#87 design implied, while leaving headroom above the earlier $0.25–$0.30 figures when quality bars require it.
+- **Alternatives:** Keep $0.30 as the hard ceiling; shrink the corpus window instead of raising the cap.
+- **Revisit when:** The cost ledger shows a sustained daily total above $0.50 at 100K, or prices change.
+
+### 2026-10-09 — #104: fix missing posts (approved)
+- **Decision:** Michael on 2026-10-09: "Fix missing posts - yes." The factory builds the fix: restore dropped posts, attach strays, fold split-offs, and address duplicate faces (#103). Each change on the #104 PR shows before-and-after evidence.
+- **Why:** Popular stories today land incomplete on their planets (for example Ukraine at roughly 108 of ~380 posts on the live site).
+- **Alternatives:** Accept smaller planets as correct grouping; change only labeling.
+- **Revisit when:** The attachment-recall bar below is met on the fixed keyword/labeled story sample.
+
+### 2026-10-09 — #104 done bar: attachment recall replaces the 500-post floor
+- **Decision:** This supersedes the absolute top-planet ≥500 bar in [2026-10-09 — #104 done bar: Michael confirmed size bars](#2026-10-09-104-done-bar-michael-confirmed-size-bars). Michael on 2026-10-09 (revised 10:38 AM): for truly popular stuff with a lot of posts, posts must properly attach to the right planet and the planet must have all the right ones attached. The done bar is **attachment recall**: for each story with ≥100 posts (story size counted on a fixed keyword/labeled sample, set before the change, independent of grouping code), ≥80% of that story's posts land on its planet, with the coherence check and without gluing separate stories ([2026-10-08 — Split glued different-stories planets instead of dropping them (#78)](#2026-10-08-split-glued-different-stories-planets-instead-of-dropping-them-78); [2026-10-08 — Do not publish a planet with fewer than five posts (#78)](#2026-10-08-do-not-publish-a-planet-with-fewer-than-five-posts-78) / #77/#79). Still in force unless Michael says otherwise: top-10 coverage ≥30%, noise ≤25%, Politics coverage ≥25%, World/Politics lead ≥100, no duplicate faces (#103), no Mixed remarks, labeling <1,000s.
+- **Why:** At a 10K window no coherent 500-post story exists; the owner cares that high-volume stories are whole and on the right planet, not a single arbitrary size floor.
+- **Alternatives:** Keep the ≥500 top-planet bar; judge only by top-10 coverage and noise.
+- **Revisit when:** Michael changes the recall threshold or story sample, or the corpus window makes a size floor meaningful again.
+
+### 2026-10-09 — #90 cluster-once (PR #102) parked
+- **Decision:** #90 and PR #102 stay parked. Cluster-once does not ship until Jetstream speed headroom is reclaimed from the label cache path in #87 first.
+- **Why:** Paid testing put section labeling at 1,287s (above the 1,200s ceiling), with 80 failed calls and 72.9% section agreement — below the quality bars for replacing today's per-post section path.
+- **Alternatives:** Merge #102 and accept slower or weaker section labeling; drop section solar systems.
+- **Revisit when:** Label-cache savings show up in live runs and a retest clears section agreement and the labeling-time bar.
+
+### 2026-10-09 — Room voice: Factory Manager speaks for Michael
+- **Decision:** In the project's factory room, the Factory Manager is Michael's one voice. The Giver tracks quietly on pinned issue #106 (Asks ledger) and challenges the Manager when plans, status, or done claims drift from the ledger or agreed bars. This narrows [2026-10-09 — Roles: Factory Manager (renamed from factory worker) and an optional Giver](#2026-10-09-roles-factory-manager-renamed-from-factory-worker-and-an-optional-giver) to room behavior; the Manager still commits `DECISIONS.md`.
+- **Why:** Michael asked for a single coordinating voice in the room while keeping durable memory and challenge off the main thread.
+- **Alternatives:** Owner speaks directly in the room for every update; Giver speaks in the room by default.
+- **Revisit when:** The Giver's challenge catches misses without adding room noise, or Michael wants a different split.

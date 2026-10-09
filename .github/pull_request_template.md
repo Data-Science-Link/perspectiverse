@@ -1,11 +1,15 @@
 <!-- Copy to .github/pull_request_template.md -->
-<!-- Factory workers + Cursor agents: fill every section. This is how humans audit adherence. -->
+<!-- Factory managers + Cursor agents: fill every section. This is how humans audit adherence. -->
 
 ## Summary
 
 <!-- One or two sentences. -->
 
 Closes #
+
+## Success metric from the original ask
+
+<!-- Normal/high: the number the requester cares about, its baseline, the target, and the pre-merge or projected value. Checked again after merge. -->
 
 ## What changes in production on merge
 
@@ -26,17 +30,17 @@ Closes #
 
 ## Risk class
 
-- [ ] trivial (typo/docs/comment/playbook-only — no product/behavior change; worker may merge after green CI)
+- [ ] trivial (typo/docs/comment/playbook-only — no product/behavior change; manager may merge after green CI)
 - [ ] normal (feature/bugfix/behavior/**UI** — **human product gate before merge**)
 - [ ] **high** (license, secrets, auth, crypto, safety, workflows, supply chain — human required)
 
 ## AI disclosure
 
-- Tools used (factory worker / Cursor agent / both):
+- Tools used (factory manager / Cursor agent / both):
 - Model(s) used (per `.factory/MODEL_ROUTING.md`; note any escalation):
 - Cloud agent run ID(s) (for cost attribution):
 - Approx. share AI-authored: [ ] little [ ] mixed [ ] mostly
-- Human reviewed before merge: [ ] yes [ ] no — who: <!-- worker: set yes + name when chat/issue gate is given, BEFORE merge -->
+- Human reviewed before merge: [ ] yes [ ] no — who: <!-- manager: set yes + name when chat/issue gate is given, BEFORE merge -->
 
 ## Safety checklist
 
@@ -55,6 +59,6 @@ Closes #
 
 <!-- Risks, follow-ups, what you want them to focus on -->
 
-## Post-merge (worker)
+## Post-merge (manager)
 
 - [ ] Deploy / pages / CD on default branch checked; fix opened if red; status on issue
