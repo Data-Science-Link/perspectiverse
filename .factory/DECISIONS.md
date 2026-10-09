@@ -250,3 +250,9 @@ Append-only. Newest at the bottom.
 - **Why:** Free, no extra dependency, and data fresh by late morning is good enough.
 - **Alternatives:** Outside scheduler calling the manual trigger (rejected: extra dependency); keep the 2-hour late-start flag (rejected: noise after a week of multi-hour delays).
 - **Revisit when:** A job truly needs on-time runs, reconsider an outside trigger for that job only.
+
+### 2026-10-09 — Cloud agent evidence before approving high-risk labeling or grouping
+- **Decision:** Michael (2026-10-09): PRs that change labeling or grouping in ways that could alter the public snapshot must include real before-and-after output from a cloud agent run (not mocked fixtures alone) before Michael approves merge. That evidence run must not publish: no R2 upload, no push to `data-snapshot`, and no GitHub Pages deploy. Secret names available to cloud agents are listed in `.factory/DOCS.md` (names only).
+- **Why:** Grouping and label changes are hard to review from diffs alone; a paid or corpus-backed run catches regressions before they hit readers.
+- **Alternatives:** Review-only on unit tests; mandatory full daily pipeline on every PR.
+- **Revisit when:** Automated eval gates reliably match live quality bars without a human spot-check run.
