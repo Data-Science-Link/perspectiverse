@@ -72,8 +72,9 @@ def test_k_selection_never_leaves_two_to_six(seed):
     assert k is None or MIN_FACES <= k <= MAX_FACES
     split = split_perspectives(["post"] * matrix.shape[0], seed=seed, matrix=matrix)
     if k is None:
-        assert len(split["faces"]) == 2
-        assert split["forced"] is True
+        assert len(split["faces"]) == 1
+        assert split["forced"] is False
+        assert split.get("single_view") is True
     else:
         assert len(split["faces"]) == k
         assert all(face["size"] >= MIN_FACE_POSTS for face in split["faces"])
@@ -180,7 +181,7 @@ def _fake_labels(monkeypatch, titles_for):
 
 
 def test_planet_whose_faces_collapse_is_kept_with_a_score(monkeypatch):
-    """Labels that merge every face into one used to drop the planet. Keep it (#76)."""
+    """Same-stance titles become one view. The planet stays, with a note."""
     good = _planet_posts("ukraine", [30, 12], seed=11)
     collapsing = _planet_posts("medicare", [30, 12], seed=12)
 
@@ -192,12 +193,13 @@ def test_planet_whose_faces_collapse_is_kept_with_a_score(monkeypatch):
     _fake_labels(monkeypatch, titles_for)
     posts, clustered = _clustered([good, collapsing])
     topics, membership, face_rows = live._build_topics(posts, clustered, SETTINGS, keep=10)
-    assert [len(topic["perspectives"]) for topic in topics] == [2, 2]
+    assert [len(topic["perspectives"]) for topic in topics] == [2, 1]
     assert {uri.split("/")[2] for uri, _topic in membership} == {"ukraine", "medicare"}
     assert {topic_id for _uri, topic_id, _face, _distance in face_rows} == {1, 2}
     medicare = next(topic for topic in topics if "Medicare" in topic["name"] or "medicare" in topic["name"].lower())
-    assert medicare["face_distinctness"] > 0
-    assert len({face["title"] for face in medicare["perspectives"]}) == 2
+    assert medicare["face_distinctness"] == 0
+    assert len(medicare["perspectives"]) == 1
+    assert "opposing view" in medicare["opposing_note"]
     payload = assemble_payload(topics, mode="live", source="fixture", total_posts=len(posts))
     assert all(MIN_FACES <= len(topic["perspectives"]) <= MAX_FACES for topic in payload["topics"])
     assert all("face_distinctness" in topic for topic in payload["topics"])
@@ -213,9 +215,13 @@ def test_mixed_remarks_face_does_not_drop_the_planet(monkeypatch):
     posts, clustered = _clustered([collapsing])
     topics, membership, face_rows = live._build_topics(posts, clustered, SETTINGS, keep=10)
     assert len(topics) == 1
-    assert len(topics[0]["perspectives"]) == 2
+    faces = topics[0]["perspectives"]
+    assert 1 <= len(faces) <= 2
+    assert all(str(face["title"]).lower() != "mixed remarks" for face in faces)
     assert membership and face_rows
     assert 0.0 <= topics[0]["face_distinctness"] <= 1.0
+    if len(faces) == 1:
+        assert "opposing view" in topics[0]["opposing_note"]
 
 
 def test_collapsed_split_retries_the_next_best_count(monkeypatch):
@@ -258,8 +264,8 @@ def test_one_bad_planet_does_not_block_the_rest(monkeypatch):
     assert len(topics[0]["perspectives"]) == 2
 
 
-def test_collapsed_best_k_retries_the_next_count(monkeypatch):
-    """The best k merges to one face; the next passing k is used, and the planet stays at 2+."""
+def test_one_real_face_publishes_without_a_second_label_pass(monkeypatch):
+    """A split that keeps one shared claim is the planet. It is not relabeled to force two."""
     three = _planet_posts("canada", [30, 12, 10], seed=21)
     calls = []
     original = live._label_faces
@@ -282,13 +288,11 @@ def test_collapsed_best_k_retries_the_next_count(monkeypatch):
     monkeypatch.setattr(live, "_label_faces", collapse_first)
     posts, clustered = _clustered([three])
     topics, _membership, face_rows = live._build_topics(posts, clustered, SETTINGS, keep=10)
-    assert calls[0] != calls[1]
-    assert len(calls) == 2
+    assert calls == [calls[0]]
     assert len(topics) == 1
-    assert MIN_FACES <= len(topics[0]["perspectives"]) <= MAX_FACES
-    assert {position for _uri, _topic, position, _distance in face_rows} == set(
-        range(len(topics[0]["perspectives"]))
-    )
+    assert len(topics[0]["perspectives"]) == 1
+    assert "opposing view" in topics[0]["opposing_note"]
+    assert {position for _uri, _topic, position, _distance in face_rows} == {0}
 
 
 def test_build_topics_stops_once_keep_planets_survive(monkeypatch):
@@ -420,7 +424,9 @@ def test_unshared_face_cannot_leave_fewer_than_two_faces():
     }
     kept = live._drop_unshared_planets([one_left])
     assert len(kept) == 1
-    assert [face["title"] for face in kept[0]["perspectives"]] == ["Real Claim", "Mixed remarks"]
+    assert [face["title"] for face in kept[0]["perspectives"]] == ["Real Claim"]
+    assert kept[0]["opposing_note"] == "No clear opposing view found in this sample"
+    assert abs(kept[0]["perspectives"][0]["volume_percent"] - 100) < 0.15
 
 
 def test_dropping_one_unshared_face_keeps_two_and_realigns_rows():
@@ -454,11 +460,11 @@ def test_dropping_one_unshared_face_keeps_two_and_realigns_rows():
     assert [face["id"] for face in faces] == ["4A", "4B"]
 
 
-def test_publishable_guard_drops_a_one_face_planet():
+def test_publishable_guard_keeps_a_one_face_planet():
     one = {"name": "Alone", "perspectives": [{"title": "Only"}]}
     two = {"name": "Pair", "perspectives": [{"title": "A"}, {"title": "B"}]}
     seven = {"name": "Crowd", "perspectives": [{"title": str(index)} for index in range(7)]}
-    assert live._publishable_planets([one, two, seven]) == [two]
+    assert live._publishable_planets([one, two, seven]) == [one, two]
 
 
 def test_a_failing_section_is_skipped(monkeypatch):
@@ -643,7 +649,9 @@ def test_different_stories_stay_published_through_the_later_guard(capsys):
         "name": "Lone",
         "perspectives": topics[0]["perspectives"][:1],
     }
-    assert live._drop_unshared_planets([lone]) == []
+    kept_lone = live._drop_unshared_planets([lone])
+    assert [topic["name"] for topic in kept_lone] == ["Lone"]
+    assert "opposing view" in kept_lone[0]["opposing_note"]
 
 
 def test_split_planets_stay_within_the_catalog(capsys):

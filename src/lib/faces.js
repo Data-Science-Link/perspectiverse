@@ -1,13 +1,14 @@
 import { Quaternion, Vector3 } from 'three'
 import { cubeSpikeFaces, polyhedron } from './polyhedra.js'
 
-export const MIN_FACES = 2
+export const MIN_FACES = 1
 export const MAX_FACES = 6
 export const CORE_RADIUS = 0.82
 
 const UP = new Vector3(0, 1, 0)
 
 const SHAPE_NAMES = {
+  1: 'Point',
   2: 'Diamond',
   3: 'Prism',
   4: 'Tetrahedron',

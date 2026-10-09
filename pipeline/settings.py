@@ -31,7 +31,7 @@ DEFAULTS: dict[str, Any] = {
     "window_hours": 168,
     "refresh_hours": 24,
     "sample_size": TARGET_POSTS,
-    "min_cluster_size": 8,
+    "min_cluster_size": 5,
     "embedding_model": "all-MiniLM-L6-v2",
     "cluster_backend": "embedding",
     "label_backend": "auto",
@@ -54,6 +54,10 @@ DEFAULTS: dict[str, Any] = {
     # 0 skips sections. None (omit the key) uses this default.
     "section_budget_minutes": 20,
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
+    # Phase 3 packs about 25 posts into one spam+claim request. It does not
+    # ask for a section. The shadow test failed batched claims, so this stays
+    # false. See scripts/jev_shadow_test.py. The planet-level section call is #90.
+    "jev_batch": False,
 }
 
 
@@ -82,6 +86,9 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
         settings["label_workers"] = int(os.environ["PERSPECTIVERSE_LABEL_WORKERS"])
     if os.getenv("PERSPECTIVERSE_MIN_PLANET_POSTS"):
         settings["min_planet_posts"] = int(os.environ["PERSPECTIVERSE_MIN_PLANET_POSTS"])
+    batch_flag = (os.getenv("PERSPECTIVERSE_JEV_BATCH") or "").strip().lower()
+    if batch_flag:
+        settings["jev_batch"] = batch_flag in {"1", "true", "yes", "on"}
     ollama_model = (os.getenv("OLLAMA_MODEL") or "").strip()
     if ollama_model:
         settings["ollama_model"] = ollama_model

@@ -1824,6 +1824,13 @@ h3 {
   line-height: 1.15;
 }
 
+.reading-opposing {
+  margin: 0.45rem 0 0;
+  color: #f4e2b0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .reading-brief,
 .reading-detail p,
 .email-planet p,

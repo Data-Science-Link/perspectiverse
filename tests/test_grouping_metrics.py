@@ -117,9 +117,10 @@ def test_uniform_cloud_is_kept_with_a_low_score():
     assert packed["dropped"] is True
     kept = run_approach("keep_floor", texts, matrix, seed=0)
     assert kept["dropped"] is False
-    assert kept["k"] == 2
-    assert kept["forced"] is True
-    assert kept["distinctness"] <= 0.05
+    assert kept["k"] == 1
+    assert kept["forced"] is False
+    assert kept["distinctness"] == 0.0
+    assert kept["note"] == "no distinct second view"
     assert kept["llm_calls"] == 0
 
 

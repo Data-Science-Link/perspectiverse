@@ -413,6 +413,191 @@ def mutual_reachability_labels(matrix: np.ndarray, min_cluster_size: int = 4) ->
     return best[1]
 
 
+# A post has to sit this close to its group's center, or it is not a member.
+# Same line the old member peel used. Unrelated MiniLM posts sit near 0.1.
+_BALL_MEMBER = 0.50
+# Two centers at least this similar are one subject that the grid split apart.
+_BALL_MERGE = 0.72
+# A group whose posts only barely clear the peel is a mood, not a subject.
+_BALL_MEAN = 0.60
+# Full cohesive clustering through this size. Above it, centers come from a
+# sample of this many posts and everyone else joins a center only when they
+# sit inside that ball. A 100K window does not build an n×k distance matrix.
+_EXACT_BALL_LIMIT = 12_000
+
+
+def _peel_members(unit: np.ndarray, labels: np.ndarray, minimum: float) -> None:
+    """Drop members farther than `minimum` cosine from their own center. In place."""
+    for label in _label_ids(labels):
+        members = np.flatnonzero(labels == label)
+        if members.size == 0:
+            continue
+        center = unit[members].mean(axis=0)
+        norm = float(np.linalg.norm(center))
+        if norm == 0.0:
+            labels[members] = -1
+            continue
+        cosine = unit[members] @ (center / norm)
+        labels[members[cosine < minimum]] = -1
+
+
+def _drop_loose_balls(unit: np.ndarray, labels: np.ndarray, minimum: float) -> None:
+    """Drop a group whose members are not close to its center, on average."""
+    for label in _label_ids(labels):
+        members = np.flatnonzero(labels == label)
+        if members.size == 0:
+            continue
+        center = unit[members].mean(axis=0)
+        norm = float(np.linalg.norm(center))
+        if norm == 0.0:
+            labels[members] = -1
+            continue
+        if float((unit[members] @ (center / norm)).mean()) < minimum:
+            labels[members] = -1
+
+
+def _merge_same_subject(unit: np.ndarray, labels: np.ndarray, minimum: float) -> np.ndarray:
+    """Fold centers that are one subject. Dissimilar centers stay apart."""
+    labels = np.asarray(labels, dtype=int).copy()
+    ids = _label_ids(labels)
+    centers: list[np.ndarray] = []
+    keep: list[int] = []
+    for label in ids:
+        members = np.flatnonzero(labels == label)
+        if members.size == 0:
+            continue
+        center = unit[members].mean(axis=0)
+        norm = float(np.linalg.norm(center))
+        if norm == 0.0:
+            labels[members] = -1
+            continue
+        centers.append(center / norm)
+        keep.append(label)
+    if len(keep) < 2:
+        return labels
+    stacked = np.vstack(centers)
+    similarity = stacked @ stacked.T
+    parent = list(range(len(keep)))
+
+    def find(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    left, right = np.where(np.triu(similarity, 1) >= minimum)
+    for pair in np.argsort(-similarity[left, right]):
+        root_left, root_right = find(int(left[pair])), find(int(right[pair]))
+        if root_left != root_right:
+            parent[root_right] = root_left
+    remap = {label: keep[find(index)] for index, label in enumerate(keep)}
+    merged = np.full(labels.shape[0], -1, dtype=int)
+    for index, label in enumerate(labels):
+        if int(label) >= 0:
+            merged[index] = remap.get(int(label), -1)
+    return merged
+
+
+def _keep_large(labels: np.ndarray, floor: int) -> np.ndarray:
+    """Renumber groups of at least `floor` posts. Smaller groups become -1."""
+    labels = np.asarray(labels, dtype=int)
+    kept = np.full(labels.shape[0], -1, dtype=int)
+    next_id = 0
+    for label in _label_ids(labels):
+        members = np.flatnonzero(labels == label)
+        if members.size < floor:
+            continue
+        kept[members] = next_id
+        next_id += 1
+    return kept
+
+
+def _cohesive_balls(unit: np.ndarray, floor: int, *, seed: int) -> np.ndarray:
+    """Fine grid, then only the dense balls survive.
+
+    The grid is about one seed per `floor` posts so two neighboring crowds are
+    not glued together before they can be told apart. That seed count is not
+    the group count. A cell that is not dense is dropped. Cells of one subject
+    are merged. What remains is however many balls the distances support.
+    """
+    count = int(unit.shape[0])
+    grid = min(count, max(floor, count // floor))
+    if grid < 2:
+        labels = np.zeros(count, dtype=int)
+    else:
+        labels, _centers = cluster_kmeans(unit, grid, seed=seed)
+        labels = np.asarray(labels, dtype=int).copy()
+    _peel_members(unit, labels, _BALL_MEMBER)
+    labels = _merge_same_subject(unit, labels, _BALL_MERGE)
+    _peel_members(unit, labels, _BALL_MEMBER)
+    _drop_loose_balls(unit, labels, _BALL_MEAN)
+    return _keep_large(labels, floor)
+
+
+def _density_from_sample(unit: np.ndarray, floor: int, *, seed: int, sample_size: int) -> np.ndarray:
+    """Centers from a sample. Other posts join a center only from inside its ball.
+
+    This is the path above `_EXACT_BALL_LIMIT`. The sample is large enough to
+    contain the crowds (12,000 at the default). A post outside the sample does
+    not create a new group, and it does not join a center it is far from.
+    """
+    count = int(unit.shape[0])
+    rng = np.random.default_rng(seed)
+    chosen = np.sort(rng.choice(count, size=min(count, int(sample_size)), replace=False))
+    sampled = _cohesive_balls(unit[chosen], floor, seed=seed)
+    ids = _label_ids(sampled)
+    labels = np.full(count, -1, dtype=int)
+    if not ids:
+        return labels
+    centers = []
+    for label in ids:
+        members = chosen[sampled == label]
+        center = unit[members].mean(axis=0)
+        norm = float(np.linalg.norm(center))
+        centers.append(center / norm if norm else center)
+    stacked = np.vstack(centers)
+    id_array = np.asarray(ids, dtype=int)
+    for start in range(0, count, 2048):
+        end = min(start + 2048, count)
+        sims = unit[start:end] @ stacked.T
+        best = sims.argmax(axis=1)
+        score = sims[np.arange(end - start), best]
+        take = score >= _BALL_MEMBER
+        labels[start:end][take] = id_array[best[take]]
+    _peel_members(unit, labels, _BALL_MEMBER)
+    _drop_loose_balls(unit, labels, _BALL_MEAN)
+    return _keep_large(labels, floor)
+
+
+def density_labels(
+    matrix: np.ndarray,
+    min_cluster_size: int = 8,
+    *,
+    seed: int = 0,
+    exact_limit: int = _EXACT_BALL_LIMIT,
+) -> np.ndarray:
+    """Dense balls in the embedding. Isolated posts stay -1.
+
+    Single-linkage on mutual reachability (the HDBSCAN distance) was measured
+    on a 10K week and does not separate it: nearest-neighbor distances inside
+    a topic and between topics are almost the same, so the graph becomes one
+    chain. A topic in this embedding is a ball of posts near one center.
+
+    Nothing here sets the group count to ``n / floor``. The floor is only the
+    smallest ball we will call a group. Above ``exact_limit`` posts, centers
+    are fit on a sample and the rest of the posts join a center only when they
+    fall inside its ball.
+    """
+    values = l2_rows(np.asarray(matrix, dtype=np.float32))
+    count = int(values.shape[0])
+    floor = max(2, int(min_cluster_size))
+    if count < floor:
+        return np.full(count, -1, dtype=int)
+    if count > int(exact_limit):
+        return _density_from_sample(values, floor, seed=seed, sample_size=int(exact_limit))
+    return _cohesive_balls(values, floor, seed=seed)
+
+
 def _floor_for(count: int, min_posts: int) -> int:
     if count < 2:
         return 0
@@ -666,13 +851,27 @@ def group_residual(texts: list[str], matrix: np.ndarray, *, seed: int = 0) -> di
 
 
 def group_keep_floor(texts: list[str], matrix: np.ndarray, *, seed: int = 0) -> dict:
-    """Shipped rule: the silhouette split when it passes, otherwise a forced 2-cut."""
+    """Shipped rule: the silhouette split when it passes, otherwise one face.
+
+    A forced second face is not published. ``distinctness`` is 0 on that
+    single face. ``force_two_labels`` remains available for the comparison
+    approaches.
+    """
     baseline = group_baseline(texts, matrix, seed=seed)
     if not baseline["dropped"]:
         baseline["approach"] = "keep_floor"
         return baseline
-    labels, method = force_two_labels(texts, matrix, seed=seed)
-    return _pack("keep_floor", texts, matrix, labels, dropped=False, forced=True, note=method)
+    labels = np.zeros(len(texts), dtype=int)
+    packed = _pack(
+        "keep_floor",
+        texts,
+        matrix,
+        labels,
+        dropped=False,
+        forced=False,
+        note="no distinct second view",
+    )
+    return packed
 
 
 APPROACHES = (

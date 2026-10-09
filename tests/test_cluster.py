@@ -83,14 +83,15 @@ def test_choose_n_faces_collapses_a_binary_topic():
 
 
 def test_choose_n_faces_does_not_slice_a_uniform_topic():
-    """A uniform pile fails the silhouette gate. The planet is still split in two (#76)."""
+    """A uniform pile fails the silhouette gate and stays one perspective."""
     texts = [f"rent rent rent housing housing costs discussion {index}" for index in range(24)]
     assert choose_n_faces(texts, seed=0) is None
     split = split_perspectives(texts, seed=0)
-    assert len(split["faces"]) == 2
-    assert split["forced"] is True
-    assert "forced 2-split" in split["reason"]
-    assert 0.0 <= split["distinctness"] <= 1.0
+    assert len(split["faces"]) == 1
+    assert split["forced"] is False
+    assert split["single_view"] is True
+    assert "no distinct second view" in split["reason"]
+    assert split["distinctness"] == 0.0
 
 
 def test_choose_n_faces_splits_two_stances_of_one_subject():
@@ -129,9 +130,9 @@ def test_choose_n_faces_keeps_a_paraphrase_as_one_face():
     texts = ["same stance"] * 12 + ["same stance again"] * 12
     assert choose_n_faces(texts, seed=0, matrix=matrix) is None
     split = split_perspectives(texts, seed=0, matrix=matrix)
-    assert len(split["faces"]) == 2
-    assert split["forced"] is True
-    assert split["distinctness"] < 0.15
+    assert len(split["faces"]) == 1
+    assert split["forced"] is False
+    assert split["distinctness"] == 0.0
 
 
 def test_lexical_cluster_does_not_mint_a_tenth_planet():

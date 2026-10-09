@@ -9,8 +9,7 @@ Closes #
 
 ## What changes in production on merge
 
-<!-- User-visible behavior after deploy / next pipeline run. -->
-
+<!-- Required for normal/high. What users, live data, or scheduled jobs will see differently the moment this merges, including anything with no feature flag. Say what stays off and what turns it on. "Nothing" only if truly nothing. -->
 
 ## Factory loop
 
@@ -35,6 +34,7 @@ Closes #
 
 - Tools used (factory worker / Cursor agent / both):
 - Model(s) used (per `.factory/MODEL_ROUTING.md`; note any escalation):
+- Cloud agent run ID(s) (for cost attribution):
 - Approx. share AI-authored: [ ] little [ ] mixed [ ] mostly
 - Human reviewed before merge: [ ] yes [ ] no — who: <!-- worker: set yes + name when chat/issue gate is given, BEFORE merge -->
 

@@ -270,7 +270,7 @@ def test_round_trip_clusters_without_searching_a_fetched_day(monkeypatch, tmp_pa
     monkeypatch.setattr("pipeline.live.extract_posts", boom)
     monkeypatch.setattr(
         "pipeline.live.apply_jev",
-        lambda posts: [{**post, "is_claim": True, "section": post.get("section") or "Other"} for post in posts],
+        lambda posts, **_kwargs: [{**post, "is_claim": True, "section": post.get("section") or "Other"} for post in posts],
     )
     config = tmp_path / "pipeline.yaml"
     config.write_text(
