@@ -46,8 +46,10 @@ DEMO_CATEGORIES = (
 )
 ALLOWED_CATEGORIES = frozenset(CATEGORIES) | frozenset(DEMO_CATEGORIES) | frozenset(LEGACY_CATEGORIES)
 NOISE_POLICY = "Topic -1 is dropped and excluded from the volume denominator."
-MIN_FACES = 2
+MIN_FACES = 1
 MAX_FACES = 6
+# Shown when a planet has one perspective. A second face is not padded in.
+SINGLE_VIEW_NOTE = "No clear opposing view found in this sample"
 # Salient tokens stored on each published face (pipeline + demo).
 TOP_TERMS_LIMIT = 8
 
@@ -218,6 +220,14 @@ def category_for_members(name: str, terms: list[str], texts: list[str] | None, m
     return best
 
 
+def _check_opposing_note(topic: dict[str, Any], label: str) -> None:
+    if "opposing_note" not in topic or topic.get("opposing_note") is None:
+        return
+    value = topic["opposing_note"]
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} opposing_note must be a non-empty string")
+
+
 def _check_face_distinctness(topic: dict[str, Any], label: str) -> None:
     """Optional per-planet score. Absent is fine. Present must be in ``[0, 1]``."""
     if "face_distinctness" not in topic or topic.get("face_distinctness") is None:
@@ -261,6 +271,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
         if topic.get("category") not in ALLOWED_CATEGORIES:
             raise ValueError(f"Topic {topic_id} has an unknown category")
         _check_face_distinctness(topic, f"Topic {topic_id}")
+        _check_opposing_note(topic, f"Topic {topic_id}")
         perspectives = topic.get("perspectives") or []
         if not MIN_FACES <= len(perspectives) <= MAX_FACES:
             raise ValueError(
@@ -334,6 +345,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
                 if not topic.get("name"):
                     raise ValueError(f"Section '{section_name}' topic {topic_id} is missing a name")
                 _check_face_distinctness(topic, f"Section '{section_name}' topic {topic_id}")
+                _check_opposing_note(topic, f"Section '{section_name}' topic {topic_id}")
                 perspectives = topic.get("perspectives") or []
                 if not MIN_FACES <= len(perspectives) <= MAX_FACES:
                     raise ValueError(

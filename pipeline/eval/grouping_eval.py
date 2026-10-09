@@ -224,7 +224,7 @@ def _candidate_planets(posts: list[dict], matrix: np.ndarray, *, seed: int, cata
             by_section.setdefault(section, []).append(index)
     planets = []
     for section, indices in sorted(by_section.items(), key=lambda item: (-len(item[1]), item[0])):
-        floor = max(8, len(indices) // 200)
+        floor = max(2, 8)
         if len(indices) < floor:
             print(f"{section}: {len(indices)} posts, below floor {floor}")
             continue
@@ -236,15 +236,19 @@ def _candidate_planets(posts: list[dict], matrix: np.ndarray, *, seed: int, cata
                 min_cluster_size=floor,
                 cluster_backend="embedding",
                 seed=seed,
-                catalog_size=min(20, catalog_size + 10),
+                catalog_size=10_000,
                 embed=lambda _texts, rows=sub: rows,
                 authors=[str(posts[index].get("author") or "") for index in indices],
             )
         except Exception as exc:  # noqa: BLE001 - one section should not hide the others
             print(f"{section}: clustering failed ({type(exc).__name__}: {exc})")
             continue
-        print(f"{section}: {len(clustered['topics'])} candidate planets from {len(indices)} posts")
-        for topic in clustered["topics"]:
+        print(
+            f"{section}: {len(clustered['topics'])} candidate planets from {len(indices)} posts "
+            f"({clustered['noise_count']} noise)"
+        )
+        shown = clustered["topics"][: min(20, int(catalog_size) + 10)]
+        for topic in shown:
             member_index = topic["member_indices"]
             planets.append(
                 {
@@ -435,7 +439,7 @@ def _section_candidates(posts: list[dict], matrix: np.ndarray, *, seed: int, cat
     order = sorted(by_section, key=lambda name: (-len(by_section[name]), name))
     pools = [("All topics", list(range(len(posts))))] + [(name, by_section[name]) for name in order]
     for section, indices in pools:
-        floor = max(8, len(indices) // 200)
+        floor = max(2, 8)
         if len(indices) < floor:
             print(f"{section}: {len(indices)} posts, below floor {floor}")
             continue
@@ -448,20 +452,26 @@ def _section_candidates(posts: list[dict], matrix: np.ndarray, *, seed: int, cat
                 min_cluster_size=floor,
                 cluster_backend="embedding",
                 seed=seed,
-                catalog_size=min(20, catalog_size + 10),
+                catalog_size=10_000,
                 embed=lambda _texts, rows=sub: rows,
                 authors=[str(post.get("author") or "") for post in section_posts],
             )
         except Exception as exc:  # noqa: BLE001
             print(f"{section}: clustering failed ({type(exc).__name__}: {exc})")
             continue
-        print(f"{section}: {len(clustered['topics'])} candidate planets from {len(indices)} posts")
+        print(
+            f"{section}: {len(clustered['topics'])} candidate planets from {len(indices)} posts "
+            f"({clustered['noise_count']} noise)"
+        )
         grouped.append(
             {
                 "section": section,
                 "posts": section_posts,
                 "matrix": sub,
-                "topics": list(clustered["topics"]),
+                "topics": list(clustered["topics"][: min(20, int(catalog_size) + 10)]),
+                "candidate_count": len(clustered["topics"]),
+                "noise_count": int(clustered["noise_count"]),
+                "post_count": len(indices),
             }
         )
     return grouped
@@ -668,6 +678,112 @@ def evaluate_story_splits(
     }
 
 
+def production_census(
+    posts: list[dict],
+    matrix: np.ndarray,
+    *,
+    seed: int,
+    catalog_size: int,
+    min_cluster_size: int = 8,
+) -> dict:
+    """Candidate counts and a heuristic label of the published top planets.
+
+    Clustering uses the production density path. Labeling stops at
+    ``catalog_size`` per solar system and does not call a paid model.
+    """
+    from pipeline.live import _build_topics, _label_context
+    from pipeline.schema import CATEGORIES
+    from pipeline.topics import CANDIDATE_POOL, cluster_texts
+
+    def block(name: str, indices: list[int]) -> dict:
+        sub = matrix[indices]
+        texts = [posts[index]["clean_text"] for index in indices]
+        started = time.perf_counter()
+        clustered = cluster_texts(
+            texts,
+            min_cluster_size=min_cluster_size,
+            cluster_backend="embedding",
+            seed=seed,
+            catalog_size=CANDIDATE_POOL,
+            embed=lambda _texts, rows=sub: rows,
+            authors=[str(posts[index].get("author") or "") for index in indices],
+        )
+        elapsed = time.perf_counter() - started
+        count = len(indices)
+        noise = int(clustered["noise_count"])
+        print(
+            f"{name}: {len(clustered['topics'])} candidates, "
+            f"{count - noise}/{count} posts in a group ({elapsed:.1f}s)"
+        )
+        return {
+            "section": name,
+            "posts": count,
+            "candidates": len(clustered["topics"]),
+            "noise": noise,
+            "in_group": count - noise,
+            "share": round((count - noise) / count, 4) if count else 0.0,
+            "seconds": round(elapsed, 2),
+            "top_sizes": [int(topic["size"]) for topic in clustered["topics"][:catalog_size]],
+            "_clustered": clustered,
+            "_posts": [posts[index] for index in indices],
+        }
+
+    rows = [block("All topics", list(range(len(posts))))]
+    by_section: dict[str, list[int]] = {}
+    for index, post in enumerate(posts):
+        section = str(post.get("section") or "")
+        if section in CATEGORIES:
+            by_section.setdefault(section, []).append(index)
+    for name in sorted(by_section, key=lambda item: (-len(by_section[item]), item)):
+        if len(by_section[name]) < min_cluster_size:
+            continue
+        rows.append(block(name, by_section[name]))
+
+    context = _label_context(
+        {
+            "label_backend": "heuristic",
+            "representative_posts": 12,
+            "seed": seed,
+            "label_workers": 0,
+            "openai_model": "",
+        }
+    )
+    published = []
+    for row in rows:
+        built, _membership, _faces = _build_topics(
+            row.pop("_posts"),
+            row.pop("_clustered"),
+            {},
+            keep=catalog_size,
+            context=context,
+        )
+        faces = [face for topic in built for face in topic["perspectives"]]
+        mixed = [face for face in faces if "mixed remarks" in str(face.get("title") or "").lower()]
+        published.append(
+            {
+                "section": row["section"],
+                "published": len(built),
+                "one_view": sum(1 for topic in built if len(topic["perspectives"]) == 1),
+                "multi_view": sum(1 for topic in built if len(topic["perspectives"]) >= 2),
+                "faces": len(faces),
+                "mixed_faces": len(mixed),
+                "all_mixed_planets": sum(
+                    1
+                    for topic in built
+                    if topic["perspectives"]
+                    and all("mixed remarks" in str(face.get("title") or "").lower() for face in topic["perspectives"])
+                ),
+                "mixed_names": sum(1 for topic in built if "mixed remarks" in str(topic.get("name") or "").lower()),
+            }
+        )
+        print(
+            f"  published {published[-1]['published']}: "
+            f"{published[-1]['one_view']} one-view, {published[-1]['multi_view']} multi-view, "
+            f"{published[-1]['mixed_faces']} mixed-remarks faces"
+        )
+    return {"min_cluster_size": min_cluster_size, "catalog_size": catalog_size, "groups": rows, "published": published}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare face-grouping approaches on a corpus snapshot")
     parser.add_argument("--db", type=Path, required=True)
@@ -675,6 +791,17 @@ def main() -> None:
     parser.add_argument("--cache", type=Path, default=None)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--catalog-size", type=int, default=10)
+    parser.add_argument(
+        "--min-cluster-size",
+        type=int,
+        default=5,
+        help="Smallest dense ball that counts as a group (the live default is 5)",
+    )
+    parser.add_argument(
+        "--census-only",
+        action="store_true",
+        help="Cluster with the production density path and heuristic-label the published top planets",
+    )
     parser.add_argument("--llm", action="store_true", help="Spend a few model calls on hard planets")
     parser.add_argument("--llm-max", type=int, default=8)
     parser.add_argument(
@@ -698,6 +825,19 @@ def main() -> None:
     print(f"Loaded {len(posts)} claims from {args.db}")
     cache = args.cache or args.out.with_suffix(".embeddings.npy")
     matrix = embed_texts([post["clean_text"] for post in posts], cache)
+    if args.census_only:
+        census = production_census(
+            posts,
+            matrix,
+            seed=args.seed,
+            catalog_size=args.catalog_size,
+            min_cluster_size=args.min_cluster_size,
+        )
+        payload = {"posts": len(posts), "census": census}
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        print(args.out)
+        return
     planets = _candidate_planets(posts, matrix, seed=args.seed, catalog_size=args.catalog_size)
     approaches = list(APPROACHES)
     clock = time.perf_counter()

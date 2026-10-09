@@ -221,9 +221,10 @@ def split_perspectives(
     """Cluster ``texts`` into faces.
 
     With ``n_faces`` the count is forced. Otherwise the best count in 2..6 is
-    chosen. When none passes, a 2-way cut is forced and ``forced`` is true.
-    The planet is kept either way (issue #76). ``distinctness`` is 0 when the
-    face centroids match and 1 when they are orthogonal.
+    chosen. When none passes, the planet is one perspective (``single_view``)
+    and ``forced`` is false. A second face is created only when the distance
+    gates already used here say the views are distinct. ``distinctness`` is 0
+    when there is one face or the centroids match, and 1 when they are orthogonal.
     """
     values = _as_matrix(texts, matrix)
     chosen_row = None
@@ -237,29 +238,33 @@ def split_perspectives(
             reasons = "; ".join(f"k={row['k']}: {row['reason']}" for row in rows) or "too few posts"
             import numpy as np
 
-            if int(values.shape[0]) < 2:
+            count = int(values.shape[0])
+            if count < 1:
                 return {
                     "assignments": [],
                     "distances": [],
                     "cosines": [],
                     "faces": [],
                     "k_scores": _summaries(rows),
-                    "reason": f"no 2-6 face split passes ({reasons})",
+                    "reason": f"no distinct second view ({reasons})",
                     "alternatives": [],
                     "forced": False,
                     "distinctness": 0.0,
                     "method": "",
+                    "single_view": True,
                 }
-            forced_labels, method = force_two_labels(texts, values, seed=seed)
-            forced_labels = np.asarray(forced_labels, dtype=int)
-            centers = _mean_centers(values, forced_labels, 2)
-            result = _faces_from(texts, values, forced_labels, centers, 2)
+            # No k in 2..6 cleared the distance gates. Publish the planet as
+            # one perspective instead of padding a second face.
+            single = np.zeros(count, dtype=int)
+            centers = _mean_centers(values, single, 1)
+            result = _faces_from(texts, values, single, centers, 1)
             result["k_scores"] = _summaries(rows)
-            result["reason"] = f"forced 2-split via {method}; no 2-6 face split passes ({reasons})"
+            result["reason"] = f"no distinct second view ({reasons})"
             result["alternatives"] = []
-            result["forced"] = True
-            result["distinctness"] = round(distinctness_score(values, forced_labels), 3)
-            result["method"] = method
+            result["forced"] = False
+            result["distinctness"] = 0.0
+            result["method"] = "single_view"
+            result["single_view"] = True
             return result
         n_faces = int(chosen_row["k"])
     if len(texts) < n_faces:

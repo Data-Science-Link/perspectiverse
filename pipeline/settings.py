@@ -31,7 +31,7 @@ DEFAULTS: dict[str, Any] = {
     "window_hours": 168,
     "refresh_hours": 24,
     "sample_size": TARGET_POSTS,
-    "min_cluster_size": 8,
+    "min_cluster_size": 5,
     "embedding_model": "all-MiniLM-L6-v2",
     "cluster_backend": "embedding",
     "label_backend": "auto",
@@ -55,8 +55,8 @@ DEFAULTS: dict[str, Any] = {
     "section_budget_minutes": 20,
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
     # Phase 3 packs about 25 posts into one spam+claim request. It does not
-    # ask for a section. Off until a shadow test clears the quality bars.
-    # See scripts/jev_shadow_test.py. The planet-level section call is #90.
+    # ask for a section. The shadow test failed batched claims, so this stays
+    # false. See scripts/jev_shadow_test.py. The planet-level section call is #90.
     "jev_batch": False,
 }
 

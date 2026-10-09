@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import math
 import random
 import sys
+import threading
 import time
+from collections import defaultdict, deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -29,6 +32,7 @@ from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev, known_scored_uris
 from pipeline.cluster_math import salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
+from pipeline.language import partition_posts
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
@@ -54,6 +58,7 @@ from pipeline.schema import (
     CATEGORIES,
     MAX_FACES,
     MIN_FACES,
+    SINGLE_VIEW_NOTE,
     SYSTEM_SIZE,
     category_for_members,
     to_percents,
@@ -68,7 +73,7 @@ from pipeline.store import (
     replace_posts,
     write_clusters,
 )
-from pipeline.topics import cluster_texts
+from pipeline.topics import CANDIDATE_POOL, cluster_texts
 
 # Planets drafted at once when a network label backend is on (I/O bound).
 DEFAULT_LABEL_WORKERS = 8
@@ -158,15 +163,24 @@ def run_live(
             require_claims=source == "bluesky" and not relabel,
         )
         # Full set, from scratch. Yesterday's membership is deleted in write_clusters.
+        before_filter = len(planet_posts)
+        planet_posts, skipped_language, skipped_links = partition_posts(planet_posts)
+        if skipped_language or skipped_links:
+            print(
+                f"Skipped {skipped_language} non-English and {skipped_links} link-only "
+                f"claims before clustering ({before_filter} claims were eligible)."
+            )
+        if not planet_posts:
+            raise RuntimeError("No English claims left to cluster.")
         print(f"Reclustering {len(planet_posts)} posts from scratch.")
         texts = [post["clean_text"] for post in planet_posts]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
-        floor = max(int(settings["min_cluster_size"]), len(planet_posts) // 200)
-        # Ask for a few spare groups so a mixed planet can be dropped without
-        # leaving the solar system short of specific conversations.
-        pool = catalog_size
-        if str(settings["cluster_backend"]) == "embedding":
-            pool = min(20, catalog_size + 10)
+        # Fixed floor. The corpus size does not raise it, and the group count
+        # is not n // floor. Density clustering decides how many groups exist.
+        floor = max(2, int(settings["min_cluster_size"]))
+        # Rank every natural group. Labeling stops at catalog_size, so the
+        # extra candidates are not extra model calls.
+        pool = CANDIDATE_POOL
         started = time.monotonic()
         clustered = cluster_texts(
             texts,
@@ -557,10 +571,10 @@ def _label_faces(
 ) -> tuple[list[tuple[dict, list[tuple[str, int, float]], int]], int]:
     """Label each face of one split. Returns surviving drafts and how many were labeled.
 
-    A face that admits no shared claim is dropped; faces whose titles are the
-    same stance are merged. If that would leave fewer than two faces, the
-    pre-collapse faces are kept and alike titles get a distinguishing term
-    (issue #76). ``lock_floor`` skips that collapse entirely.
+    A face that admits no shared claim is dropped. That decision uses a spread
+    of the face, not the few posts closest to the centroid. Faces whose titles
+    are the same stance are merged. One remaining face is kept. ``lock_floor``
+    skips that drop.
     """
     backend = context["backend"]
     model = context["model"]
@@ -651,16 +665,10 @@ def _label_faces(
         representatives = _align_representatives(representatives, focus)
         summary = _without_ungrounded_tail(str(label.get("summary") or ""), representatives)
         label["summary"] = summary
-        if content_tokens(title) and (
-            not _claim_words_overlap(title, summary) or not _title_covers_posts(title, representatives)
-        ):
-            label = {
-                "title": "Mixed remarks",
-                "summary": "These posts do not share a claim.",
-                "label_source": "heuristic",
-            }
-            arguments = []
-        elif len(representatives) < 2 or not _posts_share_a_subject(representatives):
+        # Judge the face on a spread of its posts, not the few closest to the centroid.
+        sample = _claim_sample(face_posts, face_cosines)
+        shares = _posts_share_a_subject(sample)
+        if len(sample) >= 2 and not shares:
             label = {
                 "title": "Mixed remarks",
                 "summary": "These posts do not share a claim.",
@@ -668,6 +676,15 @@ def _label_faces(
             }
             arguments = []
             representatives = _align_representatives(representatives, label["title"])
+        elif _face_has_no_shared_claim(label) and shares:
+            renamed = topic_name(list(face.get("terms") or terms))
+            if renamed and _title_covers_posts(renamed, sample):
+                label = {
+                    "title": renamed,
+                    "summary": summary or f"These posts are about {renamed}.",
+                    "label_source": "heuristic",
+                }
+                arguments = []
         member_texts = [
             str(post.get("clean_text") or post.get("text") or "") for post in face_posts
         ]
@@ -696,11 +713,8 @@ def _label_faces(
     labeled = len(drafted)
     if lock_floor:
         return drafted[:MAX_FACES], labeled
-    snapshot = list(drafted)
     drafted = [item for item in drafted if not _face_has_no_shared_claim(item[0])]
     drafted = _merge_alike_drafts(drafted, limit)
-    if len(drafted) < MIN_FACES <= len(snapshot):
-        drafted = _keep_collapsed_faces(snapshot[:MAX_FACES])
     return drafted, labeled
 
 
@@ -712,6 +726,229 @@ def _restore_draft_face(face: dict, draft: dict) -> None:
         face["arguments"] = list(draft["arguments"])
     else:
         face.pop("arguments", None)
+
+
+def _draft_needs_priority_relabel(draft: dict) -> bool:
+    """Wide relabel first when the 12-post draft is thin or unshared."""
+    args = draft.get("arguments") or []
+    return _face_has_no_shared_claim(draft) or len(args) < 2
+
+
+def _should_apply_wide_label(draft: dict, wide: dict) -> bool:
+    """Never replace a named (non-Mixed) draft with a Mixed wide relabel."""
+    if not _face_has_no_shared_claim(wide):
+        return True
+    return _face_has_no_shared_claim(draft)
+
+
+class _FinalizeFaceJob:
+    """One wide 40-post relabel for a published face."""
+
+    __slots__ = (
+        "section",
+        "face",
+        "draft",
+        "face_posts",
+        "face_vectors",
+        "face_cosines",
+        "face_terms",
+        "context",
+        "limit",
+        "priority",
+    )
+
+    def __init__(
+        self,
+        *,
+        section: str,
+        face: dict,
+        draft: dict,
+        face_posts: list[dict],
+        face_vectors,
+        face_cosines: list[float],
+        face_terms: list[str],
+        context: dict,
+        limit: int,
+    ):
+        self.section = section
+        self.face = face
+        self.draft = draft
+        self.face_posts = face_posts
+        self.face_vectors = face_vectors
+        self.face_cosines = face_cosines
+        self.face_terms = face_terms
+        self.context = context
+        self.limit = limit
+        self.priority = 0 if _draft_needs_priority_relabel(draft) else 1
+
+
+def _collect_finalize_face_jobs(
+    topics: list[dict],
+    posts: list[dict],
+    clustered: dict,
+    context: dict,
+    *,
+    section: str,
+) -> list[_FinalizeFaceJob]:
+    post_by_uri = {str(post.get("uri") or ""): post for post in posts}
+    uri_to_row = {str(post.get("uri") or ""): index for index, post in enumerate(posts)}
+    matrix = clustered.get("matrix")
+    limit = int(context.get("limit") or 36)
+    jobs: list[_FinalizeFaceJob] = []
+    for topic in topics:
+        member_uris = list(topic.get("_member_uris") or [])
+        if not member_uris:
+            continue
+        row_indices = [uri_to_row[uri] for uri in member_uris if uri in uri_to_row]
+        member_matrix = matrix[row_indices] if matrix is not None and row_indices else None
+        for face in topic.get("perspectives") or []:
+            draft = face.get("_draft_face_label")
+            face_uris = list(face.get("_face_member_uris") or [])
+            if not draft or not face_uris:
+                continue
+            local_indices = []
+            face_posts = []
+            for uri in face_uris:
+                if uri not in post_by_uri or uri not in member_uris:
+                    continue
+                local_indices.append(member_uris.index(uri))
+                face_posts.append(post_by_uri[uri])
+            if not face_posts:
+                continue
+            face_vectors = member_matrix[local_indices] if member_matrix is not None else None
+            face_cosines = (
+                cosines_to_matrix_centroid(face_vectors)
+                if face_vectors is not None
+                else [0.0] * len(face_posts)
+            )
+            face_terms = list(face.get("top_terms") or [])
+            jobs.append(
+                _FinalizeFaceJob(
+                    section=section,
+                    face=face,
+                    draft=dict(draft),
+                    face_posts=face_posts,
+                    face_vectors=face_vectors,
+                    face_cosines=face_cosines,
+                    face_terms=face_terms,
+                    context=context,
+                    limit=limit,
+                )
+            )
+    return jobs
+
+
+def _fair_finalize_order(jobs: list[_FinalizeFaceJob]) -> list[_FinalizeFaceJob]:
+    """Priority relabels first; within each tier, round-robin sections fairly."""
+    ordered: list[_FinalizeFaceJob] = []
+    for priority in (0, 1):
+        tier = [job for job in jobs if job.priority == priority]
+        by_section: dict[str, deque[_FinalizeFaceJob]] = defaultdict(deque)
+        for job in sorted(tier, key=lambda item: (item.section, str(item.face.get("id") or ""))):
+            by_section[job.section].append(job)
+        sections = sorted(by_section)
+        while any(by_section[name] for name in sections):
+            for name in sections:
+                if by_section[name]:
+                    ordered.append(by_section[name].popleft())
+    return ordered
+
+
+def _apply_wide_label_to_face(face: dict, draft: dict, wide: dict) -> None:
+    if not _should_apply_wide_label(draft, wide):
+        return
+    face["title"] = wide["title"]
+    face["summary"] = wide["summary"]
+    face["representative_posts"] = wide["representative_posts"]
+    if wide.get("arguments"):
+        face["arguments"] = wide["arguments"]
+    else:
+        face.pop("arguments", None)
+
+
+def _run_one_finalize_job(job: _FinalizeFaceJob) -> dict | None:
+    return _wide_label_face_from_posts(
+        job.face_posts,
+        job.face_vectors,
+        job.face_cosines,
+        job.face_terms,
+        job.context,
+        limit=job.limit,
+    )
+
+
+def _bump_finalize_calls(context: dict) -> None:
+    calls = context.setdefault("story_calls", {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0})
+    lock = context.setdefault("_finalize_lock", threading.Lock())
+    with lock:
+        calls["finalize_faces"] = int(calls.get("finalize_faces") or 0) + 1
+        calls["faces"] = int(calls.get("faces") or 0) + 1
+
+
+def _run_finalize_faces_parallel(
+    jobs: list[_FinalizeFaceJob],
+    workers: int,
+    deadline: float | None,
+    *,
+    scope: str,
+) -> set[str]:
+    """Run wide relabels with a bounded pool. Returns sections with queued calls left."""
+    if not jobs:
+        return set()
+    workers = max(1, int(workers))
+    order = _fair_finalize_order(jobs)
+    started = time.monotonic()
+    completed_calls = 0
+    incomplete: set[str] = set()
+    print(f"Wide face relabel: {len(order)} call(s) queued, {workers} in flight ({scope}).")
+    executor = ThreadPoolExecutor(max_workers=workers)
+    inflight: dict = {}
+    cursor = 0
+    budget_exhausted = False
+    last_finish_at: float | None = None
+    try:
+        while cursor < len(order) or inflight:
+            while not budget_exhausted and cursor < len(order) and len(inflight) < workers:
+                if deadline is not None and time.monotonic() >= deadline:
+                    budget_exhausted = True
+                    break
+                job = order[cursor]
+                cursor += 1
+                future = executor.submit(_run_one_finalize_job, job)
+                inflight[future] = job
+            if not inflight:
+                break
+            done, _pending = wait(set(inflight), return_when=FIRST_COMPLETED)
+            for future in done:
+                job = inflight.pop(future)
+                try:
+                    wide = future.result()
+                except Exception as exc:  # noqa: BLE001 - keep draft label on failure
+                    print(f"Wide face relabel failed ({type(exc).__name__}); keeping draft label.")
+                    continue
+                completed_calls += 1
+                last_finish_at = time.monotonic()
+                _bump_finalize_calls(job.context)
+                _apply_wide_label_to_face(job.face, job.draft, wide)
+        if budget_exhausted:
+            for job in order[cursor:]:
+                incomplete.add(job.section)
+    finally:
+        executor.shutdown(wait=True)
+    elapsed = time.monotonic() - started
+    if budget_exhausted and deadline is not None and last_finish_at is not None:
+        past = last_finish_at - deadline
+        if past > 0:
+            print(f"Wide face relabel: last in-flight call finished {past:.1f}s past the section deadline.")
+    if incomplete:
+        sections = ", ".join(sorted(incomplete))
+        print(
+            f"Wide face relabel: {completed_calls} call(s) in {elapsed:.1f}s; "
+            f"time budget spent before finishing {sections}."
+        )
+    else:
+        print(f"Wide face relabel: {completed_calls} call(s) in {elapsed:.1f}s.")
+    return incomplete
 
 
 def _wide_label_face_from_posts(
@@ -816,105 +1053,43 @@ def _finalize_published_planets(
     context: dict,
     *,
     deadline: float | None = None,
-) -> None:
+) -> set[str]:
     """Wide 40-post relabel for catalog planets only (after slot selection)."""
+    section = str(context.get("section") or "All topics")
     if context.get("chosen") == "heuristic" or not topics:
         _strip_internal_planet_fields(topics)
-        return
-    post_by_uri = {str(post.get("uri") or ""): post for post in posts}
-    uri_to_row = {str(post.get("uri") or ""): index for index, post in enumerate(posts)}
-    matrix = clustered.get("matrix")
-    limit = int(context.get("limit") or 36)
-    calls = context.setdefault("story_calls", {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0})
-    stopped = False
-    for topic in topics:
-        member_uris = list(topic.get("_member_uris") or [])
-        if not member_uris:
-            continue
-        members = [post_by_uri[uri] for uri in member_uris if uri in post_by_uri]
-        row_indices = [uri_to_row[uri] for uri in member_uris if uri in uri_to_row]
-        member_matrix = matrix[row_indices] if matrix is not None and row_indices else None
-        for face in topic.get("perspectives") or []:
-            if stopped:
-                break
-            if deadline is not None and time.monotonic() >= deadline:
-                print("Wide face relabel stopped: time budget spent.")
-                stopped = True
-                break
-            draft = face.get("_draft_face_label")
-            face_uris = list(face.get("_face_member_uris") or [])
-            if not draft or not face_uris:
-                continue
-            local_indices = []
-            face_posts = []
-            for uri in face_uris:
-                if uri not in post_by_uri or uri not in member_uris:
-                    continue
-                local_indices.append(member_uris.index(uri))
-                face_posts.append(post_by_uri[uri])
-            if not face_posts:
-                continue
-            face_vectors = member_matrix[local_indices] if member_matrix is not None else None
-            face_cosines = (
-                cosines_to_matrix_centroid(face_vectors)
-                if face_vectors is not None
-                else [0.0] * len(face_posts)
-            )
-            face_terms = list(face.get("top_terms") or [])
-            try:
-                wide = _wide_label_face_from_posts(
-                    face_posts,
-                    face_vectors,
-                    face_cosines,
-                    face_terms,
-                    context,
-                    limit=limit,
-                )
-            except Exception as exc:  # noqa: BLE001 - keep draft label on failure
-                print(f"Wide face relabel failed ({type(exc).__name__}); keeping draft label.")
-                continue
-            calls["finalize_faces"] = int(calls.get("finalize_faces") or 0) + 1
-            calls["faces"] = int(calls.get("faces") or 0) + 1
-            if _face_has_no_shared_claim(wide) and not _face_has_no_shared_claim(draft):
-                continue
-            face["title"] = wide["title"]
-            face["summary"] = wide["summary"]
-            face["representative_posts"] = wide["representative_posts"]
-            if wide.get("arguments"):
-                face["arguments"] = wide["arguments"]
-            else:
-                face.pop("arguments", None)
+        return set()
+    jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
+    workers = _section_pool_size(context)
+    incomplete = _run_finalize_faces_parallel(jobs, workers, deadline, scope=section)
     _strip_internal_planet_fields(topics)
+    return incomplete
 
 
-def _keep_collapsed_faces(
-    drafted: list[tuple[dict, list[tuple[str, int, float]], int]],
-) -> list[tuple[dict, list[tuple[str, int, float]], int]]:
-    """Keep a collapsed planet's faces and make alike titles readable."""
-    for index, (perspective, _rows, _size) in enumerate(drafted):
-        title = str(perspective.get("title") or "")
-        clash = any(
-            other != index and titles_alike(title, drafted[other][0].get("title"))
-            for other in range(len(drafted))
+def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: float | None) -> set[str]:
+    """One shared pool for every section's wide relabel after all drafts finish."""
+    if not jobs:
+        return set()
+    if jobs[0].context.get("chosen") == "heuristic":
+        for job in jobs:
+            _strip_internal_planet_fields(job.built)
+        return set()
+    face_jobs: list[_FinalizeFaceJob] = []
+    for job in jobs:
+        section = job.name
+        face_jobs.extend(
+            _collect_finalize_face_jobs(job.built, job.posts, job.clustered, job.context, section=section)
         )
-        if not clash:
-            continue
-        used = {
-            str(drafted[other][0].get("title") or "").lower()
-            for other in range(len(drafted))
-            if other != index
-        }
-        extra = next(
-            (
-                term
-                for term in perspective.get("top_terms") or []
-                if term.lower() not in title.lower() and term.lower() not in " ".join(used)
-            ),
-            "",
-        )
-        if extra:
-            perspective["title"] = f"{title} ({extra})"
-    return drafted
+    workers = _section_pool_size(jobs[0].context)
+    incomplete = _run_finalize_faces_parallel(
+        face_jobs,
+        workers,
+        deadline,
+        scope=f"{len(jobs)} section(s)",
+    )
+    for job in jobs:
+        _strip_internal_planet_fields(job.built)
+    return incomplete
 
 
 def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict) -> tuple[dict | None, list[str]]:
@@ -922,11 +1097,10 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
 
     Only this planet's posts are touched, so drafts can run in parallel.
     The face count is the best fit in 2..6 (``split_perspectives``). If no
-    count passes, the split is already a forced 2-way cut. If the labels
-    collapse that split below MIN_FACES, the next passing count is tried
-    once; after that the pre-collapse faces are kept, or a fresh 2-way cut
-    is labeled and locked. The planet is not dropped for having one face
-    (#76, supersedes the drop in #53). When the faces are different stories
+    count passes, the planet is one perspective and carries
+    ``opposing_note``. A second face is not forced. A "Mixed remarks" face
+    is dropped; if one real face remains, the planet is still published. The
+    planet is not dropped for having one face. When the faces are different stories
     (no specific shared subject word), the candidate is split into one
     planet per story and each story goes through this same split (#78).
     A planet, or a story inside one, with fewer than ``min_planet_posts``
@@ -954,8 +1128,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         member_matrix = matrix[topic["member_indices"]]
     terms = list(topic["terms"])
     split = split_perspectives(member_texts, seed=context["seed"], matrix=member_matrix)
-    if len(split["faces"]) < MIN_FACES:
-        log.append(f"Dropping {topic_name(terms)}: {split.get('reason') or 'no two faces'}.")
+    if not split["faces"]:
+        log.append(f"Dropping {topic_name(terms)}: {split.get('reason') or 'no faces'}.")
         return _emit_draft(context, None, log, split=False, detection_faces=0)
     attempts = [split, *(split.get("alternatives") or [])[:_FACE_RETRIES]]
     drafted: list = []
@@ -966,38 +1140,12 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         context["story_calls"]["faces"] += int(labeled)
         tried.append(f"k={attempt.get('k', len(attempt['faces']))}: {len(drafted)} of {labeled}")
         chosen_split = attempt
-        if len(drafted) >= MIN_FACES:
+        if drafted:
             break
-    if len(drafted) < MIN_FACES and len(members) >= 2:
-        forced_matrix = member_matrix
-        if forced_matrix is None:
-            try:
-                forced_matrix = vectorize(member_texts)
-            except ValueError:
-                forced_matrix = None
-        if forced_matrix is not None:
-            from pipeline.grouping import force_two_labels
-            from pipeline.perspectives import _faces_from, _mean_centers
-
-            forced_labels, method = force_two_labels(member_texts, forced_matrix, seed=context["seed"])
-            chosen_split = _faces_from(
-                member_texts,
-                forced_matrix,
-                forced_labels,
-                _mean_centers(forced_matrix, forced_labels, 2),
-                2,
-            )
-            chosen_split["forced"] = True
-            chosen_split["method"] = method
-            drafted, labeled = _label_faces(
-                members, chosen_split, terms, context, member_matrix=member_matrix, lock_floor=True
-            )
-            context["story_calls"]["faces"] += int(labeled)
-            tried.append(f"forced {method}: {len(drafted)} of {labeled}")
-    if len(drafted) < MIN_FACES:
+    if not drafted:
         log.append(
-            f"Dropping {topic_name(terms)}: too few faces kept a distinct shared claim "
-            f"({'; '.join(tried)}; need {MIN_FACES})."
+            f"Dropping {topic_name(terms)}: no face kept a shared claim "
+            f"({'; '.join(tried)})."
         )
         return _emit_draft(
             context,
@@ -1008,7 +1156,7 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         )
     drafted = drafted[:MAX_FACES]
     perspectives = [item[0] for item in drafted]
-    if not specific_shared_words(perspectives):
+    if len(perspectives) >= 2 and not specific_shared_words(perspectives):
         if depth < _STORY_SPLIT_LIMIT:
             detection_faces = int(context["story_calls"]["faces"])
             handled, split_result, split_log = _split_different_stories(
@@ -1108,6 +1256,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         "perspectives": perspectives,
         "_member_uris": [str(post.get("uri") or "") for post in members],
     }
+    if len(perspectives) == 1:
+        planet_out["opposing_note"] = SINGLE_VIEW_NOTE
     apply_level_summaries(planet_out, generate=context["summary_model"])
     if context.get("summary_model") is not None and perspectives:
         context["story_calls"]["briefs"] += len(perspectives) + 1
@@ -1458,10 +1608,11 @@ def _build_topics(
 
 
 def _publishable_planets(topics: list[dict]) -> list[dict]:
-    """Last guard before validation: a planet outside 2..6 faces is dropped and logged.
+    """Last guard before validation: a planet outside 1..6 faces is dropped and logged.
 
-    Drafting already enforces this. If a later step ever breaks it, one planet
-    is lost instead of the whole snapshot. ``validate_payload`` stays strict.
+    One perspective is allowed. Drafting already enforces the ceiling. If a
+    later step ever breaks it, one planet is lost instead of the whole snapshot.
+    ``validate_payload`` stays strict.
     """
     kept = []
     for topic in topics:
@@ -1630,11 +1781,13 @@ def _finish_section_planets(
     context: dict,
     *,
     deadline: float | None = None,
+    finalize: bool = True,
 ) -> list[dict]:
     """Same last guards as the global catalog: drop collapses, renumber, volumes."""
-    built = _drop_unshared_planets(built)
-    built = _publishable_planets(built)
-    _finalize_published_planets(built, posts, clustered, context, deadline=deadline)
+    if finalize:
+        built = _drop_unshared_planets(built)
+        built = _publishable_planets(built)
+        _finalize_published_planets(built, posts, clustered, context, deadline=deadline)
     publish_volumes(built)
     topics, _membership, _faces = _renumber_planets(built, [], [])
     return topics
@@ -1682,9 +1835,9 @@ def _cluster_sections(
 
     for section in order:
         indices = section_indices[section]
-        # Scale the floor to the section size; smaller sections get a lower bar
-        # than the global floor so they can still form tight groups.
-        section_floor = max(base_min, len(indices) // 200)
+        # Same fixed floor as the global catalog. A small section is not given
+        # a formula that grows with its post count.
+        section_floor = max(2, int(floor) if floor else base_min)
         if len(indices) < section_floor:
             print(f"Section {section}: {len(indices)} posts, skipping (need {section_floor}).")
             continue
@@ -1694,7 +1847,7 @@ def _cluster_sections(
         sub_matrix = matrix[indices]
 
         try:
-            pool = min(20, catalog_size + 10)
+            pool = CANDIDATE_POOL
             section_clustered = cluster_texts(
                 section_texts,
                 min_cluster_size=section_floor,
@@ -1709,7 +1862,7 @@ def _cluster_sections(
             print(f"Section {section}: skipped ({type(exc).__name__}: {exc}).")
             continue
         if not section_clustered.get("topics"):
-            print(f"Section {section}: no planet with two distinct faces from {len(indices)} posts.")
+            print(f"Section {section}: no natural group from {len(indices)} posts.")
             continue
         jobs.append(
             _SectionLabelJob(
@@ -1723,6 +1876,12 @@ def _cluster_sections(
         )
 
     _label_section_jobs(jobs, _section_pool_size(context), deadline)
+    active_jobs = [job for job in jobs if not job.skipped_budget]
+    for job in active_jobs:
+        job.built = _drop_unshared_planets(job.built)
+        job.built = _publishable_planets(job.built)
+    if active_jobs:
+        _finalize_section_planets_batch(active_jobs, deadline)
     for job in jobs:
         if job.skipped_budget:
             continue
@@ -1732,6 +1891,7 @@ def _cluster_sections(
             job.clustered,
             job.context,
             deadline=deadline,
+            finalize=False,
         )
         if topics:
             result[job.name] = topics
@@ -1739,7 +1899,7 @@ def _cluster_sections(
         elif job.budget_hit:
             print(f"Section {job.name}: stopped, the section time budget is spent.")
         else:
-            print(f"Section {job.name}: no planet with two distinct faces from {job.post_count} posts.")
+            print(f"Section {job.name}: no publishable planet from {job.post_count} posts.")
 
     return {name: result[name] for name in CATEGORIES if name in result}
 
@@ -1826,30 +1986,62 @@ def _without_ungrounded_tail(summary: str, posts: list[dict]) -> str:
     return text
 
 
+def _claim_sample(posts: list[dict], scores: list[float] | None, limit: int = 40) -> list[dict]:
+    """A spread of the face, not only the posts closest to the centroid.
+
+    The closest posts are often the same sentence. Evenly stepping through the
+    ranked list lets a shared claim show up when it is not in the top five.
+    """
+    count = len(posts)
+    if count <= limit:
+        return list(posts)
+    ranked = sorted(
+        range(count),
+        key=lambda index: (
+            -(float(scores[index]) if scores is not None and index < len(scores) else 0.0),
+            index,
+        ),
+    )
+    if limit <= 1:
+        return [posts[ranked[0]]]
+    chosen: list[int] = []
+    seen: set[int] = set()
+    for step in range(limit):
+        index = ranked[round(step * (count - 1) / (limit - 1))]
+        if index in seen:
+            continue
+        seen.add(index)
+        chosen.append(index)
+    return [posts[index] for index in chosen]
+
+
+def _coverage_needed(count: int) -> int:
+    """At least two posts, and about 40% of the sample."""
+    return max(2, math.ceil(0.40 * count - 1e-9))
+
+
 def _title_covers_posts(title: str, posts: list[dict]) -> bool:
-    """True when the claim is what most of the shown posts are about."""
+    """True when the claim's words show up in about 40% of the sample."""
     title_stems = {subject_stem(token) for token in content_tokens(title)}
     title_stems = {stem for stem in title_stems if len(stem) >= 3}
-    shown = posts[:6]
-    if len(shown) < 2 or not title_stems:
+    if len(posts) < 2 or not title_stems:
         return True
     hits = 0
-    for post in shown:
+    for post in posts:
         text = str(post.get("text") or post.get("clean_text") or "")
         stems = {subject_stem(token) for token in content_tokens(text)}
         if title_stems & stems:
             hits += 1
-    return hits >= 2 and hits * 2 >= len(shown)
-
-
-def _word_bags_overlap(left: set[str], right: set[str]) -> bool:
-    stemmed_left = {subject_stem(token) for token in left}
-    stemmed_right = {subject_stem(token) for token in right}
-    return bool(stemmed_left & stemmed_right)
+    return hits >= _coverage_needed(len(posts))
 
 
 def _posts_share_a_subject(posts: list[dict]) -> bool:
-    """False when the shown posts are a grab bag rather than one claim."""
+    """False when no content stem shows up in about 40% of the sample.
+
+    The sample is the whole list the caller passed (a spread of the face, not
+    the first five posts). A grab bag fails. A face that repeats one claim
+    passes even when the closest posts use different wording.
+    """
     glue = {
         "actually",
         "think",
@@ -1871,23 +2063,23 @@ def _posts_share_a_subject(posts: list[dict]) -> bool:
         "really",
         "something",
     }
-    bags = []
-    for post in posts[:5]:
+    if len(posts) < 2:
+        return True
+    counts: dict[str, int] = {}
+    for post in posts:
         text = str(post.get("text") or post.get("clean_text") or "")
-        bags.append({token for token in content_tokens(text) if token not in glue})
-    if len(bags) == 2:
-        return _word_bags_overlap(bags[0], bags[1])
-    if len(bags) < 2:
-        return True
-    pairs = hits = 0
-    for index, left in enumerate(bags):
-        for right in bags[index + 1 :]:
-            pairs += 1
-            if _word_bags_overlap(left, right):
-                hits += 1
-    if pairs == 0:
-        return True
-    return hits > 0
+        stems = {
+            subject_stem(token)
+            for token in content_tokens(text)
+            if token not in glue and len(token) >= 4
+        }
+        for stem in stems:
+            if len(stem) < 3:
+                continue
+            counts[stem] = counts.get(stem, 0) + 1
+    if not counts:
+        return False
+    return max(counts.values()) >= _coverage_needed(len(posts))
 
 
 def _align_representatives(posts: list[dict], focus: str) -> list[dict]:
@@ -1970,27 +2162,18 @@ def _face_distinctness(matrix, members: list[dict], texts: list[str], drafted: l
 
 
 def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
-    """Remove a face with no shared claim, without deleting the planet for it.
+    """Remove a face with no shared claim. One real face still publishes.
 
-    If removing those faces would leave fewer than two, the planet is kept
-    as it was (#76). Different stories are not dropped here: drafting splits
-    them into separate planets before this guard (#78). A planet that arrived
-    already outside 2–6 faces is still dropped here; drafting is what stops
-    that from happening. If two or more faces remain, their volumes are
-    recomputed so they still sum to 100.
+    A "Mixed remarks" leftover is not kept to pad the planet to two views.
+    One remaining face gets ``opposing_note``. A planet with no face left is
+    dropped so the next ranked candidate can fill the catalog. Different
+    stories are split before this guard. More than six faces is still dropped.
     """
     kept = []
     for topic in topics:
         original = list(topic.get("perspectives") or [])
         faces = [face for face in original if not _face_has_no_shared_claim(face)]
-        if not MIN_FACES <= len(faces) <= MAX_FACES:
-            if MIN_FACES <= len(original) <= MAX_FACES:
-                print(
-                    f"Keeping {topic.get('name')}: filtering unshared claims would leave "
-                    f"{len(faces)} faces."
-                )
-                kept.append(topic)
-                continue
+        if not faces or len(faces) > MAX_FACES:
             print(
                 f"Dropping {topic.get('name')}: {len(faces)} faces left after "
                 f"removing unshared claims (need {MIN_FACES}-{MAX_FACES})."
@@ -2005,6 +2188,10 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
             for face, volume in zip(faces, to_percents(counts)):
                 face["volume_percent"] = volume
         topic["perspectives"] = faces
+        if len(faces) == 1:
+            topic["opposing_note"] = SINGLE_VIEW_NOTE
+        else:
+            topic.pop("opposing_note", None)
         kept.append(topic)
     return kept
 

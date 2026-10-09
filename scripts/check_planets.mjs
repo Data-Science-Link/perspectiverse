@@ -43,8 +43,9 @@ assert.equal(
   '/perspectiverse/?page=about',
 )
 
-assert.equal(clampFaceCount(1), 2)
+assert.equal(clampFaceCount(1), 1)
 assert.equal(clampFaceCount(9), 6)
+assert.equal(shapeName(1), 'Point')
 assert.equal(shapeName(2), 'Diamond')
 assert.equal(shapeName(4), 'Tetrahedron')
 assert.equal(shapeName(5), 'Pyramid')

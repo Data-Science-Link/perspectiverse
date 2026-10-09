@@ -6,8 +6,10 @@ question stays until #90 picks a section once per planet. Answers are
 cached on the retained corpus for 14 days, including non-claims and spam,
 so a URI is not scored twice inside that window. A free pre-filter drops
 posts Jev is very unlikely to keep. Batching many posts into one request
-is implemented and left off (``jev_batch``). That request asks spam and
-claim only. It does not send the section question or ``SECTION_CRITERIA``.
+is implemented and left off (``jev_batch`` defaults false). The shadow
+test failed batched claims, so the live path stays one post per request.
+That request asks spam and claim only. It does not send the section
+question or ``SECTION_CRITERIA``.
 
 A missing key, a rejected key, or a failed call keeps the post and leaves
 the section blank so the keyword map can still label the planet.
@@ -38,7 +40,7 @@ DEFAULT_MODEL = "jev-latest"
 SPAM_THRESHOLD = 0.8
 CLAIM_THRESHOLD = 0.5
 _WORKERS = 8
-# Phase 3. Off unless jev_batch is set. About 25 posts share one spam+claim request.
+# Phase 3. Off: the shadow test failed batched claims. About 25 posts share one spam+claim request.
 BATCH_SIZE = 25
 CLAIM_TRUE = "A position about an event, policy, institution, or public issue"
 CLAIM_FALSE = "Personal status, a joke, fandom aside, small talk, or promo"
