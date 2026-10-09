@@ -53,6 +53,18 @@ DEFAULTS: dict[str, Any] = {
     # Minutes the section solar systems may spend after the global system.
     # 0 skips sections. None (omit the key) uses this default.
     "section_budget_minutes": 20,
+    # cluster_once: one density pass over all posts. Each planet is listed in
+    # the section Jev picks from its summary and arguments (both sections when
+    # the top two are close). Labels are written once and reused. A section
+    # that publishes fewer than catalog_size planets is clustered on its own
+    # to fill the rest. per_section clusters every section again.
+    "section_grouping": "cluster_once",
+    # jev: one section call per labeled planet. majority: the section that
+    # holds the most of the planet's posts (both when the top two are each
+    # at least 35%). jev falls back to majority when the key is missing or
+    # the call fails. The #90 shadow passed 90% overall; Culture is reported
+    # on its own because that section was the weak one.
+    "section_assignment": "jev",
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
 }
 

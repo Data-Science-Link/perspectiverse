@@ -153,36 +153,165 @@ def _classify_post(post: dict) -> dict | None:
     }
 
 
+# A second section is listed when Jev treats it as a real alternative.
+# Both probabilities must clear this floor, and the gap must be no wider than
+# CLOSE_SECTION_GAP. This is the planet-level form of "the top two are close".
+CLOSE_SECTION_PROBABILITY = 0.35
+CLOSE_SECTION_GAP = 0.15
+# Shadow bar from the #87 / #90 decision: planet section vs the majority of
+# today's per-post sections.
+SECTION_AGREEMENT_BAR = 0.90
+
+
+def _section_question() -> dict:
+    return {
+        "type": "choice",
+        "instructions": "Which newspaper section is this post's primary subject?",
+        "criteria": SECTION_CRITERIA,
+    }
+
+
+def _planet_section_question() -> dict:
+    """Planet-level section question.
+
+    The 102-planet shadow (issue #90) agreed 91.2% overall and 50% on Culture:
+    commentary about entertainment, media, and celebrity was sent to Other.
+    The per-post question is unchanged. This nudge applies only when Jev
+    classifies a planet.
+    """
+    criteria = dict(SECTION_CRITERIA)
+    criteria["Culture"] = (
+        "Arts, entertainment, media, celebrity, creators, and commentary about them, "
+        "including a specific creator, show, clip, or dress code"
+    )
+    criteria["Other"] = (
+        "None of the named sections is the primary subject. "
+        "Not a fallback for culture, entertainment, media, or celebrity commentary"
+    )
+    return {
+        "type": "choice",
+        "instructions": (
+            "Which newspaper section is this planet's primary subject? "
+            "Arts, entertainment, media, celebrity, and creator commentary belong in Culture, not Other."
+        ),
+        "criteria": criteria,
+    }
+
+
+def _post_questions() -> dict:
+    return {
+        "spam": {
+            "type": "noul",
+            "instructions": "Is this post promotional, a bot, engagement bait, or spam rather than a real remark?",
+            "criteria": {
+                "true": "Promo, bot, giveaway, follow-bait, or an advertisement",
+                "false": "A person saying something, including a messy or informal remark",
+            },
+        },
+        "section": _section_question(),
+        "claim": {
+            "type": "noul",
+            "instructions": (
+                "Is this a public claim: a position on an event, policy, institution, or shared issue?"
+            ),
+            "criteria": {
+                "true": "A position about an event, policy, institution, or public issue",
+                "false": "Personal status, a joke, fandom aside, small talk, or promo",
+            },
+        },
+    }
+
+
+def planet_section_state(planet: dict) -> str:
+    """The summary and arguments Jev reads when it picks a planet's section."""
+    lines = [f"Planet: {planet.get('name') or 'Untitled'}"]
+    brief = str(planet.get("brief") or planet.get("summary") or "").strip()
+    if brief:
+        lines.append(brief)
+    for face in planet.get("perspectives") or []:
+        title = str(face.get("title") or "").strip()
+        summary = str(face.get("summary") or "").strip()
+        lines.append(f"Perspective: {title}")
+        if summary and summary != title:
+            lines.append(summary)
+        for argument in (face.get("arguments") or [])[:4]:
+            text = str(argument).strip()
+            if text:
+                lines.append(f"- {text}")
+    return "\n".join(lines)[:4000]
+
+
+def sections_from_choice(choice: str, probabilities: dict | None) -> list[str]:
+    """Primary section, plus a second when the top two probabilities are close."""
+    probs: dict[str, float] = {}
+    if isinstance(probabilities, dict):
+        for name, value in probabilities.items():
+            if str(name) not in CATEGORIES:
+                continue
+            try:
+                probs[str(name)] = float(value)
+            except (TypeError, ValueError):
+                continue
+    if choice in CATEGORIES and not probs:
+        probs[choice] = 1.0
+    if not probs:
+        return []
+    ranked = sorted(probs.items(), key=lambda item: (-item[1], CATEGORIES.index(item[0])))
+    chosen = [ranked[0][0]]
+    if len(ranked) > 1:
+        top = ranked[0][1]
+        second = ranked[1][1]
+        if second >= CLOSE_SECTION_PROBABILITY and (top - second) <= CLOSE_SECTION_GAP:
+            chosen.append(ranked[1][0])
+    return chosen
+
+
+def classify_planet_section(state: str) -> dict | None:
+    """One section choice for an already-labeled planet. None when Jev is off or the call fails."""
+    if _disabled_reason or not _api_key():
+        return None
+    text = str(state or "").strip()[:4000]
+    if not text:
+        return None
+    try:
+        payload = _post_questions_body(text, {"section": _planet_section_question()})
+    except (RuntimeError, json.JSONDecodeError, KeyError, TypeError):
+        return None
+    answers = payload.get("answers") if isinstance(payload, dict) else None
+    if not isinstance(answers, dict):
+        return None
+    section = answers.get("section") or {}
+    choice = str(section.get("choice") or "")
+    raw_probs = section.get("probabilities") if isinstance(section.get("probabilities"), dict) else {}
+    chosen = sections_from_choice(choice, raw_probs)
+    if not chosen:
+        return None
+    return {
+        "sections": chosen,
+        "primary": chosen[0],
+        "probabilities": {name: float(raw_probs[name]) for name in raw_probs if name in CATEGORIES and _is_float(raw_probs[name])},
+        "model": str(payload.get("model") or ""),
+    }
+
+
+def _is_float(value: object) -> bool:
+    try:
+        float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 def _post_systemone(text: str) -> dict:
+    return _post_questions_body(text, _post_questions())
+
+
+def _post_questions_body(text: str, questions: dict) -> dict:
     body = json.dumps(
         {
             "state": text,
             "model": _model(),
-            "questions": {
-                "spam": {
-                    "type": "noul",
-                    "instructions": "Is this post promotional, a bot, engagement bait, or spam rather than a real remark?",
-                    "criteria": {
-                        "true": "Promo, bot, giveaway, follow-bait, or an advertisement",
-                        "false": "A person saying something, including a messy or informal remark",
-                    },
-                },
-                "section": {
-                    "type": "choice",
-                    "instructions": "Which newspaper section is this post's primary subject?",
-                    "criteria": SECTION_CRITERIA,
-                },
-                "claim": {
-                    "type": "noul",
-                    "instructions": (
-                        "Is this a public claim: a position on an event, policy, institution, or shared issue?"
-                    ),
-                    "criteria": {
-                        "true": "A position about an event, policy, institution, or public issue",
-                        "false": "Personal status, a joke, fandom aside, small talk, or promo",
-                    },
-                },
-            },
+            "questions": questions,
         }
     ).encode("utf-8")
     headers = {

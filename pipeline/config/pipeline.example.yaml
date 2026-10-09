@@ -36,6 +36,17 @@ label_workers: 8
 # built. 0 skips sections. Omitting the key uses the default (20). Sections
 # past the ceiling are skipped (logged) so the snapshot publishes.
 section_budget_minutes: 20
+# cluster_once: one density pass. Each planet is listed in the section Jev
+# picks from its summary and arguments, and in a second section when Jev's
+# top two are close. Labels are written once and reused in the global list
+# and every section list. A section with fewer than catalog_size published
+# planets is clustered on its own to fill the gaps.
+# per_section: cluster each section again and label those planets separately.
+section_grouping: cluster_once
+# jev asks one section question per labeled planet. majority uses the section
+# with the most member posts (both sections at or above 35%). A missing key
+# or a failed call uses majority for that planet.
+section_assignment: jev
 
 representative_posts: 36
 # MMR cap for face labeling prompts (title, summary, arguments).
