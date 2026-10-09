@@ -6,10 +6,11 @@ window_hours: 168
 refresh_hours: 24
 sample_size: 10000
 
-# Floor for a small window. The live job raises this with the claim count
-# (max of this value and claims // 200, about 50 at 10,000 claims). Groups
-# under the floor stay unlabeled. catalog_size is a ceiling, not a quota.
-min_cluster_size: 8
+# Smallest group that can be a planet. Tuned on the 10K corpus: 5 puts most
+# posts that sit near a center into a group; 8 leaves just under half. The
+# live job does not raise this with the claim count. Groups under the floor
+# stay unlabeled. catalog_size is a ceiling, not a quota.
+min_cluster_size: 5
 
 # embedding: local MiniLM via fastembed, no torch. lexical: TF-IDF for tests.
 # bertopic: all-MiniLM-L6-v2 when that extra stack is installed.

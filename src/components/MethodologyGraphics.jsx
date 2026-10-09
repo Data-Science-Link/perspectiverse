@@ -18,7 +18,7 @@ export function OverviewGraphic() {
         <title id="overview-graphic-title">From Bluesky posts through Jev filters to planets and perspectives</title>
         <desc id="overview-graphic-desc">
           A week of English Bluesky posts passes spam, public-claim, and section filters, clusters into up to
-          ten planets, splits into two to six perspectives by prevalence, then loads in the observatory.
+          ten planets, splits into one to six perspectives by prevalence, then loads in the observatory.
         </desc>
         <rect x="12" y="10" width="296" height="64" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
         <text x="28" y="36" fill="#efeef7" fontSize="14" fontFamily="Instrument Sans, Segoe UI, sans-serif">Bluesky · 7-day English window</text>
@@ -47,7 +47,7 @@ export function OverviewGraphic() {
         <circle cx="82" cy="324" r="10" fill="#4aa3e6" />
         <text x="108" y="308" fill="#efeef7" fontSize="14" fontFamily="Instrument Sans, Segoe UI, sans-serif">Planets = topics</text>
         <text x="108" y="328" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Size = attention share</text>
-        <text x="108" y="344" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">2–6 perspectives · bars by prevalence</text>
+        <text x="108" y="344" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">1–6 perspectives · bars by prevalence</text>
 
         <path d="M160 354 v18" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
         <path d="M154 366 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
@@ -93,7 +93,7 @@ const STAGES = [
         detail: 'The largest tight groups become the solar system, and the job stops at ten. Size is share of kept posts, not importance.',
       },
       {
-        name: '2–6 perspectives',
+        name: '1–6 perspectives',
         detail: 'One stance stays one perspective. Another is added only when it is large and different. Bar length is that view’s share of the planet.',
       },
     ],
@@ -138,7 +138,7 @@ export function TechnicalMapGraphic() {
         <title id="tech-map-title">Detailed path from Bluesky through the daily job to the static observatory</title>
         <desc id="tech-map-desc">
           Bluesky search feeds a GitHub Actions job that cleans posts, clusters up to ten planets
-          and two to six perspectives, labels them, and writes data.json. GitHub Pages serves a
+          and one to six perspectives, labels them, and writes data.json. GitHub Pages serves a
           React and Three.js observatory that only fetches that file.
         </desc>
         <text x="160" y="22" textAnchor="middle" fill="#f4c14e" fontSize="11" letterSpacing="2" fontFamily="Instrument Sans, Segoe UI, sans-serif">OUTSIDE THE BROWSER</text>
@@ -175,7 +175,7 @@ export function TechnicalMapGraphic() {
 
         <rect x="18" y="314" width="284" height="58" rx="14" fill="rgba(244,193,78,0.08)" stroke="rgba(244,193,78,0.55)" />
         <text x="160" y="338" textAnchor="middle" fill="#efeef7" fontSize="15" fontFamily="Instrument Sans, Segoe UI, sans-serif">public/data.json</text>
-        <text x="160" y="358" textAnchor="middle" fill="#f4e2b0" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">≤10 planets · 2–6 views · example posts</text>
+        <text x="160" y="358" textAnchor="middle" fill="#f4e2b0" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">≤10 planets · 1–6 views · example posts</text>
 
         <path d="M160 372 v20" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
         <path d="M154 386 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />

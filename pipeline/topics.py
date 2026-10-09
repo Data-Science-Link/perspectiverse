@@ -1,16 +1,23 @@
 """Group posts into a saved topic catalog.
 
-`embedding` is the live default: a local MiniLM model, then many tight groups.
-Loose posts stay unlabeled. `catalog_size` keeps only the largest of those
-groups, so a week is not poured into ten planets and a small week is not
-split until it fills ten orbits. `lexical` is TF-IDF for tests. `bertopic` is
-optional. Clusters below `min_cluster_size` are Topic -1.
+`embedding` is the live default: a local MiniLM model, then dense balls.
+A fine grid of seeds is only a grid. Cells that are not dense are dropped,
+and cells of one subject are merged, so the data decides how many groups
+exist. Loose posts stay unlabeled. `catalog_size` is the publish ceiling.
+Pass `CANDIDATE_POOL` to rank every surviving group and let the caller keep
+the top of that list. `lexical` is TF-IDF for tests. `bertopic` is optional.
+Clusters below `min_cluster_size` are Topic -1.
 """
 
 from __future__ import annotations
 
 from pipeline.schema import SYSTEM_SIZE
 from pipeline.cluster_math import cluster_kmeans, salient_terms, vectorize
+from pipeline.grouping import density_labels
+
+# Ranking can see every group the density pass kept. Publishing still stops
+# at catalog_size in the labeler, so extra candidates are not extra LLM calls.
+CANDIDATE_POOL = 10_000
 
 # MiniLM cosine on mixed posts sits near 0.1. A member has to sit much closer
 # than that to its centroid, or it is left out instead of watering the group down.
@@ -53,12 +60,18 @@ def cluster_texts(
         raise ValueError(f"Unknown cluster_backend {cluster_backend}")
     if authors is not None:
         raw_labels = _cap_author_posts(raw_labels, authors, author_cap)
+    # Lexical fixtures rely on a size-6 publish floor. Embedding groups use the
+    # fixed min_cluster_size the caller passed (about 5–8), not n // 200.
+    if cluster_backend == "lexical":
+        size_floor = max(int(min_cluster_size), 6)
+    else:
+        size_floor = max(int(min_cluster_size), 2)
     # catalog_size caps the count. Fewer groups is allowed.
     kept = _keep_top(
         texts,
         raw_labels,
         term_lookup,
-        max(min_cluster_size, 6),
+        size_floor,
         keep=catalog_size,
         authors=authors,
     )
@@ -90,8 +103,8 @@ def _embedding_labels(
 
         embed = lambda batch: embed_minilm(batch, model_name=embedding_model)  # noqa: E731
     matrix = _l2_normalize(embed(texts))
-    labels = _labels_by_cohesion(matrix, seed=seed, min_cluster_size=min_cluster_size)
-    return labels, {}, matrix
+    labels = density_labels(matrix, min_cluster_size=min_cluster_size, seed=seed)
+    return [int(label) for label in labels], {}, matrix
 
 
 def _l2_normalize(matrix) -> "np.ndarray":
@@ -106,11 +119,11 @@ def _l2_normalize(matrix) -> "np.ndarray":
 
 
 def _labels_by_cohesion(matrix, *, seed: int, min_cluster_size: int) -> list[int]:
-    """Return many tight groups. Posts that do not fit one stay at -1.
+    """Old k-means cell search. Not the production embedding path.
 
-    The k-means count is one slot per minimum planet, so a long week can
-    yield 100 or more groups. That search does not stop at ten, and it does
-    not hand every post to a planet. The caller keeps the largest groups.
+    Production planets call ``density_labels``. This remains for comparison
+    with the ``n // floor`` cell count that over-merged a week into a handful
+    of candidates. The caller keeps the largest groups.
     """
     import numpy as np
 

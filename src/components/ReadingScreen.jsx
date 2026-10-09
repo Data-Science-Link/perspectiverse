@@ -256,6 +256,11 @@ export default function ReadingScreen({
               {postCount ? ` · ${formatNumber(postCount)} posts` : ''}
             </p>
             <h1>{title}</h1>
+            {topic && topic.perspectives.length === 1 && (
+              <p className="reading-opposing">
+                {topic.opposing_note || 'No clear opposing view found in this sample'}
+              </p>
+            )}
             {brief && <p className="reading-brief">{brief}</p>}
             {topic && perspective && <TopTerms terms={faceTerms} />}
             <div className="reading-actions">
