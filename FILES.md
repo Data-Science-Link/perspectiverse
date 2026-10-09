@@ -33,13 +33,14 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/schema.py` | Shared `data.json` contract |
 | `pipeline/settings.py` | YAML config loader |
 | `pipeline/cleaning.py` | URL, handle, and spam cleaning |
-| `pipeline/jev.py` | Jev spam (drop at 0.8), public-claim (keep at 0.5), newspaper section |
+| `pipeline/jev.py` | Jev spam (drop at 0.8), public-claim (keep at 0.5), newspaper section; 14-day verdict cache; phase-3 spam+claim batch left off |
 | `pipeline/corpus.py` | Rolling 7-day window of up to 10,000 filtered claims |
-| `pipeline/store.py` | SQLite posts, fetched days, and derived membership |
+| `pipeline/store.py` | SQLite posts, fetched days, derived membership, and the `jev_verdicts` cache |
 | `pipeline/topics.py` | Up to 10 planets (MiniLM, lexical, or BERTopic), author cap, cohesion gate |
 | `pipeline/perspectives.py` | 1–6 faces and representative posts |
 | `pipeline/label.py` | Ollama, OpenAI-compatible (DeepInfra), or heuristic titles |
-| `pipeline/costs.py` | Thread-safe meter for DeepInfra and Jev spend; weekly ledger on `data-snapshot` |
+| `pipeline/costs.py` | Thread-safe meter for DeepInfra and Jev spend; cache-hit and pre-filter counts; weekly ledger on `data-snapshot` |
+| `pipeline/jev_prefilter.py` | Free pre-filter before Jev: short posts, non-English, link-only, near-duplicates |
 | `pipeline/assemble.py` | Writes `public/data.json` |
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
 | `pipeline/http_json.py` | Allow-listed JSON HTTP (`api.bsky.app`, `api.openai.com`, `api.deepinfra.com`, `api.typesafe.ai`) |
@@ -108,6 +109,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | File | Description |
 | --- | --- |
 | `scripts/security_check.sh` | Local Bandit and pip-audit |
+| `scripts/jev_shadow_test.py` | Paid shadow test of batched spam+claim versus one call per post, plus optional planet-section mode; hard cap $0.03; not run in CI |
 | `scripts/check_categories.mjs` | Category filter helper check |
 | `scripts/check_planets.mjs` | Solar-system order, selection URLs, and face shades |
 | `scripts/check_spikes.mjs` | Pencil spikes, opaque shades, and dashed empty faces |

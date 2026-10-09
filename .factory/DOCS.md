@@ -72,4 +72,19 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Discourse universe, perspectives, steelmans | `project_documentation/Project Architecture_ Discourse Universe.md` |
 | Formal domain glossary file | `docs/glossary.md` | Terms from the README, pipeline, and frontend. |
 
+## Secrets available to cloud agents
+
+Names only — never log or commit values.
+
+| Name | Use |
+|---|---|
+| `OPENAI_API_KEY` | DeepInfra labeling (with `OPENAI_BASE_URL`) |
+| `TYPESAFE_API_KEY` | Jev (spam, claim, section) |
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 corpus sync |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 corpus sync |
+| `R2_ENDPOINT` | Cloudflare R2 corpus sync |
+| `R2_BUCKET` | Cloudflare R2 corpus sync |
+
+**Approval rule (Michael, 2026-10-09):** High-risk labeling or grouping PRs must show real before-and-after output from a cloud agent run before Michael approves. No publishing on that run: no R2 upload, no `data-snapshot` push, and no Pages deploy.
+
 Agents: read this map, then open the linked files. Prefer linking over pasting.
