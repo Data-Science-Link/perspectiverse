@@ -1,0 +1,2193 @@
+{
+  "title": "Hand-labeled stance reference for face splitting",
+  "labeled_on": "2026-10-10",
+  "labeler": "Hand labels by a Cursor cloud agent reading the post text. No paid labeling API.",
+  "run_id": "bc-b4793e87-92ca-5e6c-ae34-3d074d29df7c",
+  "model": "grok-4.7 high",
+  "issues": [
+    116,
+    117,
+    103
+  ],
+  "sources": {
+    "live_data_json": {
+      "last_updated": "2026-10-10",
+      "total_posts": 9874,
+      "snapshot_commit": "acd7872",
+      "snapshot_committed_at": "2026-10-10T13:09:04Z",
+      "pipeline_run": 38052773565,
+      "note": "Global top 10 from origin/data-snapshot public/data.json. This is the file the 2026-10-10 daily run published."
+    },
+    "corpus": {
+      "pipeline_run": 38052773565,
+      "artifact": "data-json",
+      "table": "perspectives joined to posts",
+      "note": "Face membership for today's planets. Face sizes match the published faces exactly."
+    },
+    "not_used_for_membership": {
+      "pipeline_run": 37942713535,
+      "artifact": "data-json",
+      "last_updated": "2026-10-09",
+      "total_posts": 9832,
+      "note": "The #104 corpus. Its top 10 is a different day (Israeli Genocide, Ukraine Russia Conflict, ICE Voter Surveillance). It does not contain Trump Putin Diesel Deal, Rise of Fascism, or ICE Abuse, so today's posts were not labeled from it."
+    }
+  },
+  "sample_method": "Within each published face, posts are ordered by distance to the face and then by URI. The sample takes evenly spaced posts across that order, including both ends. Planets with fewer than 40 posts are labeled in full. Labels are supports, opposes, other-angle, or off-topic, against the planet's stance question. supports and opposes are the two coherent poles. other-angle is on the subject but is not a yes or no. off-topic is a different subject.",
+  "second_stance_rule": "A second coherent stance is the largest of supports or opposes that is not the sample's plurality. If the plurality is other-angle or off-topic, the largest pole itself is that second stance. The 10% line is second_coherent_n / sample_n >= 0.10. other-angle is not treated as one stance, because those posts do not share a claim.",
+  "michael_2026_10_10": "One face is OK only if that is the reality. He suspects real distinct perspectives are being missed and does not want one face as the easy, low-error default.",
+  "planets": [
+    {
+      "planet_id": 1,
+      "name": "Trump Putin Diesel Deal",
+      "category": "World",
+      "pipeline_posts": 250,
+      "pipeline_faces": 4,
+      "face_distinctness": 0.174,
+      "one_face_in_pipeline": false,
+      "stance_question": "Is Trump's diesel deal with Putin a wrong that helps Russia against Ukraine?",
+      "supports_means": "Yes. The deal funds Russia's war, or the US should side with Ukraine against Putin.",
+      "opposes_means": "No. The deal is acceptable, fuel matters more than Ukraine, or Ukraine or NATO is the aggressor.",
+      "sample_n": 40,
+      "sample_is_entire_planet": false,
+      "counts": {
+        "supports": 32,
+        "opposes": 0,
+        "other-angle": 8,
+        "off-topic": 0
+      },
+      "plurality_stance": "supports",
+      "plurality_share": 0.8,
+      "second_coherent_stance": "opposes",
+      "second_coherent_n": 0,
+      "second_coherent_share": 0.0,
+      "second_stance_at_least_10pct": false,
+      "faces_sharing_same_majority": 4,
+      "shared_majority_stance": "supports",
+      "faces": [
+        {
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "pipeline_posts": 73,
+          "sample_n": 10,
+          "counts": {
+            "supports": 7,
+            "opposes": 0,
+            "other-angle": 3,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 0.7
+        },
+        {
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "pipeline_posts": 68,
+          "sample_n": 10,
+          "counts": {
+            "supports": 10,
+            "opposes": 0,
+            "other-angle": 0,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 1.0
+        },
+        {
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "pipeline_posts": 56,
+          "sample_n": 10,
+          "counts": {
+            "supports": 6,
+            "opposes": 0,
+            "other-angle": 4,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 0.6
+        },
+        {
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "pipeline_posts": 53,
+          "sample_n": 10,
+          "counts": {
+            "supports": 9,
+            "opposes": 0,
+            "other-angle": 1,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 0.9
+        }
+      ],
+      "posts": [
+        {
+          "uri": "at://did:plc:6x6spo6p3fbsxjvjzhwwtdrj/app.bsky.feed.post/3mx2ccggw3k2e",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "i double dog dare you to find a Ukrainian who has fought in this conflict, and tell them that anybody who is providing them weapons to defend their country is “enabling the bad guys” putin is so glad that his propaganda is working on you.…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:jhzzxllympu637zlrmcy7qz7/app.bsky.feed.post/3mxjji5sels2f",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "The US has very little leverage over Ukraine and its shrinking even more. They are traitors and hopefully Ukraine realizes this.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:bhci7om25qb6ae63dgccrbyw/app.bsky.feed.post/3mxjjbqfhr325",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "Witkoff and Kushner raised cutting U.S. intel sharing with Ukraine if Kyiv keeps striking Russian oil refineries, per FT. Talks derailed by Trump-Russia diesel deal. Ukraine hit Yug Rusi terminal; Zaporizhzhia strike killed 15 civilians, i…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:n3jqdg4vskd25zfkkafqbqhk/app.bsky.feed.post/3mx2bmiunv223",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "Ukraine are holding their territory, Russia has been attacking Kyiv since the beginning (I assume you are choosing the Russian derived spelling “Kiev“ for a reason?) and the strikes on Russian targets is crippling Russian refineries www.re…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:yx2nfpytmmze4fau2qxw2c5a/app.bsky.feed.post/6zifqr2davsjy",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "Inside Ukraine’s robot army fighting Russia #Ukraine",
+          "stance": "other-angle",
+          "note": "Headline about Ukraine's robot army. No verdict on the deal."
+        },
+        {
+          "uri": "at://did:plc:xm6rnlmyejqyyp5gya2o2lo7/app.bsky.feed.post/3mxcwxcrgss2s",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "And it seems like the average Ukrainian soldier is infinitely superior to the Russian. The support that they get is unbelievable. The intelligence. The Tech. 🇺🇦🇺🇦🇺🇦🇺🇦🇺🇦🇺🇦🇺🇦🇺🇦🇺🇦🇺🇦￼",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:york6cjc3jmumoedo6vk3al3/app.bsky.feed.post/3mx2bwowhps2q",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "Internal Ukrainian politics might have serious consequenses ... How Yulia Tymoshenko Returned to the Center of Ukrainian Politics Yet Again ukrainetoday.org/how-yulia-ty...",
+          "stance": "other-angle",
+          "note": "Ukrainian party politics (Tymoshenko), not the deal."
+        },
+        {
+          "uri": "at://did:plc:4zwv6rs7hph3yta4xuzxp6q5/app.bsky.feed.post/3mx4xmivs5k2h",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "Lviv Herald article - Operation Vivaldi: Has Ukraine Rediscovered the Art of the Offensive? www.lvivherald.com/post/operati... www.lvivherald.com/uk/post/%D0%...",
+          "stance": "other-angle",
+          "note": "Battlefield headline (Operation Vivaldi). No deal verdict."
+        },
+        {
+          "uri": "at://did:plc:vg7n7vtbttva53g5qv6rfmza/app.bsky.feed.post/3mxjj5fgzhc2e",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "A disgrace that like Russia, Trump has decided to violate the terms of the 1994 Budapest Memorandum the US signed, which provided Ukraine security guarantees in exchange for Ukraine’s agreement to give up its nuclear weapons. Our nation’s…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4dtphrsayvq4flddxkd3mrom/app.bsky.feed.post/3mxjjbhndps2p",
+          "face_id": "1A",
+          "face_title": "Trump Helps Russia",
+          "snippet": "All 4 Moscow’s international airports are closed and in chaos. Ukrainian operation “M&M’s” is in full swing.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:meuzwioj6asn7h7pc57e43aa/app.bsky.feed.post/3mxjjh45mk225",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "As Trump and his lackey’s make deals with Putin…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:meuzwioj6asn7h7pc57e43aa/app.bsky.feed.post/3mxjiy7kw3c25",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "Exactly! Trump is a collaborator; Putin’s accomplice. He will never be able to wash the blood of innocent Ukrainians from his hands. We will never forgive or forget.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:vprtnhykomedmodyxspvf2t7/app.bsky.feed.post/3mxcwypoxs22u",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "Somewhere, Putin is nodding with a huge smile on his face as he contemplates NATO vulnerability #imprisonTrump #TrumpfluffsPutin",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:flmxf5vdfdx7e46nkk5kzawd/app.bsky.feed.post/3mxjjexqpmk2a",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "Don’t fall for this blast from the past - Putin’s blood fuel will have very little impact on affordability in the US so it begs the question, what else is he doing for Trump less than a month before the midterms?",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:n2nepoigcnforymjvu2g6pwc/app.bsky.feed.post/3mxjjcrqlzk2e",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "It’s amazing how people still come up surprised. Whatever the Russians have on him, or if it’s just a bromance, he is a full blown Russian ally dancing to the Kremlin’s tune. And a whole country can’t do SFA to stop him. A Constitution wri…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:3tgznzk62346vhf5qn2jtbla/app.bsky.feed.post/3mxcwol7dgc2r",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "Putin is a demon. It is important to use the strongest language to describe him.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ejcm44u24c4auofv2e2n7t2z/app.bsky.feed.post/3mxcx22mqq22z",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "youtube.com/post/Ugkxj9q... Everybody in his administration is helping a pro-Russian government.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:jbmwary7gpjy6xfikkt357zm/app.bsky.feed.post/3mxjisnefmc2h",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "At the time, Representative Michael McCaul (R-TX) said: “This bill will cripple Russia’s war machine and finally bring Putin to the negotiating table. It will ensure America’s adversaries, not only Russia, but also China and Iran, suffer f…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ao3od2pfh25pcvramptuef5b/app.bsky.feed.post/3mxjj3bez622b",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "Trump's plan to salvage midterms with Russia's help literally explodes into flames www.rawstory.com/trump-putin-... Fuck you, Donald Trump!",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:d2t2gdyopxrhmbre2bh5bvpk/app.bsky.feed.post/3mxjj4w2avk2h",
+          "face_id": "1B",
+          "face_title": "Trump Putin Ties",
+          "snippet": "There's nothing to enjoy, the USA is going to fund Putin and russia's horrible war. Nothing to enjoy. Trump is a spineless puppet and he ís weak.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:j3ya4kgw5u764z2bxtfiyvd6/app.bsky.feed.post/3mxcwwulrac2o",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "Russian terror. Yet people justify this, and Schröder and too many others do business with the Putin regime www.bbc.co.uk/news/article...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4gwdyczlpd5t7erttikngzqf/app.bsky.feed.post/3mxjjd6huas2p",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "Many of the themes present in the fall of the USSR and rise of Putin (and co) are being repeated with the US, which is now being looted with unprecedented fervor. ¹ bsky.app/profile/pama...",
+          "stance": "other-angle",
+          "note": "Analogy: the US is being looted the way the USSR fell. Not a side on the deal."
+        },
+        {
+          "uri": "at://did:plc:aluyhb2pyus25ypjfrsnqjbt/app.bsky.feed.post/3mxjivjnxbs22",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "Russian sanctions for thee, but not for MEEEEEE. (With friends like 47...)",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:r5om7v5fyqxfgkfbbqhgshkp/app.bsky.feed.post/3mxjja3gvys25",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "Best defense is a good offense. They should invade Russia; give Russian rebels a cause worth joining - getting rid of Putin.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:obbpqhhur3zbv6q2atxyvwtv/app.bsky.feed.post/3mx4xscpopc2s",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "The Russians will already be using this for their own reasons.",
+          "stance": "other-angle",
+          "note": "Unclear referent. No side on the deal."
+        },
+        {
+          "uri": "at://did:plc:72xc46rhp5zlbkblkb4a24of/app.bsky.feed.post/3mx7g5pdgm22v",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "my theory that Russia is just America a couple of decades in the future undefeated",
+          "stance": "other-angle",
+          "note": "Analogy that Russia is America later. Not a side on the deal."
+        },
+        {
+          "uri": "at://did:plc:eozjr7fxeeuuac5qrce6qov3/app.bsky.feed.post/3mx2bu7e7as2k",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "\"... It's important to understand that after each attack, the Russians actively work to strengthen the facility's defenses, installing additional protective structures and taking various measures to counter future attacks. We are awaiting…",
+          "stance": "other-angle",
+          "note": "Tactical note that Russian sites harden after strikes. No side stated."
+        },
+        {
+          "uri": "at://did:plc:hkk5ckevolofac6xk7gmpnxa/app.bsky.feed.post/3mx2cakj7us2v",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "It is called karma or divine justice. God is sending the Russians a message!",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:nwohato66ne5f5jg7bdyglsd/app.bsky.feed.post/3mx2chmcfwk2w",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "Zelensky cited intelligence documents indicating that Russian President Vladimir Putin approved an operational directive expanding strikes against civilian targets. Expanding civilian targets and retaliatory strikes. www.dagens.com/war/zel…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:heluwto2vobqqss3j52yhzt3/app.bsky.feed.post/3mxcwqligl22d",
+          "face_id": "1C",
+          "face_title": "Russia Invasion",
+          "snippet": "First to ask Russia to hack Hillary too.",
+          "stance": "supports",
+          "note": "2016 'Russia hack Hillary' aside. Counted supports because it accuses Trump of working with Russia, the same side as the anti-deal posts."
+        },
+        {
+          "uri": "at://did:plc:74tghaembtl5awr5rxnncupd/app.bsky.feed.post/3mxjjf47zkk2h",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "Haven't heard a dollar amount for this diesel Trump is buying from Russia. Also, how does this fit in with the Trump administration's \"Energy Dominance\" policy?",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:jbmwary7gpjy6xfikkt357zm/app.bsky.feed.post/3mxjisnehks2h",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "The Treasury Department promptly announced it was issuing a temporary license to permit Russian diesel to sell on the global market. The sales will likely do little for US oil prices, but they will funnel money to Russia for its war on Ukr…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:rzzmycami6p2q3ajl5k5jifr/app.bsky.feed.post/3mxjjhzpuss2k",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "Didn’t you just know Trump was gonna find a way to fund Putin? Go to war and close the Straights oh Hormuz. Now we gotta get some diesel at all costs. ￼",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:vcqscoyb3d7jw4jo3etsk6p2/app.bsky.feed.post/3mx7g4hhgl22j",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "We all know why diesel fuel prices have spiked and it's not the Russian war of terror against Ukraine.",
+          "stance": "other-angle",
+          "note": "Says the diesel-price spike is not Russia's war, and still calls that war terror. A price-cause claim, not a defense of the deal."
+        },
+        {
+          "uri": "at://did:plc:v6f2gvqugudhdcrrakkcgji3/app.bsky.feed.post/3mxjj2otwnk2c",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "Yep. Because Russia doesn’t even have the diesel. www.theguardian.com/world/2026/o...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:t57zckxuo4v6t53fjp7j7mcv/app.bsky.feed.post/3mxjj7kxsss26",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "Trump turned down his own candidates' plan to bring diesel prices down. A week later he got on the phone with Vladimir Putin. www.dworkinsubstack.com/p/trump-is-d...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:fnqvvzvai2jfh5wgdckx6jjh/app.bsky.feed.post/3mxjis7e2wk2m",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "It was always obvious Trump was cozy with Putin. But paying Putin for diesel to save his own election by funding Putins war is one of those things past Republicans would have tried to hide. Theres no Oliver North that falls on the sword fo…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:r37lrqocqhwkhebmqigv2zkg/app.bsky.feed.post/3mxjjbjulyk2f",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "Zelenskyy furious as Trump announces deal to buy Russian diesel www.theguardian.com/us-news/2026...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:l2ergmeybgzz22mx5foxlpc6/app.bsky.feed.post/3mxjj5s53ls2e",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "I haven't read of that yet. That truly sucks. I hope that Zelensky never lets up on destroying Russian oil infrastructure.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:qtcignxi4xk3wn6vvhea4fon/app.bsky.feed.post/3mxjjg4tyrs22",
+          "face_id": "1D",
+          "face_title": "Russian Diesel Deal",
+          "snippet": "Ukraine would have been a better ROI AND our fuel prices wouldn’t be outrageous.",
+          "stance": "supports"
+        }
+      ]
+    },
+    {
+      "planet_id": 2,
+      "name": "Gaza Genocide",
+      "category": "World",
+      "pipeline_posts": 167,
+      "pipeline_faces": 1,
+      "face_distinctness": 0.0,
+      "one_face_in_pipeline": true,
+      "stance_question": "Is Israel committing genocide against Palestinians in Gaza?",
+      "supports_means": "Yes, or Israel is the aggressor committing ethnic cleansing or mass killing of Palestinians.",
+      "opposes_means": "No. The charge is false, or the war is justified by Oct 7, Hamas, or Palestinian choices.",
+      "sample_n": 40,
+      "sample_is_entire_planet": false,
+      "counts": {
+        "supports": 29,
+        "opposes": 4,
+        "other-angle": 7,
+        "off-topic": 0
+      },
+      "plurality_stance": "supports",
+      "plurality_share": 0.725,
+      "second_coherent_stance": "opposes",
+      "second_coherent_n": 4,
+      "second_coherent_share": 0.1,
+      "second_stance_at_least_10pct": true,
+      "faces_sharing_same_majority": 1,
+      "shared_majority_stance": "supports",
+      "faces": [
+        {
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "pipeline_posts": 167,
+          "sample_n": 40,
+          "counts": {
+            "supports": 29,
+            "opposes": 4,
+            "other-angle": 7,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 0.725
+        }
+      ],
+      "posts": [
+        {
+          "uri": "at://did:plc:ivw7tb4mv2gq2c5n4gnvume4/app.bsky.feed.post/3mxcwozjvas2p",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "\"Israel continues to kill Palestinians in Gaza three years into the genocide. Palestinian killed, dozens detained as Israeli forces and settlers attack across the occupied West Bank.\"",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ehcagkmks44od34gsv4v6nfy/app.bsky.feed.post/3mxjj6gh4es2k",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "ISRAEL IS A TERRORIST STATE RUN BY A BUNCH OF WAR CRIMINALS.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:m2dmn5kviq4f4al5qzj4p3eu/app.bsky.feed.post/3mxh276ikk222",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Two things: Many countries are affected by terrorism and you seem to be fixated by Israel: www.visionofhumanity.org/maps/global-...",
+          "stance": "other-angle",
+          "note": "Whataboutism (other countries, terrorism). Does not deny the genocide charge, so not opposes."
+        },
+        {
+          "uri": "at://did:plc:zdez25ms2yzvfpzwiwcz7fdo/app.bsky.feed.post/3mxjjafpatk2u",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "No, I don't but how can you be blind to what Israel is doing?",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:vxorw6s72a2xkxygui6vobsl/app.bsky.feed.post/3mxcwfeolmv2x",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "so crazy that Israel did nothing for decades and then suddenly Hamas attacked",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:hsdoeqikmlqdkhxjaef35uro/app.bsky.feed.post/3mxcwvufnek2o",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Palestine has been under a brutal occupation for longer than you and I have been alive combined. israel started this genocide. You can’t even call it a war because that requires both sides to be combatants. israel just slaughters women and…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:mlk6og5kv7h6gri4xlppmmhi/app.bsky.feed.post/3mx4xrw6iss2k",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "The whole thing is a tragedy. It will almost certainly fully sideline the Greens from the national political conversation (I reckon it'll take 10 points off their national polling, not that that this the biggest problem here) and do litera…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:xx7okvhj4dqlfw4ffitfs6i3/app.bsky.feed.post/3mxjjgflsv22i",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Plenty of countries are committing crimes against humanity every day, this post was about Israel's detainment of Palestinians",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:xn6jghzisogrm3fv2xtnbfc3/app.bsky.feed.post/3mxd6cmj5vc2v",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "I have not exonerated Israel of their crimes but folks like you think that's all that is needed for genocide.",
+          "stance": "opposes",
+          "note": "Concedes Israeli crimes and says that is not enough to call it genocide."
+        },
+        {
+          "uri": "at://did:plc:m7hxcvuzvi3oj5wdyd5efini/app.bsky.feed.post/3mxh26pmh6s2j",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Imagine the Palestinian reality. Israel has America to fund its war.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:f4cxzcwhx4d6yfnigboqlcx2/app.bsky.feed.post/3mx4xqjp5ws2n",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "I think time and cooperation could probably could be better spent on the \"israel is committing a genocide\" issue",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:n4xtbthft7brqws5kpm7g3l4/app.bsky.feed.post/3mx7gdxwwgk2l",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Real Talk. Cut through the crap you thought you knew for the last 3 years. 1. There was *never* a chance of Hamas giving back all on the hostages immediately after 10/7 (\"That's Bullshit\") 2. Hamas slowplayed everything. 3. Netanyahu repea…",
+          "stance": "other-angle",
+          "note": "Hostage talks: Hamas slow-played, Netanyahu conceded. A process claim, not a genocide verdict."
+        },
+        {
+          "uri": "at://did:plc:tnvauxuqszo43t3ygdup5jbo/app.bsky.feed.post/3mx2cbd2lpk27",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "look, after the israeli elections are swept by cosmopolitan liberals and peace activists in response to the excesses of the netanyahu government, then we can begin the work",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:2ptstb2velyoegd7liy6w2u6/app.bsky.feed.post/3mxjirmbazs2k",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Not just Netanyahu though is it - he has support. Maybe Zionism as expressed in Gaza, The West Bank and Lebanon is wrong. Simple questions - why is Israel unable to share the land? Why have the Palestinian Arabs been oppressed for 80 years…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:shsbsia2s5nyfvyk7byggjsp/app.bsky.feed.post/3mxh24iyitc27",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "The children in Gaza wish they had emergency rooms. Israel destroyed all their hospitals.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:tqan6vniv6gk6h4iybjnhsup/app.bsky.feed.post/3mxcwjdud322s",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Gaza and building high rises is gross.",
+          "stance": "other-angle",
+          "note": "Unclear ('Gaza and building high rises is gross')."
+        },
+        {
+          "uri": "at://did:plc:v4ewlkextntnwraosaknz5vb/app.bsky.feed.post/3mxcwxi6pqc2e",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "\"They're all to blame because of X, Y, Z awful thing that's been done in Gaza.\" Ok. Trump and Hegseth cheering on \"boat go boom\" with civilians clinging to it and a wholeass girls' school in Iran getting bombed is y'all's fault, too. ...th…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:k4b3i4eujpt6lhgm3qh356ln/app.bsky.feed.post/3mxcwyhqbfk22",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Israel withdrew from Gaza in 2005. You should do a search for ‘pictures of Gaza in 2022.’",
+          "stance": "opposes",
+          "note": "Israel withdrew in 2005; look at Gaza in 2022. The standard 'they had a chance' defense."
+        },
+        {
+          "uri": "at://did:plc:myj6islbmvdmgkqy64bktn64/app.bsky.feed.post/3mxcwmwcx6c2u",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Israel doesn’t even try to hide it anymore. youtu.be/kSsvAWJ6rcE?...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:43akp2idhqnxpz3bjj6unsuu/app.bsky.feed.post/3mx4xldulfc2y",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "i try not to hate but Israel stands there with nazi germany ..",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:zdsff2n2nfhaonmqs5qaoa7v/app.bsky.feed.post/3mx4ximguzk2h",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "No, we pretty obviously did. You wanted to defend that the Israeli government wasn't full of war criminals, then you admitted they were. If A = B, and C=B, A=C. Beyond that, you've failed to show any misuse of the word genocide. They're st…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:yjec7mfeojrosxl74feslscd/app.bsky.feed.post/3mxcwye2rn22b",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Is calling October 7th a “horrific war crime” not enough of a condemnation of Hamas for you? These people are such clowns",
+          "stance": "other-angle",
+          "note": "Calls Oct 7 a war crime and scolds people who say that condemnation is not enough. Does not deny the Gaza charge."
+        },
+        {
+          "uri": "at://did:plc:isoqyxaweaefayp2jtt2f5nm/app.bsky.feed.post/3mxh25zgbm22n",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Why is what she said not a call for indiscriminate murder - remember, she is talking specifically about children here - but some random person on twitter saying \"there are no innocent israelis\" is a call for indiscriminate murder? Why did…",
+          "stance": "other-angle",
+          "note": "Speech double-standard. Not a yes or no on the genocide charge."
+        },
+        {
+          "uri": "at://did:plc:2bffmluopgwofqko4pxc4y32/app.bsky.feed.post/3mx7g5dq3s22p",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "However, these plans were ruined by a combination of the Holocaust and a Palestinian Arab population explosion, which between them meant the Jews couldn't get a comfortable majority in even _part_ of the mandate without ethnic cleansing.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:lru2boa54inen2mo5iweavjt/app.bsky.feed.post/3mxjivpwahk2s",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "While the world watches Gaza and Iran, the West Bank is being transformed village by village. The U.N. documented 1,600+ settler attacks in eight months, alongside displacement and expanding settlements. Intimidation and land grabs are not…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:3qb7asshet5ziqt76ukhigup/app.bsky.feed.post/3mxh27irhwk2r",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Still refusing to condemn the murder of innocents. I dgaf how you want to parse terminology. Not being able to condemn, at the very least, the murder of 22,000+ infants and children voids all other commentary from you. Dead Palestinian bab…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ykm4prl42wqwnsy4r2nko3ij/app.bsky.feed.post/3mx2bxq5eg223",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "@andyburnham.bsky.social @jackabbott.bsky.social Is the UK doing ANYTHING to help the people of Gaza or stand up for UN and international law? Donate at least. You can charge it on expenses. @zackpolanski.bsky.social @eddavey.libdems.org.u…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:z3n32s72glf2qme3dwxypkvg/app.bsky.feed.post/3mxjj3cptbs2b",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Actually you can. Israel has been doing it for years. It worked for ethnic cleansing and it is now working for genocide.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:s5npwhcioid3vboyc7q6gni2/app.bsky.feed.post/3mx7gbfguyc2e",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Anyone that votes for the opposite party over Israel is a fucking idiot. It’s about Trump!",
+          "stance": "other-angle",
+          "note": "US voters should not switch parties over Israel. Electoral tactic, not a Gaza verdict."
+        },
+        {
+          "uri": "at://did:plc:di45ldkrgg6zgucyhk6hlaap/app.bsky.feed.post/3mxcwhm3js22l",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "They haven't blown it, they have taken down Syria and established a buffer zone there, occupied and ethnically cleansed South Lebanon, and accelerated repression in the West Bank. Greater Israel is taking shape as planned.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:dgz22ssd65y7swwwfedksirq/app.bsky.feed.post/3mxcwyyffx22b",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "The war against the Palestinian people didn’t start on Oct 7th 2023. It started before 1948 with the gradual colonization of Palestinian land. For the past 3 years Israel has committed before our very eyes a genocide with the complicity of…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ubwye45fotu7g3tiw7nj72eh/app.bsky.feed.post/3mx2bpcihg22e",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Channel 4 News ﻿ Palestinians have been fired at by Israeli soldiers and settlers while trying to begin the olive harvest in the occupied West Bank.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:43kuzpeeinymml3yw7d6dnta/app.bsky.feed.post/3mx2c6wubds2z",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "And the more we go on about what AS there was in Labour, the more we are doing Israel’s talking points. The truth is that he dared to support Palestine & that wasn’t allowed. Mike Pompeo, Bibi & Theresa May declared that they would not ‘al…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:bvhklp4htqodf533uuwwjpyv/app.bsky.feed.post/3mxcwhxjnmc2y",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "i have 2 questions 1) why weren't the jews armed in those towns, they were and had been at war? 2) Palestinians was oct 7th worth it?",
+          "stance": "opposes",
+          "note": "Asks why those towns' Jews were unarmed and whether Oct 7 was 'worth it.' Treats the war as the consequence of a Palestinian choice."
+        },
+        {
+          "uri": "at://did:plc:uddnvy4t4rgl5n6o4j3ty3zj/app.bsky.feed.post/3mx7g6sedqk2h",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Please, can I ask you for one favor? 🥺🇵🇸 Don’t stop talking about Palestine. I’m standing here in front of what used to be our home—now destroyed, but our memories remain. Please🥹🙏🏻 Keep talking about Palestine. Keep sharing our stories🇵🇸💔…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:7cwsc7dche5qeukldqi352t7/app.bsky.feed.post/3mxjj5gttzk24",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "area includes Rafah and Beit Hanoun, two of the of the most severely bombed parts of the Strip. Even if Palestinians could enter Rafah, it is basically dust at this point. Even if there are bodies left under the rubble (estimated to be som…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:mrwdnytrzzilri2sbt2jlwcf/app.bsky.feed.post/3mx2begmtis2g",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Motion E02 calls for “the establishment of a single democratic Palestinian state across historic Palestine”. It rejects a two-state solution and effectively calls for the destruction of the state of Israel.",
+          "stance": "other-angle",
+          "note": "Criticizes a Green motion for a single Palestinian state. Not a verdict on the genocide charge."
+        },
+        {
+          "uri": "at://did:plc:mgzleeczqe6dsjab5vcgq55e/app.bsky.feed.post/3mxcwtpbvy22a",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "#Palestine marks 78 years since the #Nakba began.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:cuy337dip7vbendvj2phuj5b/app.bsky.feed.post/3mxcwtwcdmk2n",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "Aside from the specious \"genocide\" accusation, this is both circular logic and a complete violation of causality. You can't justify the atrocities of Oct 7 by the subsequent actions of the country that was being attacked for things they ha…",
+          "stance": "opposes",
+          "note": "Calls the genocide accusation specious and says Oct 7 cannot be justified by later Israeli actions."
+        },
+        {
+          "uri": "at://did:plc:e4musdh2uni44id3q5fhks2l/app.bsky.feed.post/3mx2bpptihc2w",
+          "face_id": "2A",
+          "face_title": "Israeli Genocide",
+          "snippet": "If all these guys have another way of opposing genocide, they can step up and lead.",
+          "stance": "supports"
+        }
+      ]
+    },
+    {
+      "planet_id": 3,
+      "name": "Livestreamed Execution Plan",
+      "category": "Politics",
+      "pipeline_posts": 83,
+      "pipeline_faces": 2,
+      "face_distinctness": 0.158,
+      "one_face_in_pipeline": false,
+      "stance_question": "Is the plan to livestream a public execution wrong?",
+      "supports_means": "Yes. It is appalling, barbaric, or a regime threat.",
+      "opposes_means": "No. It is not a big deal, or the execution should go ahead.",
+      "sample_n": 40,
+      "sample_is_entire_planet": false,
+      "counts": {
+        "supports": 27,
+        "opposes": 1,
+        "other-angle": 11,
+        "off-topic": 1
+      },
+      "plurality_stance": "supports",
+      "plurality_share": 0.675,
+      "second_coherent_stance": "opposes",
+      "second_coherent_n": 1,
+      "second_coherent_share": 0.025,
+      "second_stance_at_least_10pct": false,
+      "faces_sharing_same_majority": 2,
+      "shared_majority_stance": "supports",
+      "faces": [
+        {
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "pipeline_posts": 49,
+          "sample_n": 24,
+          "counts": {
+            "supports": 14,
+            "opposes": 0,
+            "other-angle": 9,
+            "off-topic": 1
+          },
+          "majority_stance": "supports",
+          "purity": 0.583
+        },
+        {
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "pipeline_posts": 34,
+          "sample_n": 16,
+          "counts": {
+            "supports": 13,
+            "opposes": 1,
+            "other-angle": 2,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 0.812
+        }
+      ],
+      "posts": [
+        {
+          "uri": "at://did:plc:27liz4zrbm3ee7pdtjms6jhz/app.bsky.feed.post/3mxjjg4tozc2f",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "I am appalled by the number of people who are in favor of this possible execution by firing squad being live-streamed. How far we have fallen as a country.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:a37nx5qqmds27icw4itruc7y/app.bsky.feed.post/3mxh25duvzs2q",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Pentagon says the firing squad execution of Fort Hood shooter Nidal Malik Hasan will be livestreamed www.twincities.com/2026/10/08/f... So this is were America is at, streaming live executions? Hegseth must think we are as evil as he is. M…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:zrxcc4xlne5uwvx6zag2yqnm/app.bsky.feed.post/3mxjjczzkk22h",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "If the public execution livestream does end up happening, trump will absolutely insist on being there. It'd be absolutely amazing if the firing squad turned on him at the last second. I'd imagine anyone they do end up with will likely be t…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:3ue2fv6ppyuq4mw3gso425gq/app.bsky.feed.post/3mxjjhr4vyc2z",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": ". We should focus on the victims of this heinous mass-murderer - but the danger with Pete Hegseth's proposal to televise his execution is that it gives notoriety to a mass shooter, live-streaming a terrorist's martyrdom... Please change yo…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:nxn6y6feelvarbkbivmkjhqo/app.bsky.feed.post/3mxjjabvie22p",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Why would anyone be surprised that US secretary of war, Pete Hegseth, would want to live stream an execution or that Trump would support it? It shows that both these people are extremely unstable.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:olngegflgjr5us2ype26qkrr/app.bsky.feed.post/3mxjiyw3lm22k",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "'Opressive dictatorships': Outrage as US plans to livestream a military firing squad www.sbs.com.au/news/article...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:diultroyjy4m3sd5xjgwotbh/app.bsky.feed.post/3mxjj24xai22z",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Republican opposition widens to livestreamed execution; Trump still weighing it - www.reuters.com/world/us/van...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:22qle7yobpuimdkoqaxs3fxa/app.bsky.feed.post/3mxjj2pgjes2n",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "So, we're at a point where we might have a live-streaming public execution before Christmas!! It is so wrong, I have no words. Showing the world his execution isn't for his benefit. He won't care. It is for our benefit, one more daily onsl…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:lbq3fne6i7blcj3tv7d3k4n3/app.bsky.feed.post/3mxh22egrmc2w",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Here's a collection of reporting from Trump's execution spree. I would also emphasize that this DID NOT begin with Trump and if you really want to know who to blame for largely paving the way for so much of the expansion of the \"modern\" de…",
+          "stance": "other-angle",
+          "note": "Death-penalty history, blames Democrats. Not a verdict on this livestream."
+        },
+        {
+          "uri": "at://did:plc:o5wlr3gi4tz23ake7ef23ejs/app.bsky.feed.post/3mxjj3h37ak27",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "While it’s probably perfectly legal in the US to stream the execution, it still might violate the various platform rules that most sites have set up for themselves. (Hosting it globally may also create legal headaches in countries with str…",
+          "stance": "other-angle",
+          "note": "Platform rules and foreign law. Not a moral side."
+        },
+        {
+          "uri": "at://did:plc:2ngqad53fm34yzjt5izeyufz/app.bsky.feed.post/3mxjix4n2ls2t",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Fort Hood survivors speak out on Pentagon's decision to livestream Hasan's execution flip.it/nat6jo",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:7rrfl4mbbx7z75kjc7lyvdao/app.bsky.feed.post/3mx7getqo4c2k",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Thoughts: Why TF are we executing a soldier (even one convicted of murder) by firing squad??? Oh yeah - the chuds elected a reality TV president. 🤬🤮",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:wk42iqt7gd2m4s7nxviwycr4/app.bsky.feed.post/3mxh277vnvk23",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "I sure we are all seeing the bigger picture. This will be the start of public executions for a lot more people to come. ICE will bring them in and execute for Trump to talk about how many views he gets. He has no plan to leave nor does thi…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:dfzwofesvrrgoqiqzxtmstum/app.bsky.feed.post/3mxh25ni7222r",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "I guess what I'm saying is, not only am I not shocked they wanna murder a dude on TV, I'm surprised Bush's people hadn't done it already. I truly think it would have gotten no real pushback in this country.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:usqvsd6iioc54w5t55uoluzg/app.bsky.feed.post/3mxjjh7bmqc24",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "I don’t think Camp Donald ever comes to fruition and I believe this abomination could be executed next year. Let’s hope he is and the rest of the Republicans and the Supreme Court members who have betrayed America and committed treason by…",
+          "stance": "other-angle",
+          "note": "Wants Trump and allies executed for treason. That is a different execution, not support for this livestream."
+        },
+        {
+          "uri": "at://did:plc:4hc5d455mpb72gpv3czepxcb/app.bsky.feed.post/3mxd6dfgpes27",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "The only one doing the killing is Donald J Trump.",
+          "stance": "other-angle",
+          "note": "Fragment. Not about the livestream."
+        },
+        {
+          "uri": "at://did:plc:zpfcbovitx7bdexev6dt4qia/app.bsky.feed.post/3mx2bfwyqpc26",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Trump called for the execution of Democratic members of Congress who suggested military personnel could refuse unlawful orders. But any mention, no matter how slight or joking, of harm to Trump causes arrests and jail time. Doesn't seem qu…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:fvy4qwactxcdqukohrpnmnyw/app.bsky.feed.post/3mxh25pxbcs2g",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Nothing is being live-streamed. Stop taking the distraction bait. Kegs however did just ensure that Malik's execution will be delayed by the courts.",
+          "stance": "other-angle",
+          "note": "Says nothing is being livestreamed; ignore the bait."
+        },
+        {
+          "uri": "at://did:plc:ncfl6tyuj6jorfbxtnfmtcie/app.bsky.feed.post/3mx4xqlaba22a",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "It felt like, every once in a while, the cable networks would just show a torture and murder video.",
+          "stance": "other-angle",
+          "note": "Cable news showing torture video. Not this plan."
+        },
+        {
+          "uri": "at://did:plc:7kuu3hqa6dup6auqfxqqdx7k/app.bsky.feed.post/3mxjjilfv4k2p",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "Maybe Little Petey should be the first person before the firing squad. He killed 238 people on fishing boats based on a hunch. And he murdered 120 children and 35 adults in Iran, due to carelessness and ineptitude. That’s far more than the…",
+          "stance": "other-angle",
+          "note": "Wants Hegseth in front of a firing squad. Does not defend livestreaming Hasan."
+        },
+        {
+          "uri": "at://did:plc:zctue4vtjwztlygf2lu7ydtm/app.bsky.feed.post/3mxh25bzdrs2d",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "It's telling about how divorced from Christian morals the Trump-Vance administration is, and how promoting it is of the heresy of christian nationalism instead, that they view having a public execution as a positive thing in their morally…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:rc237m2a3vxu7bycqiyx4hko/app.bsky.feed.post/3mx2ceuai422l",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "No one apologizes because they can get away with it .The Us citizens should hang some of these mass murderers that act with impunity against conscience of the majority .Democracy must not perish !!!",
+          "stance": "other-angle",
+          "note": "Calls for citizens to hang officials. Not a defense of the Pentagon plan."
+        },
+        {
+          "uri": "at://did:plc:vbrhzh64jvnlbuill26hnf5l/app.bsky.feed.post/3mx4xid5u5c27",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "We have such evil among us they loudly approve of the outright murder of children. John Chivington: The U.S. Volunteer Colonel said \"Kill and scalp all, big and little; nits make lice\" prior to commanding the infamous 1864 Sand Creek Massa…",
+          "stance": "other-angle",
+          "note": "Sand Creek history. Not this plan."
+        },
+        {
+          "uri": "at://did:plc:y27o25q7b2kau4fjvh2y5kko/app.bsky.feed.post/3mx2bpg4fes2n",
+          "face_id": "3A",
+          "face_title": "Execution Livestream",
+          "snippet": "This is why the military is necessary for suppression against parallel forces. Civilian accountability frameworks are incapable of dealing with this and it was demonstrated why this is so with the attacks on Jack Smith.",
+          "stance": "off-topic",
+          "note": "Military suppression and Jack Smith. Off this subject."
+        },
+        {
+          "uri": "at://did:plc:ajgwq7uvcn5cf3kzb6hclhyd/app.bsky.feed.post/3mxjj4x35n22g",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "\"Inherent dignity of every human person dictates that no matter the severity of an individual's crimes, the State must never reduce justice to a barbaric public spectacle. A public execution promotes a culture of death that erodes our soci…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:c7zhvetfoio34wqtvb7fvwss/app.bsky.feed.post/3mxjjevy7ys2f",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Sick and cruel, yes. But more importantly, public executions are messages from a regime bent on keeping the population under control.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:c7zhvetfoio34wqtvb7fvwss/app.bsky.feed.post/3mxjizj3rjc2f",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Someone else pointed this out, so I’ll parrot it. Public executions are messages directed at the populace, not the criminal. I bring this up because this annnouncement reveals their desperation. Stand tall.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:d23w2dx7woc5amt6il5o5wa2/app.bsky.feed.post/3mxjisbafls2d",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Public execution is quite a precedent for a loathed administration to set.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:p4hlwvfexjgh7rvkeeree55u/app.bsky.feed.post/3mxjjgktbbs26",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Can the public execution be stopped?",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:otyhs7v3lrwjpx3bmyczgoop/app.bsky.feed.post/3mxjj5lvlsk27",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Well it's been 90 years since the last public execution in the US so pretending that track record doesn't exist and is meaningless minimizes and subsequently defends this perverse scheme",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:iwfolblfxhj3opxktfujavve/app.bsky.feed.post/3mxjjj44ngc2w",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Yep and appealing to the worst of us. Getting them into a blood lust frenzy so they will turn of their neighbors in hopes of more executions and looting potential after they’ve been killed. And incase you haven’t worked it out. This ain’t…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:zn7n2m5r3uoqe46f42sbe6zg/app.bsky.feed.post/3mxjjdpqbyc2c",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "At the point when executions start happening for those who simply oppose that orange asshole... THE War will begin.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:5efoo77vecx34m42uqock7ba/app.bsky.feed.post/3mxcwzd6wlk2c",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "I do not understand the big deal. There aren't more effective means for execution?",
+          "stance": "opposes",
+          "note": "Does not see the big deal and asks for a more effective execution method."
+        },
+        {
+          "uri": "at://did:plc:5zsfa7rfvhdh7h2mewpmspqt/app.bsky.feed.post/3mxjiuxo4jk2s",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Well hang on there. Was Jesus’ execution public or private? Jesus was publicly executed. Paraded through the streets in fact. A public execution is very Christian when you realize the people who are Christians don’t have the intellect to d…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:fov2mcm7xj47ufvpoohhivee/app.bsky.feed.post/3mxjj67z2ms2g",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "You’d think they’d be against public executions cause of Jesus’ public execution & that their Christian faith would kick in…but, they’re not Christians.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:fdsajrty4s5i7h2j56pq2yrl/app.bsky.feed.post/3mxjjgmohss2g",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "It's illegal to hold public executions in our country But it isn't illegal to be gay Pete Hegseth",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:m34zrhvl74dtx6sm4uogd5ys/app.bsky.feed.post/3mxjj52lgfs2g",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Four Wrongs of a Public Execution snyder.substack.com/p/four-wrong...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ugsyxdi4pyjrmxbffkgchsnl/app.bsky.feed.post/3mx7gdggtnk2d",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "If it appeals to more people who aren’t yet aware, ok, fine. but please know there’s No Real Difference in the depravity or despicableness of mistreating citizens or non-citizens. All people are protected by the Constitution and the Geneva…",
+          "stance": "other-angle",
+          "note": "Citizens and non-citizens have the same protections. Not a verdict on the livestream."
+        },
+        {
+          "uri": "at://did:plc:ebblynq6s6eifadxjmjpc2zo/app.bsky.feed.post/3mxjithg2ek27",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "Sociopath who wants to stream killing to the masses is not universally popular. I wonder why? Usually killing is a private affair unless you happen to be in ancient Rome at the Coliseum, or in Stalin's dictatorship for severe communism or…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:7qjryzkelf7lmamxns475bom/app.bsky.feed.post/3mx7gdeyvu226",
+          "face_id": "3B",
+          "face_title": "Public Executions",
+          "snippet": "And are shooting the wrong people",
+          "stance": "other-angle",
+          "note": "Fragment ('shooting the wrong people')."
+        }
+      ]
+    },
+    {
+      "planet_id": 4,
+      "name": "Rise of Fascism",
+      "category": "Politics",
+      "pipeline_posts": 40,
+      "pipeline_faces": 2,
+      "face_distinctness": 0.146,
+      "one_face_in_pipeline": false,
+      "stance_question": "Is fascism rising, and is that something to fight?",
+      "supports_means": "Yes. Fascism is here or spreading, and that is bad.",
+      "opposes_means": "No. It is not rising, or it is welcome.",
+      "sample_n": 40,
+      "sample_is_entire_planet": true,
+      "counts": {
+        "supports": 40,
+        "opposes": 0,
+        "other-angle": 0,
+        "off-topic": 0
+      },
+      "plurality_stance": "supports",
+      "plurality_share": 1.0,
+      "second_coherent_stance": "opposes",
+      "second_coherent_n": 0,
+      "second_coherent_share": 0.0,
+      "second_stance_at_least_10pct": false,
+      "faces_sharing_same_majority": 2,
+      "shared_majority_stance": "supports",
+      "faces": [
+        {
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "pipeline_posts": 25,
+          "sample_n": 25,
+          "counts": {
+            "supports": 25,
+            "opposes": 0,
+            "other-angle": 0,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 1.0
+        },
+        {
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "pipeline_posts": 15,
+          "sample_n": 15,
+          "counts": {
+            "supports": 15,
+            "opposes": 0,
+            "other-angle": 0,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 1.0
+        }
+      ],
+      "posts": [
+        {
+          "uri": "at://did:plc:3ty7uihkpnb66j5a2y5qty4q/app.bsky.feed.post/3mxjjjeg6ik2r",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "We leaned hard right to fascism, I’m fighting with many others to revert to a more normal human stance in the next election. It’ll be a very long road tho, way beyond this election and even my lifetime.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:pht4htnpvjryft4acp4bo6dg/app.bsky.feed.post/3mxjjcteyrs2j",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "The US has become a fascist shithole. Its gone from a beacon of hope to a bastion of hate in a single decade.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:wvpkrthnz6yxesgsmg3xqxrb/app.bsky.feed.post/3mxcwy6nmmk2t",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "You have tried for over 160 years to deal with fascists peacefully. While you've had some minor and temporary successes, in the grand scheme of things this strategy has failed miserably",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:wihoe5x4wqstxud2dutrohsf/app.bsky.feed.post/3mxcwytjers2v",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "So if this plays out like it increasingly seems like it will 2028 might be the moment we actually have American hitler elected. Fascism always arises intertwined with the failure of liberal institutions to make necessary and radical change…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4agkxlax3v3vql6hpubej4vn/app.bsky.feed.post/3mxjjexbvyc2e",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "If I was a fascist, this would be part of the plan. But I’m not, so I’ll fight this new fascist Klan.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:wvpkrthnz6yxesgsmg3xqxrb/app.bsky.feed.post/3mxcwzwhd722t",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "A fascist can punch you in the face all they want because you insist on remaining peaceful towards their abuse",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4fslyihxh3f5jf2ntyk7ozs2/app.bsky.feed.post/3mxcx24podc2z",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "The Roots of American Fascism must be eradicated. So, yes!",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:r5rvbli76ugh5ube6ch32niz/app.bsky.feed.post/3mx2bs5xcls2s",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "For once I’m glad I’m old and won’t live to see what’s coming if the American public doesn’t break out of its collective stupor to challenge the fascist abyss we are being led by the nose into.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:f6fehianfiy2gcgvn2p2vfwt/app.bsky.feed.post/3mx7g5klefc2i",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "They will likely end up coming to the US to back the authoritarian fascist forces in our, what feels like an increasingly inevitable, civil war. Hopefully democracy will prevail.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:njaosusocxddfhcdqphwpns6/app.bsky.feed.post/3mxjiz7ka6c2t",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "They'll burn your books, Limit free speech, Just like fascists, Have done historically, They'll rewrite history, And lie about the present, This is what happens, With a fascist president.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:wikv6afoepxc6yqagpoz6qkg/app.bsky.feed.post/3mxcwqcb4es23",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "Another destructive outcome of #FascistAmerica. And yes. No one said no. And this is the pattern all over. In the majority of cases no one says no. From the cabinet and the capitol to departments and states and people. Way too many people…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:nrui3gcdys7pvkbxae4gsfyo/app.bsky.feed.post/3mx4xszkih22o",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "At this point, I really do hope a left wing dark horse candidate pops up for 2028 with a platform of nothing but retribution and punishment for anyone who colluded or capitulated with Trump. Disenfranchisement of all fascists.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:qtqguwwyfiaidcfxuncanbky/app.bsky.feed.post/3mxcwhouz322x",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "The 🍊 American Hitler will stop at nothing to discredit any election result that isn't a victory for the fascist Republicans, multiple attack vectors are being launched at the midterm election. The fascist regime is going all in, to wreck…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4cfvzmlojyvjs7ydxmhxmd5p/app.bsky.feed.post/3mxjjcjtyzc2h",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "If youre sus of mutual aid youre siding with fascists. Period, full stop. Thats community and social safety networks weve spent decades building theyve wiped out in 2 years because white folks prefer comfort over community and its gonna en…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:wgqrmhqf657x5lswna5thi6d/app.bsky.feed.post/3mx7g5mjioc2p",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "28 days left to decide if want to continue with fascist rule chaos or Or Put the fuckers in jail !!!",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:b3dwpfzl67ehib7dsjbq3oku/app.bsky.feed.post/3mxcwso33ac22",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "The same as the US now facing an inflection point between democracy and fascism?",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:wvpkrthnz6yxesgsmg3xqxrb/app.bsky.feed.post/3mxcwuok6rc2t",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "1. Yes 2. Americans talk a big game,but thats it 3. Yet to be determined You will fail if you insist fascism can be defeated peacefully There is only one cure for fascism Once the cure prevails Then you obtain peace",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:feyuueghg32pegmykh3ivcly/app.bsky.feed.post/3mxjjflaikk2v",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "We have dozens of Moseleys in the US. Fascist turds getting a beat down in public needs to come back.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:bxfau54tg4ylt7yinqlykn2a/app.bsky.feed.post/3mx4xn3kyis2z",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "I really hate the phrase *aT tHe EnD oF tHe DaY.” This magat chairman says it THREE TIMES, as he screeches that Dems are going to fundamentally change this nation. Hell yes, we’re going to fundamentally change this fascist bullshit, as we…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:jh4ouwrkijjzpo346fp5gtos/app.bsky.feed.post/3mx4xrvzcsc24",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "Trump may be a fascist, but Hegseth is aiming for Armageddon.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:arv3qjflegm6pzxca4yfgojg/app.bsky.feed.post/3mxh234zs6k2u",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "Excuse the darkness/speculation, but once they cull folks like us, they'll cure it for themselves. The order of fascist operations and such. Eugenics first.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:z37gi5ms4spcaarqz6wqj4i3/app.bsky.feed.post/3mx2c7a6lak2n",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "Smith leads the American fascist separatist regime. It is time to remove the treasonists from government positions. www.youtube.com/watch?v=YzlZ...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:jzchfrua3chjslae64x7h5bp/app.bsky.feed.post/3mxcwj6erv22n",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "Fair enough, it truly does need to be put on a higher level than 9/11 and framed as such…. which will require the ENTIRE media industry. At least in my opinion, there needs to be the most fascist takeover for good essentially in that regar…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:thcax6vl7tcu7ztmap43tshv/app.bsky.feed.post/3mxjj55izjk2f",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "And now his grandson works for another fascist regime, Palantir.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4cfvzmlojyvjs7ydxmhxmd5p/app.bsky.feed.post/3mxjj7p5uu22h",
+          "face_id": "4A",
+          "face_title": "Rise of Fascism",
+          "snippet": "Im gonna die before the month is out. There's no food, we got almost no help for the last 2 months. My best friend is dying and Im next. Good job fighting fascism and standing with trans folks to all the \"mutual aid questioning\" comfort-fa…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:evemyanilrms35yhhuhc425s/app.bsky.feed.post/3mx2bozd6nk2w",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "Fascism is as ugly as it was in history books, my true amazement is how many people fell for the propaganda in an era to which you can find anything you want, anytime you want in terms of information online, all you need to be is a critica…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ytuwxm5vaenmehchuwfw52cu/app.bsky.feed.post/3mx4xnuu7z22s",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "The difference this time is that the fascists came out on top.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:emgj2laekgv2vapmu34msttp/app.bsky.feed.post/3mxcwp2qbrc26",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "The social disease of fascism in the \"United States\" has been quite apparent for so.. long.. now. 😑 \"ICE\" is the Yankee gestapo. 💩🐷💩 #CrushICE🧊",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:7irbh7m5khrwwbd2lqyfjdor/app.bsky.feed.post/3mx2brynkxc2g",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "Hot Type: ‘Holy Fascism’ open.substack.com/pub/bylineti... Corrupt through & through.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:xdwo6pqw7ahphu2egtjukpj3/app.bsky.feed.post/3mx4xod526c2u",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "Yet more evidence of the global fascist movement. A great leviathan spreading it's tendrils all the around the world From the United States to Canada to Argentina to Brazil to Europe and more.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:p3gupq5pu2obe2n4brtwabzc/app.bsky.feed.post/3mxcwm4zcxs2q",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "Jesus MAGA Christ! The Pursuit is going all-in merging their religious non-profit with the fascists.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:zqytu7uu6wrnrduynshkoxni/app.bsky.feed.post/3mx4xm6634s2a",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "It'd be nice if it didn't seem like every country in the world is staring at the hot stove labeled fascism and going \"hmm yes I really want to try touching that I bet it feels real good\"",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:gfa23j7m2bkw4xr5u65aavoj/app.bsky.feed.post/3mx2cemgf6c25",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "you know you live in normal times when the extremely transphobic UN special rapporteur on violence against women and girls namesearches on social media and fights with your mutuals lol anyway, one more year than your time’s up, right? hope…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:krtq2varqdywk7fzydxk4uwx/app.bsky.feed.post/3mxh26owpus2x",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "I apologize for the amount of content today but I had to get this last one out! Listen, share, and envision the world we want to live in by pushing back against fascism! We are about to join Iran and Afghanistan by streaming a public execu…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:vuqzx3x5smrsfll2kqeek3cp/app.bsky.feed.post/3mxjj44irqf2h",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "Only the working class, in the United States and internationally, acting independently of every capitalist party, can halt the descent into fascist barbarism.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ykm4prl42wqwnsy4r2nko3ij/app.bsky.feed.post/3mx7g2ukkkc2v",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "@andyburnham.bsky.social @jackabbott.bsky.social What are comparable figures for the UK and why aren't the fascist lies challenged by government or our \"media\"? @zackpolanski.bsky.social @eddavey.libdems.org.uk @johnswinney.bsky.social @rh…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4r4bvbfttks4lvfwqatlijf5/app.bsky.feed.post/3mx7g7ttusk2o",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "By familiar you mean the NY Times once again doing propaganda for the fascists?",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:bcgtpezwhu5ynanpiezkmfim/app.bsky.feed.post/3mx2cavr3is2q",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "we all fled here specifically to get away from this shit on twitter. they should go back to the nazi shithole. it's where most of them belong.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:brc33mzj6k2sk3nvuklfv5be/app.bsky.feed.post/3mx2cdnzzws2a",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "\" 'my personal pride and joy’: mandelsons uk palantir fascism deal.\" bylinetimes.com/2026/06/01/m...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:fws5rzb4xmky5wu3b77drejz/app.bsky.feed.post/3mx4xlohxqk24",
+          "face_id": "4B",
+          "face_title": "Fascism Rising",
+          "snippet": "No words on the Loomers and Fuentes and othet nazis in their fucking party, but let's try and generate a freak out over a socialist twitch streamer. youtube.com/shorts/od9S3...",
+          "stance": "supports"
+        }
+      ]
+    },
+    {
+      "planet_id": 10,
+      "name": "ICE Abuse",
+      "category": "Politics",
+      "pipeline_posts": 14,
+      "pipeline_faces": 1,
+      "face_distinctness": 0.0,
+      "one_face_in_pipeline": true,
+      "stance_question": "Are ICE agents abusing power in ways that should be punished?",
+      "supports_means": "Yes. Agents are committing crimes, or ICE is operating as an unaccountable force.",
+      "opposes_means": "No. The force in question was proper.",
+      "sample_n": 14,
+      "sample_is_entire_planet": true,
+      "counts": {
+        "supports": 11,
+        "opposes": 1,
+        "other-angle": 2,
+        "off-topic": 0
+      },
+      "plurality_stance": "supports",
+      "plurality_share": 0.786,
+      "second_coherent_stance": "opposes",
+      "second_coherent_n": 1,
+      "second_coherent_share": 0.071,
+      "second_stance_at_least_10pct": false,
+      "faces_sharing_same_majority": 1,
+      "shared_majority_stance": "supports",
+      "faces": [
+        {
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "pipeline_posts": 14,
+          "sample_n": 14,
+          "counts": {
+            "supports": 11,
+            "opposes": 1,
+            "other-angle": 2,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 0.786
+        }
+      ],
+      "posts": [
+        {
+          "uri": "at://did:plc:vk32qwhgdbbpwlg6ucclpxz4/app.bsky.feed.post/3mxh22yzthc2c",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "It is not only the Ice Agent that should be held criminally liable, anyone that was complicit in that man being given the authority to walk the streets with a gun as an agent of the state, should be in jail.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:c7hupmdebpb3ez455kfduoxb/app.bsky.feed.post/3mxjj2ayn422o",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "An off-duty Gestapo ICE agent from Texas was found sleeping on a Fresno family’s lawn around 3 a.m. Police say he appeared intoxicated, assaulted a 72-year-old man, then attacked his daughter when she intervened. THIS IS AN EXAMPLE OF THE…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:5c5iq2dpfzfiqgxgau5lf47d/app.bsky.feed.post/3mxh22ib5ms2e",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "Just a reminder that if an ICE goon is using deadly force in excess of his authority to protect his life or that of others, he is not entitled to immunity and is therefore subject to arrest by the NYPD for eg child endangerment.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ctjfgl6hvrmqwiez5l5h4q5a/app.bsky.feed.post/3mxjj2stauk22",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "David Gonzalez, an #ICE agent from Texas, drunk and sleeping on a lawn assaulted a 72-year-old man who woke him up and then assaulted his daughter. “ICE is operating outside the limits of its legal authority, and the people of Fresno are p…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4dtj74pvshxxazqobqwvmts6/app.bsky.feed.post/3mxcwfulzf227",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "Staying within the US legal framework his DOJ is so impotent it can't manage to indict a guy for throwing a sandwich or for investigating reflecting pool fragments. OTOH, outside of the law, ICE thugs have truly murdered and kidnapped and…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:dmv23cnfjoasyfrl7jqftnet/app.bsky.feed.post/3mxcwpzkyxk2m",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "I have not seen one single news article on ICE being attacked. Believe me, if it had happened, the right would be running the story 24/7.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:nyjm4ylfid2a7mjm6varxuiq/app.bsky.feed.post/3mxjjgtl6cs26",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "Overall, violent crime is dropping, especially in urban areas in the northeast. The exception: a massive crime wave involving guns carried out by ICE agents. Here an off duty ICE agent harasses and shoots a man and woman asleep on a lawn i…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:6v5fiews5eyvdqobiwlfkws5/app.bsky.feed.post/3mxjjdjh5hk2k",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "Plain dressed and masked ICE agents pulling people over. Of course people are trying to run. I think they do it on purpose. They like hurting others. Prove me wrong.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:3h762cjrign7422cbito3yt3/app.bsky.feed.post/3mxjjaygudk24",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "\"He didn't deserve that,\" said a neighbor. What did he deserve? He's a felon who's here illegally. He escaped #ICE a few weeks ago. He used his car to at least threaten agents surrounding him. Should ICE just let him flee once again? Force…",
+          "stance": "opposes",
+          "note": "The man was a felon here illegally and the force used to detain him was proper."
+        },
+        {
+          "uri": "at://did:plc:diultroyjy4m3sd5xjgwotbh/app.bsky.feed.post/3mxjjippz222z",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "US execution livestream, ICC sanctions, ICE defends NYC shooting - www.reuters.com/podcasts/us-...",
+          "stance": "other-angle",
+          "note": "Podcast headline list. No author verdict."
+        },
+        {
+          "uri": "at://did:plc:nhtte52y6i6lpdsxvxpugvwe/app.bsky.feed.post/3mxjjdkw5ek2s",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "Hire clowns and you get a lawn ornament: Off-Duty ICE Agent Is Shot and Arrested After Sleeping on Lawn in California www.nytimes.com/2026/10/09/u...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:aiwdikara4nttlpz3k43gsuq/app.bsky.feed.post/3mx7gchpwhc2i",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "Releasing them to be tackled on the court house steps? Courts keep slapping ICE's wrist and ICE keeps jackbooting on because they will not stop, they can only be stopped. And if courts aren't going to do it then they should admit their imp…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:2pcjoeylzg3uqk4aricwh5jo/app.bsky.feed.post/2ar62aeap5iwv",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "Criticism Mounts After ICE Shooting in New York City: Live Updates",
+          "stance": "other-angle",
+          "note": "Wire headline ('Criticism Mounts'). No author verdict."
+        },
+        {
+          "uri": "at://did:plc:mhasbz4hylsqegaqntbqhuov/app.bsky.feed.post/3mxh23wwjpk2h",
+          "face_id": "10A",
+          "face_title": "ICE Abuse",
+          "snippet": "OP is saying trauma is fake to defend ICE murdering someone but go off",
+          "stance": "supports"
+        }
+      ]
+    },
+    {
+      "planet_id": 7,
+      "name": "MAGA Fails",
+      "category": "Politics",
+      "pipeline_posts": 19,
+      "pipeline_faces": 1,
+      "face_distinctness": 0.0,
+      "one_face_in_pipeline": true,
+      "stance_question": "Is MAGA a failing movement that should be opposed?",
+      "supports_means": "Yes. MAGA is incompetent, cruel, or something to fight.",
+      "opposes_means": "No. MAGA is fine, or succeeding.",
+      "sample_n": 19,
+      "sample_is_entire_planet": true,
+      "counts": {
+        "supports": 19,
+        "opposes": 0,
+        "other-angle": 0,
+        "off-topic": 0
+      },
+      "plurality_stance": "supports",
+      "plurality_share": 1.0,
+      "second_coherent_stance": "opposes",
+      "second_coherent_n": 0,
+      "second_coherent_share": 0.0,
+      "second_stance_at_least_10pct": false,
+      "faces_sharing_same_majority": 1,
+      "shared_majority_stance": "supports",
+      "faces": [
+        {
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "pipeline_posts": 19,
+          "sample_n": 19,
+          "counts": {
+            "supports": 19,
+            "opposes": 0,
+            "other-angle": 0,
+            "off-topic": 0
+          },
+          "majority_stance": "supports",
+          "purity": 1.0
+        }
+      ],
+      "posts": [
+        {
+          "uri": "at://did:plc:4qz245vzimsqtch736gyva3m/app.bsky.feed.post/3mx7g4dhdws25",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "Unfortunately for the US MAGA cult members don’t understand",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:kuqq67zw6nclwzd64dscrila/app.bsky.feed.post/3mxcwucarvk2l",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "MAGA is like a social experiment on what a society would look like if it were made up entirely of incompetent grifters trying to scam each other.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:bctx7gcx7o6ybugsc6fzog4m/app.bsky.feed.post/3mx2c6jr4b22e",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "HATE RALLIES RETUN Propaganda, racism, vengeance and blame. Is the maga mainstream still that gullible? #vitriol #ineptitude #anger #division www.theguardian.com/us-news/2026...",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:4v5vhn5b2yij4vopvacuohgy/app.bsky.feed.post/3mxjjat3rq22r",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "and we do nothing in response, except maybe lecture them. That won’t work with the MAGA mentality. We need to humiliate and bully them back. Take away their reasons for feeling powerful. They need to be made to realize they are on a team o…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:oq5np6ovqk37u52uuiubjk5c/app.bsky.feed.post/3mxjjdoyp422m",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "Because modern day MAGA Americans are backward, ignorant and uncivilized!!",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:5sfoxzj5myb4yvydxasfe2pi/app.bsky.feed.post/3mxcwksobnc2e",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "The #MAGA Deplorables are so dumb, they don't see themselves as white supremacist scumbags.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:mjszpyf5e7ghrh6b7s4d2flh/app.bsky.feed.post/3mxjize6o6c2i",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "youtube.com/watch?v=3NBs... MAGA can’t even get the culture war bullshit right and that’s all they have.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:65ylosfuymjxkaprsixomzru/app.bsky.feed.post/3mxjiz2yypk26",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "When MAGA goes local. The municipalization of fascist grievance politics.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:eaklwawgrzudnhab4tenfucp/app.bsky.feed.post/3mx7ga65fq22h",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "…that’s literally the core of the fantasy that maga believes. Apparently all this talk of fascism is going over peoples heads. What did you think we were warning you about? That he’s gonna make bad posts on his made up platform? The proble…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:qkt4uadn24xbmnmauqjr2rqd/app.bsky.feed.post/3mxh26j2clc2s",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "youtube.com/shorts/8xie-... TL:DR MAGA are embarrassed and humiliated at their own lack of education. And instead of trying to educate themselves...They just hate on, and denigrate those who ARE educated. Don't worry - MAGA won't understan…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:hf3tuv22earxzkbg7uzxctea/app.bsky.feed.post/3mx2bz2y2ps24",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "Per today's horoscope: Cry harder, maga. Help isn’t coming for you. Dems voted for the greater good while maga voted for fascism and cruelty. Buckle up because this roller coaster is still ratcheting to the apex. 🖕this regime and EVERY mem…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ikdijreyt765qbnsghr2a25r/app.bsky.feed.post/3mxh25dn5yc2n",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "So MAGA snuff films are on the agenda, then. Sick bastards.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:wzonfevswmgnwromsro3abtm/app.bsky.feed.post/3mxcwplkobs2b",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "Jesus😞….take this wheel & PTSD it triggers in other victims. . This behavior is ingrained and normalized now by MAGA. This is a scourge of brutality and evil that requires MAGA to hate the opposition so much they either want them muted, ra…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:cusaw5uta6s5lnonfv77fqph/app.bsky.feed.post/3mxjiz6fq7c2z",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "youtube.com/watch?v=n7Xu... The heroes who bring Marco Rubio and his criminal coconspirators to justice will go down in history as catalysts in saving U.S. democracy from fascist tyranny. MAGA can try to stop the ICC. But they can’t stop m…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:lxu7x6niftb3ex4bpjoez7dm/app.bsky.feed.post/3mxjjclxrxk2e",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "youtube.com/watch?v=ZhxE... #Conservation works. Tell your science denying MAGA friends and relatives",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:oksq7cwkocg2u6apvnqt44ef/app.bsky.feed.post/3mx4xrlgc622r",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "Good chat. \"...Guys, this isn’t your party anymore. What does it even mean to say you’re a non-MAGA Republican? That’s not a thing anymore. You need to embrace, I think, supporting Democrats for the next few cycles at least. And I think we…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:zqcsvmcecn55kqkag63qtm7a/app.bsky.feed.post/3mx4xssjeds26",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "It doesn't matter what the evidence shows, MAGA (poisoned by Trump/FOX propaganda) won't accept it as real. This despite the fact that independent IRB, data monitoring committees, and the regulatory bodies have direct oversight of such stu…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:xkzdhl6ejihlv4nzjvjgjeqh/app.bsky.feed.post/3mx2bzr3s6k2t",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "Then they chose not to fully fund school lunch programs Then they chose to denigrate or not mandate vaccines The duplicity of the MAGA world is duly noted.",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:pok5hlrmqcnhlrz372fldldr/app.bsky.feed.post/3mx2bztrcj22i",
+          "face_id": "7A",
+          "face_title": "MAGA Fails",
+          "snippet": "MAGA supporters want you to believe that Abdul El-Sayed is some sleeper cell or Manchurian candidate who, once inside the senate, will be activated by his handlers, to destroy from within.. ..I have just 2 words to that… ….January Sixth….",
+          "stance": "supports"
+        }
+      ]
+    },
+    {
+      "planet_id": 8,
+      "name": "Labour Party",
+      "category": "Politics",
+      "pipeline_posts": 34,
+      "pipeline_faces": 1,
+      "face_distinctness": 0.0,
+      "one_face_in_pipeline": true,
+      "stance_question": "Has Labour lost its claim on people who would otherwise vote for it?",
+      "supports_means": "Yes. Don't vote Labour, or Labour is complicit, rancid, or captured.",
+      "opposes_means": "No. Labour is taking the job seriously, is still the tactical vote, or is being treated unfairly.",
+      "sample_n": 34,
+      "sample_is_entire_planet": true,
+      "counts": {
+        "supports": 10,
+        "opposes": 4,
+        "other-angle": 19,
+        "off-topic": 1
+      },
+      "plurality_stance": "other-angle",
+      "plurality_share": 0.559,
+      "second_coherent_stance": "supports",
+      "second_coherent_n": 10,
+      "second_coherent_share": 0.294,
+      "second_stance_at_least_10pct": true,
+      "faces_sharing_same_majority": 1,
+      "shared_majority_stance": "other-angle",
+      "faces": [
+        {
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "pipeline_posts": 34,
+          "sample_n": 34,
+          "counts": {
+            "supports": 10,
+            "opposes": 4,
+            "other-angle": 19,
+            "off-topic": 1
+          },
+          "majority_stance": "other-angle",
+          "purity": 0.559
+        }
+      ],
+      "posts": [
+        {
+          "uri": "at://did:plc:3un24uosfqjqrvftphh2syko/app.bsky.feed.post/3mxjiu6upu32s",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "the Labour party of these pesky views, so that Labour can rapidly address the significant evils being done on behalf of those views. And I do hope you don't expect any support for Labour from our community until that process is complete. B…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:mxhyw4euf5fuyn6trdrcolep/app.bsky.feed.post/3mx7g4yeh322k",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "This is also the Labour Party, Liberal Democrats, SNP, Plaid Cymru, the NHS and Amnesty",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:jzowag33px5xy5ntnitkwgg7/app.bsky.feed.post/3mx4xmafvxc2r",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "You know I think the Labour Party are taking it seriously",
+          "stance": "opposes",
+          "note": "Labour is taking it seriously."
+        },
+        {
+          "uri": "at://did:plc:xpwnqh25vg3cnro3uisnvnq6/app.bsky.feed.post/3mxcwy3ysqs2m",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "There was a time when I thought it would be an amazing opportunity to reconnect the Labour Party with its social democratic roots. Then the burners came. There was a time when I hoped that a left-wing opposition party would improve this co…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:3un24uosfqjqrvftphh2syko/app.bsky.feed.post/3mxjiu6uqtf2s",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "But I can promise you the choice will never be, for the vast majority of us, to be good little party partisans who stick with labour or in the U.S. vote blue no matter who. If you want to shore up this flank, if you want to solve the probl…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:ntvc6bg3a7446iyghc4cyrkd/app.bsky.feed.post/3mx2caumwbk23",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "It's desperate that both Labour and Tories wilfully turn a blind eye to different forms of racism within their party. Reform/restore need no comment. I don't know enough about LDs but the greens look to be eyeing up going down the same pat…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:j3ya4kgw5u764z2bxtfiyvd6/app.bsky.feed.post/3mx4xqynkjs2i",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "I'm by no means right wing. But I worry we need a moderate right of centre party in a healthy democracy. Sadly, Boris Johnson might have made it impossible for the Tories to be that party",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:omcfbxaithucc4o57yzwwsk3/app.bsky.feed.post/3mx2bqcstys25",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Parties of the workers. SNP and the Greens! Talk about a massive own goal!",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:hivo5gejs42bpuc2bk4he2ui/app.bsky.feed.post/3mx2cibuc4227",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "As during the 2019-24 period, it is worth keeping in mind *where* focus groups are sampled from. 2024 Labour voters *should* be positive about the party/PM - even if they have drifted away since the election... this sort of discussion shou…",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:p2xxj7wkwi2yup5wvrg4sg5p/app.bsky.feed.post/3mx2bw32vtc2q",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "It is possible that Labour’s current tilt to the left to be precisely because under Starmer they lost voters to the Green Party over various issues. As a LibDem supporter myself I can see the current PM more electable than the previous one.",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:xzqomtbik5url7dfbyonmeoc/app.bsky.feed.post/3mx4xqch36k2y",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "The far right have Labour, the Tories, and Reform under their sway, they urgently needed the Greens to undermine themselves and here we are. They already had a strong standpoint on the Palestinian genocide, now they have handed a weapon to…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:3un24uosfqjqrvftphh2syko/app.bsky.feed.post/3mxjiu6uqte2s",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "a party that I have historically tended to agree with more than the one I am happy to advise people in certain localities not to vote for. If we're fucked whether labour and the democrats win or not, then labour and the democrats can be fu…",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:jymrn5imkck5vrgy4z7e7wfz/app.bsky.feed.post/3mxd6abtbdc2q",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "If anyone is expecting this rancid party with it’s fraudulent MPs to do anything about the creep of US corporate interests into British society- then I’ve got a bridge to sell them The gravy train never ever stops",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:pqfa5ati67db4mvm6gdsxfzz/app.bsky.feed.post/3mxh256djbk2j",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "I mean yeah? I'm a Scottish Green and this was certainly a dissapointment. We just hoovered up the Andrew Feinstein Indy voters while Labour barely budged. The ground was extremely favourable and even Zack couldn't pull it off. With all th…",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:xs2ivbxppxfbu52tjpbi2d2j/app.bsky.feed.post/3mxjivhwgw223",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "I've stated my position before. I support the SNP but due to living in England can't vote for them. I'm therefore effectively politically homeless and will vote tactically to keep the Tories/Reform out. Where I am that means Labour or Lib…",
+          "stance": "opposes",
+          "note": "Will vote Labour or Lib Dem tactically to keep the Tories out."
+        },
+        {
+          "uri": "at://did:plc:64ayqksk5fbk36gkuw4cbvav/app.bsky.feed.post/3mx2btr7vmk2t",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Another reason not to vote Labour",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:qck2pjgoxhxmn5x6ef2wdk6l/app.bsky.feed.post/3mx2c6lwq642g",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "The Tory party is trying to rebrand this week, and nobody believes them. What credibility do the enablers of the Boris, Truss, and Sunak days actually have left?",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:3ymmeh4blucktr7brtek75b4/app.bsky.feed.post/3mx7gabm3ps24",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "It looks like the Australian Green Party has friends in Scotland, should the sitting Federal Labor Gov. be worried👇 www.bbc.com/news/article...",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:xvo7gsaojuuuxc6rlw374pls/app.bsky.feed.post/3mx4xpusiyk2y",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Tory frontbencher slams Labour's economic vision as reckless rhetoric hits conference season. Evidence: Partisan critique, high spending warnings, political posturing #UKPolitics #Aletheia",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:7xqorhqjdnphkjlg2qiylimn/app.bsky.feed.post/3mxcwqebfyk2y",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Nasty parties.. there's one left of centre option and 7 or so right of centre. Those right wingers always splitting.",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:fp7tw4nziok3nw6ipeb3wqyr/app.bsky.feed.post/3mxcwy2wvtc3s",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Free GP visits *are* a plus (as is cheaper public transport) but the Labour platform isn't exactly exciting, maybe that explains the Green surge and the rise of Opportunity* as those parties are proposing something transformative",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:253cgjz2lkve7bftyu25xz5z/app.bsky.feed.post/3mx2bpckjt22n",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Yip. Dispiriting. Though similarly to Labour, doubtful it reflects the views of a majority of the membership. Political activists are a weird bunch, and weirder the farther you get from the centre in either direction.",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:lcssdjtrt6zmv7cktyr6w6pe/app.bsky.feed.post/3mxcwmevgvo32",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "@timrichards I think the Vic Socialists will do well in Footscray and their preferences will go to Greens , they'll come very close to winning. Definitely in the next election.",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:cobayxtzbvcmap2ajv7oqmup/app.bsky.feed.post/3mxjitzs4q22i",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "I hope Labor, LNP and One Nation supporters are paying close attention to the 'United States' right now; this is what's in store for us if you continue supporting these corrupt neo-liberal corporate sector funded parties. The status quo (t…",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:snapsoancqm2tw6tjsx3egql/app.bsky.feed.post/3mxcwmxzp4s25",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "When it's Labour every penny must be costed.What about disabled/the sick/NHS.UK media bigging up awful speech that applies to so few. Listened to LBC for 5 mins (Ben Kentish) aka Land of Reform. All alt right swivels on, lining up. Media s…",
+          "stance": "other-angle",
+          "note": "Complains the media cost every Labour penny and spare the right. A defense of Labour."
+        },
+        {
+          "uri": "at://did:plc:oxgdesrpzm36ng7jygevhz7q/app.bsky.feed.post/3mxcwnp3iis2b",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "A rather rose tinted view from the article. Plenty of countries have PR etc and they have the same troubles as the UK. The right wing in Europe are on the march.",
+          "stance": "opposes"
+        },
+        {
+          "uri": "at://did:plc:6aqujndemxj33k4b6m33h3kn/app.bsky.feed.post/3mxjjhtr2ek2n",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "They are moderates but also view Libs with suspicion after the coalition. So if they slip back to their Clegg-era thinking, those voters will in part drift away. Libs in 2024 were a palatable alt to Toryism from centre left to (some) centr…",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:72aumc5f2eipqnmlrrli4lj4/app.bsky.feed.post/3mx4xmwi4lk2d",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Funny how many wealthy(acceptably type of)“ foriners” want to invest in right wing ideology in the uk!",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:p2xxj7wkwi2yup5wvrg4sg5p/app.bsky.feed.post/3mxjixywwus2h",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Maybe But the only relevant comment on Reform performance there from any journalist should have made reference to their racist attacks against the Labour candidate. Has the BBC done that? No. Why?",
+          "stance": "opposes",
+          "note": "The BBC should have covered racist attacks on the Labour candidate."
+        },
+        {
+          "uri": "at://did:plc:p2mfl6crjlyqpt3nutlles4y/app.bsky.feed.post/3mxcwqhdyc22p",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "ok so youre not progressive youre fine with genocide. youre fine with the trans witch hunt. youre fine with immigrants being the scapegoat for every issue. thats the labour party you support",
+          "stance": "supports"
+        },
+        {
+          "uri": "at://did:plc:pzij22pazyzrocmes4yf2g7m/app.bsky.feed.post/3mxjivsl2dc2x",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Election in just over 200 days, hopefully a change for the better then. Councillors favouring one group to anger of many others.",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:34r2ipt6f7idg5w7hnsf7afa/app.bsky.feed.post/3mx7gd5uszk2m",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "Exactly the show we saw in Labour in 2016 - so many keen people joined and got leveraged to drive out moderates/deselect councillors etc... then slowly left/went inactive as it got more toxic, the lines got harder, the crankery came out et…",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:adojsnvtwrch7i54n5vuzgex/app.bsky.feed.post/3mxjivr23wc2d",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "And the Greens fielded a candidate with high recognition - their party leader Yet to-left-of-labour vote share rose by just 4% and the Labour one fell by about the same. The weather was fine all day, but turnout much lower than in past by-…",
+          "stance": "other-angle"
+        },
+        {
+          "uri": "at://did:plc:5ain767qzskgixz4ojdlaamk/app.bsky.feed.post/3mxjj4hzscs2u",
+          "face_id": "8A",
+          "face_title": "Labour Party",
+          "snippet": "I emphasize this to make a point the trotskyist british unionist party need to fuck up and wise up with their defence of them saying they tend to march without instance. Any proper socialist organisation should aim to eradicate orangism no…",
+          "stance": "off-topic",
+          "note": "Northern Ireland socialist sectarianism. Not a Labour verdict."
+        }
+      ]
+    }
+  ],
+  "one_face_planets": [
+    "Gaza Genocide",
+    "ICE Abuse",
+    "MAGA Fails",
+    "Labour Party"
+  ],
+  "missed_second_stance": {
+    "definition": "Pipeline shows one face, and the hand sample's second coherent stance is at least 10% of the sample.",
+    "one_face_planets": 4,
+    "planets_with_second_stance_at_least_10pct": 2,
+    "rate": 0.5,
+    "names": [
+      "Gaza Genocide",
+      "Labour Party"
+    ]
+  },
+  "outside_sample_opposing_skim": {
+    "note": "Not in the sample rates. A one-line read of the rest of Diesel Deal, Gaza, and the execution planet, then a full read of the lines that push back. These are additional opposes the distance sample did not draw. The skim is not a full second labeling of every remaining post.",
+    "posts": [
+      {
+        "planet_id": 1,
+        "planet": "Trump Putin Diesel Deal",
+        "face_id": "1A",
+        "face_title": "Trump Helps Russia",
+        "uri": "at://did:plc:bo3ak32ear7cpx5finy4cyva/app.bsky.feed.post/3mx4xm5h2sc2u",
+        "snippet": "As someone who knows Ukrainian History. I agree. It’s NATO’s war against Russia and Ukraine’s right wing regime is the patsy.",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 1,
+        "planet": "Trump Putin Diesel Deal",
+        "face_id": "1A",
+        "face_title": "Trump Helps Russia",
+        "uri": "at://did:plc:pdytrxr3hrtyunjng7u3mff2/app.bsky.feed.post/3mxjj5j7xl22l",
+        "snippet": "What's more important, oil or Ukraine? Ukraine isn't heating our homes or delivering our goods. They could end the war today.",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 1,
+        "planet": "Trump Putin Diesel Deal",
+        "face_id": "1C",
+        "face_title": "Russia Invasion",
+        "uri": "at://did:plc:smtwmk5lbhomejy6cc3hqglr/app.bsky.feed.post/3mxjiwbg7fs2t",
+        "snippet": "↕️In typical Nazi Fashion, NATO is ACCUSING Russia of planning a 'false flag' attack, that NATO says Putin would use to rally and mobilise troops for a larger war with NATO. [Which is what Ukraine did, in Poland; to draw in NATO against Ru…",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 2,
+        "planet": "Gaza Genocide",
+        "face_id": "2A",
+        "face_title": "Israeli Genocide",
+        "uri": "at://did:plc:sgzurtawep6u4ceaioa6bcjn/app.bsky.feed.post/3mx7gdmiews2g",
+        "snippet": "When Israel left Gaza - every last person and even removed the graves, they hoped the gazans would want peace. Nope. The elected Hamas who immediately started a war with Israel. The Palestinians rejected every peace deal. So spare me your…",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 2,
+        "planet": "Gaza Genocide",
+        "face_id": "2A",
+        "face_title": "Israeli Genocide",
+        "uri": "at://did:plc:josg36hy52ezensbrlzse2gj/app.bsky.feed.post/3mxjjep7ndk2r",
+        "snippet": "discussion here, because you’re either racist or biased or ignorant or stupid to accuse Israel of it. So have a great day, and Am Yisrael Chai, motherfuckers",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 2,
+        "planet": "Gaza Genocide",
+        "face_id": "2A",
+        "face_title": "Israeli Genocide",
+        "uri": "at://did:plc:sgzurtawep6u4ceaioa6bcjn/app.bsky.feed.post/3mx7gdm6hkk2g",
+        "snippet": "The Palestinians don’t want a democratic state living in peace with Israel. I don’t think you have been paying attention. The Islamists controlling Gaza and the West Bank want to destroy Israel. When they say Free Palestine they mean elimi…",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 2,
+        "planet": "Gaza Genocide",
+        "face_id": "2A",
+        "face_title": "Israeli Genocide",
+        "uri": "at://did:plc:c7wikcrnmfsbu4prvtfhrygg/app.bsky.feed.post/3mxcwwkasg22r",
+        "snippet": "Everyone should remember the genocide that Hamas did on innocent civilians on October 7 three years ago. They should also remember that Palestinians cheered and celebrated as dead men, women, and children's bodies were being dragged throug…",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 2,
+        "planet": "Gaza Genocide",
+        "face_id": "2A",
+        "face_title": "Israeli Genocide",
+        "uri": "at://did:plc:r5tfsgca4rgqkoj33fo3vddd/app.bsky.feed.post/3mxcwofyx7c2x",
+        "snippet": "Oh I don't think they particularly care about Hamas, aside from a vague sense of disappointment that Oct 7th wasn't more bloody. No, it's just gutter antisemitism on display, with just a soupçon of islamophobia to spice up the dish.",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 2,
+        "planet": "Gaza Genocide",
+        "face_id": "2A",
+        "face_title": "Israeli Genocide",
+        "uri": "at://did:plc:dtrw4kjivanjau43hne3nbk7/app.bsky.feed.post/3mxcwttughc2j",
+        "snippet": "Speaking of Genocide, Russia and HAMAS both brag that their goal is genocide.",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 2,
+        "planet": "Gaza Genocide",
+        "face_id": "2A",
+        "face_title": "Israeli Genocide",
+        "uri": "at://did:plc:gaeeqvb4z2omasytghvr4x4h/app.bsky.feed.post/3mxcwuspq7c25",
+        "snippet": "The only one who has committed a genocide in history was Adolf Hitler on the Jews, I am not going to read your fraud fake propaganda. Netanyahu is not committing genocide, he is not and has not destroyed the Palestine population, he is def…",
+        "stance": "opposes",
+        "in_sample": false
+      },
+      {
+        "planet_id": 3,
+        "planet": "Livestreamed Execution Plan",
+        "face_id": "3A",
+        "face_title": "Execution Livestream",
+        "uri": "at://did:plc:pbtjzjtg4u2qgrwoxrvy5nj5/app.bsky.feed.post/3mx2bsci2gk2i",
+        "snippet": "Prefer to see it and the shooter executed. Don't forget the others that murdered Alex Pretti and Keith Porter and the others murdered.",
+        "stance": "opposes",
+        "in_sample": false
+      }
+    ]
+  }
+}
