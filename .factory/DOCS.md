@@ -37,9 +37,13 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Perspective grouping research | `docs/research/perspective-grouping.md` | Stance splits inside one planet, offline comparison, and the keep-and-score rule (#76). |
 | Settings | `pipeline/settings.py` | All env-var-driven settings; cross-reference `.env.example`. |
 | Schema | `pipeline/schema.py` | Canonical data contract between pipeline and frontend. |
-| Production call costs | `pipeline/costs.py` | Meter for DeepInfra and Jev. Ledger and weekly table are committed on `data-snapshot` (`costs/`), not `main`. `retried_calls` and `final_failures` split `failed_calls`. |
-| Publish guard | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade the new snapshot. A quiet day with fewer planets still publishes. |
-| Pipeline overlap check | `pipeline/pipeline_overlap.py`, `scripts/check_pipeline_overlap.py` | GitHub API check for an in-progress Daily Discourse Pipeline run. No DeepInfra calls. |
+| Production call costs | `pipeline/costs.py` | Meter for DeepInfra and Jev. Ledger on `data-snapshot` (`costs/`), not `main`. `retried_calls` and `final_failures` split `failed_calls` (#115). Each row has `trigger` for production vs merge/test spend (#101). |
+| Jev pre-filter & cache | `pipeline/jev_prefilter.py`, `pipeline/jev.py`, `pipeline/store.py` | Free pre-filter before paid Jev; 14-day `jev_verdicts` cache (#92). |
+| Same-story attach | `pipeline/story_attach.py` | Attach strays, fold planets, merge alike face titles after relabel (#114). |
+| Schedule guard | `pipeline/schedule_guard.py` | Scheduled workflow no-op when today's pipeline already succeeded (#97). |
+| Publish guard | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade the new snapshot. A quiet day with fewer planets still publishes (#115). |
+| Pipeline overlap check | `pipeline/pipeline_overlap.py`, `scripts/check_pipeline_overlap.py` | GitHub API check for an in-progress Daily Discourse Pipeline run. No DeepInfra calls (#115). |
+| Natural grouping research | `docs/research/natural-grouping.md` | Dense-ball clustering comparison; one-view planets carry `opposing_note` (#94). |
 
 ## Frontend (React + R3F)
 
@@ -60,7 +64,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | E2E tests | `tests/e2e/views.spec.js` | Playwright end-to-end spec. Config: `playwright.config.js`. |
 | Python CI | `.github/workflows/pytest.yml` | Runs on push/PR to main. Installs lightweight deps via `uv`. |
 | Frontend CI | `.github/workflows/frontend.yml` | Lint (`npm run lint`) + category helper on push/PR to main. |
-| Daily pipeline | `.github/workflows/pipeline.yml` | Scheduled (06:17 UTC daily) + `workflow_dispatch`. Publishes `public/data.json`. |
+| Daily pipeline | `.github/workflows/pipeline.yml` | Staggered UTC crons (`06:17`, `07:47`, `09:17`, `10:47`, `12:17`; #97) + `schedule_guard` + `workflow_dispatch`. Publishes `public/data.json`. |
 | Pages deploy | `.github/workflows/pages.yml` | Deploys on push to main, `workflow_dispatch`, and a successful Daily Discourse Pipeline (`workflow_run`). Build checks out main and overlays `public/data.json` from `data-snapshot`. |
 | Security audit | `.github/workflows/security-audit.yml` | Required check on all pushes; runs `bandit` + `pip-audit`. Do not add path filters. |
 | CODEOWNERS | `.github/CODEOWNERS` | `@Data-Science-Link` must approve PRs to `main`. |
@@ -76,16 +80,25 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 
 ## Secrets available to cloud agents
 
-Names only — never log or commit values.
+Names only — never log or commit values. Listed from `.github/workflows/pipeline.yml` and names present in this cloud agent environment (2026-10-10). **Unverified** = forwarded by the workflow but not observed in this run's environment.
 
-| Name | Use |
-|---|---|
-| `OPENAI_API_KEY` | DeepInfra labeling (with `OPENAI_BASE_URL`) |
-| `TYPESAFE_API_KEY` | Jev (spam, claim, section) |
-| `R2_ACCESS_KEY_ID` | Cloudflare R2 corpus sync |
-| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 corpus sync |
-| `R2_ENDPOINT` | Cloudflare R2 corpus sync |
-| `R2_BUCKET` | Cloudflare R2 corpus sync |
+| Name | Use | Verified here |
+|---|---|---|
+| `BLUESKY_HANDLE` | Bluesky ingest (Actions daily job) | yes |
+| `BLUESKY_APP_PASSWORD` | Bluesky app password (not account password) | yes |
+| `OPENAI_API_KEY` | DeepInfra labeling | yes |
+| `OPENAI_BASE_URL` | OpenAI-compatible API host (DeepInfra) | yes |
+| `OPENAI_MODEL` | Model id for planet/face labels | yes |
+| `TYPESAFE_API_KEY` | Jev (spam, claim, section) | yes |
+| `JEV_MODEL` | Optional Jev model override (`jev-latest` default) | unverified |
+| `OLLAMA_HOST` | Local Ollama labels (optional) | unverified |
+| `OLLAMA_MODEL` | Ollama model name | unverified |
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 corpus download/upload | yes |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 corpus download/upload | yes |
+| `R2_ENDPOINT` | R2 S3 API endpoint | yes |
+| `R2_BUCKET` | Private corpus bucket | yes |
+| `R2_OBJECT_KEY` | Optional corpus object key (env var, not an Actions secret) | unverified |
+| `GITHUB_TOKEN` | `pipeline/schedule_guard.py` in Actions only (default `github.token`) | unverified (not needed for local paid tests) |
 
 **Approval rule (Michael, 2026-10-09):** High-risk labeling or grouping PRs must show real before-and-after output from a cloud agent run before Michael approves. No publishing on that run: no R2 upload, no `data-snapshot` push, and no Pages deploy.
 

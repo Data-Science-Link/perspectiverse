@@ -7,8 +7,8 @@ Append-only. Newest at the bottom.
 ```
 ### YYYY-MM-DD — Short title
 - **Decision:** what we chose
+- **Decided by:** owner (quote or link) / manager (sequencing or technical call) / other human
 - **Why:** one or two sentences
-- **Decided by:** who made the call (optional; use when attributing credit matters)
 - **Alternatives:** what we rejected (optional)
 - **Revisit when:** trigger to reconsider (optional)
 ```
@@ -330,6 +330,12 @@ Append-only. Newest at the bottom.
 - **Basis:** Michael set the order (grouping quality first, then Jetstream), and the paid test on #102 showed 1,287s section labeling (over the 1,200s ceiling), 80 failed calls, and 72.9% section agreement.
 - **Revisit when:** Michael wants #90 prioritized.
 
+### 2026-10-09 — Same-story attach, fold, restore, and post-relabel title merge (#104, #103)
+- **Decision:** Implement the approved missing-post fix without a transitive merge. A noise post joins the nearest planet of at least 20 posts only when its cosine to that planet's original center is at least 0.42 and the post contains that planet's top subject stem. A smaller planet folds into one larger planet only when the cosine is at least 0.55 and at least 60% of its posts contain that same top stem. A secondary stem such as "russia" on a Ukraine planet is not enough by itself. A much longer token (a place name or hashtag) does not cancel the top stem; a stem only a character or two longer ("zionism" against "israel") is a different subject and stays off. Centers and stems are fixed before either step, and a planet that is folding is not a parent, so nothing chains. A face the claim gate drops gives a post back when the post matches that face's story stems, including a stem that travels with the top stem, so a Ukraine post is not lost just because the surviving face says "Russia" more often. After the wide relabel, faces on one planet whose titles `titles_alike` already treats as the same are merged. `titles_alike` is unchanged, so "Iran War" and "Iran Conflict" stay distinct. The author cap is not undone. The 0.72 center merge, 0.50 peel, and 0.60 mean gate are unchanged.
+- **Why:** The face gate cut same-war posts off Ukraine (159 to 108) and Epstein (47 to 21), and the same story was split across neighboring planets. A transitive merge at 0.62 glued separate stories.
+- **Alternatives:** Transitive merge at cosine 0.62 (rejected: it glues distinct stories). Loosening `titles_alike` (rejected: an existing test keeps "Iran War" and "Iran Conflict" apart).
+- **Revisit when:** A fold sample fails the one-story check, or the fixed story reference shows recall can rise without lowering the cosine gates.
+
 ### 2026-10-09 — Do not publish a labeling-failure regression (#107)
 - **Decision:** A daily run keeps the live `data.json` when the new snapshot is degraded by DeepInfra distress. Distress means final failures are over 5% of labeling calls, or retried attempts plus final failures are over 5% of calls (`calls` is every HTTP attempt). Exactly 5% does not count. Hold if either: (1) section planets fell by more than the larger of 3 and 5% of the live section-planet count, rounded up (live 98 → margin 5, so 92 or fewer holds); or (2) the wide face relabel was left unfinished in a strict majority of sections that queued one (at least two sections). A planet drop or a relabel skip without distress still publishes, including a real day that simply has fewer planets. A missing live snapshot, a missing label report, or a guard error publishes (fail open). The workflow still records the cost ledger, then fails the publish step so Pages does not deploy the degraded file. Each run logs 429, 5xx, timeout, and other separately for retried attempts and for final failures. Final failures over 5% also print a warning. HTTP 429, 5xx, and timeouts retry twice (2s, then 6s); a retry that would pass the section ceiling is skipped, and a timeout retry needs another 60s inside that ceiling. `failed_calls` stays the mixed count; `retried_calls` and `final_failures` are the split. Older ledger rows store 0 in the new columns.
 - **Why:** Run 37946621071 published 90 section planets and skipped every section's face relabel after 86 failed DeepInfra calls, over the 1,200s ceiling. A clean re-run (37954827855) on the same corpus took 823s, had 8 failures, and published 97 section planets. The ledger mixed retries with final failures, and the log had no error type.
@@ -341,3 +347,17 @@ Append-only. Newest at the bottom.
 - **Why:** The 86 failures on run 37946621071 are consistent with a concurrent paid test (#90 / PR #102) hitting the same key. A clean re-run with nothing else on the key dropped to 8 failures. The workflow concurrency group does not see a cloud agent.
 - **Alternatives:** A second DeepInfra key. Rely on the Actions concurrency group alone.
 - **Revisit when:** Labeling uses a key the daily pipeline does not use.
+
+### 2026-10-10 One face only when no real second stance exists
+- **Decision:** A planet shows a single face only when a real search finds no second stance of meaningful size. One face is never the default just because it is easiest or lowest-error. The hand-checked stance sample includes the planets that currently show one face (Gaza, Abolish ICE, MAGA Fails, Labour) and measures how often the pipeline misses a real second side.
+- **Open:** the size threshold (proposed: about 10% of the planet's posts). It is confirmed by Michael once the stance numbers are in, before anything is built.
+- **Supersedes:** the 10/9 reading that the 48 one-face planets after #94 were genuinely one-view. That count is to be re-checked against the stance sample.
+- **Decided by:** Michael, 10/10 11:15 AM: "I am ok with one face if that's the reality, but my gut tells me we are not doing a good job of finding the multiple distinct perspectives so we shouldn't just opt for 1 face cause it's the easiest and lowest error."
+
+### 2026-10-10 Improve PR over PR
+- **Decision:** A partial improvement may merge when it beats main on numbers measured the same way, the same day. Its PR still reports every bar on the parent issue as pass or fail, and the parent issue stays open until its own done bar is met. First applied to #114 (top-10 coverage 5.9% to 8.1%, Politics coverage 4.5% to 9.2%, noise 38.6% to 35.7%; 5 of 9 #104 bars still fail).
+- **Decided by:** Michael, 10/10 11:19 AM: "Feel free to merge 114. Just steadily improve the project PR over PR."
+
+### 2026-10-10 #118 tracked under #104
+- **Decision:** #118 ("Separatism" puts Canadian separatism and US–Canada threats on one planet) is a coherence failure and is tracked under #104 next to the Gaza and Zionism-motion mix, not under the face fix.
+- **Decided by:** Giver flagged it; the Factory Manager made the sequencing call, 10/10 11:12 AM.
