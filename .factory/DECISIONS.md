@@ -7,8 +7,8 @@ Append-only. Newest at the bottom.
 ```
 ### YYYY-MM-DD — Short title
 - **Decision:** what we chose
+- **Decided by:** owner (quote or link) / manager (sequencing or technical call) / other human
 - **Why:** one or two sentences
-- **Decided by:** who made the call (optional; use when attributing credit matters)
 - **Alternatives:** what we rejected (optional)
 - **Revisit when:** trigger to reconsider (optional)
 ```
