@@ -193,7 +193,7 @@ def format_deepinfra_error_log(summary: dict | None) -> str:
     data = summary if isinstance(summary, dict) else empty_error_summary()
     calls = int(data.get("calls") or 0)
     return (
-        f"DeepInfra errors: {calls} call(s). "
+        f"DeepInfra labeling: {calls} call(s). "
         f"Retried attempts: {_count_phrase(data.get('retried'))}. "
         f"Final failures: {_count_phrase(data.get('final_failures_by_type'))}."
     )

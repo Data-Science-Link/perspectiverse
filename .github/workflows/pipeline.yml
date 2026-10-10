@@ -159,6 +159,10 @@ jobs:
           if [ -f pipeline/data/label_run.json ]; then
             cp pipeline/data/label_run.json /tmp/perspectiverse-snapshot/label_run.json
           fi
+          # publish_guard.py is on main. data-snapshot's pipeline/ does not
+          # have it, so the guard must be copied before the checkout below
+          # (runs 38066451782 and 38067170954).
+          cp pipeline/publish_guard.py /tmp/perspectiverse-snapshot/publish_guard.py
           # r2_usage.json is gitignored and written by restore plus upload,
           # which are separate processes from the live step.
           if [ -f pipeline/data/r2_usage.json ]; then
@@ -219,30 +223,50 @@ jobs:
             git checkout --force -B data-snapshot
           fi
           mkdir -p pipeline/data
-          # Keep the previous public/data.json when this run is degraded by
-          # labeling failures. A missing live file, a broken report, or any
-          # guard error other than exit 10 publishes (fail open).
+          # BEGIN publish-guard
+          # The worktree is now data-snapshot, which has no publish_guard.py.
+          # Run the copy taken from main. Exit 10 keeps the live file. Any
+          # other failure publishes (fail open). A missing copy, or Python
+          # unable to load the module, warns that the guard could not run.
           HOLD=0
+          GUARD=/tmp/perspectiverse-snapshot/publish_guard.py
           if [ -f public/data.json ]; then
-            set +e
-            source .venv/bin/activate
-            if [ -f /tmp/perspectiverse-snapshot/label_run.json ]; then
-              python -m pipeline.publish_guard \
-                --live public/data.json \
-                --new /tmp/perspectiverse-snapshot/data.json \
-                --label-run /tmp/perspectiverse-snapshot/label_run.json
+            if [ ! -f "$GUARD" ]; then
+              echo "::warning::Publish guard could not run: main's publish_guard.py was not staged before the data-snapshot checkout. Publishing (fail open)."
+              guard_status=0
             else
-              python -m pipeline.publish_guard \
-                --live public/data.json \
-                --new /tmp/perspectiverse-snapshot/data.json
-            fi
-            guard_status=$?
-            set -e
-            if [ "$guard_status" -eq 10 ]; then
-              HOLD=1
-              echo "::error::Publish guard kept the previous data.json. This run's labeling output is degraded."
-            elif [ "$guard_status" -ne 0 ]; then
-              echo "::warning::Publish guard exited ${guard_status}; publishing (fail open)."
+              set +e
+              if [ -f .venv/bin/activate ]; then
+                # shellcheck disable=SC1091
+                source .venv/bin/activate
+              fi
+              guard_err=$(mktemp)
+              if [ -f /tmp/perspectiverse-snapshot/label_run.json ]; then
+                python "$GUARD" \
+                  --live public/data.json \
+                  --new /tmp/perspectiverse-snapshot/data.json \
+                  --label-run /tmp/perspectiverse-snapshot/label_run.json \
+                  2>"$guard_err"
+              else
+                python "$GUARD" \
+                  --live public/data.json \
+                  --new /tmp/perspectiverse-snapshot/data.json \
+                  2>"$guard_err"
+              fi
+              guard_status=$?
+              set -e
+              cat "$guard_err" >&2
+              if [ "$guard_status" -eq 10 ]; then
+                HOLD=1
+                echo "::error::Publish guard kept the previous data.json. This run's labeling output is degraded."
+              elif [ "$guard_status" -ne 0 ]; then
+                if [ "$guard_status" -eq 127 ] || grep -q -e "No module named" -e "can't open file" -e "No such file or directory" "$guard_err"; then
+                  echo "::warning::Publish guard could not run (exit ${guard_status}). Publishing (fail open)."
+                else
+                  echo "::warning::Publish guard exited ${guard_status}; publishing (fail open)."
+                fi
+              fi
+              rm -f "$guard_err"
             fi
           else
             echo "Publish guard: no live data.json on data-snapshot; publishing (fail open)."
@@ -252,6 +276,7 @@ jobs:
           else
             echo "Publish guard: not replacing public/data.json."
           fi
+          # END publish-guard
           # Pages publishes data.json. Once R2 is configured, stop committing
           # the SQLite file so the blob cannot grow toward GitHub's 100 MB limit.
           if [ "${{ steps.r2.outputs.status }}" = "unconfigured" ]; then
