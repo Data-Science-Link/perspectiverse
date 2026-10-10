@@ -1,9 +1,9 @@
-from pipeline.cluster_math import salient_terms
+from pipeline.cluster_math import face_top_terms, salient_terms
 
 
-def test_salient_terms_pads_up_to_four_when_threshold_is_strict():
+def test_face_top_terms_pads_up_to_four_when_threshold_is_strict():
     texts = [f"israel gaza conflict report variant {index}" for index in range(20)]
-    terms = salient_terms(texts, limit=6)
+    terms = face_top_terms(texts, limit=6)
     assert len(terms) >= 4
     assert len(terms) <= 6
     assert all(isinstance(term, str) and term for term in terms)

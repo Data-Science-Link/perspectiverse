@@ -156,14 +156,28 @@ def salient_terms(texts: list[str], limit: int = 3) -> list[str]:
     threshold = max(2, int(len(texts) * 0.3))
     strong = [term for term in ranked if counts[term] >= threshold]
     chosen = strong[:limit] or ranked[:1]
+    return chosen
+
+
+def face_top_terms(texts: list[str], limit: int = 3) -> list[str]:
+    """Salient terms for a published face, padded up to four when the bucket is large."""
+    chosen = salient_terms(texts, limit=limit)
+    if len(texts) < 2:
+        return chosen
     floor = min(limit, 4)
-    if len(texts) >= 2 and len(chosen) < floor:
-        for term in ranked:
-            if term in chosen:
-                continue
-            chosen.append(term)
-            if len(chosen) >= floor:
-                break
+    if len(chosen) >= floor:
+        return chosen
+    counts: dict[str, int] = {}
+    for text in texts:
+        for token in set(tokenize(text)):
+            counts[token] = counts.get(token, 0) + 1
+    ranked = sorted(counts, key=lambda term: (-counts[term], term))
+    for term in ranked:
+        if term in chosen:
+            continue
+        chosen.append(term)
+        if len(chosen) >= floor:
+            break
     return chosen[:limit]
 
 

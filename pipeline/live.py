@@ -30,7 +30,7 @@ from pipeline.corpus import (
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev, known_scored_uris
-from pipeline.cluster_math import salient_terms, vectorize
+from pipeline.cluster_math import face_top_terms, salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
 from pipeline.language import partition_posts
 from pipeline.schema import TOP_TERMS_LIMIT
@@ -729,7 +729,7 @@ def _label_faces(
             "summary": label["summary"],
             "volume_percent": face_volume,
             "representative_posts": representatives,
-            "top_terms": salient_terms(member_texts, limit=TOP_TERMS_LIMIT),
+            "top_terms": face_top_terms(member_texts, limit=TOP_TERMS_LIMIT),
         }
         if len(arguments) >= 2:
             perspective["arguments"] = arguments[:6]
