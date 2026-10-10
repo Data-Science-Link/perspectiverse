@@ -37,9 +37,13 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Perspective grouping research | `docs/research/perspective-grouping.md` | Stance splits inside one planet, offline comparison, and the keep-and-score rule (#76). |
 | Settings | `pipeline/settings.py` | All env-var-driven settings; cross-reference `.env.example`. |
 | Schema | `pipeline/schema.py` | Canonical data contract between pipeline and frontend. |
-| Production call costs | `pipeline/costs.py` | Meter for DeepInfra and Jev. Ledger and weekly table are committed on `data-snapshot` (`costs/`), not `main`. `retried_calls` and `final_failures` split `failed_calls`. |
-| Publish guard | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade the new snapshot. A quiet day with fewer planets still publishes. |
-| Pipeline overlap check | `pipeline/pipeline_overlap.py`, `scripts/check_pipeline_overlap.py` | GitHub API check for an in-progress Daily Discourse Pipeline run. No DeepInfra calls. |
+| Production call costs | `pipeline/costs.py` | Meter for DeepInfra and Jev. Ledger on `data-snapshot` (`costs/`), not `main`. `retried_calls` and `final_failures` split `failed_calls` (#115). Each row has `trigger` for production vs merge/test spend (#101). |
+| Jev pre-filter & cache | `pipeline/jev_prefilter.py`, `pipeline/jev.py`, `pipeline/store.py` | Free pre-filter before paid Jev; 14-day `jev_verdicts` cache (#92). |
+| Same-story attach | `pipeline/story_attach.py` | Attach strays, fold planets, merge alike face titles after relabel (#114). |
+| Schedule guard | `pipeline/schedule_guard.py` | Scheduled workflow no-op when today's pipeline already succeeded (#97). |
+| Publish guard | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade the new snapshot. A quiet day with fewer planets still publishes (#115). |
+| Pipeline overlap check | `pipeline/pipeline_overlap.py`, `scripts/check_pipeline_overlap.py` | GitHub API check for an in-progress Daily Discourse Pipeline run. No DeepInfra calls (#115). |
+| Natural grouping research | `docs/research/natural-grouping.md` | Dense-ball clustering comparison; one-view planets carry `opposing_note` (#94). |
 
 ## Frontend (React + R3F)
 
@@ -60,7 +64,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | E2E tests | `tests/e2e/views.spec.js` | Playwright end-to-end spec. Config: `playwright.config.js`. |
 | Python CI | `.github/workflows/pytest.yml` | Runs on push/PR to main. Installs lightweight deps via `uv`. |
 | Frontend CI | `.github/workflows/frontend.yml` | Lint (`npm run lint`) + category helper on push/PR to main. |
-| Daily pipeline | `.github/workflows/pipeline.yml` | Scheduled (06:17 UTC daily) + `workflow_dispatch`. Publishes `public/data.json`. |
+| Daily pipeline | `.github/workflows/pipeline.yml` | Staggered UTC crons (`06:17`, `07:47`, `09:17`, `10:47`, `12:17`; #97) + `schedule_guard` + `workflow_dispatch`. Publishes `public/data.json`. |
 | Pages deploy | `.github/workflows/pages.yml` | Deploys on push to main, `workflow_dispatch`, and a successful Daily Discourse Pipeline (`workflow_run`). Build checks out main and overlays `public/data.json` from `data-snapshot`. |
 | Security audit | `.github/workflows/security-audit.yml` | Required check on all pushes; runs `bandit` + `pip-audit`. Do not add path filters. |
 | CODEOWNERS | `.github/CODEOWNERS` | `@Data-Science-Link` must approve PRs to `main`. |

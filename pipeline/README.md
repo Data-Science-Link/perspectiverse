@@ -46,6 +46,7 @@ Copy the repo-root `.env.example` to `.env`. The CLI loads it on start without o
 | `live_corpus.db` → `fetched_days` | ledger | UTC dates already searched, so those days are not pulled again |
 | `live_corpus.db` → `topic_membership` | derived | planet id per kept post |
 | `live_corpus.db` → `perspectives` | derived | face index and centroid distance |
+| `live_corpus.db` → `jev_verdicts` | cache | Jev spam, claim, and section scores keyed by post URI; rows older than 14 days are deleted (#92) |
 | `posts.db` | scratch | local override if you pass `--db` |
 
 The public sample searches content-neutral tokens (`the`, `and`, `to`, `of`, `in`, `for`), newest English posts, then keeps a random subset. Bluesky search cannot draw a truly random post; this only stops steering the week toward sports, wars, or AI. The first run with an empty `fetched_days` table replaces the retained file with a 7-day sample, because the previous file was a seeded mix. Later runs drop posts older than 168 hours and search only the newest 24 hours. A UTC day already in `fetched_days` that still has posts is not searched again. If Bluesky 403s, the job **does not drop** — it rebuilds the snapshot from whatever is already retained.
@@ -80,7 +81,7 @@ There is one face call per perspective (title, summary, 2–4 arguments), a repa
 python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
 ```
 
-The public dropdown is a newspaper: **World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, Other**. With `TYPESAFE_API_KEY` set, Jev assigns a section to each new post (one `choice` plus a spam `noul` per post). A planet's category is the majority section of its members. Without a key, or when a call fails, the keyword map is the fallback. All topics is still one unsupervised clustering of the whole window. A section filter can show fewer planets than All topics. Jev does not name planets and does not replace the embedder. Spam drops at 0.8. A public claim is kept at 0.5. Non-claims stay in the window and out of the planets.
+The public dropdown is a newspaper: **World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, Other**. With `TYPESAFE_API_KEY` set, `jev_prefilter.py` drops link-only, very short, non-English, and near-duplicate posts before any paid Jev call (#92). Jev then assigns a section to each new post (one `choice` plus a spam `noul` per post). Answers are stored in `jev_verdicts` for 14 days so the same URI is not rescored (#92). A planet's category is the majority section of its members. Without a key, or when a call fails, the keyword map is the fallback. All topics is still one unsupervised clustering of the whole window. A section filter can show fewer planets than All topics. Jev does not name planets and does not replace the embedder. Spam drops at 0.8. A public claim is kept at 0.5. Non-claims stay in the window and out of the planets.
 
 ## Publish
 
@@ -88,13 +89,13 @@ The daily workflow runs `--live` and publishes a new snapshot. It does not commi
 
 A run does not replace that live `data.json` when labeling failures degraded it: section planets fell by more than a small margin (the larger of 3 and 5% of the live count), or the wide face relabel was left unfinished in most sections, and DeepInfra final failures or retries-plus-finals are over 5% of calls. A real day with fewer planets and a healthy labeler still publishes. The cost ledger can still be updated. The workflow step then fails so Pages does not treat the run as a successful deploy. See `pipeline/publish_guard.py`.
 
-The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` and `costs/daily_spend_14d.svg` on `data-snapshot` (one row per paid service and model, including Cloudflare R2). Those files are not under `public/`, so Pages does not deploy them. A cost-log error is a warning and does not stop the snapshot.
+The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` and `costs/daily_spend_14d.svg` on `data-snapshot` (one row per paid service and model, including Cloudflare R2). Each row includes `trigger` (`schedule`, `push`, `workflow_dispatch`, or backfilled from GitHub Actions) so the chart can stack production spend above merge- and test-triggered spend on the same day (#101). Those files are not under `public/`, so Pages does not deploy them. A cost-log error is a warning and does not stop the snapshot.
 
 ### When the pipeline triggers
 
 | Trigger | What happens | LLM spend |
 | --- | --- | --- |
-| Cron 06:17 UTC | Full live pipeline — Bluesky fetch, Jev decisions on new posts only, embed, cluster, label, publish | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
+| Scheduled UTC (`06:17`, `07:47`, `09:17`, `10:47`, `12:17`; #97) | Full live pipeline — Bluesky fetch, Jev on new posts only, embed, cluster, label, publish. Later scheduled slots no-op when `pipeline/schedule_guard.py` sees today's run already succeeded on `main`. | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
 | Push to `main` — pipeline code changed (`pipeline/**`, `pyproject.toml`, `uv.lock`, `.github/workflows/pipeline.yml`) | Same full live pipeline | Same as cron |
 | Push to `main` — site-only files (frontend, `pipeline/README.md`, `pipeline/data/**`, docs) | `pages.yml` redeploy only — no pipeline run, no LLM spend | None |
 | `workflow_dispatch` | Full live pipeline | Same as cron |
@@ -131,8 +132,10 @@ R2's free tier includes 10 GB. This file stays under a gigabyte.
 - `config/pipeline.example.yaml` — window, 10,000-claim target, neutral search tokens
 - `settings.py` — loads the example, then `pipeline.yaml` if you created one
 - `data_sources/extract_bluesky.py` — Bluesky extract with host fallback
-- `cleaning.py`, `jev.py`, `corpus.py`, `store.py` — regex, Jev decisions, 7-day window, SQLite
+- `cleaning.py`, `jev_prefilter.py`, `jev.py`, `corpus.py`, `store.py` — regex, free pre-filter, Jev decisions, 7-day window, SQLite (`jev_verdicts` cache, #92)
+- `story_attach.py` — same-story attach, planet fold, and post-relabel title merge (#114)
 - `topics.py`, `perspectives.py`, `label.py`, `assemble.py` — planets, faces, names, `data.json`
+- `publish_guard.py`, `pipeline_overlap.py`, `schedule_guard.py` — hold degraded snapshots (#115), overlap check for paid tests (#115), skip redundant scheduled runs (#97)
 - `r2.py` — download and upload `live_corpus.db` to private Cloudflare R2
 - `live.py` — live orchestration
 - `generate_demo_data.py` — synthetic universe (still available)
