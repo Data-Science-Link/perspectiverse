@@ -159,28 +159,6 @@ def salient_terms(texts: list[str], limit: int = 3) -> list[str]:
     return chosen
 
 
-def face_top_terms(texts: list[str], limit: int = 3) -> list[str]:
-    """Salient terms for a published face, padded up to four when the bucket is large."""
-    chosen = salient_terms(texts, limit=limit)
-    if len(texts) < 2:
-        return chosen
-    floor = min(limit, 4)
-    if len(chosen) >= floor:
-        return chosen
-    counts: dict[str, int] = {}
-    for text in texts:
-        for token in set(tokenize(text)):
-            counts[token] = counts.get(token, 0) + 1
-    ranked = sorted(counts, key=lambda term: (-counts[term], term))
-    for term in ranked:
-        if term in chosen:
-            continue
-        chosen.append(term)
-        if len(chosen) >= floor:
-            break
-    return chosen[:limit]
-
-
 def _sq_distances(matrix: np.ndarray, centers: np.ndarray, row_norms: np.ndarray | None = None) -> np.ndarray:
     """Squared Euclidean distance from every row to every center, as an n x k matrix.
 
