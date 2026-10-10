@@ -53,6 +53,11 @@ catalog_size: 10
 # candidate. Pieces under the floor are not glued onto a sibling and do not
 # fill a catalog slot. 0 disables the floor.
 min_planet_posts: 5
+# Share of the stance sample (at most 40 posts, or the whole planet when it
+# is smaller) that a second coherent pole must reach before a one-face planet
+# is split. One value. 0.10 is the setting this build measures. It is not a
+# decision that 10% is the right bar. The check does not use the whole-planet count.
+stance_second_face_share: 0.10
 
 # Content-neutral search tokens. Bluesky search has no random-post endpoint.
 # These words do not steer the week toward a beat. --query still overrides them.

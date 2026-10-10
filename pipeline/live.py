@@ -54,6 +54,7 @@ from pipeline.label import (
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
+from pipeline.stance import apply_stance_pass
 from pipeline.prompt_sample import cosines_to_matrix_centroid, planet_member_cosines, select_prompt_posts
 from pipeline.schema import (
     CATEGORIES,
@@ -519,6 +520,7 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         "seed": int(settings["seed"]),
         "workers": workers,
         "min_planet_posts": _planet_post_floor(settings),
+        "stance_second_face_share": settings.get("stance_second_face_share"),
     }
 
 
@@ -842,6 +844,8 @@ def _collect_finalize_face_jobs(
         for face in topic.get("perspectives") or []:
             draft = face.get("_draft_face_label")
             face_uris = list(face.get("_face_member_uris") or [])
+            if face.get("stance_locked"):
+                continue
             if not draft or not face_uris:
                 continue
             local_indices = []
@@ -1135,6 +1139,7 @@ def _strip_internal_planet_fields(topics: list[dict]) -> None:
         for face in topic.get("perspectives") or []:
             face.pop("_draft_face_label", None)
             face.pop("_face_member_uris", None)
+            face.pop("stance_locked", None)
 
 
 def _finalize_published_planets(
@@ -1286,6 +1291,9 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     if _below_planet_floor(shown, context):
         # Faces already labeled. Skip the name and the briefs, and do not publish.
         return _exclude_for_floor(context, log, topic_name(terms), shown, _post_samples(members))
+    drafted, stance_lines = apply_stance_pass(drafted, members, context, subject=topic_name(terms))
+    log.extend(stance_lines)
+    perspectives = [item[0] for item in drafted]
     planet_prompt_cap = int(context.get("planet_prompt_sample_size") or 20)
     if context.get("chosen") == "heuristic":
         planet_prompt_posts = members
@@ -2274,7 +2282,11 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
     kept = []
     for topic in topics:
         original = list(topic.get("perspectives") or [])
-        faces = [face for face in original if not _face_has_no_shared_claim(face)]
+        faces = [
+            face
+            for face in original
+            if face.get("stance_locked") or not _face_has_no_shared_claim(face)
+        ]
         if not faces or len(faces) > MAX_FACES:
             print(
                 f"Dropping {topic.get('name')}: {len(faces)} faces left after "
