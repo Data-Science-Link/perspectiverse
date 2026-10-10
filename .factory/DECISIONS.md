@@ -347,3 +347,17 @@ Append-only. Newest at the bottom.
 - **Why:** The 86 failures on run 37946621071 are consistent with a concurrent paid test (#90 / PR #102) hitting the same key. A clean re-run with nothing else on the key dropped to 8 failures. The workflow concurrency group does not see a cloud agent.
 - **Alternatives:** A second DeepInfra key. Rely on the Actions concurrency group alone.
 - **Revisit when:** Labeling uses a key the daily pipeline does not use.
+
+### 2026-10-10 One face only when no real second stance exists
+- **Decision:** A planet shows a single face only when a real search finds no second stance of meaningful size. One face is never the default just because it is easiest or lowest-error. The hand-checked stance sample includes the planets that currently show one face (Gaza, Abolish ICE, MAGA Fails, Labour) and measures how often the pipeline misses a real second side.
+- **Open:** the size threshold (proposed: about 10% of the planet's posts). It is confirmed by Michael once the stance numbers are in, before anything is built.
+- **Supersedes:** the 10/9 reading that the 48 one-face planets after #94 were genuinely one-view. That count is to be re-checked against the stance sample.
+- **Decided by:** Michael, 10/10 11:15 AM: "I am ok with one face if that's the reality, but my gut tells me we are not doing a good job of finding the multiple distinct perspectives so we shouldn't just opt for 1 face cause it's the easiest and lowest error."
+
+### 2026-10-10 Improve PR over PR
+- **Decision:** A partial improvement may merge when it beats main on numbers measured the same way, the same day. Its PR still reports every bar on the parent issue as pass or fail, and the parent issue stays open until its own done bar is met. First applied to #114 (top-10 coverage 5.9% to 8.1%, Politics coverage 4.5% to 9.2%, noise 38.6% to 35.7%; 5 of 9 #104 bars still fail).
+- **Decided by:** Michael, 10/10 11:19 AM: "Feel free to merge 114. Just steadily improve the project PR over PR."
+
+### 2026-10-10 #118 tracked under #104
+- **Decision:** #118 ("Separatism" puts Canadian separatism and US–Canada threats on one planet) is a coherence failure and is tracked under #104 next to the Gaza and Zionism-motion mix, not under the face fix.
+- **Decided by:** Giver flagged it; the Factory Manager made the sequencing call, 10/10 11:12 AM.
