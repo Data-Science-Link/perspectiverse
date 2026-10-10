@@ -135,9 +135,11 @@ def _label_batch(texts: list[str], prompt: str, model: str, cap: Decimal) -> lis
             numbered[int(item["i"])] = stance
         except (TypeError, ValueError):
             return None
-    if set(numbered) != set(range(1, len(texts) + 1)):
-        return None
-    return [numbered[index] for index in range(1, len(texts) + 1)]
+    if set(numbered) == set(range(1, len(texts) + 1)):
+        return [numbered[index] for index in range(1, len(texts) + 1)]
+    if set(numbered) == set(range(len(texts))):
+        return [numbered[index] for index in range(len(texts))]
+    return None
 
 
 def blind_label_planets(reference: dict, posts: dict[str, dict], rows: dict, model: str, cap: Decimal, batch: int) -> dict:
@@ -172,6 +174,8 @@ def blind_label_planets(reference: dict, posts: dict[str, dict], rows: dict, mod
             )
             try:
                 labels = _label_batch([item[2] for item in chunk], prompt, model, cap)
+                if not labels:
+                    labels = _label_batch([item[2] for item in chunk], prompt, model, cap)
             except Exception as exc:
                 failures.append({"planet": planet["name"], "error": str(exc), "start": start})
                 if "spend cap" in str(exc):
