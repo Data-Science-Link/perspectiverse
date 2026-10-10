@@ -1,16 +1,17 @@
 import { isSitePage, normalizePageId } from './pages.js'
+import { parseTopicId } from './topicId.js'
 
 export function readSelectionFromURL() {
   const params = new URLSearchParams(window.location.search)
   const category = params.get('category') || 'all'
   const topicRaw = params.get('topic')
-  const topicId = topicRaw == null || topicRaw === '' ? null : Number(topicRaw)
+  const topicId = parseTopicId(topicRaw)
   const face = params.get('face')
   const pageRaw = params.get('page')
   const page = normalizePageId(pageRaw)
   return {
     category,
-    topicId: page ? null : Number.isFinite(topicId) ? topicId : null,
+    topicId: page ? null : topicId,
     perspectiveId: page ? null : face || null,
     page,
   }

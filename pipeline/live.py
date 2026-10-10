@@ -1988,7 +1988,7 @@ def _cluster_sections(
             finalize=False,
         )
         if topics:
-            result[job.name] = topics
+            result[job.name] = _assign_section_topic_ids(job.name, topics)
             print(f"Section {job.name}: {len(topics)} planet(s) from {job.post_count} posts.")
         elif job.budget_hit:
             print(f"Section {job.name}: stopped, the section time budget is spent.")
@@ -2204,6 +2204,19 @@ def _face_has_no_shared_claim(face: dict) -> bool:
         phrase in summary
         for phrase in ("various opinions", "various issues", "no shared claim", "do not share a claim")
     )
+
+
+def _assign_section_topic_ids(section: str, topics: list[dict]) -> list[dict]:
+    """Give each section planet a globally unique id (e.g. Technology-5)."""
+    for topic in topics:
+        rank = int(topic["id"])
+        new_id = f"{section}-{rank}"
+        topic["id"] = new_id
+        topic["perspectives"] = [
+            {**face, "id": face_id(new_id, position)}
+            for position, face in enumerate(topic.get("perspectives") or [])
+        ]
+    return topics
 
 
 def _renumber_planets(

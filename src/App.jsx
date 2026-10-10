@@ -10,6 +10,7 @@ import { SITE_TAGLINE, isWelcomeHidden } from './lib/copy'
 import { readSelectionFromURL, resetScroll, writeSelectionToURL } from './lib/navigation'
 import { pageById } from './lib/pages'
 import { presentSnapshot } from './lib/present'
+import { migratePerspectiveId, resolveTopicId } from './lib/topicId'
 import { useIsMobile } from './lib/useMediaQuery'
 
 function initialSelection() {
@@ -158,6 +159,20 @@ export default function App() {
   useLayoutEffect(() => {
     resetScroll(shellRef.current)
   }, [selectedTopicId, selectedPerspectiveId, page, menuOpen, welcomeOpen])
+
+  useEffect(() => {
+    if (!data) return
+    const resolvedTopic = resolveTopicId(category, selectedTopicId, data)
+    const resolvedFace = migratePerspectiveId(resolvedTopic, selectedPerspectiveId)
+    if (resolvedTopic === selectedTopicId && resolvedFace === selectedPerspectiveId) return
+    setSelectedTopicId(resolvedTopic)
+    setHighlightedTopicId((current) => (current === selectedTopicId ? resolvedTopic : current))
+    setSelectedPerspectiveId(resolvedFace)
+    writeSelectionToURL(
+      { category, topicId: resolvedTopic, perspectiveId: resolvedFace, page },
+      'replace',
+    )
+  }, [data, category, selectedTopicId, selectedPerspectiveId, page])
 
   useEffect(() => {
     if (!data) return
