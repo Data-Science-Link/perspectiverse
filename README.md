@@ -20,11 +20,11 @@ The observatory ships a **live** `public/data.json`. The daily job holds a rolli
 | --- | --- |
 | Live universe (`public/data.json`, `mode: live`) | Published snapshot; the job target is 10,000 filtered claims |
 | Retained SQLite (`pipeline/data/live_corpus.db`) | Rolling 7 days; a fetched UTC day is not searched again. Daily job uses private R2 object `live_corpus.db` when the `R2_*` secrets are set. `R2_OBJECT_KEY` can point a preview at a second object |
-| Spam filter | Regex, then Jev when `TYPESAFE_API_KEY` is set |
+| Spam filter | Regex, then free `jev_prefilter` and Jev when `TYPESAFE_API_KEY` is set (#92) |
 | Live pipeline (`--live`) | Default command. Daily job embeds with MiniLM; pytest stays lexical |
 | React + R3F observatory | Newspaper-section filters; All topics stays unsupervised |
 | GitHub Pages | Live at `data-science-link.github.io/perspectiverse/` (GitHub Actions deploy) |
-| Daily refresh | `.github/workflows/pipeline.yml` — cron 06:17 UTC daily, on pipeline-code merges to `main`, and on `workflow_dispatch`. Site-only merges (no pipeline files changed) only redeploy Pages (`pages.yml`), no LLM spend. |
+| Daily refresh | `.github/workflows/pipeline.yml` — staggered UTC crons (`06:17`, `07:47`, `09:17`, `10:47`, `12:17`; #97) with `pipeline/schedule_guard.py` so only the first successful run per UTC day does work; on pipeline-code merges to `main`, and on `workflow_dispatch`. Site-only merges (no pipeline files changed) only redeploy Pages (`pages.yml`), no LLM spend. |
 | DeepInfra / OpenAI-compatible labels | Wired (`OPENAI_API_KEY` + `OPENAI_BASE_URL`); heuristic until a token is set |
 | Conversational LLM on a planet | Roadmap only (Horizon A) |
 | Custom solar system from `--query` | Ready for operators; not a public form |
@@ -85,7 +85,7 @@ OPENAI_MODEL=meta-llama/Llama-3.3-70B-Instruct-Turbo
 
 Same three names as GitHub Actions secrets. About 50 short JSON calls per snapshot (~$0.01, cents/month on the daily job).
 
-**Sections, spam, and claims (Jev).** Jev is a decision model, not a writer. When `TYPESAFE_API_KEY` is set, each new post gets a spam score (drop at 0.8), a public-claim score (keep at 0.5), and one newspaper section. Non-claims stay in SQLite and do not fill the 10,000 or join a planet. Planet names still come from DeepInfra. With no key, a live Bluesky run stops instead of clustering unlabeled posts. `--fixture` and `--relabel` of an unlabeled file still run. Add the key as an Actions secret. `JEV_MODEL` is optional (`jev-latest` if unset).
+**Sections, spam, and claims (Jev).** Jev is a decision model, not a writer. When `TYPESAFE_API_KEY` is set, `pipeline/jev_prefilter.py` drops obvious non-candidates for free (#92), then each new post gets a spam score (drop at 0.8), a public-claim score (keep at 0.5), and one newspaper section. Verdicts live in SQLite table `jev_verdicts` for 14 days so the same post URI is not rescored (#92). Non-claims stay in SQLite and do not fill the 10,000 or join a planet. Planet names still come from DeepInfra. With no key, a live Bluesky run stops instead of clustering unlabeled posts. `--fixture` and `--relabel` of an unlabeled file still run. Add the key as an Actions secret. `JEV_MODEL` is optional (`jev-latest` if unset).
 
 Relabel the retained corpus without refetching Bluesky:
 
@@ -129,14 +129,16 @@ Setting the repository homepage to that URL is optional and done in the same set
 
 | Trigger | What happens | LLM spend |
 | --- | --- | --- |
-| Cron 06:17 UTC | Full live pipeline — Bluesky fetch, Jev decisions on new posts only, embed, cluster, label, publish `data.json` | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
+| Scheduled UTC (`06:17`, `07:47`, `09:17`, `10:47`, `12:17`; #97) | Full live pipeline — Bluesky fetch, Jev on new posts only, embed, cluster, label, publish `data.json`. Later scheduled slots no-op when `pipeline/schedule_guard.py` sees today's run already succeeded on `main`. | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
 | Push to `main` — pipeline code changed (`pipeline/**`, `pyproject.toml`, `uv.lock`, `.github/workflows/pipeline.yml`) | Same full live pipeline as cron | Same as cron |
 | Push to `main` — site-only files changed (frontend, `pipeline/README.md`, `pipeline/data/**`, docs) | `pages.yml` redeploy only — no pipeline run, no Bluesky fetch, no LLM spend | None |
 | `workflow_dispatch` | Full live pipeline | Same as cron |
 
-Same-UTC-day reruns are safe: `pipeline/live.py` records each fetched UTC date in `fetched_days` and skips Bluesky if that day is already present. Jev (`pipeline/jev.py`) only classifies posts that have no `section` yet, so existing posts are never re-scored. R2 and `data-snapshot` writes are guarded by `concurrency: discourse-pipeline` (cancel-in-progress: false), so runs never overlap.
+Same-UTC-day reruns are safe: `pipeline/live.py` records each fetched UTC date in `fetched_days` and skips Bluesky if that day is already present. Jev (`pipeline/jev.py`) only classifies posts that have no `section` yet, so existing posts are never re-scored. R2 and `data-snapshot` writes are guarded by `concurrency: discourse-pipeline` (cancel-in-progress: false), so pipeline runs never overlap each other (#115). Cloud-agent paid labeling tests share the same DeepInfra key; run `python scripts/check_pipeline_overlap.py` before spending (#115).
 
-Weekly DeepInfra, Jev, and Cloudflare R2 spend is appended on the `data-snapshot` branch ([costs/README.md](https://github.com/Data-Science-Link/perspectiverse/blob/data-snapshot/costs/README.md)). The trailing 14 UTC days are redrawn there after each successful run. The image below is the live chart from that branch.
+A run does not replace the live `data.json` when labeling failures degraded the snapshot (`pipeline/publish_guard.py`, #115). A quiet day with fewer planets still publishes.
+
+Weekly DeepInfra, Jev, and Cloudflare R2 spend is appended on the `data-snapshot` branch ([costs/README.md](https://github.com/Data-Science-Link/perspectiverse/blob/data-snapshot/costs/README.md)). Each ledger row records a `trigger` (`schedule`, `push`, `workflow_dispatch`; older rows backfilled from Actions) so production and merge/test spend stack separately in the chart (#101). The trailing 14 UTC days are redrawn there after each successful run. The image below is the live chart from that branch.
 
 [![Trailing 14 UTC days: production spend stacked below merge and test spend (LLM labeling, Jev, and Cloudflare R2).](https://raw.githubusercontent.com/Data-Science-Link/perspectiverse/data-snapshot/costs/daily_spend_14d.svg)](https://github.com/Data-Science-Link/perspectiverse/blob/data-snapshot/costs/README.md)
 
