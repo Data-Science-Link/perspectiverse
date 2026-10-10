@@ -76,16 +76,25 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 
 ## Secrets available to cloud agents
 
-Names only — never log or commit values.
+Names only — never log or commit values. Listed from `.github/workflows/pipeline.yml` and names present in this cloud agent environment (2026-10-10). **Unverified** = forwarded by the workflow but not observed in this run's environment.
 
-| Name | Use |
-|---|---|
-| `OPENAI_API_KEY` | DeepInfra labeling (with `OPENAI_BASE_URL`) |
-| `TYPESAFE_API_KEY` | Jev (spam, claim, section) |
-| `R2_ACCESS_KEY_ID` | Cloudflare R2 corpus sync |
-| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 corpus sync |
-| `R2_ENDPOINT` | Cloudflare R2 corpus sync |
-| `R2_BUCKET` | Cloudflare R2 corpus sync |
+| Name | Use | Verified here |
+|---|---|---|
+| `BLUESKY_HANDLE` | Bluesky ingest (Actions daily job) | yes |
+| `BLUESKY_APP_PASSWORD` | Bluesky app password (not account password) | yes |
+| `OPENAI_API_KEY` | DeepInfra labeling | yes |
+| `OPENAI_BASE_URL` | OpenAI-compatible API host (DeepInfra) | yes |
+| `OPENAI_MODEL` | Model id for planet/face labels | yes |
+| `TYPESAFE_API_KEY` | Jev (spam, claim, section) | yes |
+| `JEV_MODEL` | Optional Jev model override (`jev-latest` default) | unverified |
+| `OLLAMA_HOST` | Local Ollama labels (optional) | unverified |
+| `OLLAMA_MODEL` | Ollama model name | unverified |
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 corpus download/upload | yes |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 corpus download/upload | yes |
+| `R2_ENDPOINT` | R2 S3 API endpoint | yes |
+| `R2_BUCKET` | Private corpus bucket | yes |
+| `R2_OBJECT_KEY` | Optional corpus object key (env var, not an Actions secret) | unverified |
+| `GITHUB_TOKEN` | `pipeline/schedule_guard.py` in Actions only (default `github.token`) | unverified (not needed for local paid tests) |
 
 **Approval rule (Michael, 2026-10-09):** High-risk labeling or grouping PRs must show real before-and-after output from a cloud agent run before Michael approves. No publishing on that run: no R2 upload, no `data-snapshot` push, and no Pages deploy.
 
