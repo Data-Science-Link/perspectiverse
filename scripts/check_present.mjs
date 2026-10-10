@@ -159,4 +159,38 @@ const counted = presentSnapshot({
 assert.equal(counted.topics[0].post_count, 37)
 assert.equal(counted.topics[0].perspectives[0].post_count, 37)
 
+const oneViewDigest = presentSnapshot({
+  total_posts: 500,
+  topics: [
+    {
+      id: 99,
+      name: 'Gaza Genocide',
+      category: 'World',
+      total_volume_percent: 12,
+      opposing_note: 'No clear opposing view found in this sample',
+      summary: 'Zionism is a racist ideology',
+      perspectives: [
+        {
+          id: '99A',
+          title: 'Gaza Genocide',
+          summary: 'Zionism is a racist ideology',
+          volume_percent: 100,
+          arguments: [
+            'The first reason is concrete and long enough for readers.',
+            'The second reason is also a real claim in the posts.',
+          ],
+          representative_posts: [
+            { author: 'ada', text: 'Zionism is a racist ideology and the posts keep saying so.', likes: 4 },
+            { author: 'bea', text: 'Zionism is a racist ideology repeated across these posts.', likes: 2 },
+          ],
+        },
+      ],
+    },
+  ],
+})
+const digestPlanet = oneViewDigest.digest.planets[0]
+assert.equal(digestPlanet.oneView, true)
+assert.equal(digestPlanet.disagreement, null)
+assert.match(digestPlanet.opposingNote, /opposing view/i)
+
 console.log('presented planets keep real perspectives and skip stock filler')
