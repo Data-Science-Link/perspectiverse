@@ -1,8 +1,22 @@
 # Face stance, step 0 (no product change)
 
-Hand labels for issues #116, #117, and #103. The reference is `stance_reference.json` in this folder. Nothing here changes the pipeline, the site, or `data.json`.
+Hand labels for issues #116, #117, and #103. The reference is `stance_reference.json` in this folder. The `stance` field is the adjudicated final. Nothing here changes the pipeline, the site, or `data.json`. The build that reads this file is pull request #129.
 
 Michael on 2026-10-10, 11:16 AM CT: one face is acceptable only when that is actually the case. He suspects real second perspectives are being missed, and he does not want one face as the easy, low-error default. This note measures that, and proposes a done bar. It does not adopt the bar.
+
+## Who labeled
+
+| Role | Model | What it saw |
+|---|---|---|
+| Original labels | grok-4.7 high | The post text. No paid labeling API. |
+| Blind second labeler | deepseek-ai/DeepSeek-V4-Flash | The stance question, what supports and opposes mean, and the post text. Not the grok label. |
+| Adjudicator | grok-4.7 high | The 64 posts where those two disagreed, re-read in full. |
+
+227 posts. Agreement 163/227 = 0.718. Cohen's kappa 0.427, computed on grok versus DeepSeek before any adjudication. 64 disagreements were adjudicated. 17 labels changed. The other 47 kept the grok label. Each adjudicated post in the JSON has `grok`, `deepseek`, `final`, and `adjudication_reason`.
+
+The adjudicator is the same model family as the original labeler. It is not a third family. Michael can spot-check the 17 changes and the 47 kept labels.
+
+The blind pass is part of the paid measurement on pull request #129 (DeepInfra, shared spend under $0.25, nothing published). The original 227 labels were not a paid call.
 
 ## Where the posts came from
 
@@ -12,7 +26,7 @@ Post text and face membership are the `perspectives` table in that run's `data-j
 
 Run [37942713535](https://github.com/Data-Science-Link/perspectiverse/actions/runs/37942713535), the #104 corpus, is a different day (`last_updated` 2026-10-09). Its top 10 does not contain Trump Putin Diesel Deal, Rise of Fascism, or ICE Abuse, so these labels do not use it.
 
-The sample draws evenly across each face by distance to that face, including both ends. A planet under 40 posts is labeled in full. 227 posts, read and labeled by hand. No paid API.
+The sample draws evenly across each face by distance to that face, including both ends. A planet under 40 posts is labeled in full. 227 posts.
 
 `supports` and `opposes` are the two answers to that planet's question. `other-angle` is about the subject and is not a yes or no. Those posts do not share one claim, so they are not counted as a second stance. `off-topic` is a different subject.
 
@@ -20,36 +34,38 @@ A second coherent stance is the largest pole that is not the sample's plurality.
 
 ## What the current split does
 
+Counts below are the adjudicated finals. The pipeline face counts are unchanged: this table is the reference, not the fix.
+
 | Planet | Posts | Faces now | Sample | Majority of each face | Faces on that same majority | Purity (sample) | Second coherent stance |
 |---|---:|---:|---:|---|---:|---|---|
-| Trump Putin Diesel Deal | 250 | 4 | 40 | supports on all four | 4 | 70%, 100%, 60%, 90% | 0/40 |
-| Gaza Genocide | 167 | 1 | 40 | supports | 1 | 72.5% (29/40) | 4/40 = 10% opposes |
-| Livestreamed Execution Plan | 83 | 2 | 40 | supports on both | 2 | 58% (14/24), 81% (13/16) | 1/40 = 2.5% |
+| Trump Putin Diesel Deal | 250 | 4 | 40 | supports on all four | 4 | 60%, 100%, 60%, 80% | 1/40 opposes, under 2 posts |
+| Gaza Genocide | 167 | 1 | 40 | supports | 1 | 55% (22/40) | 4/40 = 10% opposes |
+| Livestreamed Execution Plan | 83 | 2 | 40 | supports on both | 2 | 62.5% (15/24), 87.5% (14/16) | 2/40 = 5% opposes |
 | Rise of Fascism | 40 | 2 | 40 (all) | supports on both | 2 | 100%, 100% | 0/40 |
-| ICE Abuse | 14 | 1 | 14 (all) | supports | 1 | 79% (11/14) | 1/14 = 7% |
+| ICE Abuse | 14 | 1 | 14 (all) | supports | 1 | 64% (9/14) | 1/14 = 7% opposes |
 | MAGA Fails | 19 | 1 | 19 (all) | supports | 1 | 100% | 0/19 |
-| Labour Party | 34 | 1 | 34 (all) | plurality is other-angle, 56% (19/34) | 1 | 56%, and it is not one claim | 10/34 = 29% say Labour has lost them; 4/34 = 12% say stick with Labour |
+| Labour Party | 34 | 1 | 34 (all) | plurality is other-angle, 53% (18/34) | 1 | 53%, and it is not one claim | 11/34 = 32% say Labour has lost them; 4/34 = 12% say stick with Labour |
 
 ICE Abuse is the global top-10 planet for the "Abolish ICE" ask. The posts are about agent misconduct, not a large abolish-versus-enforce argument. The section planet ICE Enforcement Surge (25 posts) is not in this global set.
 
 ### Same-stance faces (#116, #117, #103)
 
-Diesel Deal's four faces are one stance. All 32 posts that take a side condemn the deal or side with Ukraine. The other 8 are war headlines, analogies, or a price-cause aside, not a defense of the deal. A one-line skim of the other 210 posts found 3 that do take the other side ("NATO's war," "oil matters more than Ukraine," "Russia is defending herself"). That is about 1% of the planet. The four faces are wording (helps Russia, Trump-Putin ties, the invasion, the diesel contract), not four perspectives.
+Diesel Deal's four faces are one stance. 30 of the 40 sample posts condemn the deal or side with Ukraine. One post calls Ukraine's backers traitors (the only `opposes`). Nine are war headlines, analogies, or a price-cause aside, not a defense of the deal. A one-line skim of the other 210 posts, not adjudicated, found 3 that do take the other side ("NATO's war," "oil matters more than Ukraine," "Russia is defending herself"). That is about 1% of the planet. The four faces are wording (helps Russia, Trump-Putin ties, the invasion, the diesel contract), not four perspectives.
 
 Rise of Fascism is the same finding on the whole planet. All 40 posts treat fascism as real and bad. Face 4A is mostly the US. Face 4B is mostly global. That is geography, not a second stance.
 
-Livestreamed Execution Plan is the same pattern on a planet nobody filed. Both faces say the livestream is wrong. One post in the sample says it is not a big deal. One more, outside the sample, prefers to see the shooter executed. Still one stance.
+Livestreamed Execution Plan is the same pattern on a planet nobody filed. Both faces say the livestream is wrong. Two posts in the sample take the other side (2/40 = 5%), including one that says citizens should hang mass murderers. One more, outside the sample and not adjudicated, prefers to see the shooter executed. Still under a 10% second stance.
 
 #103 was identical titles on US Iran War, which is not in today's top 10. The failure mode that is in today's top 10 is the near-duplicate: different titles, one majority stance. Distinctness does not catch it (Diesel Deal 0.174, Fascism 0.146, both already under a cosine gap of 0.90).
 
 ### Missed second stance on one-face planets
 
-Four global top-10 planets have one face. On **2 of 4**, the hand sample has a second coherent stance at or above 10%.
+Four global top-10 planets have one face. On **2 of 4**, the adjudicated sample has a second coherent stance at or above 10% and at least 2 posts.
 
-- **Gaza Genocide.** 29/40 say Israel is committing genocide or the equivalent. 4/40 reject that or treat the war as the consequence of Oct 7 or Palestinian choices, including an explicit "specious genocide accusation" and "crimes are not the same as genocide." That is the line, at 10%. A one-line skim of all 167, then a full read of the pushbacks, found 7 more explicit opposing posts outside the sample. Those 7 plus the sample's 4 are 11/167, about 6.6%. The distance sample over-weights the far tail, so it can sit on the 10% line while the planet sits under it. If the softest of the four ("was Oct 7 worth it?") is recoded as other-angle, the sample falls to 3/40 = 7.5% and Gaza drops off the missed list. The explicit denials are still real.
-- **Labour Party.** There is no majority stance. 10/34 say Labour has lost its voters. 4/34 say stick with Labour, defend a Labour candidate, or say Labour is taking it seriously. 19/34 are Greens, Tories, Lib Dems, or Australian parties. One face hides two Labour stances and a pile of other parties. Both Labour poles are at or above 10%.
-- **ICE Abuse.** One opposing post (the detention force was proper). 1/14 = 7%, under the line. One face matches this planet.
-- **MAGA Fails.** 19/19 oppose MAGA. One face matches this planet. This is the case Michael said is allowed.
+- **Gaza Genocide.** 22/40 say Israel is committing genocide or the equivalent. 4/40 reject that charge, including an explicit "crimes are not the same as genocide." 14/40 are other-angle (West Bank, elections, a request that the UK help, whatabouts) and are not a second stance. The opposing pole is the line, at 4/40 = 10%. A one-line skim of all 167, then a full read of the pushbacks, found 7 more explicit opposing posts outside the sample. Those 7 plus the sample's 4 are 11/167, about 6.6%. That skim was not adjudicated. DeepSeek's labels on all 167 posts put opposes at 15/167 = 9.0%, still under 10%. The distance sample can sit on the 10% line while the planet sits under it.
+- **Labour Party.** There is no majority stance. 11/34 say Labour has lost its voters. 4/34 say stick with Labour, defend a Labour candidate, or say the media is unfair to Labour. 18/34 are Greens, Tories, Lib Dems, or other parties. One is off-topic. One face hides two Labour stances and a pile of other parties. Because the plurality is other-angle, the second stance is the larger pole: supports, 11/34 = 32%. The stick-with-Labour pole is 4/34 = 12%, also at or above 10%.
+- **ICE Abuse.** One opposing post (the detention force was proper). Two posts that the original labels called supports were recoded as other-angle (no news of an attack; an off-duty incompetence joke). 1/14 = 7%, and one post cannot be a face. One face matches this planet.
+- **MAGA Fails.** 19/19 oppose MAGA. DeepSeek agreed on all 19. One face matches this planet. This is the case Michael said is allowed.
 
 So the suspicion holds on some one-face planets and not others. One face is sometimes the truth (MAGA Fails, and Fascism once the duplicate face is merged). It is the wrong default on Gaza and Labour.
 
