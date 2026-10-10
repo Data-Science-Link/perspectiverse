@@ -1,15 +1,18 @@
 import json
+import time
 
 import pytest
 
 from pipeline.label import (
     FALLBACK_TITLE,
     build_prompt,
+    classify_label_error,
     label_perspective,
     label_topic,
     parse_label,
     resolve_openai_base_url,
     resolve_openai_model,
+    set_label_deadline,
     _openai_generate,
 )
 
@@ -512,6 +515,77 @@ def test_openai_generate_stops_after_bounded_retries(monkeypatch):
         _openai_generate("hello", "model")
     assert len(calls) == 3
     assert slept == [2.0, 6.0]
+
+
+def test_openai_generate_retries_timeouts_with_bounded_backoff(monkeypatch):
+    """A timeout is retried. The sleeps stay 2s then 6s, and then it stops."""
+    calls = []
+    slept = []
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls.append(timeout)
+        raise RuntimeError("Request failed for api.deepinfra.com: The read operation timed out")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: slept.append(seconds))
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    set_label_deadline(None)
+    with pytest.raises(RuntimeError, match="timed out"):
+        _openai_generate("hello", "model")
+    assert calls == [60.0, 60.0, 60.0]
+    assert slept == [2.0, 6.0]
+
+
+def test_openai_generate_skips_timeout_retry_that_would_pass_the_deadline(monkeypatch):
+    """A timeout already costs 60s. Do not start another one past the section ceiling."""
+    calls = []
+    slept = []
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls.append(url)
+        raise RuntimeError("Request failed for api.deepinfra.com: timed out")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: slept.append(seconds))
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    set_label_deadline(time.monotonic() + 30)
+    try:
+        with pytest.raises(RuntimeError, match="timed out"):
+            _openai_generate("hello", "model")
+    finally:
+        set_label_deadline(None)
+    assert len(calls) == 1
+    assert slept == []
+
+
+def test_openai_generate_skips_429_retry_when_the_backoff_does_not_fit(monkeypatch):
+    calls = []
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls.append(url)
+        raise RuntimeError("HTTP 429 from api.deepinfra.com")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    set_label_deadline(time.monotonic() + 0.5)
+    try:
+        with pytest.raises(RuntimeError, match="HTTP 429"):
+            _openai_generate("hello", "model")
+    finally:
+        set_label_deadline(None)
+    assert len(calls) == 1
+
+
+def test_classify_label_error_buckets():
+    assert classify_label_error(RuntimeError("HTTP 429 from api.deepinfra.com")) == "429"
+    assert classify_label_error(RuntimeError("HTTP 503 from api.deepinfra.com")) == "5xx"
+    assert classify_label_error(RuntimeError("HTTP 500 from api.deepinfra.com")) == "5xx"
+    assert classify_label_error(RuntimeError("HTTP 401 from api.deepinfra.com")) == "other"
+    assert classify_label_error(RuntimeError("Request failed for api.deepinfra.com: timed out")) == "timeout"
+    timeout = RuntimeError("Request failed for api.deepinfra.com: The read operation timed out")
+    assert classify_label_error(timeout) == "timeout"
+    assert classify_label_error(TimeoutError("timed out")) == "timeout"
 
 
 def test_openai_generate_does_not_retry_other_errors(monkeypatch):

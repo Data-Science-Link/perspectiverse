@@ -40,6 +40,7 @@ from pipeline.label import (
     label_perspective,
     label_topic,
     name_from_perspectives,
+    set_label_deadline,
     shares_claim_word,
     specific_shared_words,
     story_groups,
@@ -249,15 +250,49 @@ def run_live(
 def _write_cost_run(payload: dict, started_at: datetime) -> None:
     """Best effort. A cost-log error must not fail a snapshot that already wrote."""
     try:
-        from pipeline.costs import count_published_planets, write_cost_run
+        from pipeline.costs import count_published_planets, deepinfra_error_summary, get_meter, write_cost_run
+        from pipeline.publish_guard import report_label_health, write_label_run
 
+        summary = deepinfra_error_summary(get_meter().attempts())
         write_cost_run(
             posts_processed=int(payload.get("total_posts") or 0),
             planets_published=count_published_planets(payload),
             started_at=started_at,
+            deepinfra_errors=summary,
         )
+        face = section_face_relabel()
+        try:
+            write_label_run(
+                deepinfra_errors=summary,
+                face_relabel=face,
+                section_planets=_count_section_planets(payload),
+            )
+        except Exception as exc:
+            print(f"WARNING: Label run log skipped: {exc}", file=sys.stderr)
+        report_label_health(summary)
+        if int(face.get("sections_queued") or 0):
+            from pipeline.publish_guard import append_github_step_summary
+
+            relabel_line = (
+                "Section face relabel: "
+                f"{face['calls_completed']} of {face['calls_queued']} call(s) finished; "
+                f"{face['sections_incomplete']} of {face['sections_queued']} section(s) unfinished."
+            )
+            print(relabel_line)
+            append_github_step_summary(relabel_line + "\n")
     except Exception as exc:
         print(f"WARNING: Cost log skipped: {exc}", file=sys.stderr)
+
+
+def _count_section_planets(payload: dict) -> int:
+    sections = payload.get("sections") or {}
+    if not isinstance(sections, dict):
+        return 0
+    total = 0
+    for planets in sections.values():
+        if isinstance(planets, list):
+            total += len(planets)
+    return total
 
 
 def _jev_batch(settings: dict) -> bool:
@@ -888,12 +923,57 @@ def _bump_finalize_calls(context: dict) -> None:
         calls["faces"] = int(calls.get("faces") or 0) + 1
 
 
+def _empty_face_relabel() -> dict:
+    return {
+        "sections_queued": 0,
+        "sections_incomplete": 0,
+        "calls_queued": 0,
+        "calls_completed": 0,
+        "budget_exhausted": False,
+    }
+
+
+_section_face_relabel = _empty_face_relabel()
+
+
+def reset_section_face_relabel() -> None:
+    """Test seam. ``_cluster_sections`` also resets this at the start of a run."""
+    global _section_face_relabel
+    _section_face_relabel = _empty_face_relabel()
+
+
+def section_face_relabel() -> dict:
+    """Section wide-relabel counts for this process. Global relabel is not included."""
+    return {
+        "sections_queued": int(_section_face_relabel["sections_queued"]),
+        "sections_incomplete": int(_section_face_relabel["sections_incomplete"]),
+        "calls_queued": int(_section_face_relabel["calls_queued"]),
+        "calls_completed": int(_section_face_relabel["calls_completed"]),
+        "budget_exhausted": bool(_section_face_relabel["budget_exhausted"]),
+    }
+
+
+def _record_section_face_relabel(
+    jobs: list[_FinalizeFaceJob],
+    incomplete: set[str],
+    completed_calls: int,
+    budget_exhausted: bool,
+) -> None:
+    _section_face_relabel["sections_queued"] += len({job.section for job in jobs})
+    _section_face_relabel["sections_incomplete"] += len(incomplete)
+    _section_face_relabel["calls_queued"] += len(jobs)
+    _section_face_relabel["calls_completed"] += int(completed_calls)
+    if budget_exhausted:
+        _section_face_relabel["budget_exhausted"] = True
+
+
 def _run_finalize_faces_parallel(
     jobs: list[_FinalizeFaceJob],
     workers: int,
     deadline: float | None,
     *,
     scope: str,
+    record: bool = False,
 ) -> set[str]:
     """Run wide relabels with a bounded pool. Returns sections with queued calls left."""
     if not jobs:
@@ -951,6 +1031,14 @@ def _run_finalize_faces_parallel(
         )
     else:
         print(f"Wide face relabel: {completed_calls} call(s) in {elapsed:.1f}s.")
+    if record:
+        _record_section_face_relabel(jobs, incomplete, completed_calls, budget_exhausted)
+        stats = section_face_relabel()
+        print(
+            "Wide face relabel sections: "
+            f"{stats['sections_queued']} queued, {stats['sections_incomplete']} unfinished, "
+            f"{stats['calls_queued']} call(s) queued, {stats['calls_completed']} completed."
+        )
     return incomplete
 
 
@@ -1093,6 +1181,7 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
         workers,
         deadline,
         scope=f"{len(jobs)} section(s)",
+        record=True,
     )
     for job in jobs:
         merge_alike_published_faces(job.built)
@@ -1829,6 +1918,7 @@ def _cluster_sections(
             section_indices.setdefault(section, []).append(idx)
 
     order = sorted(section_indices, key=lambda name: (-len(section_indices[name]), name))
+    reset_section_face_relabel()
     if deadline is not None and time.monotonic() >= deadline:
         for section in order:
             print(f"Section {section}: skipped, the section time budget is spent.")
@@ -1883,13 +1973,17 @@ def _cluster_sections(
             )
         )
 
-    _label_section_jobs(jobs, _section_pool_size(context), deadline)
-    active_jobs = [job for job in jobs if not job.skipped_budget]
-    for job in active_jobs:
-        job.built = _drop_unshared_planets(job.built)
-        job.built = _publishable_planets(job.built)
-    if active_jobs:
-        _finalize_section_planets_batch(active_jobs, deadline)
+    set_label_deadline(deadline)
+    try:
+        _label_section_jobs(jobs, _section_pool_size(context), deadline)
+        active_jobs = [job for job in jobs if not job.skipped_budget]
+        for job in active_jobs:
+            job.built = _drop_unshared_planets(job.built)
+            job.built = _publishable_planets(job.built)
+        if active_jobs:
+            _finalize_section_planets_batch(active_jobs, deadline)
+    finally:
+        set_label_deadline(None)
     for job in jobs:
         if job.skipped_budget:
             continue
