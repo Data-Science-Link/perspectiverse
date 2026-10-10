@@ -37,7 +37,9 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Perspective grouping research | `docs/research/perspective-grouping.md` | Stance splits inside one planet, offline comparison, and the keep-and-score rule (#76). |
 | Settings | `pipeline/settings.py` | All env-var-driven settings; cross-reference `.env.example`. |
 | Schema | `pipeline/schema.py` | Canonical data contract between pipeline and frontend. |
-| Production call costs | `pipeline/costs.py` | Meter for DeepInfra and Jev. Ledger and weekly table are committed on `data-snapshot` (`costs/`), not `main`. |
+| Production call costs | `pipeline/costs.py` | Meter for DeepInfra and Jev. Ledger and weekly table are committed on `data-snapshot` (`costs/`), not `main`. `retried_calls` and `final_failures` split `failed_calls`. |
+| Publish guard | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade the new snapshot. A quiet day with fewer planets still publishes. |
+| Pipeline overlap check | `pipeline/pipeline_overlap.py`, `scripts/check_pipeline_overlap.py` | GitHub API check for an in-progress Daily Discourse Pipeline run. No DeepInfra calls. |
 
 ## Frontend (React + R3F)
 
@@ -86,5 +88,17 @@ Names only — never log or commit values.
 | `R2_BUCKET` | Cloudflare R2 corpus sync |
 
 **Approval rule (Michael, 2026-10-09):** High-risk labeling or grouping PRs must show real before-and-after output from a cloud agent run before Michael approves. No publishing on that run: no R2 upload, no `data-snapshot` push, and no Pages deploy.
+
+## Paid labeling tests must not overlap the daily pipeline
+
+Cloud-agent paid labeling tests and the Daily Discourse Pipeline share one DeepInfra key (`OPENAI_API_KEY`). A test that runs while a pipeline run is in progress can exhaust the key, blow the section time budget, and publish a thinner snapshot (issue #107, run 37946621071).
+
+**Rule:** do not start a paid labeling test while a Daily Discourse Pipeline run is queued or in progress. Before the test:
+
+```bash
+python scripts/check_pipeline_overlap.py
+```
+
+Exit 0 means clear. Exit 2 means wait until that run finishes. Exit 3 means the GitHub API check failed: do not start the paid test. The same check is `python -m pipeline.pipeline_overlap`. It does not call DeepInfra. The workflow `concurrency` group only serialises pipeline runs with each other; it does not see a cloud agent.
 
 Agents: read this map, then open the linked files. Prefer linking over pasting.

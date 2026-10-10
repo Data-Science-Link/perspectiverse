@@ -108,12 +108,20 @@ PRE_TRIGGER_LEDGER_COLUMNS = [
     "posts_processed",
     "planets_published",
 ]
-LEDGER_COLUMNS = [
+# Header in use before retried attempts and final failures were split (#107).
+# ``failed_calls`` on those rows is the mixed count. The new columns are 0
+# because the split was not recorded, not because the run had no failures.
+PRE_LABEL_ERROR_COLUMNS = [
     *LEGACY_LEDGER_COLUMNS,
     "storage_bytes",
     "class_a_ops",
     "class_b_ops",
     "list_price_usd",
+]
+LEDGER_COLUMNS = [
+    *PRE_LABEL_ERROR_COLUMNS,
+    "retried_calls",
+    "final_failures",
 ]
 
 # Repo-relative paths. These stay off public/ so Pages does not deploy them.
@@ -133,6 +141,8 @@ _INTEGER_COLUMNS = (
     "storage_bytes",
     "class_a_ops",
     "class_b_ops",
+    "retried_calls",
+    "final_failures",
 )
 _LEDGER_USD_QUANTUM = Decimal("0.00000001")
 
@@ -158,6 +168,7 @@ class Attempt:
     cost_usd: Decimal
     cost_source: str
     status: str
+    error_class: str = ""
 
 
 class CostMeter:
@@ -538,8 +549,18 @@ def record_attempt(
     cost_usd: Decimal,
     cost_source: str,
     status: str,
+    error_class: str = "",
 ) -> None:
     try:
+        from pipeline.publish_guard import ERROR_CLASSES
+
+        status_value = status if status in {"success", "retry", "failure"} else "failure"
+        if status_value == "success":
+            recorded_class = ""
+        elif error_class in ERROR_CLASSES:
+            recorded_class = error_class
+        else:
+            recorded_class = "other"
         get_meter().record(
             Attempt(
                 service=str(service or "unknown"),
@@ -548,7 +569,8 @@ def record_attempt(
                 output_tokens=max(0, int(output_tokens)),
                 cost_usd=cost_usd if isinstance(cost_usd, Decimal) else Decimal(str(cost_usd)),
                 cost_source=str(cost_source or ""),
-                status=status if status in {"success", "retry", "failure"} else "failure",
+                status=status_value,
+                error_class=recorded_class,
             )
         )
     except Exception as exc:
@@ -576,6 +598,7 @@ def record_llm_attempt(
     requested_model: str,
     payload: dict | None,
     status: str,
+    error_class: str = "",
 ) -> None:
     """Record one DeepInfra (or other OpenAI-compatible) attempt. Never raises."""
     try:
@@ -589,9 +612,33 @@ def record_llm_attempt(
             cost_usd=reported if reported is not None else Decimal("0"),
             cost_source="reported",
             status=status,
+            error_class=error_class,
         )
     except Exception as exc:
         warn(f"Cost log skipped for a labeling call: {exc}")
+
+
+def deepinfra_error_summary(attempts: tuple[Attempt, ...] | list[Attempt]) -> dict:
+    """Retried attempts and final failures by type, for DeepInfra and other LLM hosts.
+
+    ``calls`` is every HTTP attempt, including successes and retries. Jev and
+    R2 are not included.
+    """
+    from pipeline.publish_guard import empty_error_summary
+
+    summary = empty_error_summary()
+    for attempt in attempts:
+        if attempt.service not in LLM_SERVICES:
+            continue
+        summary["calls"] += 1
+        if attempt.status == "success":
+            continue
+        bucket = summary["retried"] if attempt.status == "retry" else summary["final_failures_by_type"]
+        key = attempt.error_class if attempt.error_class in bucket else "other"
+        bucket[key] += 1
+    summary["retried_calls"] = sum(summary["retried"].values())
+    summary["final_failures"] = sum(summary["final_failures_by_type"].values())
+    return summary
 
 
 def note_r2_usage(
@@ -727,6 +774,8 @@ def rows_for_attempts(
             bucket = {
                 "calls": 0,
                 "failed_calls": 0,
+                "retried_calls": 0,
+                "final_failures": 0,
                 "input_tokens": 0,
                 "output_tokens": 0,
                 "cost_usd": Decimal("0"),
@@ -734,7 +783,11 @@ def rows_for_attempts(
             }
             grouped[key] = bucket
         bucket["calls"] += 1
-        if attempt.status != "success":
+        if attempt.status == "retry":
+            bucket["retried_calls"] += 1
+            bucket["failed_calls"] += 1
+        elif attempt.status != "success":
+            bucket["final_failures"] += 1
             bucket["failed_calls"] += 1
         bucket["input_tokens"] += attempt.input_tokens
         bucket["output_tokens"] += attempt.output_tokens
@@ -755,6 +808,8 @@ def rows_for_attempts(
                 "model": model,
                 "calls": bucket["calls"],
                 "failed_calls": bucket["failed_calls"],
+                "retried_calls": bucket["retried_calls"],
+                "final_failures": bucket["final_failures"],
                 "input_tokens": bucket["input_tokens"],
                 "output_tokens": bucket["output_tokens"],
                 "cost_usd": bucket["cost_usd"],
@@ -777,6 +832,7 @@ def write_cost_run(
     started_at: datetime,
     path: Path | None = None,
     attempts: tuple[Attempt, ...] | None = None,
+    deepinfra_errors: dict | None = None,
 ) -> Path | None:
     """Write this run's rows to a gitignored file. Never raises."""
     try:
@@ -791,6 +847,7 @@ def write_cost_run(
         destination.parent.mkdir(parents=True, exist_ok=True)
         identity = run_identity(started_at)
         filters = jev_filter_counts()
+        errors = deepinfra_errors if deepinfra_errors is not None else deepinfra_error_summary(recorded)
         payload = {
             "rows": rows,
             "run_id": identity["run_id"],
@@ -799,6 +856,7 @@ def write_cost_run(
             "trigger": identity["trigger"],
             "posts_processed": int(posts_processed),
             "planets_published": int(planets_published),
+            "deepinfra_errors": errors,
             "jev_cache_hits": int(filters["cache_hits"]),
             "jev_prefilter_skips": {
                 "short": int(filters["short"]),
@@ -822,8 +880,8 @@ def write_cost_run(
 
 def _stringify_row(row: dict) -> dict[str, str]:
     filled = dict(row)
-    for column in ("storage_bytes", "class_a_ops", "class_b_ops"):
-        if column not in filled or filled[column] is None:
+    for column in ("storage_bytes", "class_a_ops", "class_b_ops", "retried_calls", "final_failures"):
+        if column not in filled or filled[column] is None or filled[column] == "":
             filled[column] = 0
     if "list_price_usd" not in filled or filled["list_price_usd"] is None:
         filled["list_price_usd"] = filled.get("cost_usd", "0")
@@ -849,6 +907,8 @@ def _stringify_row(row: dict) -> dict[str, str]:
 def _header_kind(fieldnames: list[str]) -> str:
     if fieldnames == LEDGER_COLUMNS:
         return "current"
+    if fieldnames == PRE_LABEL_ERROR_COLUMNS:
+        return "pre_label_errors"
     if fieldnames == LEGACY_LEDGER_COLUMNS:
         return "legacy"
     if fieldnames == PRE_TRIGGER_LEDGER_COLUMNS:
@@ -862,13 +922,27 @@ def _peek_header(path: Path) -> str:
     return _header_kind(fieldnames)
 
 
+def _with_label_error_columns(row: dict) -> dict[str, str]:
+    """Fill the #107 split. Older rows keep ``failed_calls`` and store 0 here."""
+    filled = dict(row)
+    for column in ("retried_calls", "final_failures"):
+        if not str(filled.get(column) or "").strip():
+            filled[column] = "0"
+    return {column: str(filled.get(column) or "") for column in LEDGER_COLUMNS}
+
+
 def _upgrade_legacy_row(raw: dict) -> dict[str, str]:
     row = {column: raw.get(column) or "" for column in LEGACY_LEDGER_COLUMNS}
     row["storage_bytes"] = "0"
     row["class_a_ops"] = "0"
     row["class_b_ops"] = "0"
     row["list_price_usd"] = row["cost_usd"]
-    return row
+    return _with_label_error_columns(row)
+
+
+def _upgrade_pre_label_error_row(raw: dict) -> dict[str, str]:
+    row = {column: raw.get(column) or "" for column in PRE_LABEL_ERROR_COLUMNS}
+    return _with_label_error_columns(row)
 
 
 def _upgrade_pre_trigger_row(raw: dict) -> dict[str, str]:
@@ -918,8 +992,10 @@ def read_ledger(path: Path) -> list[dict[str, str]]:
                 rows.append(_upgrade_pre_trigger_row(raw))
             elif kind == "legacy":
                 rows.append(_upgrade_legacy_row(raw))
+            elif kind == "pre_label_errors":
+                rows.append(_upgrade_pre_label_error_row(raw))
             else:
-                rows.append({column: raw.get(column) or "" for column in LEDGER_COLUMNS})
+                rows.append(_with_label_error_columns(raw))
         return rows
 
 
@@ -958,11 +1034,7 @@ def append_ledger(path: Path, new_rows: list[dict]) -> list[dict[str, str]]:
             f"{path} header does not match the cost ledger; refusing to rewrite it"
         )
     existing = read_ledger(path)
-    if kind == "pre_trigger":
-        combined = existing + normalized
-        _atomic_write(path, _csv_body(combined, header=True))
-        return combined
-    if kind == "legacy":
+    if kind in {"pre_trigger", "legacy", "pre_label_errors"}:
         combined = existing + normalized
         _atomic_write(path, _csv_body(combined, header=True))
         return combined
@@ -1713,7 +1785,7 @@ def render_readme(rows: list[dict[str, str]], *, today: date | None = None) -> s
         "",
         f"DeepInfra labeling dollars are the provider's `usage.estimated_cost` on each response. Jev dollars are computed, not reported by the API: input tokens × ${price} per 1,000,000 (published price dated {JEV_PRICE_AS_OF}). Jev output tokens are free. {_r2_pricing_sentence()} {_r2_free_tier_sentence(rows, today=moment)} Local embeddings, GitHub Actions, and Bluesky reads are not listed.",
         "",
-        "Posts are the `total_posts` figure in that run's `data.json` (claims that entered clustering). Planets are every planet written into that file, including section solar systems. Both are counted once per run, even when the run has a DeepInfra row, a Jev row, and an R2 row. `$ per 1,000 posts` is total dollars ÷ posts × 1,000. `$ per planet` is total dollars ÷ planets published. The table uses billed `cost_usd`. For R2 that is spend above the monthly free tier. `list_price_usd` is the list price of that row. A same-day rerun that shrinks storage records $0 rather than a credit.",
+        "Posts are the `total_posts` figure in that run's `data.json` (claims that entered clustering). Planets are every planet written into that file, including section solar systems. Both are counted once per run, even when the run has a DeepInfra row, a Jev row, and an R2 row. `$ per 1,000 posts` is total dollars ÷ posts × 1,000. `$ per planet` is total dollars ÷ planets published. The table uses billed `cost_usd`. For R2 that is spend above the monthly free tier. `list_price_usd` is the list price of that row. A same-day rerun that shrinks storage records $0 rather than a credit. `failed_calls` is every non-success attempt. `retried_calls` and `final_failures` split that count. Rows written before the split store 0 in both new columns; their `failed_calls` figure is still the mixed count.",
         "",
         "## Last 14 days",
         "",

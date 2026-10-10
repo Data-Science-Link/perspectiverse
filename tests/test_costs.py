@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import threading
 import urllib.error
 from datetime import date, datetime, timezone
@@ -15,6 +16,7 @@ from pipeline.costs import (
     LEDGER_COLUMNS,
     LEDGER_PATH,
     LEGACY_LEDGER_COLUMNS,
+    PRE_LABEL_ERROR_COLUMNS,
     PRE_TRIGGER_LEDGER_COLUMNS,
     PRODUCTION_SPEND_FALLBACK_USD,
     README_PATH,
@@ -106,6 +108,8 @@ def test_meter_totals_under_threads():
     row = rows[0]
     assert row["calls"] == str(threads * per_thread)
     assert row["failed_calls"] == str(threads * failures_each)
+    assert row["final_failures"] == row["failed_calls"]
+    assert row["retried_calls"] == "0"
     assert row["input_tokens"] == str(threads * per_thread * 2)
     assert row["output_tokens"] == str(threads * per_thread)
     assert Decimal(row["cost_usd"]) == Decimal("0.0000001") * threads * per_thread
@@ -232,6 +236,8 @@ def test_openai_generate_counts_retries_and_keeps_reported_usage(monkeypatch):
     )
     assert rows[0]["calls"] == "3"
     assert rows[0]["failed_calls"] == "2"
+    assert rows[0]["retried_calls"] == "2"
+    assert rows[0]["final_failures"] == "0"
     assert Decimal(rows[0]["cost_usd"]) == Decimal("0.0006")
     assert rows[0]["input_tokens"] == "15"
 
@@ -974,6 +980,85 @@ def test_pre_trigger_header_migrates_and_backfills(tmp_path):
     )
     assert changes == 1
     assert updated[0]["trigger"] == TRIGGER_PUSH
+
+
+def test_pre_label_error_header_splits_new_rows_and_zeros_old_ones(tmp_path):
+    import csv
+
+    ledger = tmp_path / "ledger.csv"
+    earlier = {column: "0" for column in PRE_LABEL_ERROR_COLUMNS}
+    earlier.update(
+        {
+            "run_id": "before-split",
+            "run_started_utc": "2026-10-09T14:45:52Z",
+            "date_utc": "2026-10-09",
+            "trigger": "push",
+            "service": SERVICE_DEEPINFRA,
+            "model": "unit-test-llm",
+            "calls": "947",
+            "failed_calls": "86",
+            "cost_usd": "0.0723",
+            "cost_source": "reported",
+            "posts_processed": "10000",
+            "planets_published": "100",
+        }
+    )
+    with ledger.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=PRE_LABEL_ERROR_COLUMNS, lineterminator="\n")
+        writer.writeheader()
+        writer.writerow(earlier)
+    peeked = read_ledger(ledger)
+    assert peeked[0]["failed_calls"] == "86"
+    assert peeked[0]["retried_calls"] == "0"
+    assert peeked[0]["final_failures"] == "0"
+    append_ledger(ledger, [_row("after-split", "2026-10-09", SERVICE_DEEPINFRA, "0.01", 10, 1)])
+    rows = read_ledger(ledger)
+    assert rows[0]["failed_calls"] == "86"
+    assert rows[0]["retried_calls"] == "0"
+    assert rows[0]["final_failures"] == "0"
+    assert ledger.read_text(encoding="utf-8").splitlines()[0].split(",") == LEDGER_COLUMNS
+
+
+def test_cost_run_records_deepinfra_errors_by_type(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://unit-test.deepinfra.com/v1")
+    calls = {"n": 0}
+
+    def fake(url, *, timeout, data=None, headers=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("HTTP 429 from api.deepinfra.com")
+        if calls["n"] == 2:
+            raise RuntimeError("Request failed for api.deepinfra.com: timed out")
+        raise RuntimeError("HTTP 500 from api.deepinfra.com")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
+    from pipeline.label import set_label_deadline
+
+    set_label_deadline(None)
+    with pytest.raises(RuntimeError):
+        _openai_generate("hello", "unit-test-llm")
+    from pipeline.costs import deepinfra_error_summary
+
+    summary = deepinfra_error_summary(get_meter().attempts())
+    assert summary["calls"] == 3
+    assert summary["retried"] == {"429": 1, "5xx": 0, "timeout": 1, "other": 0}
+    assert summary["final_failures_by_type"]["5xx"] == 1
+    assert summary["retried_calls"] == 2
+    assert summary["final_failures"] == 1
+    path = tmp_path / "cost_run.json"
+    write_cost_run(
+        posts_processed=10,
+        planets_published=1,
+        started_at=datetime(2026, 10, 9, tzinfo=timezone.utc),
+        path=path,
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["deepinfra_errors"]["final_failures"] == 1
+    assert payload["rows"][0]["retried_calls"] == "2"
+    assert payload["rows"][0]["final_failures"] == "1"
+    assert payload["rows"][0]["failed_calls"] == "3"
 
 
 def test_daily_spend_check_flags_production_not_merge():
