@@ -26,6 +26,13 @@ DEFAULT_PROMPT_SAMPLE_SIZE = 40
 DEFAULT_DRAFT_PROMPT_SAMPLE_SIZE = 12
 # Planet / topic naming prompts use a smaller diverse slice.
 DEFAULT_PLANET_PROMPT_SAMPLE_SIZE = 20
+# Posts shown to the one-face stance check. The whole planet is used when it
+# is smaller. This count, not every post on the planet, is what the share below
+# is divided by.
+STANCE_SAMPLE_LIMIT = 40
+# One config value. 0.10 is what this build measures. It is not a decision
+# that 10% is the right bar. Change this number, not the call sites.
+STANCE_SECOND_FACE_SHARE = 0.10
 
 DEFAULTS: dict[str, Any] = {
     "window_hours": 168,
@@ -47,6 +54,7 @@ DEFAULTS: dict[str, Any] = {
     # Published planets, split stories, and global topics below this many
     # posts are left out before any label, name, or brief call. 0 disables it.
     "min_planet_posts": MIN_PLANET_POSTS,
+    "stance_second_face_share": STANCE_SECOND_FACE_SHARE,
     # Planets labeled at once when a network label backend is on.
     # Section labeling shares one pool and widens this default of 8 to 12.
     "label_workers": 8,
@@ -86,6 +94,9 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
         settings["label_workers"] = int(os.environ["PERSPECTIVERSE_LABEL_WORKERS"])
     if os.getenv("PERSPECTIVERSE_MIN_PLANET_POSTS"):
         settings["min_planet_posts"] = int(os.environ["PERSPECTIVERSE_MIN_PLANET_POSTS"])
+    share = (os.getenv("PERSPECTIVERSE_STANCE_SECOND_FACE_SHARE") or "").strip()
+    if share:
+        settings["stance_second_face_share"] = float(share)
     batch_flag = (os.getenv("PERSPECTIVERSE_JEV_BATCH") or "").strip().lower()
     if batch_flag:
         settings["jev_batch"] = batch_flag in {"1", "true", "yes", "on"}

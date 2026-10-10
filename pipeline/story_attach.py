@@ -486,7 +486,19 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
         ranked = sorted(faces, key=lambda face: (-int(face.get("post_count") or 0), str(face.get("id") or "")))
         kept: list[dict] = []
         for face in ranked:
-            match = next((item for item in kept if titles_alike(item.get("title"), face.get("title"))), None)
+            # A stance-split face stays even if a later title looks alike.
+            # Folding it back would erase the second stance and its posts.
+            if face.get("stance_locked"):
+                kept.append(face)
+                continue
+            match = next(
+                (
+                    item
+                    for item in kept
+                    if not item.get("stance_locked") and titles_alike(item.get("title"), face.get("title"))
+                ),
+                None,
+            )
             if match is None:
                 kept.append(face)
                 continue
