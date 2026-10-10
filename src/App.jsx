@@ -10,7 +10,7 @@ import { SITE_TAGLINE, isWelcomeHidden } from './lib/copy'
 import { readSelectionFromURL, resetScroll, writeSelectionToURL } from './lib/navigation'
 import { pageById } from './lib/pages'
 import { presentSnapshot } from './lib/present'
-import { migratePerspectiveId, resolveTopicId } from './lib/topicId'
+import { resolveSelection } from './lib/topicId'
 import { useIsMobile } from './lib/useMediaQuery'
 
 function initialSelection() {
@@ -51,15 +51,25 @@ export default function App() {
       .catch((err) => setError(err.message))
   }, [boot.page])
 
+  const effectiveSelection = useMemo(() => {
+    if (!data) {
+      return { category, topicId: selectedTopicId, perspectiveId: selectedPerspectiveId }
+    }
+    return resolveSelection(
+      { category, topicId: selectedTopicId, perspectiveId: selectedPerspectiveId },
+      data,
+    )
+  }, [data, category, selectedTopicId, selectedPerspectiveId])
+
   const visibleTopics = useMemo(
-    () => (data ? solarTopics(data, category) : []),
-    [data, category],
+    () => (data ? solarTopics(data, effectiveSelection.category) : []),
+    [data, effectiveSelection.category],
   )
   const volumeMax = useMemo(() => solarMaxVolume(visibleTopics), [visibleTopics])
 
   const selectedTopic = useMemo(
-    () => visibleTopics.find((topic) => topic.id === selectedTopicId) ?? null,
-    [visibleTopics, selectedTopicId],
+    () => visibleTopics.find((topic) => topic.id === effectiveSelection.topicId) ?? null,
+    [visibleTopics, effectiveSelection.topicId],
   )
   const selectedPerspective = useMemo(
     () => selectedTopic?.perspectives.find((face) => face.id === selectedPerspectiveId) ?? null,
@@ -162,26 +172,34 @@ export default function App() {
 
   useEffect(() => {
     if (!data) return
-    const resolvedTopic = resolveTopicId(category, selectedTopicId, data)
-    const resolvedFace = migratePerspectiveId(resolvedTopic, selectedPerspectiveId)
-    if (resolvedTopic === selectedTopicId && resolvedFace === selectedPerspectiveId) return
-    setSelectedTopicId(resolvedTopic)
-    setHighlightedTopicId((current) => (current === selectedTopicId ? resolvedTopic : current))
-    setSelectedPerspectiveId(resolvedFace)
-    writeSelectionToURL(
-      { category, topicId: resolvedTopic, perspectiveId: resolvedFace, page },
-      'replace',
-    )
-  }, [data, category, selectedTopicId, selectedPerspectiveId, page])
+    const current = { category, topicId: selectedTopicId, perspectiveId: selectedPerspectiveId }
+    const resolved = resolveSelection(current, data)
+    const needsSync =
+      resolved.category !== category ||
+      resolved.topicId !== selectedTopicId ||
+      resolved.perspectiveId !== selectedPerspectiveId
 
-  useEffect(() => {
-    if (!data) return
-    if (!selectedTopicId) return
-    if (selectedTopic) return
-    writeSelectionToURL({ category, topicId: null, perspectiveId: null, page }, 'replace')
+    if (needsSync) {
+      setCategory(resolved.category)
+      setSelectedTopicId(resolved.topicId)
+      setHighlightedTopicId((highlighted) =>
+        highlighted === selectedTopicId ? resolved.topicId : highlighted,
+      )
+      setSelectedPerspectiveId(resolved.perspectiveId)
+      writeSelectionToURL(
+        { category: resolved.category, topicId: resolved.topicId, perspectiveId: resolved.perspectiveId, page },
+        'replace',
+      )
+      return
+    }
+
+    if (resolved.topicId == null) return
+    const pool = solarTopics(data, resolved.category)
+    if (pool.some((topic) => topic.id === resolved.topicId)) return
+    writeSelectionToURL({ category: resolved.category, topicId: null, perspectiveId: null, page }, 'replace')
     setSelectedTopicId(null)
     setSelectedPerspectiveId(null)
-  }, [data, selectedTopic, selectedTopicId, category, page])
+  }, [data, category, selectedTopicId, selectedPerspectiveId, page])
 
   useEffect(() => {
     const meta = pageById(page)
