@@ -20,6 +20,8 @@ from pipeline.stance import (
     cohen_kappa,
     parse_merge_groups,
     parse_stance_response,
+    sample_limit,
+    sample_rows,
     second_pole,
     spread_indexes,
     stance_share,
@@ -307,6 +309,23 @@ def test_locked_face_is_not_dropped_or_relabeled_or_folded_back():
     folded = merge_alike_published_faces(kept)
     assert folded == 0
     assert len(kept[0]["perspectives"]) == 2
+
+
+def test_sample_grows_to_100_once_the_planet_reaches_100_posts():
+    assert sample_limit(14) == 40
+    assert sample_limit(99) == 40
+    assert sample_limit(100) == 100
+    assert sample_limit(210) == 100
+    small = sample_rows([(f"s{index}", 0, index) for index in range(34)])
+    assert len(small) == 34
+    mid = sample_rows([(f"m{index}", 0, index) for index in range(83)])
+    assert len(mid) == 40
+    assert mid[0][0] == "m0"
+    assert mid[-1][0] == "m82"
+    large = sample_rows([(f"g{index}", 0, index) for index in range(210)])
+    assert len(large) == 100
+    assert large[0][0] == "g0"
+    assert large[-1][0] == "g209"
 
 
 def test_share_config_rejects_a_value_outside_zero_to_one():

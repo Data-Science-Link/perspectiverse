@@ -26,10 +26,14 @@ DEFAULT_PROMPT_SAMPLE_SIZE = 40
 DEFAULT_DRAFT_PROMPT_SAMPLE_SIZE = 12
 # Planet / topic naming prompts use a smaller diverse slice.
 DEFAULT_PLANET_PROMPT_SAMPLE_SIZE = 20
-# Posts shown to the one-face stance check. The whole planet is used when it
-# is smaller. This count, not every post on the planet, is what the share below
-# is divided by.
+# Posts shown to the one-face stance check. Planets with fewer than
+# STANCE_SAMPLE_LARGE_PLANET posts use STANCE_SAMPLE_LIMIT. Planets at or
+# above that size use STANCE_SAMPLE_LIMIT_LARGE. The whole planet is used
+# when it is smaller than the cap. This count, not every post on the planet,
+# is what the share below is divided by.
 STANCE_SAMPLE_LIMIT = 40
+STANCE_SAMPLE_LIMIT_LARGE = 100
+STANCE_SAMPLE_LARGE_PLANET = 100
 # One config value. 0.10 is what this build measures. It is not a decision
 # that 10% is the right bar. Change this number, not the call sites.
 STANCE_SECOND_FACE_SHARE = 0.10

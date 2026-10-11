@@ -4,8 +4,10 @@ The calls use whatever label model the pipeline is already using (DeepInfra
 Llama when that is the configured backend). The heuristic backend makes none
 of them. A second face is kept only when the other pole is at least
 ``stance_second_face_share`` of the stance sample, at least two posts, and
-one coherent claim. The sample is at most 40 posts, or the whole planet when
-it is smaller. The whole-planet count is not what this pass compares.
+one coherent claim. A planet under 100 posts is sampled at most 40 posts.
+A planet of 100 or more is sampled at most 100. The whole planet is used
+when it is smaller than that cap. The whole-planet count is not what this
+pass compares.
 """
 
 from __future__ import annotations
@@ -16,7 +18,12 @@ from collections.abc import Callable
 from pipeline.cluster_math import salient_terms
 from pipeline.perspectives import MIN_FACE_POSTS
 from pipeline.schema import TOP_TERMS_LIMIT
-from pipeline.settings import STANCE_SAMPLE_LIMIT, STANCE_SECOND_FACE_SHARE
+from pipeline.settings import (
+    STANCE_SAMPLE_LARGE_PLANET,
+    STANCE_SAMPLE_LIMIT,
+    STANCE_SAMPLE_LIMIT_LARGE,
+    STANCE_SECOND_FACE_SHARE,
+)
 
 POLES = ("supports", "opposes")
 STANCES = ("supports", "opposes", "other-angle", "off-topic")
@@ -70,9 +77,21 @@ def ordered_rows(rows: list[tuple]) -> list[tuple]:
     return sorted(rows, key=lambda row: (float(row[2]), str(row[0])))
 
 
-def sample_rows(rows: list[tuple], limit: int = STANCE_SAMPLE_LIMIT) -> list[tuple]:
+def sample_limit(planet_posts: int) -> int:
+    """40 posts when the planet has fewer than 100. 100 once it reaches 100.
+
+    A smaller planet is labeled in full. The share is divided by this sample,
+    not by every post on the planet.
+    """
+    if int(planet_posts) >= STANCE_SAMPLE_LARGE_PLANET:
+        return STANCE_SAMPLE_LIMIT_LARGE
+    return STANCE_SAMPLE_LIMIT
+
+
+def sample_rows(rows: list[tuple], limit: int | None = None) -> list[tuple]:
     ordered = ordered_rows(rows)
-    return [ordered[index] for index in spread_indexes(len(ordered), limit)]
+    cap = sample_limit(len(ordered)) if limit is None else limit
+    return [ordered[index] for index in spread_indexes(len(ordered), cap)]
 
 
 def second_pole(counts: dict[str, int]) -> tuple[str, int]:
@@ -450,7 +469,7 @@ def split_second_stance(
     """One sample call. Split only when the configured share is met."""
     if len(drafted) != 1:
         return drafted, False
-    rows = sample_rows(drafted[0][1], STANCE_SAMPLE_LIMIT)
+    rows = sample_rows(drafted[0][1])
     if len(rows) < MIN_FACE_POSTS:
         return drafted, False
     raw = _call(generate, build_stance_prompt(rows, members, subject), context)
@@ -468,7 +487,11 @@ def split_second_stance(
     coherent = bool(parsed["coherent"]) and bool(title) and title.lower() != _MIXED
     context["stance_last"] = {
         "sample_n": len(rows),
+        "planet_posts": len(drafted[0][1]),
+        "sample_cap": sample_limit(len(drafted[0][1])),
         "counts": counts,
+        "labels": list(parsed["labels"]),
+        "uris": [str(row[0]) for row in rows],
         "second": stance,
         "second_n": found,
         "share": ratio,
