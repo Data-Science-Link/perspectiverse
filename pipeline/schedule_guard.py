@@ -9,13 +9,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from typing import Callable
+from zoneinfo import ZoneInfo
 
 WORKFLOW_FILE = "pipeline.yml"
 DEFAULT_BRANCH = "main"
 DEFAULT_PER_PAGE = 30
-COUNTABLE_EVENTS = frozenset({"schedule", "workflow_dispatch"})
+COUNTABLE_EVENTS = frozenset({"schedule", "workflow_dispatch", "push"})
+CHICAGO = ZoneInfo("America/Chicago")
+PUSH_COUNTABLE_FROM = time(6, 0)
 
 
 @dataclass(frozen=True)
@@ -23,17 +26,21 @@ class WorkflowRun:
     run_id: int
     conclusion: str | None
     created_at: datetime
+    updated_at: datetime
     event: str | None
     head_branch: str | None
 
     @classmethod
     def from_api(cls, payload: dict) -> WorkflowRun:
-        raw = payload.get("created_at") or ""
-        created = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        raw_created = payload.get("created_at") or ""
+        created = datetime.fromisoformat(raw_created.replace("Z", "+00:00"))
+        raw_updated = payload.get("updated_at") or raw_created
+        updated = datetime.fromisoformat(raw_updated.replace("Z", "+00:00"))
         return cls(
             run_id=int(payload.get("id") or 0),
             conclusion=payload.get("conclusion"),
             created_at=created,
+            updated_at=updated,
             event=payload.get("event"),
             head_branch=payload.get("head_branch"),
         )
@@ -43,8 +50,24 @@ def utc_today() -> date:
     return datetime.now(timezone.utc).date()
 
 
+def chicago_today() -> date:
+    return datetime.now(CHICAGO).date()
+
+
 def _run_utc_date(run: WorkflowRun) -> date:
     return run.created_at.astimezone(timezone.utc).date()
+
+
+def _push_finished_at_or_after_six_am_ct(
+    run: WorkflowRun,
+    *,
+    ct_today: date,
+) -> bool:
+    finished = run.updated_at.astimezone(CHICAGO)
+    if finished.date() != ct_today:
+        return False
+    threshold = datetime.combine(ct_today, PUSH_COUNTABLE_FROM, tzinfo=CHICAGO)
+    return finished >= threshold
 
 
 def counts_toward_daily_success(
@@ -52,6 +75,7 @@ def counts_toward_daily_success(
     *,
     today: date,
     current_run_id: str | None,
+    ct_today: date | None = None,
 ) -> bool:
     if current_run_id and str(run.run_id) == str(current_run_id):
         return False
@@ -59,9 +83,15 @@ def counts_toward_daily_success(
         return False
     if run.event not in COUNTABLE_EVENTS:
         return False
+    if run.conclusion != "success":
+        return False
+    if run.event == "push":
+        if ct_today is None:
+            ct_today = chicago_today()
+        return _push_finished_at_or_after_six_am_ct(run, ct_today=ct_today)
     if _run_utc_date(run) != today:
         return False
-    return run.conclusion == "success"
+    return True
 
 
 def daily_success_already_today(
@@ -69,12 +99,20 @@ def daily_success_already_today(
     *,
     today: date,
     current_run_id: str | None = None,
+    ct_today: date | None = None,
 ) -> bool:
+    if ct_today is None:
+        ct_today = chicago_today()
     for run in runs:
         run_day = _run_utc_date(run)
         if run_day < today:
             return False
-        if counts_toward_daily_success(run, today=today, current_run_id=current_run_id):
+        if counts_toward_daily_success(
+            run,
+            today=today,
+            current_run_id=current_run_id,
+            ct_today=ct_today,
+        ):
             return True
     return False
 
@@ -184,12 +222,15 @@ def should_skip_scheduled_run(
     token: str,
     today: date | None = None,
     current_run_id: str | None = None,
+    ct_today: date | None = None,
     fetch_runs: Callable[[date], list[WorkflowRun] | None] | None = None,
 ) -> bool:
     if event_name != "schedule":
         return False
     if today is None:
         today = utc_today()
+    if ct_today is None:
+        ct_today = chicago_today()
     if current_run_id is None:
         current_run_id = os.environ.get("GITHUB_RUN_ID")
     if fetch_runs is None:
@@ -197,7 +238,12 @@ def should_skip_scheduled_run(
     runs = fetch_runs(today)
     if runs is None:
         return False
-    return daily_success_already_today(runs, today=today, current_run_id=current_run_id)
+    return daily_success_already_today(
+        runs,
+        today=today,
+        current_run_id=current_run_id,
+        ct_today=ct_today,
+    )
 
 
 def write_github_output(skip: bool) -> None:
@@ -261,12 +307,13 @@ def main(argv: list[str] | None = None) -> int:
     write_github_output(skip)
     if skip:
         print(
-            "Daily Discourse Pipeline already succeeded today (UTC) "
-            "via schedule or workflow_dispatch on main; skipping scheduled run."
+            "Daily Discourse Pipeline already succeeded today "
+            "(schedule, workflow_dispatch, or merge push on main after 6 AM CT); "
+            "skipping scheduled run."
         )
     else:
         print(
-            "No qualifying successful Daily Discourse Pipeline run yet today (UTC); proceeding."
+            "No qualifying successful Daily Discourse Pipeline run yet today; proceeding."
         )
     return 0
 

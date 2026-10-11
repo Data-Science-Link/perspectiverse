@@ -19,13 +19,16 @@ def _run(
     run_id: int = 1,
     conclusion: str = "success",
     when: datetime,
+    updated: datetime | None = None,
     event: str = "schedule",
     head_branch: str = "main",
 ) -> WorkflowRun:
+    finished = updated if updated is not None else when
     return WorkflowRun(
         run_id=run_id,
         conclusion=conclusion,
         created_at=when,
+        updated_at=finished,
         event=event,
         head_branch=head_branch,
     )
@@ -50,26 +53,108 @@ def test_daily_success_false_when_only_failures_today():
     assert daily_success_already_today(runs, today=today) is False
 
 
-def test_push_success_does_not_count_toward_skip():
-    today = date(2026, 10, 9)
+def test_push_success_before_six_am_ct_does_not_count():
+    """Merge finished 5:59 AM CT on the CT calendar day — scheduled run still proceeds."""
+    today = date(2026, 10, 11)
+    ct_today = date(2026, 10, 11)
+    finished = datetime(2026, 10, 11, 10, 59, tzinfo=timezone.utc)  # 5:59 AM CDT
     runs = [
         _run(
             run_id=9,
-            when=datetime(2026, 10, 9, 5, 0, tzinfo=timezone.utc),
+            when=datetime(2026, 10, 11, 10, 0, tzinfo=timezone.utc),
+            updated=finished,
             event="push",
         ),
     ]
-    assert daily_success_already_today(runs, today=today) is False
+    assert (
+        daily_success_already_today(runs, today=today, ct_today=ct_today) is False
+    )
     assert (
         should_skip_scheduled_run(
             event_name="schedule",
             repository="org/repo",
             token="t",
             today=today,
+            ct_today=ct_today,
             fetch_runs=lambda _day: runs,
         )
         is False
     )
+
+
+def test_push_success_at_six_am_ct_counts():
+    """Merge finished exactly 6:00 AM CT — counts as the day's run."""
+    today = date(2026, 10, 11)
+    ct_today = date(2026, 10, 11)
+    finished = datetime(2026, 10, 11, 11, 0, tzinfo=timezone.utc)  # 6:00 AM CDT
+    runs = [
+        _run(
+            run_id=10,
+            when=datetime(2026, 10, 11, 10, 30, tzinfo=timezone.utc),
+            updated=finished,
+            event="push",
+        ),
+    ]
+    assert daily_success_already_today(runs, today=today, ct_today=ct_today) is True
+    assert (
+        should_skip_scheduled_run(
+            event_name="schedule",
+            repository="org/repo",
+            token="t",
+            today=today,
+            ct_today=ct_today,
+            fetch_runs=lambda _day: runs,
+        )
+        is True
+    )
+
+
+def test_failed_push_after_six_am_ct_does_not_count():
+    today = date(2026, 10, 11)
+    ct_today = date(2026, 10, 11)
+    finished = datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc)
+    runs = [
+        _run(
+            run_id=11,
+            conclusion="failure",
+            when=datetime(2026, 10, 11, 11, 0, tzinfo=timezone.utc),
+            updated=finished,
+            event="push",
+        ),
+    ]
+    assert daily_success_already_today(runs, today=today, ct_today=ct_today) is False
+
+
+def test_push_success_previous_ct_day_does_not_count():
+    """Finished late on the prior CT day even if created_at is UTC-today."""
+    today = date(2026, 10, 11)
+    ct_today = date(2026, 10, 11)
+    finished = datetime(2026, 10, 11, 4, 0, tzinfo=timezone.utc)  # Oct 10 11 PM CDT
+    runs = [
+        _run(
+            run_id=12,
+            when=datetime(2026, 10, 11, 3, 0, tzinfo=timezone.utc),
+            updated=finished,
+            event="push",
+        ),
+    ]
+    assert daily_success_already_today(runs, today=today, ct_today=ct_today) is False
+
+
+def test_push_six_am_ct_on_dst_spring_forward_day():
+    """US spring-forward: 6:00 AM local still counts (America/Chicago via zoneinfo)."""
+    today = date(2026, 3, 8)
+    ct_today = date(2026, 3, 8)
+    finished = datetime(2026, 3, 8, 11, 0, tzinfo=timezone.utc)  # 6:00 AM CDT
+    runs = [
+        _run(
+            run_id=13,
+            when=datetime(2026, 3, 8, 10, 0, tzinfo=timezone.utc),
+            updated=finished,
+            event="push",
+        ),
+    ]
+    assert daily_success_already_today(runs, today=today, ct_today=ct_today) is True
 
 
 def test_workflow_dispatch_success_counts():
