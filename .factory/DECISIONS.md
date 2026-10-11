@@ -387,3 +387,10 @@ Append-only. Newest at the bottom.
 ### 2026-10-11 Wording amendment — merge run counts only after 6 AM CT (#132)
 - **Wording fix (not a new decision):** A merge-triggered run counts as the day's run if it finished at or after 6:00 AM CT, matching `pipeline/schedule_guard.py`.
 - **Decided by:** Michael (rule); wording fix requested by the Giver.
+
+### 2026-10-11 Face fix keeps the coherence check
+**Decision (Michael, "I approve whatever y'all recommend", on the Manager's and the Giver's shared pick):** the face fix (#129) keeps the coherence check. A minority side at 10% or more becomes its own face only if the model also judges it a single nameable claim. A blocked side never becomes a face. The planet keeps its faces from before the pass, readers see "Perspectives still being analyzed", and the block is counted in the run log separately from other failed checks.
+**Sample size:** planets under 100 posts sample 40, and bigger planets sample 100. Production uses a fixed seed.
+**Evidence:** three runs with different samples had 0 failed checks and 4 to 6 of the top 10 with two faces. All 4 blocked sides were same-side or news duplicates ([#129 comment](https://github.com/Data-Science-Link/perspectiverse/pull/129#issuecomment-6113539335)).
+**Known gaps, tracked in #141:** same-side posts counted as opposing, face counts that change with the sample (Gaza, Trump Iran War), and the reader wording when the check works but there's no other side.
+**Amends:** "2026-10-11 One-face threshold is 10%".
