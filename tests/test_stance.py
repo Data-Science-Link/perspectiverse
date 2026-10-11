@@ -18,6 +18,7 @@ from pipeline.stance import (
     apply_stance_pass,
     clears_second_stance,
     cohen_kappa,
+    explain_stance_failure,
     parse_merge_groups,
     parse_stance_response,
     report_stance_check_failures,
@@ -85,8 +86,15 @@ def test_same_stance_merge_folds_different_titles_and_keeps_every_post():
     context = _context()
 
     def generate(prompt: str) -> str:
-        assert "Iran" not in prompt or "groups" in prompt
-        return json.dumps({"groups": [[0, 1, 2, 3]]})
+        if "\"groups\"" in prompt or "groups" in prompt and "labels" not in prompt:
+            return json.dumps({"groups": [[0, 1, 2, 3]]})
+        return json.dumps(
+            {
+                "question": "Is the deal wrong?",
+                "labels": [{"i": index, "stance": "supports"} for index in range(1, 9)],
+                "second": {"stance": "opposes", "coherent": False, "title": "", "summary": ""},
+            }
+        )
 
     context["stance_generate"] = generate
     merged, log = apply_stance_pass(drafted, _members(uris), context, subject="Diesel")
@@ -250,6 +258,67 @@ def test_heuristic_backend_makes_no_stance_call():
     assert len(merged) == 2
     assert log == []
     assert context["story_calls"] == {}
+
+
+# No Men, 11 Oct 2026, temperature 0. Valid JSON, three labels of a 40-post sample.
+NO_MEN_PARTIAL = (
+    '{"question": "Should men be allowed in women\'s sports?", '
+    '"labels": [{"i": 1, "stance": "opposes"}, {"i": 3, "stance": "opposes"}, '
+    '{"i": 14, "stance": "supports"}], '
+    '"second": {"stance": "opposes", "coherent": true, "title": "No Men", '
+    '"summary": "Most posts argue that men should not be allowed in women\'s sports, '
+    'citing concerns about fairness, safety, and women\'s rights."}}'
+)
+
+
+def test_no_men_partial_labels_are_a_schema_mismatch():
+    assert parse_stance_response(NO_MEN_PARTIAL, 40) is None
+    assert (
+        explain_stance_failure(NO_MEN_PARTIAL, None, kind="sample", count=40)
+        == "schema mismatch: labels cover 3 of 40"
+    )
+
+
+def test_a_partial_reply_retries_once_and_then_keeps_the_faces():
+    uris = [f"n{index}" for index in range(40)]
+    drafted = [_face("Women's Rights", uris)]
+    calls = {"n": 0, "seeds": []}
+
+    def generate(prompt: str, seed: int | None = None) -> str:
+        calls["n"] += 1
+        calls["seeds"].append(seed)
+        return NO_MEN_PARTIAL
+
+    context = _context(stance_generate=generate)
+    before = stance_check_failures()
+    merged, log = apply_stance_pass(drafted, _members(uris), context, subject="No Men")
+    assert [item[0]["title"] for item in merged] == ["Women's Rights"]
+    assert calls["n"] == 2
+    assert calls["seeds"] == [None, 1]
+    assert context.get("stance_check_failed") is True
+    assert "labels cover 3 of 40" in " ".join(log)
+    assert "Pre-pass faces kept (1)" in " ".join(log)
+    assert stance_check_failures() == before + 1
+
+
+def test_a_failed_sample_after_a_merge_restores_the_pre_pass_faces():
+    uris = ["a", "b", "c", "d"]
+    drafted = [_face("Iran War", uris[:2]), _face("Trump Invites Attack", uris[2:])]
+
+    def generate(prompt: str, seed: int | None = None) -> str:
+        del seed
+        if "Group these faces" in prompt:
+            return json.dumps({"groups": [[0, 1]]})
+        raise RuntimeError("HTTP 500")
+
+    context = _context(stance_generate=generate)
+    before = stance_check_failures()
+    merged, log = apply_stance_pass(drafted, _members(uris), context, subject="Trump Iran War")
+    assert [item[0]["title"] for item in merged] == ["Iran War", "Trump Invites Attack"]
+    assert context.get("stance_check_failed") is True
+    assert "Pre-pass faces kept (2)" in " ".join(log)
+    assert "HTTP error" in " ".join(log)
+    assert stance_check_failures() == before + 1
 
 
 def test_a_failed_call_keeps_the_faces():

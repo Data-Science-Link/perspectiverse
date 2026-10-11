@@ -8,12 +8,14 @@ one coherent claim. A planet under 100 posts is sampled at most 40 posts.
 A planet of 100 or more is sampled at most 100. The whole planet is used
 when it is smaller than that cap. The whole-planet count is not what this
 pass compares. A call that times out, returns an HTTP error, or cannot be
-parsed leaves the faces as they were. That planet is marked stance check
-failed and does not get the one-view note.
+parsed is tried once more with a different seed. If that also fails, the
+planet keeps the faces it had before this pass, including a merge from this
+pass. It is marked stance check failed and does not get the one-view note.
 """
 
 from __future__ import annotations
 
+import inspect
 import json
 import sys
 import threading
@@ -279,7 +281,8 @@ def build_stance_prompt(rows: list[tuple], members: list[dict], subject: str) ->
         "Return JSON only, no markdown:",
         '{"question": "...", "labels": [{"i": 1, "stance": "supports"}], '
         '"second": {"stance": "opposes", "coherent": false, "title": "2-4 words", "summary": "one sentence"}}',
-        "i starts at 1. second.stance is supports or opposes, never other-angle.",
+        "i starts at 1. Include every i from 1 through the last post. Do not skip a number.",
+        "second.stance is supports or opposes, never other-angle.",
         "The title names that minority claim. Do not use Mixed remarks.",
         "",
         "Posts:",
@@ -355,12 +358,109 @@ def _bump(context: dict) -> None:
     calls["stance"] = int(calls.get("stance") or 0) + 1
 
 
-def _call(generate: Callable[[str], str], prompt: str, context: dict) -> str | None:
-    _bump(context)
+def _accepts_seed(generate: Callable) -> bool:
     try:
-        return generate(prompt) or ""
-    except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError, ValueError, TypeError):
-        return None
+        signature = inspect.signature(generate)
+    except (TypeError, ValueError):
+        return False
+    for parameter in signature.parameters.values():
+        if parameter.kind == inspect.Parameter.VAR_KEYWORD or parameter.name == "seed":
+            return True
+    return False
+
+
+def _invoke(generate: Callable, prompt: str, seed: int | None) -> tuple[str | None, BaseException | None]:
+    """One generator call. A raised transport error is the failure, not a crash."""
+    try:
+        if seed is not None and _accepts_seed(generate):
+            raw = generate(prompt, seed=seed)
+        else:
+            raw = generate(prompt)
+    except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
+        return None, exc
+    return raw or "", None
+
+
+def explain_stance_failure(
+    raw: str | None,
+    error: BaseException | None,
+    *,
+    kind: str,
+    count: int,
+) -> str:
+    """Why a stance reply cannot be used. The text is the reason, not a stance."""
+    if error is not None:
+        detail = " ".join(str(error).split())[:160]
+        if isinstance(error, TimeoutError) or "timeout" in detail.lower():
+            return f"timeout: {type(error).__name__}: {detail}"
+        return f"HTTP error: {type(error).__name__}: {detail}"
+    text = "" if raw is None else str(raw).strip()
+    if not text:
+        return "empty"
+    lowered = text.lower()
+    if lowered.startswith(("i can't", "i cannot", "sorry,", "as an ai")):
+        return "refusal"
+    data = _json_object(text)
+    if data is None:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start < 0 or end <= start:
+            return "unparseable: no JSON object"
+        return "invalid JSON"
+    if kind == "merge":
+        return "schema mismatch: merge groups rejected"
+    labels = data.get("labels")
+    if not isinstance(labels, list):
+        return "schema mismatch: labels is not a list"
+    numbered: set[int] = set()
+    bad_stance = False
+    for item in labels:
+        if not isinstance(item, dict):
+            continue
+        try:
+            index = int(item.get("i"))
+        except (TypeError, ValueError):
+            continue
+        if _normalize_stance(item.get("stance")) is None:
+            bad_stance = True
+        numbered.add(index)
+    expected = set(range(1, count + 1))
+    if numbered != expected and numbered != set(range(count)):
+        covered = numbered & expected if numbered & expected else numbered
+        return f"schema mismatch: labels cover {len(covered)} of {count}"
+    if bad_stance:
+        return "schema mismatch: a label stance is not supports, opposes, other-angle, or off-topic"
+    return "schema mismatch: stance object rejected"
+
+
+def _call_parsed(
+    generate: Callable,
+    prompt: str,
+    context: dict,
+    *,
+    kind: str,
+    count: int,
+    parse: Callable[[str], object],
+):
+    """One call, then one retry with seed 1. None when both fail."""
+    _bump(context)
+    raw, error = _invoke(generate, prompt, None)
+    parsed = None if raw is None else parse(raw)
+    if parsed is not None:
+        return parsed
+    first = explain_stance_failure(raw, error, kind=kind, count=count)
+    _bump(context)
+    retry = prompt + "\n\nThe previous reply was not usable. Return one JSON object only, no markdown."
+    if kind == "sample":
+        retry += f" labels must include every i from 1 to {count}."
+    raw_retry, error_retry = _invoke(generate, retry, 1)
+    parsed_retry = None if raw_retry is None else parse(raw_retry)
+    if parsed_retry is not None:
+        return parsed_retry
+    second = explain_stance_failure(raw_retry, error_retry, kind=kind, count=count)
+    context["stance_failure_reason"] = f"the call failed ({first}; retry: {second})"
+    _mark_call_failed(context)
+    return None
 
 
 def _uri_key(drafted: list) -> tuple[str, ...]:
@@ -415,13 +515,15 @@ def merge_same_stance(
     """Fold faces the model puts on the same side. False when the call fails."""
     if len(drafted) < 2:
         return drafted, False
-    raw = _call(generate, build_merge_prompt(drafted, members), context)
-    if raw is None:
-        _mark_call_failed(context)
-        return drafted, False
-    groups = parse_merge_groups(raw, len(drafted))
+    groups = _call_parsed(
+        generate,
+        build_merge_prompt(drafted, members),
+        context,
+        kind="merge",
+        count=len(drafted),
+        parse=lambda raw: parse_merge_groups(raw, len(drafted)),
+    )
     if groups is None:
-        _mark_call_failed(context)
         return drafted, False
     post_limit = int(context.get("limit") or 36)
     merged = [_fold(drafted, group, post_limit) if len(group) > 1 else drafted[group[0]] for group in groups]
@@ -515,13 +617,15 @@ def split_second_stance(
     rows = sample_rows(drafted[0][1])
     if len(rows) < MIN_FACE_POSTS:
         return drafted, False
-    raw = _call(generate, build_stance_prompt(rows, members, subject), context)
-    if raw is None:
-        _mark_call_failed(context)
-        return drafted, False
-    parsed = parse_stance_response(raw, len(rows))
+    parsed = _call_parsed(
+        generate,
+        build_stance_prompt(rows, members, subject),
+        context,
+        kind="sample",
+        count=len(rows),
+        parse=lambda raw: parse_stance_response(raw, len(rows)),
+    )
     if parsed is None:
-        _mark_call_failed(context)
         return drafted, False
     counts: dict[str, int] = {name: 0 for name in STANCES}
     for label in parsed["labels"]:
@@ -575,11 +679,13 @@ def apply_stance_pass(
 ) -> tuple[list, list[str]]:
     """Same-stance merge, then a sample check only when one face would remain.
 
-    A failed call (timeout, HTTP error, unparseable output) leaves the faces
-    as they were and sets ``stance_check_failed`` on the context. The heuristic
-    backend returns immediately and does not call the model.
+    A failed call (timeout, HTTP error, unparseable output), after one retry,
+    restores the faces from before this pass and sets ``stance_check_failed``
+    on the context. The heuristic backend returns immediately and does not
+    call the model.
     """
     context.pop("stance_check_failed", None)
+    context.pop("stance_failure_reason", None)
     if context.get("chosen") == "heuristic" or len(drafted) < 1:
         return drafted, []
     generate = context.get("stance_generate") or context.get("summary_model")
@@ -590,27 +696,30 @@ def apply_stance_pass(
     before = len(drafted)
     original_uris = _uri_key(drafted)
     current = drafted
-    if len(current) >= 2:
+    if len(current) >= 2 and not context.get("stance_check_failed"):
         merged, called = merge_same_stance(current, members, generate, context)
-        if not called:
-            log.append(f"Stance merge kept {subject or 'planet'}: the call failed.")
-        elif _uri_key(merged) != original_uris:
-            log.append(f"Stance merge kept {subject or 'planet'}: the groups would have dropped posts.")
-        else:
+        if called and _uri_key(merged) == original_uris and not context.get("stance_check_failed"):
             current = merged
-    if len(current) == 1:
+        elif called and _uri_key(merged) != original_uris:
+            log.append(f"Stance merge kept {subject or 'planet'}: the groups would have dropped posts.")
+    if len(current) == 1 and not context.get("stance_check_failed"):
         checked, called = split_second_stance(current, members, generate, context, subject=subject)
-        if not called and context.get("stance_check_failed"):
-            log.append(f"Stance check kept one face on {subject or 'planet'}: the call failed.")
-        elif not called:
+        if called and _uri_key(checked) == original_uris and not context.get("stance_check_failed"):
+            current = checked
+        elif not called and not context.get("stance_check_failed"):
             log.append(
                 f"Stance check kept one face on {subject or 'planet'}: "
                 f"fewer than {MIN_FACE_POSTS} posts to check."
             )
-        elif _uri_key(checked) != original_uris:
+        elif called and _uri_key(checked) != original_uris:
             log.append(f"Stance check kept one face on {subject or 'planet'}: the split would have dropped posts.")
-        else:
-            current = checked
+    if context.get("stance_check_failed"):
+        reason = context.get("stance_failure_reason") or "the call failed"
+        log.append(
+            f"Stance check failed on {subject or 'planet'}: {reason}. "
+            f"Pre-pass faces kept ({before})."
+        )
+        return drafted, log
     if _uri_key(current) != original_uris:
         return drafted, [f"Stance pass skipped on {subject or 'planet'}: post count changed."]
     last = context.get("stance_last") or {}

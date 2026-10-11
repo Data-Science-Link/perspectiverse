@@ -8,6 +8,10 @@ export function oneViewNote(topic) {
   return SINGLE_VIEW_NOTE
 }
 
+export function showStanceFailure(topic) {
+  return Boolean(topic && topic.stance_check === STANCE_CHECK_FAILED)
+}
+
 export const SITE_TITLE = 'Perspectiverse'
 export const SITE_TAGLINE = 'See every perspective — and where yours stands.'
 export const SOLAR_SYSTEM_LABEL = 'Filter topics'

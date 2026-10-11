@@ -1253,13 +1253,22 @@ def name_from_perspectives(
     return cleaned
 
 
-def _generator_for(chosen: str, model: str | None) -> Callable[[str], str]:
+def _generator_for(chosen: str, model: str | None) -> Callable[..., str]:
     if chosen == "ollama":
         chosen_model = model or (os.getenv("OLLAMA_MODEL") or "llama3.2")
-        return lambda text: _ollama_generate(text, chosen_model)
+
+        def _ollama(text: str, seed: int | None = None) -> str:
+            del seed
+            return _ollama_generate(text, chosen_model)
+
+        return _ollama
     if chosen == "openai":
         chosen_model = resolve_openai_model(model)
-        return lambda text: _openai_generate(text, chosen_model)
+
+        def _openai(text: str, seed: int | None = None) -> str:
+            return _openai_generate(text, chosen_model, seed=seed)
+
+        return _openai
     raise ValueError(f"Unknown label_backend {chosen}")
 
 
@@ -1498,18 +1507,19 @@ def _log_label_error(exc: BaseException, error_class: str, *, retried: bool, ski
     print(f"DeepInfra {error_class} {kind}{extra}: {exc}", file=sys.stderr)
 
 
-def _openai_generate(prompt: str, model: str) -> str:
+def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str:
     api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
     base = resolve_openai_base_url()
-    body = json.dumps(
-        {
-            "model": model,
-            "temperature": 0,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-    ).encode("utf-8")
+    request: dict = {
+        "model": model,
+        "temperature": 0,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if seed is not None:
+        request["seed"] = int(seed)
+    body = json.dumps(request).encode("utf-8")
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
