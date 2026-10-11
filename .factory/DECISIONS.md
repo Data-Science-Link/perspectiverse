@@ -401,3 +401,35 @@ Append-only. Newest at the bottom.
 - **Why:** Run 38174510918 spent 424s on global labeling and 881s on section labeling after the stance check. Most section planets are not in the global top 10. On the paired snapshot, reuse skipped 13 drafts and 110 wide relabels and cut DeepInfra calls from 1,220 to 1,052 ($0.115 to $0.093). Local section time was 719s, then 681s and 986s, so the call cut is real and the wall-time cut is not. Stance behavior is unchanged: threshold 0.10, coherence check, seeded call, one retry.
 - **Alternatives:** Update PR #102 in place (rejected: that branch predates the stance pass and prefixed section ids). Set `section_assignment` to `jev` (rejected: 72.9% agreement, Culture 36.4%). Keep re-clustering every section.
 - **Revisit when:** A 100K window still spends the 1,200s section budget, or a new shadow clears 90% agreement including Culture.
+
+### 2026-10-11 Michael's standing approval for outstanding and in-queue work
+**Decision (Michael, in the room, 2026-10-11):** "If y'all need approval from me for anything outstanding - you have my approval. Also please proceed with using your judgement."
+
+**What it covers:** product-gate approval for PRs on the current queue: #90 (label-once), #141 (stance counting), #104 (grouping), and the 2-day paid Jetstream readiness run (#87). The Manager may merge these once a different model's review passes, CI is green on the head commit, the branch is 0 behind main, and the before-and-after numbers on the same data show the change is no worse than main. The Manager posts those numbers in the room before merging but does not wait for a reply. The PR body records "Human reviewed before merge: standing approval, Michael, 2026-10-11" and links this entry.
+
+**Still comes back to Michael first, even under this approval:**
+- anything that would push daily production cost past the $0.50 target
+- a new kind of change to what readers see
+- anything a liability gate covers: workflow or CI permissions, secrets, licensing, and public claims
+- turning on on-demand spend (never allowed without him)
+
+**Unchanged:** the risk-class rules, model routing, up-to-date-before-merge, and the rule that each issue stays open until its own done bar is met.
+
+**Amends:** "Room approval = merge instruction" (2026-10-08). That rule required Michael to name each PR. This entry lets the Manager merge the queued items above without a named approval.
+
+**Scope and revocation:** Michael can narrow or revoke this at any time with a message in the room. Revoking takes effect immediately and applies to anything not yet merged.
+
+### 2026-10-11 Standing approval narrowed to today's drafts and PRs
+**Decision (Michael, in the room, 2026-10-11):** "Sounds good - my approval is for anything in draft or PR state already today."
+
+**What it covers:** only PRs that were open (draft or ready) on 2026-10-11. As of 5:13 PM CT those are:
+- #142, "Label each planet once and reuse it in every section" (#90), draft
+- #102, "Group once and label once; keep sections on the post majority" (#90), draft
+
+Merge conditions are unchanged from the #143 entry: a review by a different model passes, CI is green on the head commit, the branch is 0 behind main, and before-and-after numbers on the same data show the change is no worse than main. The Manager posts those numbers in the room before merging.
+
+**Not covered (needs Michael's named approval when ready):** #141 (stance counting), #104 (grouping), the 2-day paid Jetstream readiness run (#87), and any PR opened after today.
+
+**Still comes back to Michael first, even for covered PRs:** daily cost past the $0.50 target, a new kind of change to what readers see, and liability gates (workflow or CI permissions, secrets, licensing, and public claims).
+
+**Supersedes:** the 2026-10-11 standing-approval entry in #143, which listed #141, #104 and the Jetstream run as covered.
