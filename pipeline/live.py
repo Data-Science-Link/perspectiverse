@@ -2986,10 +2986,19 @@ def _renumber_planets(
     membership: list[tuple],
     face_rows: list[tuple],
 ) -> tuple[list[dict], list[tuple], list[tuple]]:
-    """Publish ids 1..N after a mixed planet is dropped, and drop its membership."""
-    remap = {int(topic["id"]): new_id for new_id, topic in enumerate(topics, start=1)}
-    for topic in topics:
-        new_id = remap[int(topic["id"])]
+    """Publish ids 1..N in list order, and drop membership for planets that were removed.
+
+    Ids follow position, not the previous id. A section list can contain a
+    planet reused from All topics (its id is still that catalog number) and a
+    planet from a section top-up (those ids restart at 1). Mapping only by the
+    old id published both as the same ``Politics-8``.
+    """
+    remap: dict[int, int] = {}
+    for new_id, topic in enumerate(topics, start=1):
+        try:
+            remap[int(topic["id"])] = new_id
+        except (TypeError, ValueError):
+            pass
         topic["id"] = new_id
         topic["perspectives"] = [
             {**face, "id": face_id(new_id, position)}
