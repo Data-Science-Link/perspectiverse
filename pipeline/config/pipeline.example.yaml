@@ -33,10 +33,23 @@ openai_model: gpt-4o-mini
 # Section solar systems share one pool: the default 8 is run as 12 calls in
 # flight across every section. Any other value is the cap for both.
 label_workers: 8
-# Minutes the per-section solar systems may spend after the global system is
+# Minutes the section solar systems may spend after the global system is
 # built. 0 skips sections. Omitting the key uses the default (20). Sections
 # past the ceiling are skipped (logged) so the snapshot publishes.
 section_budget_minutes: 20
+# cluster_once: one density pass. Each planet is listed by section_assignment.
+# Labels, including the stance check, are written once and reused in the
+# global list and every section list. Each section ranks the global clusters
+# assigned to it by its own post count and keeps its top catalog_size.
+# A section with fewer published planets stays short. It is not filled from
+# a second clustering.
+# per_section: cluster each section again and label those planets separately.
+section_grouping: cluster_once
+# majority uses the section with the most member posts (both sections at or
+# above 35%). jev asks one section question per labeled planet and is off
+# until a shadow on the current corpus clears 90%. A missing key or a failed
+# call uses majority for that planet.
+section_assignment: majority
 
 representative_posts: 36
 # MMR cap for face labeling prompts (title, summary, arguments).

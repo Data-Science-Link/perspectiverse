@@ -395,6 +395,13 @@ Append-only. Newest at the bottom.
 **Known gaps, tracked in #141:** same-side posts counted as opposing, face counts that change with the sample (Gaza, Trump Iran War), and the reader wording when the check works but there's no other side.
 **Amends:** "2026-10-11 One-face threshold is 10%".
 
+### 2026-10-11 — Label each planet once; Jev does not pick the section (#90)
+- **Decision:** `section_grouping` defaults to `cluster_once`. One density pass. A planet is listed in the section with the most member posts, and in the runner-up when both are at least 35%. The draft, including the stance check, and the wide relabel are cached by member URIs. `section_assignment` stays `majority`. The per-planet Jev call stays off. Section planet ids follow list position (`Politics-1`, `Politics-2`), not the id the planet already had in All topics.
+- **Decided by:** Product owner, 2026-10-08, group once (issue #90). Leaving the Jev planet call off follows the October shadow (78/107 planets, Culture 4/11), which missed the 90% bar. The id rule is the fix for the 2026-10-11 relabel that raised `duplicate topic id Politics-8` before publish.
+- **Why:** Run 38174510918 spent 424s on global labeling and 881s on section labeling after the stance check. Most section planets are not in the global top 10. On the paired snapshot, reuse skipped 13 drafts and 110 wide relabels and cut DeepInfra calls from 1,220 to 1,052 ($0.115 to $0.093). Local section time was 719s, then 681s and 986s, so the call cut is real and the wall-time cut is not. Stance behavior is unchanged: threshold 0.10, coherence check, seeded call, one retry.
+- **Alternatives:** Update PR #102 in place (rejected: that branch predates the stance pass and prefixed section ids). Set `section_assignment` to `jev` (rejected: 72.9% agreement, Culture 36.4%). Keep re-clustering every section.
+- **Revisit when:** A 100K window still spends the 1,200s section budget, or a new shadow clears 90% agreement including Culture.
+
 ### 2026-10-11 Michael's standing approval for outstanding and in-queue work
 **Decision (Michael, in the room, 2026-10-11):** "If y'all need approval from me for anything outstanding - you have my approval. Also please proceed with using your judgement."
 
@@ -426,3 +433,15 @@ Merge conditions are unchanged from the #143 entry: a review by a different mode
 **Still comes back to Michael first, even for covered PRs:** daily cost past the $0.50 target, a new kind of change to what readers see, and liability gates (workflow or CI permissions, secrets, licensing, and public claims).
 
 **Supersedes:** the 2026-10-11 standing-approval entry in #143, which listed #141, #104 and the Jetstream run as covered.
+
+### 2026-10-11 — Do not fill a short section with a second clustering (#90)
+- **Decision:** `cluster_once` does not top up a section that publishes fewer than 10 planets. `_top_up_section` is removed, and `section_candidate_planets` no longer adds a density pass on that section's own posts. A short section shows fewer planets.
+- **Why:** On the Oct 11 snapshot the top-up published seven planets. Two of them, AI in Academia and Chris Sale, glue separate stories (#77). Chris Sale passed `story_groups` only because both faces contain "right". That shared-word check is the one-story test the pipeline already has, and it is not reliable. A stricter stopword list would miss the next glue word. An extra model call per top-up group is not the cheap check. Michael prefers natural grouping over forced filling.
+- **Alternatives:** Keep top-up and reject a group unless `story_groups` returns one group (rejected: that is the check Chris Sale passed). Require one face (rejected: a real one-story planet can have two faces, and Vocational High School did).
+- **Revisit when:** A cheap check can show, on this snapshot, that it would have rejected AI in Academia and Chris Sale and kept a top-up planet whose faces are one story for a reason other than a shared function word.
+- **Decided by:** Follow-up on PR #142, 2026-10-11. The product preference for natural grouping over forced filling is Michael's.
+
+### 2026-10-11 — A section keeps the clusters that are large inside it (#90)
+- **Decision:** Under `cluster_once`, every global cluster is assigned by the majority rule. Each section ranks those clusters by how many of their posts are in that section, labels its own top 10, and reuses a label when the member URIs were already drafted. The global catalog is still ranked by distinct authors. Top-up stays off.
+- **Why:** The old section order was distinct authors, then total size (`_topic_reach_key`). Labeling stopped at 10 (`_SectionLabelJob.keep`). On the Oct 11 snapshot the largest global piece of Labour Party had 55 Politics posts and was 11th in Politics by author reach, so it was never labeled. Ranking by in-section posts puts that piece 5th. Global clustering still splits some per-section stories (Trump Corruption, 2024 Election) into pieces too small to be a planet. This change does not glue those pieces back together.
+- **Revisit when:** A section's top 10 by in-section posts still omits a story that global clustering kept as one cluster.

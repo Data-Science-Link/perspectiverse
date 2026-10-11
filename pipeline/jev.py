@@ -415,6 +415,126 @@ def spam_claim_batch_body(texts: list[str]) -> dict:
     }
 
 
+# A second section is listed when the top two probabilities are both real
+# alternatives: each at least this floor, and no wider apart than the gap.
+CLOSE_SECTION_PROBABILITY = 0.35
+CLOSE_SECTION_GAP = 0.15
+# Planet section vs the majority of today's per-post sections (#90).
+SECTION_AGREEMENT_BAR = 0.90
+
+
+def sections_from_choice(choice: str, probabilities: dict | None) -> list[str]:
+    """Primary section, plus a second when the top two probabilities are close."""
+    probs: dict[str, float] = {}
+    if isinstance(probabilities, dict):
+        for name, value in probabilities.items():
+            if str(name) not in CATEGORIES:
+                continue
+            try:
+                probs[str(name)] = float(value)
+            except (TypeError, ValueError):
+                continue
+    if choice in CATEGORIES and not probs:
+        probs[choice] = 1.0
+    if not probs:
+        return []
+    ranked = sorted(probs.items(), key=lambda item: (-item[1], CATEGORIES.index(item[0])))
+    chosen = [ranked[0][0]]
+    if len(ranked) > 1:
+        top = ranked[0][1]
+        second = ranked[1][1]
+        if second >= CLOSE_SECTION_PROBABILITY and (top - second) <= CLOSE_SECTION_GAP:
+            chosen.append(ranked[1][0])
+    return chosen
+
+
+def planet_section_state(planet: dict) -> str:
+    """The summary and arguments Jev reads when it picks a planet's section."""
+    lines = [f"Planet: {planet.get('name') or 'Untitled'}"]
+    brief = str(planet.get("brief") or planet.get("summary") or "").strip()
+    if brief:
+        lines.append(brief)
+    for face in planet.get("perspectives") or []:
+        title = str(face.get("title") or "").strip()
+        summary = str(face.get("summary") or "").strip()
+        lines.append(f"Perspective: {title}")
+        if summary and summary != title:
+            lines.append(summary)
+        for argument in (face.get("arguments") or [])[:4]:
+            text = str(argument).strip()
+            if text:
+                lines.append(f"- {text}")
+    return "\n".join(lines)[:4000]
+
+
+def _planet_section_question() -> dict:
+    """Planet-level section question. The per-post question is unchanged.
+
+    The 102-planet shadow agreed 91.2% overall and 50% on Culture: commentary
+    about entertainment, media, and celebrity was sent to Other. This nudge
+    applies only when Jev classifies a planet. That call stays off.
+    """
+    criteria = dict(SECTION_CRITERIA)
+    criteria["Culture"] = (
+        "Arts, entertainment, media, celebrity, creators, and commentary about them, "
+        "including a specific creator, show, clip, or dress code"
+    )
+    criteria["Other"] = (
+        "None of the named sections is the primary subject. "
+        "Not a fallback for culture, entertainment, media, or celebrity commentary"
+    )
+    return {
+        "type": "choice",
+        "instructions": (
+            "Which newspaper section is this planet's primary subject? "
+            "Arts, entertainment, media, celebrity, and creator commentary belong in Culture, not Other."
+        ),
+        "criteria": criteria,
+    }
+
+
+def classify_planet_section(state: str) -> dict | None:
+    """One section choice for an already-labeled planet. None when Jev is off or the call fails."""
+    if _disabled_reason or not _api_key():
+        return None
+    text = str(state or "").strip()[:4000]
+    if not text:
+        return None
+    try:
+        payload = _post_systemone(
+            {
+                "state": text,
+                "model": _model(),
+                "questions": {"section": _planet_section_question()},
+            }
+        )
+    except (RuntimeError, json.JSONDecodeError, KeyError, TypeError):
+        return None
+    answers = payload.get("answers") if isinstance(payload, dict) else None
+    if not isinstance(answers, dict):
+        return None
+    section = answers.get("section") or {}
+    choice = str(section.get("choice") or "")
+    raw_probs = section.get("probabilities") if isinstance(section.get("probabilities"), dict) else {}
+    chosen = sections_from_choice(choice, raw_probs)
+    if not chosen:
+        return None
+    probabilities = {}
+    for name, value in raw_probs.items():
+        if name not in CATEGORIES:
+            continue
+        try:
+            probabilities[name] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return {
+        "sections": chosen,
+        "primary": chosen[0],
+        "probabilities": probabilities,
+        "model": str(payload.get("model") or ""),
+    }
+
+
 def planet_section_body(summary: str, arguments: str) -> dict:
     """One section question for a planet's summary and arguments.
 

@@ -65,6 +65,22 @@ DEFAULTS: dict[str, Any] = {
     # Minutes the section solar systems may spend after the global system.
     # 0 skips sections. None (omit the key) uses this default.
     "section_budget_minutes": 20,
+    # cluster_once: one density pass over all posts. Each planet is listed by
+    # section_assignment below. Labels, including the stance check, are written
+    # once and reused. Each section ranks every global cluster assigned to it
+    # by how many of that cluster's posts are in the section, and labels its
+    # own top catalog_size, reusing a label that All topics already wrote.
+    # A section that publishes fewer than catalog_size planets stays short.
+    # per_section clusters every section again and labels those planets
+    # separately.
+    "section_grouping": "cluster_once",
+    # majority: the section that holds the most of the planet's posts (both
+    # when the top two are each at least 35%). jev: one section call per
+    # labeled planet, with a Culture-vs-Other nudge, falling back to majority
+    # when the key is missing or the call fails. jev is not the default: on
+    # the October corpus it agreed with the post majority on 78/107 planets
+    # (72.9%), under the 90% bar. Culture was 4/11 (36.4%).
+    "section_assignment": "majority",
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
     # Phase 3 packs about 25 posts into one spam+claim request. It does not
     # ask for a section. The shadow test failed batched claims, so this stays
