@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import re
 
-from pipeline.cleaning import URL_RE
+from pipeline.cleaning import URL_RE, is_login_wall_boilerplate
 
 # Fewer than this many whitespace-separated words on the cleaned text.
 # Tuned on the retained corpus so the whole pre-filter stays within 3%.
@@ -210,6 +210,9 @@ def prefilter_reason(post: dict, duplicates: DuplicateIndex | None = None) -> st
     The caller adds a post to that index only after this returns None, so the
     first copy is scored and the later copies are skipped.
     """
+    text = post_text(post)
+    if is_login_wall_boilerplate(post_raw(post)) or is_login_wall_boilerplate(text):
+        return "boilerplate"
     if _link_only(post):
         return "link"
     if word_count(post_text(post)) < MIN_WORDS:
@@ -227,7 +230,7 @@ def measure_claim_loss(posts: list[dict]) -> dict[str, int]:
     Walks posts in order. A kept post becomes an already-scored fingerprint,
     which is how a later near-copy is judged.
     """
-    counts = {"short": 0, "language": 0, "link": 0, "duplicate": 0, "kept": 0}
+    counts = {"short": 0, "language": 0, "link": 0, "duplicate": 0, "boilerplate": 0, "kept": 0}
     index = DuplicateIndex()
     for post in posts:
         reason = prefilter_reason(post, index)

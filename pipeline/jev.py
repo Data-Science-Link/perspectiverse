@@ -237,7 +237,8 @@ def _decisions_for(
         print(
             f"Jev cache hits: {hits}. Pre-filter skips: {sum(skips.values())} "
             f"(short {skips['short']}, language {skips['language']}, "
-            f"link {skips['link']}, duplicate {skips['duplicate']})."
+            f"link {skips['link']}, duplicate {skips['duplicate']}, "
+            f"boilerplate {skips['boilerplate']})."
         )
     if pending:
         decisions.update(_classify_many(pending, batch=batch))

@@ -415,7 +415,7 @@ JEV_BATCH_SPAM_CLAIM_TOKENS_PER_POST = (
 JEV_PLANET_SECTION_TOKENS = JEV_REQUEST_OVERHEAD_TOKENS + JEV_SECTION_CRITERIA_TOKENS + JEV_POST_TEXT_TOKENS
 JEV_PLANETS_PER_DAY = 300
 
-_JEV_FILTER_REASONS = ("short", "language", "link", "duplicate")
+_JEV_FILTER_REASONS = ("short", "language", "link", "duplicate", "boilerplate")
 
 
 @dataclass
@@ -427,6 +427,7 @@ class JevFilterCounts:
     language: int = 0
     link: int = 0
     duplicate: int = 0
+    boilerplate: int = 0
 
 
 _filters = JevFilterCounts()
@@ -469,6 +470,7 @@ def jev_filter_counts() -> dict[str, int]:
             "language": _filters.language,
             "link": _filters.link,
             "duplicate": _filters.duplicate,
+            "boilerplate": _filters.boilerplate,
         }
 
 
@@ -486,7 +488,8 @@ def format_jev_filters(counts: dict[str, int] | None = None) -> str:
         f"(short {int(current.get('short') or 0)}, "
         f"language {int(current.get('language') or 0)}, "
         f"link {int(current.get('link') or 0)}, "
-        f"duplicate {int(current.get('duplicate') or 0)})."
+        f"duplicate {int(current.get('duplicate') or 0)}, "
+        f"boilerplate {int(current.get('boilerplate') or 0)})."
     )
 
 
@@ -863,6 +866,7 @@ def write_cost_run(
                 "language": int(filters["language"]),
                 "link": int(filters["link"]),
                 "duplicate": int(filters["duplicate"]),
+                "boilerplate": int(filters["boilerplate"]),
             },
         }
         _atomic_write(destination, json.dumps(payload, indent=2) + "\n")
@@ -870,6 +874,9 @@ def write_cost_run(
             print(f"Cost run file: {destination} ({len(rows)} service row(s)).")
         else:
             print(f"Cost run file: {destination} (no paid calls).")
+        boilerplate = int(filters.get("boilerplate") or 0)
+        if boilerplate:
+            print(f"Boilerplate filter: {boilerplate} post(s) dropped")
         if filters["cache_hits"] or jev_filter_skip_total(filters):
             print(format_jev_filters(filters))
         return destination

@@ -296,7 +296,13 @@ def test_filter_counts_are_in_the_run_output_and_tokens_stay_real(tmp_path, caps
     )
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["jev_cache_hits"] == 4
-    assert payload["jev_prefilter_skips"] == {"short": 0, "language": 2, "link": 0, "duplicate": 0}
+    assert payload["jev_prefilter_skips"] == {
+        "short": 0,
+        "language": 2,
+        "link": 0,
+        "duplicate": 0,
+        "boilerplate": 0,
+    }
     assert payload["rows"][0]["input_tokens"] == "612"
     assert payload["rows"][0]["calls"] == "1"
     logged = capsys.readouterr().out
