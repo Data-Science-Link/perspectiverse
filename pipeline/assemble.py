@@ -53,7 +53,7 @@ def assemble_payload(
     return payload
 
 
-def face_id(topic_id: int, index: int) -> str:
+def face_id(topic_id: int | str, index: int) -> str:
     return f"{topic_id}{FACE_LETTERS[index]}"
 
 
