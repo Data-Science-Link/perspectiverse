@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from typing import Any
 
@@ -220,6 +221,24 @@ def category_for_members(name: str, terms: list[str], texts: list[str] | None, m
     return best
 
 
+_SECTION_TOPIC_ID = re.compile(
+    r"^(" + "|".join(CATEGORIES) + r")-\d+$",
+)
+
+
+def _check_global_topic_id(topic_id: Any, label: str) -> None:
+    if not isinstance(topic_id, int):
+        raise ValueError(f"{label} id must be an int, found {type(topic_id).__name__}")
+
+
+def _check_section_topic_id(topic_id: Any, label: str) -> None:
+    if isinstance(topic_id, int):
+        return
+    if isinstance(topic_id, str) and _SECTION_TOPIC_ID.fullmatch(topic_id):
+        return
+    raise ValueError(f"{label} id must be int (legacy) or Section-rank, found {topic_id!r}")
+
+
 def _check_opposing_note(topic: dict[str, Any], label: str) -> None:
     if "opposing_note" not in topic or topic.get("opposing_note") is None:
         return
@@ -263,6 +282,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
     seen_topic_ids: set[int] = set()
     for topic in topics:
         topic_id = topic["id"]
+        _check_global_topic_id(topic_id, f"Topic {topic_id}")
         if topic_id in seen_topic_ids:
             raise ValueError(f"Duplicate topic id {topic_id}")
         seen_topic_ids.add(topic_id)
@@ -336,9 +356,10 @@ def validate_payload(payload: dict[str, Any]) -> None:
             if not isinstance(section_topics, list) or not section_topics:
                 raise ValueError(f"Section '{section_name}' must be a non-empty list of topics")
             sec_volume = 0.0
-            seen_sec_ids: set[int] = set()
+            seen_sec_ids: set[int | str] = set()
             for topic in section_topics:
                 topic_id = topic["id"]
+                _check_section_topic_id(topic_id, f"Section '{section_name}' topic {topic_id}")
                 if topic_id in seen_sec_ids:
                     raise ValueError(f"Section '{section_name}' has duplicate topic id {topic_id}")
                 seen_sec_ids.add(topic_id)
