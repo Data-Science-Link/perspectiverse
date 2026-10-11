@@ -214,18 +214,17 @@ def _decisions_for(
     decisions: dict[str, dict | None] = {}
     pending: list[dict] = []
     skips: Counter[str] = Counter()
-    hits = 0
+    cache_hits = 0
+    dedup_skips = 0
     for post in posts:
         if post.get("section"):
-            # Retained claims already carry Jev's section in SQLite. That skip is
-            # not a jev_verdicts lookup, but it avoids a paid call the same way.
             index.add_text(post_text(post))
-            hits += 1
+            dedup_skips += 1
             continue
         uri = str(post.get("uri") or "")
         if uri and uri in cached:
             decisions[uri] = cached[uri]
-            hits += 1
+            cache_hits += 1
             index.add_text(post_text(post))
             continue
         reason = prefilter_reason(post, index)
@@ -235,10 +234,11 @@ def _decisions_for(
             continue
         index.add_text(post_text(post))
         pending.append(post)
-    _note_filters(hits, skips)
-    if hits or skips:
+    _note_filters(cache_hits, dedup_skips, skips)
+    if cache_hits or dedup_skips or skips:
         print(
-            f"Jev cache hits: {hits}. Pre-filter skips: {sum(skips.values())} "
+            f"Jev cache hits: {cache_hits}. Dedup skips: {dedup_skips}. "
+            f"Pre-filter skips: {sum(skips.values())} "
             f"(short {skips['short']}, language {skips['language']}, "
             f"link {skips['link']}, duplicate {skips['duplicate']})."
         )
@@ -247,12 +247,14 @@ def _decisions_for(
     return decisions
 
 
-def _note_filters(hits: int, skips: Counter[str]) -> None:
+def _note_filters(cache_hits: int, dedup_skips: int, skips: Counter[str]) -> None:
     try:
-        from pipeline.costs import note_jev_cache_hits, note_jev_prefilter
+        from pipeline.costs import note_jev_cache_hits, note_jev_dedup_skips, note_jev_prefilter
 
-        if hits:
-            note_jev_cache_hits(hits)
+        if cache_hits:
+            note_jev_cache_hits(cache_hits)
+        if dedup_skips:
+            note_jev_dedup_skips(dedup_skips)
         for reason, count in skips.items():
             note_jev_prefilter(reason, count)
     except Exception as exc:

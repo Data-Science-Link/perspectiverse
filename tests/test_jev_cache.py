@@ -125,7 +125,7 @@ def test_uri_is_not_scored_twice_including_nonclaims_and_spam(monkeypatch, tmp_p
     connection.close()
 
 
-def test_retained_corpus_section_counts_as_cache_hit_on_second_run(monkeypatch, tmp_path):
+def test_retained_corpus_section_counts_as_dedup_skip_on_second_run(monkeypatch, tmp_path):
     """Production reloads claims with section set; the next run must not call Jev."""
     _enable(monkeypatch)
     calls = {"n": 0}
@@ -151,7 +151,9 @@ def test_retained_corpus_section_counts_as_cache_hit_on_second_run(monkeypatch, 
     second = apply_jev(reloaded, connection=connection, now=moment)
     assert calls["n"] == 1
     assert second == reloaded
-    assert jev_filter_counts()["cache_hits"] == 1
+    counts = jev_filter_counts()
+    assert counts["cache_hits"] == 0
+    assert counts["dedup_skips"] == 1
     connection.close()
 
 
@@ -331,6 +333,7 @@ def test_filter_counts_are_in_the_run_output_and_tokens_stay_real(tmp_path, caps
     assert payload["rows"][0]["calls"] == "1"
     logged = capsys.readouterr().out
     assert "4 cache hits" in logged
+    assert "0 dedup skips" in logged
     assert "language 2" in logged
     assert "612" in path.read_text(encoding="utf-8")
 
