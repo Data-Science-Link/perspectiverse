@@ -383,3 +383,7 @@ Append-only. Newest at the bottom.
 - **Decision (#132):** A successful merge-triggered pipeline run counts as the day's run, so the scheduled run skips, only if it finished after 6 AM CT. Earlier merge runs still let the scheduled run go.
 - **Why:** Avoids paying twice for morning merges (about $0.10 per double run) without serving 2 AM data all day.
 - **Decided by:** Michael, 10/11 2:06 PM (option proposed by the Giver, recommended by the Manager).
+
+### 2026-10-11 Wording amendment — merge run counts only after 6 AM CT (#132)
+- **Wording fix (not a new decision):** A merge-triggered run counts as the day's run if it finished at or after 6:00 AM CT, matching `pipeline/schedule_guard.py`.
+- **Decided by:** Michael (rule); wording fix requested by the Giver.
