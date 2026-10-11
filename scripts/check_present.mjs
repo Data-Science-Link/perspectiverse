@@ -1,6 +1,25 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { PERSPECTIVES_PENDING, STANCE_CHECK_FAILED, STANCE_CHECK_INCOHERENT, oneViewNote, showStanceFailure } from '../src/lib/copy.js'
 import { presentSnapshot, presentTopic, splitSentences } from '../src/lib/present.js'
+
+assert.equal(oneViewNote({ opposing_note: 'No clear opposing view found in this sample' }), 'No clear opposing view found in this sample')
+assert.equal(oneViewNote({ stance_check: STANCE_CHECK_FAILED }), PERSPECTIVES_PENDING)
+assert.equal(
+  oneViewNote({ stance_check: STANCE_CHECK_FAILED, opposing_note: 'No clear opposing view found in this sample' }),
+  PERSPECTIVES_PENDING,
+)
+assert.equal(PERSPECTIVES_PENDING, 'Perspectives still being analyzed')
+assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_FAILED }), STANCE_CHECK_FAILED)
+assert.equal(oneViewNote({ stance_check: STANCE_CHECK_INCOHERENT }), PERSPECTIVES_PENDING)
+assert.equal(
+  oneViewNote({ stance_check: STANCE_CHECK_INCOHERENT, opposing_note: 'No clear opposing view found in this sample' }),
+  PERSPECTIVES_PENDING,
+)
+assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_INCOHERENT }), 'No clear opposing view found in this sample')
+assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_FAILED, perspectives: [{}, {}] }), true)
+assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_INCOHERENT, perspectives: [{}] }), true)
+assert.equal(showStanceFailure({ perspectives: [{}, {}] }), false)
 
 function paragraphs(text) {
   return String(text || '')
@@ -192,5 +211,81 @@ const digestPlanet = oneViewDigest.digest.planets[0]
 assert.equal(digestPlanet.oneView, true)
 assert.equal(digestPlanet.disagreement, null)
 assert.match(digestPlanet.opposingNote, /opposing view/i)
+assert.equal(digestPlanet.stancePending, false)
+
+const failedDigest = presentSnapshot({
+  mode: 'live',
+  source: 'bluesky',
+  window_hours: 168,
+  total_posts: 4,
+  last_updated: '2026-10-11',
+  topics: [
+    {
+      id: 8,
+      name: 'Trump Iran War',
+      category: 'World',
+      total_volume_percent: 10,
+      post_count: 4,
+      stance_check: STANCE_CHECK_FAILED,
+      summary: 'Two faces stayed because the check failed.',
+      perspectives: [
+        {
+          id: '8A',
+          title: 'Iran War',
+          summary: 'Trump may start war with Iran.',
+          volume_percent: 60,
+          arguments: ['The posts say a war is close.'],
+          representative_posts: [{ author: 'ada', text: 'War with Iran is close.', likes: 2 }],
+        },
+        {
+          id: '8B',
+          title: 'Trump Invites Attack',
+          summary: 'Trump suggests Iran can attack a city.',
+          volume_percent: 40,
+          arguments: ['The posts quote the attack line.'],
+          representative_posts: [{ author: 'bea', text: 'He invited an attack.', likes: 1 }],
+        },
+      ],
+    },
+  ],
+})
+const failedPlanet = failedDigest.digest.planets[0]
+assert.equal(failedPlanet.oneView, false)
+assert.equal(failedPlanet.stancePending, true)
+assert.equal(failedPlanet.opposingNote, PERSPECTIVES_PENDING)
+assert.equal(failedPlanet.opposingNote.includes('stance check failed'), false)
+
+const incoherentDigest = presentSnapshot({
+  mode: 'live',
+  source: 'bluesky',
+  window_hours: 168,
+  total_posts: 4,
+  last_updated: '2026-10-11',
+  topics: [
+    {
+      id: 1,
+      name: 'Gaza Genocide',
+      category: 'World',
+      total_volume_percent: 12,
+      post_count: 4,
+      stance_check: STANCE_CHECK_INCOHERENT,
+      summary: 'The second side cleared the share and was not one claim.',
+      perspectives: [
+        {
+          id: '1A',
+          title: 'Zionism Racism',
+          summary: 'The posts call Zionism racist.',
+          volume_percent: 100,
+          arguments: ['The posts name Zionism as racist.'],
+          representative_posts: [{ author: 'ada', text: 'Zionism is racist.', likes: 2 }],
+        },
+      ],
+    },
+  ],
+})
+const incoherentPlanet = incoherentDigest.digest.planets[0]
+assert.equal(incoherentPlanet.stancePending, true)
+assert.equal(incoherentPlanet.opposingNote, PERSPECTIVES_PENDING)
+assert.equal(/opposing view/i.test(incoherentPlanet.opposingNote), false)
 
 console.log('presented planets keep real perspectives and skip stock filler')

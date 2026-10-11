@@ -54,13 +54,21 @@ from pipeline.label import (
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
+from pipeline.stance import (
+    apply_stance_pass,
+    report_stance_check_failures,
+    report_stance_check_incoherent,
+    reset_stance_check_failures,
+)
 from pipeline.prompt_sample import cosines_to_matrix_centroid, planet_member_cosines, select_prompt_posts
 from pipeline.schema import (
     CATEGORIES,
     MAX_FACES,
     MIN_FACES,
-    SINGLE_VIEW_NOTE,
+    STANCE_CHECK_FAILED,
+    STANCE_CHECK_INCOHERENT,
     SYSTEM_SIZE,
+    apply_opposing_note,
     category_for_members,
     to_percents,
 )
@@ -114,6 +122,7 @@ def run_live(
         reset_meter()
     except Exception as exc:
         print(f"WARNING: Cost meter reset skipped: {exc}", file=sys.stderr)
+    reset_stance_check_failures()
     settings = load_settings(config)
     target = int(settings.get("sample_size") or TARGET_POSTS)
     database = Path(db_path) if db_path else LIVE_CORPUS_DB
@@ -249,6 +258,8 @@ def run_live(
 
 def _write_cost_run(payload: dict, started_at: datetime) -> None:
     """Best effort. A cost-log error must not fail a snapshot that already wrote."""
+    failed_checks = report_stance_check_failures()
+    incoherent_checks = report_stance_check_incoherent()
     try:
         from pipeline.costs import count_published_planets, deepinfra_error_summary, get_meter, write_cost_run
         from pipeline.publish_guard import report_label_health, write_label_run
@@ -259,6 +270,8 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
             planets_published=count_published_planets(payload),
             started_at=started_at,
             deepinfra_errors=summary,
+            stance_check_failed=failed_checks,
+            stance_check_incoherent=incoherent_checks,
         )
         face = section_face_relabel()
         try:
@@ -519,6 +532,7 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         "seed": int(settings["seed"]),
         "workers": workers,
         "min_planet_posts": _planet_post_floor(settings),
+        "stance_second_face_share": settings.get("stance_second_face_share"),
     }
 
 
@@ -842,6 +856,8 @@ def _collect_finalize_face_jobs(
         for face in topic.get("perspectives") or []:
             draft = face.get("_draft_face_label")
             face_uris = list(face.get("_face_member_uris") or [])
+            if face.get("stance_locked"):
+                continue
             if not draft or not face_uris:
                 continue
             local_indices = []
@@ -1135,6 +1151,7 @@ def _strip_internal_planet_fields(topics: list[dict]) -> None:
         for face in topic.get("perspectives") or []:
             face.pop("_draft_face_label", None)
             face.pop("_face_member_uris", None)
+            face.pop("stance_locked", None)
 
 
 def _finalize_published_planets(
@@ -1195,7 +1212,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     Only this planet's posts are touched, so drafts can run in parallel.
     The face count is the best fit in 2..6 (``split_perspectives``). If no
     count passes, the planet is one perspective and carries
-    ``opposing_note``. A second face is not forced. A "Mixed remarks" face
+    ``opposing_note``, unless the stance check failed. A second face is not
+    forced. A "Mixed remarks" face
     is dropped; if one real face remains, the planet is still published. The
     planet is not dropped for having one face. When the faces are different stories
     (no specific shared subject word), the candidate is split into one
@@ -1286,6 +1304,11 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     if _below_planet_floor(shown, context):
         # Faces already labeled. Skip the name and the briefs, and do not publish.
         return _exclude_for_floor(context, log, topic_name(terms), shown, _post_samples(members))
+    drafted, stance_lines = apply_stance_pass(drafted, members, context, subject=topic_name(terms))
+    stance_failed = bool(context.pop("stance_check_failed", None))
+    stance_incoherent = bool(context.pop("stance_check_incoherent", None))
+    log.extend(stance_lines)
+    perspectives = [item[0] for item in drafted]
     planet_prompt_cap = int(context.get("planet_prompt_sample_size") or 20)
     if context.get("chosen") == "heuristic":
         planet_prompt_posts = members
@@ -1353,8 +1376,11 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         "perspectives": perspectives,
         "_member_uris": [str(post.get("uri") or "") for post in members],
     }
-    if len(perspectives) == 1:
-        planet_out["opposing_note"] = SINGLE_VIEW_NOTE
+    if stance_failed:
+        planet_out["stance_check"] = STANCE_CHECK_FAILED
+    elif stance_incoherent:
+        planet_out["stance_check"] = STANCE_CHECK_INCOHERENT
+    apply_opposing_note(planet_out)
     apply_level_summaries(planet_out, generate=context["summary_model"])
     if context.get("summary_model") is not None and perspectives:
         context["story_calls"]["briefs"] += len(perspectives) + 1
@@ -2280,14 +2306,19 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
     """Remove a face with no shared claim. One real face still publishes.
 
     A "Mixed remarks" leftover is not kept to pad the planet to two views.
-    One remaining face gets ``opposing_note``. A planet with no face left is
+    One remaining face gets ``opposing_note``, unless the stance check failed.
+    A planet with no face left is
     dropped so the next ranked candidate can fill the catalog. Different
     stories are split before this guard. More than six faces is still dropped.
     """
     kept = []
     for topic in topics:
         original = list(topic.get("perspectives") or [])
-        faces = [face for face in original if not _face_has_no_shared_claim(face)]
+        faces = [
+            face
+            for face in original
+            if face.get("stance_locked") or not _face_has_no_shared_claim(face)
+        ]
         if not faces or len(faces) > MAX_FACES:
             print(
                 f"Dropping {topic.get('name')}: {len(faces)} faces left after "
@@ -2303,10 +2334,7 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
             for face, volume in zip(faces, to_percents(counts)):
                 face["volume_percent"] = volume
         topic["perspectives"] = faces
-        if len(faces) == 1:
-            topic["opposing_note"] = SINGLE_VIEW_NOTE
-        else:
-            topic.pop("opposing_note", None)
+        apply_opposing_note(topic)
         kept.append(topic)
     return kept
 

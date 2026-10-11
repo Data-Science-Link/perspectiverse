@@ -121,3 +121,13 @@ Worked bound, not a measured 100K bill. A 7-day window of 100K posts, with the 1
 The add-on itself is inside the cap. The day goes over $0.50 because per-post Jev on a 100K window is already about $0.40 before any stance call. A stance design that labeled every post would make that worse. These two do not.
 
 Today's Jev ratio (7,232 calls on a 9,874-post file) is a cache-filling day, not the steady state used above. Scaling that ratio by ten would be about $2 of Jev and is the wrong comparison once the cache is warm.
+
+## UI evidence for #129
+
+`screenshots/` is the reader view of the three planet states on this branch. Desktop is 1280×800. Mobile is 390×844. No new labeling call was made.
+
+| File | What it shows |
+|---|---|
+| `gaza-two-face-desktop.png`, `gaza-two-face-mobile.png` | Gaza War, two faces (Israel War Crimes, Zionism Condemned). No opposing-view note. This is the layout a split publishes. |
+| `one-face-opposing-note-desktop.png`, `one-face-opposing-note-mobile.png` | US Election Vote, one face, with `No clear opposing view found in this sample`. |
+| `stance-check-failed-desktop.png`, `stance-check-failed-mobile.png` | Pension Triple Lock, one face. The data field is `stance check failed`. The reader line is `Perspectives still being analyzed`, not the opposing-view note. This planet was patched for the screenshot; it was not a pipeline failure. |

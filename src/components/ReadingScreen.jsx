@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { oneViewNote, showStanceFailure } from '../lib/copy'
 import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import BarChart from './BarChart'
 import { LazyPostFeed, POST_PREVIEW_COUNT, TopTerms } from './FaceEvidence'
@@ -36,8 +37,9 @@ function emailPlain(digest, updated) {
     lines.push(planet.name || 'Planet')
     if (planet.percent != null) lines.push(formatPercent(planet.percent))
     for (const argument of planet.arguments || []) lines.push(`• ${argument}`)
-    if (planet.oneView && planet.opposingNote) lines.push(planet.opposingNote)
-    else if (planet.disagreement) lines.push(planet.disagreement)
+    if (planet.stancePending && planet.opposingNote) lines.push(planet.opposingNote)
+    if (planet.oneView && planet.opposingNote && !planet.stancePending) lines.push(planet.opposingNote)
+    else if (!planet.oneView && planet.disagreement) lines.push(planet.disagreement)
     lines.push('')
   }
   return lines.join('\n')
@@ -107,7 +109,10 @@ function EmailView({ data, onClose }) {
                 </ul>
               </div>
             ))}
-            {planet.oneView && planet.opposingNote && (
+            {planet.stancePending && planet.opposingNote && (
+              <p className="email-opposing-note">{planet.opposingNote}</p>
+            )}
+            {planet.oneView && planet.opposingNote && !planet.stancePending && (
               <p className="email-opposing-note">{planet.opposingNote}</p>
             )}
             {!planet.oneView && planet.disagreement && (
@@ -262,9 +267,9 @@ export default function ReadingScreen({
               {postCount ? ` · ${formatNumber(postCount)} posts` : ''}
             </p>
             <h1>{title}</h1>
-            {topic && topic.perspectives.length === 1 && (
+            {topic && (topic.perspectives.length === 1 || showStanceFailure(topic)) && (
               <p className="reading-opposing">
-                {topic.opposing_note || 'No clear opposing view found in this sample'}
+                {oneViewNote(topic)}
               </p>
             )}
             {brief && <p className="reading-brief">{brief}</p>}

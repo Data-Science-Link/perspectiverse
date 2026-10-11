@@ -35,7 +35,7 @@ from pipeline.label import (
     titles_alike,
 )
 from pipeline.assemble import face_id
-from pipeline.schema import SINGLE_VIEW_NOTE, to_percents
+from pipeline.schema import apply_opposing_note, to_percents
 
 # A planet this large is a parent. Smaller survivors can fold into it.
 # Noise posts attach only to a parent, never to another speck.
@@ -486,7 +486,19 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
         ranked = sorted(faces, key=lambda face: (-int(face.get("post_count") or 0), str(face.get("id") or "")))
         kept: list[dict] = []
         for face in ranked:
-            match = next((item for item in kept if titles_alike(item.get("title"), face.get("title"))), None)
+            # A stance-split face stays even if a later title looks alike.
+            # Folding it back would erase the second stance and its posts.
+            if face.get("stance_locked"):
+                kept.append(face)
+                continue
+            match = next(
+                (
+                    item
+                    for item in kept
+                    if not item.get("stance_locked") and titles_alike(item.get("title"), face.get("title"))
+                ),
+                None,
+            )
             if match is None:
                 kept.append(face)
                 continue
@@ -519,8 +531,5 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
             face["volume_percent"] = volume
             face["id"] = face_id(topic_id, index)
         topic["perspectives"] = kept
-        if len(kept) == 1:
-            topic["opposing_note"] = SINGLE_VIEW_NOTE
-        else:
-            topic.pop("opposing_note", None)
+        apply_opposing_note(topic)
     return folded
