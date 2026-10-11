@@ -1,0 +1,1600 @@
+{
+  "title": "Blind DeepSeek-V4-Flash labels for every stance-reference post",
+  "purpose": "So agreement and Cohen's kappa can be recomputed without the 64-row disagreement list.",
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "prompt": "Stance question, what supports means, what opposes means, and the post text. The grok label was not in the prompt.",
+  "labeled_on": "2026-10-10",
+  "n": 227,
+  "grok_field": "Original grok-4.7 high label, before adjudication. Included so this file alone recomputes agreement and kappa.",
+  "posts": [
+    {
+      "uri": "at://did:plc:6x6spo6p3fbsxjvjzhwwtdrj/app.bsky.feed.post/3mx2ccggw3k2e",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:jhzzxllympu637zlrmcy7qz7/app.bsky.feed.post/3mxjji5sels2f",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:bhci7om25qb6ae63dgccrbyw/app.bsky.feed.post/3mxjjbqfhr325",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:n3jqdg4vskd25zfkkafqbqhk/app.bsky.feed.post/3mx2bmiunv223",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:yx2nfpytmmze4fau2qxw2c5a/app.bsky.feed.post/6zifqr2davsjy",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:xm6rnlmyejqyyp5gya2o2lo7/app.bsky.feed.post/3mxcwxcrgss2s",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:york6cjc3jmumoedo6vk3al3/app.bsky.feed.post/3mx2bwowhps2q",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:4zwv6rs7hph3yta4xuzxp6q5/app.bsky.feed.post/3mx4xmivs5k2h",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:vg7n7vtbttva53g5qv6rfmza/app.bsky.feed.post/3mxjj5fgzhc2e",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4dtphrsayvq4flddxkd3mrom/app.bsky.feed.post/3mxjjbhndps2p",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:meuzwioj6asn7h7pc57e43aa/app.bsky.feed.post/3mxjjh45mk225",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:meuzwioj6asn7h7pc57e43aa/app.bsky.feed.post/3mxjiy7kw3c25",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:vprtnhykomedmodyxspvf2t7/app.bsky.feed.post/3mxcwypoxs22u",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:flmxf5vdfdx7e46nkk5kzawd/app.bsky.feed.post/3mxjjexqpmk2a",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:n2nepoigcnforymjvu2g6pwc/app.bsky.feed.post/3mxjjcrqlzk2e",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:3tgznzk62346vhf5qn2jtbla/app.bsky.feed.post/3mxcwol7dgc2r",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:ejcm44u24c4auofv2e2n7t2z/app.bsky.feed.post/3mxcx22mqq22z",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:jbmwary7gpjy6xfikkt357zm/app.bsky.feed.post/3mxjisnefmc2h",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:ao3od2pfh25pcvramptuef5b/app.bsky.feed.post/3mxjj3bez622b",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:d2t2gdyopxrhmbre2bh5bvpk/app.bsky.feed.post/3mxjj4w2avk2h",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:j3ya4kgw5u764z2bxtfiyvd6/app.bsky.feed.post/3mxcwwulrac2o",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4gwdyczlpd5t7erttikngzqf/app.bsky.feed.post/3mxjjd6huas2p",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:aluyhb2pyus25ypjfrsnqjbt/app.bsky.feed.post/3mxjivjnxbs22",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:r5om7v5fyqxfgkfbbqhgshkp/app.bsky.feed.post/3mxjja3gvys25",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:obbpqhhur3zbv6q2atxyvwtv/app.bsky.feed.post/3mx4xscpopc2s",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "other-angle",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:72xc46rhp5zlbkblkb4a24of/app.bsky.feed.post/3mx7g5pdgm22v",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:eozjr7fxeeuuac5qrce6qov3/app.bsky.feed.post/3mx2bu7e7as2k",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:hkk5ckevolofac6xk7gmpnxa/app.bsky.feed.post/3mx2cakj7us2v",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:nwohato66ne5f5jg7bdyglsd/app.bsky.feed.post/3mx2chmcfwk2w",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:heluwto2vobqqss3j52yhzt3/app.bsky.feed.post/3mxcwqligl22d",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:74tghaembtl5awr5rxnncupd/app.bsky.feed.post/3mxjjf47zkk2h",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:jbmwary7gpjy6xfikkt357zm/app.bsky.feed.post/3mxjisnehks2h",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:rzzmycami6p2q3ajl5k5jifr/app.bsky.feed.post/3mxjjhzpuss2k",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:vcqscoyb3d7jw4jo3etsk6p2/app.bsky.feed.post/3mx7g4hhgl22j",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "other-angle",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:v6f2gvqugudhdcrrakkcgji3/app.bsky.feed.post/3mxjj2otwnk2c",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:t57zckxuo4v6t53fjp7j7mcv/app.bsky.feed.post/3mxjj7kxsss26",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:fnqvvzvai2jfh5wgdckx6jjh/app.bsky.feed.post/3mxjis7e2wk2m",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:r37lrqocqhwkhebmqigv2zkg/app.bsky.feed.post/3mxjjbjulyk2f",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:l2ergmeybgzz22mx5foxlpc6/app.bsky.feed.post/3mxjj5s53ls2e",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:qtcignxi4xk3wn6vvhea4fon/app.bsky.feed.post/3mxjjg4tyrs22",
+      "planet_id": 1,
+      "planet": "Trump Putin Diesel Deal",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ivw7tb4mv2gq2c5n4gnvume4/app.bsky.feed.post/3mxcwozjvas2p",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ehcagkmks44od34gsv4v6nfy/app.bsky.feed.post/3mxjj6gh4es2k",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:m2dmn5kviq4f4al5qzj4p3eu/app.bsky.feed.post/3mxh276ikk222",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:zdez25ms2yzvfpzwiwcz7fdo/app.bsky.feed.post/3mxjjafpatk2u",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:vxorw6s72a2xkxygui6vobsl/app.bsky.feed.post/3mxcwfeolmv2x",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:hsdoeqikmlqdkhxjaef35uro/app.bsky.feed.post/3mxcwvufnek2o",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:mlk6og5kv7h6gri4xlppmmhi/app.bsky.feed.post/3mx4xrw6iss2k",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:xx7okvhj4dqlfw4ffitfs6i3/app.bsky.feed.post/3mxjjgflsv22i",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:xn6jghzisogrm3fv2xtnbfc3/app.bsky.feed.post/3mxd6cmj5vc2v",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "opposes",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:m7hxcvuzvi3oj5wdyd5efini/app.bsky.feed.post/3mxh26pmh6s2j",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:f4cxzcwhx4d6yfnigboqlcx2/app.bsky.feed.post/3mx4xqjp5ws2n",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:n4xtbthft7brqws5kpm7g3l4/app.bsky.feed.post/3mx7gdxwwgk2l",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "other-angle",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:tnvauxuqszo43t3ygdup5jbo/app.bsky.feed.post/3mx2cbd2lpk27",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:2ptstb2velyoegd7liy6w2u6/app.bsky.feed.post/3mxjirmbazs2k",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:shsbsia2s5nyfvyk7byggjsp/app.bsky.feed.post/3mxh24iyitc27",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:tqan6vniv6gk6h4iybjnhsup/app.bsky.feed.post/3mxcwjdud322s",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:v4ewlkextntnwraosaknz5vb/app.bsky.feed.post/3mxcwxi6pqc2e",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:k4b3i4eujpt6lhgm3qh356ln/app.bsky.feed.post/3mxcwyhqbfk22",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "opposes",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:myj6islbmvdmgkqy64bktn64/app.bsky.feed.post/3mxcwmwcx6c2u",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:43akp2idhqnxpz3bjj6unsuu/app.bsky.feed.post/3mx4xldulfc2y",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:zdsff2n2nfhaonmqs5qaoa7v/app.bsky.feed.post/3mx4ximguzk2h",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:yjec7mfeojrosxl74feslscd/app.bsky.feed.post/3mxcwye2rn22b",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:isoqyxaweaefayp2jtt2f5nm/app.bsky.feed.post/3mxh25zgbm22n",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:2bffmluopgwofqko4pxc4y32/app.bsky.feed.post/3mx7g5dq3s22p",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:lru2boa54inen2mo5iweavjt/app.bsky.feed.post/3mxjivpwahk2s",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:3qb7asshet5ziqt76ukhigup/app.bsky.feed.post/3mxh27irhwk2r",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ykm4prl42wqwnsy4r2nko3ij/app.bsky.feed.post/3mx2bxq5eg223",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:z3n32s72glf2qme3dwxypkvg/app.bsky.feed.post/3mxjj3cptbs2b",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:s5npwhcioid3vboyc7q6gni2/app.bsky.feed.post/3mx7gbfguyc2e",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:di45ldkrgg6zgucyhk6hlaap/app.bsky.feed.post/3mxcwhm3js22l",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:dgz22ssd65y7swwwfedksirq/app.bsky.feed.post/3mxcwyyffx22b",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ubwye45fotu7g3tiw7nj72eh/app.bsky.feed.post/3mx2bpcihg22e",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:43kuzpeeinymml3yw7d6dnta/app.bsky.feed.post/3mx2c6wubds2z",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:bvhklp4htqodf533uuwwjpyv/app.bsky.feed.post/3mxcwhxjnmc2y",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "opposes",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:uddnvy4t4rgl5n6o4j3ty3zj/app.bsky.feed.post/3mx7g6sedqk2h",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:7cwsc7dche5qeukldqi352t7/app.bsky.feed.post/3mxjj5gttzk24",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:mrwdnytrzzilri2sbt2jlwcf/app.bsky.feed.post/3mx2begmtis2g",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:mgzleeczqe6dsjab5vcgq55e/app.bsky.feed.post/3mxcwtpbvy22a",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:cuy337dip7vbendvj2phuj5b/app.bsky.feed.post/3mxcwtwcdmk2n",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "opposes",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:e4musdh2uni44id3q5fhks2l/app.bsky.feed.post/3mx2bpptihc2w",
+      "planet_id": 2,
+      "planet": "Gaza Genocide",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:27liz4zrbm3ee7pdtjms6jhz/app.bsky.feed.post/3mxjjg4tozc2f",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:a37nx5qqmds27icw4itruc7y/app.bsky.feed.post/3mxh25duvzs2q",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:zrxcc4xlne5uwvx6zag2yqnm/app.bsky.feed.post/3mxjjczzkk22h",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:3ue2fv6ppyuq4mw3gso425gq/app.bsky.feed.post/3mxjjhr4vyc2z",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:nxn6y6feelvarbkbivmkjhqo/app.bsky.feed.post/3mxjjabvie22p",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:olngegflgjr5us2ype26qkrr/app.bsky.feed.post/3mxjiyw3lm22k",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:diultroyjy4m3sd5xjgwotbh/app.bsky.feed.post/3mxjj24xai22z",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:22qle7yobpuimdkoqaxs3fxa/app.bsky.feed.post/3mxjj2pgjes2n",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:lbq3fne6i7blcj3tv7d3k4n3/app.bsky.feed.post/3mxh22egrmc2w",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:o5wlr3gi4tz23ake7ef23ejs/app.bsky.feed.post/3mxjj3h37ak27",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:2ngqad53fm34yzjt5izeyufz/app.bsky.feed.post/3mxjix4n2ls2t",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:7rrfl4mbbx7z75kjc7lyvdao/app.bsky.feed.post/3mx7getqo4c2k",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:wk42iqt7gd2m4s7nxviwycr4/app.bsky.feed.post/3mxh277vnvk23",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:dfzwofesvrrgoqiqzxtmstum/app.bsky.feed.post/3mxh25ni7222r",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:usqvsd6iioc54w5t55uoluzg/app.bsky.feed.post/3mxjjh7bmqc24",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:4hc5d455mpb72gpv3czepxcb/app.bsky.feed.post/3mxd6dfgpes27",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:zpfcbovitx7bdexev6dt4qia/app.bsky.feed.post/3mx2bfwyqpc26",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:fvy4qwactxcdqukohrpnmnyw/app.bsky.feed.post/3mxh25pxbcs2g",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:ncfl6tyuj6jorfbxtnfmtcie/app.bsky.feed.post/3mx4xqlaba22a",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:7kuu3hqa6dup6auqfxqqdx7k/app.bsky.feed.post/3mxjjilfv4k2p",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:zctue4vtjwztlygf2lu7ydtm/app.bsky.feed.post/3mxh25bzdrs2d",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:rc237m2a3vxu7bycqiyx4hko/app.bsky.feed.post/3mx2ceuai422l",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:vbrhzh64jvnlbuill26hnf5l/app.bsky.feed.post/3mx4xid5u5c27",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:y27o25q7b2kau4fjvh2y5kko/app.bsky.feed.post/3mx2bpg4fes2n",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "off-topic",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:ajgwq7uvcn5cf3kzb6hclhyd/app.bsky.feed.post/3mxjj4x35n22g",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:c7zhvetfoio34wqtvb7fvwss/app.bsky.feed.post/3mxjjevy7ys2f",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:c7zhvetfoio34wqtvb7fvwss/app.bsky.feed.post/3mxjizj3rjc2f",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:d23w2dx7woc5amt6il5o5wa2/app.bsky.feed.post/3mxjisbafls2d",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:p4hlwvfexjgh7rvkeeree55u/app.bsky.feed.post/3mxjjgktbbs26",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:otyhs7v3lrwjpx3bmyczgoop/app.bsky.feed.post/3mxjj5lvlsk27",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:iwfolblfxhj3opxktfujavve/app.bsky.feed.post/3mxjjj44ngc2w",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:zn7n2m5r3uoqe46f42sbe6zg/app.bsky.feed.post/3mxjjdpqbyc2c",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:5efoo77vecx34m42uqock7ba/app.bsky.feed.post/3mxcwzd6wlk2c",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "opposes",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:5zsfa7rfvhdh7h2mewpmspqt/app.bsky.feed.post/3mxjiuxo4jk2s",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:fov2mcm7xj47ufvpoohhivee/app.bsky.feed.post/3mxjj67z2ms2g",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:fdsajrty4s5i7h2j56pq2yrl/app.bsky.feed.post/3mxjjgmohss2g",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:m34zrhvl74dtx6sm4uogd5ys/app.bsky.feed.post/3mxjj52lgfs2g",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:ugsyxdi4pyjrmxbffkgchsnl/app.bsky.feed.post/3mx7gdggtnk2d",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ebblynq6s6eifadxjmjpc2zo/app.bsky.feed.post/3mxjithg2ek27",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:7qjryzkelf7lmamxns475bom/app.bsky.feed.post/3mx7gdeyvu226",
+      "planet_id": 3,
+      "planet": "Livestreamed Execution Plan",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:3ty7uihkpnb66j5a2y5qty4q/app.bsky.feed.post/3mxjjjeg6ik2r",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:pht4htnpvjryft4acp4bo6dg/app.bsky.feed.post/3mxjjcteyrs2j",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:wvpkrthnz6yxesgsmg3xqxrb/app.bsky.feed.post/3mxcwy6nmmk2t",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:wihoe5x4wqstxud2dutrohsf/app.bsky.feed.post/3mxcwytjers2v",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4agkxlax3v3vql6hpubej4vn/app.bsky.feed.post/3mxjjexbvyc2e",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:wvpkrthnz6yxesgsmg3xqxrb/app.bsky.feed.post/3mxcwzwhd722t",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4fslyihxh3f5jf2ntyk7ozs2/app.bsky.feed.post/3mxcx24podc2z",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:r5rvbli76ugh5ube6ch32niz/app.bsky.feed.post/3mx2bs5xcls2s",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:f6fehianfiy2gcgvn2p2vfwt/app.bsky.feed.post/3mx7g5klefc2i",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:njaosusocxddfhcdqphwpns6/app.bsky.feed.post/3mxjiz7ka6c2t",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:wikv6afoepxc6yqagpoz6qkg/app.bsky.feed.post/3mxcwqcb4es23",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:nrui3gcdys7pvkbxae4gsfyo/app.bsky.feed.post/3mx4xszkih22o",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:qtqguwwyfiaidcfxuncanbky/app.bsky.feed.post/3mxcwhouz322x",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4cfvzmlojyvjs7ydxmhxmd5p/app.bsky.feed.post/3mxjjcjtyzc2h",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:wgqrmhqf657x5lswna5thi6d/app.bsky.feed.post/3mx7g5mjioc2p",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:b3dwpfzl67ehib7dsjbq3oku/app.bsky.feed.post/3mxcwso33ac22",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:wvpkrthnz6yxesgsmg3xqxrb/app.bsky.feed.post/3mxcwuok6rc2t",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:feyuueghg32pegmykh3ivcly/app.bsky.feed.post/3mxjjflaikk2v",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:bxfau54tg4ylt7yinqlykn2a/app.bsky.feed.post/3mx4xn3kyis2z",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:jh4ouwrkijjzpo346fp5gtos/app.bsky.feed.post/3mx4xrvzcsc24",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:arv3qjflegm6pzxca4yfgojg/app.bsky.feed.post/3mxh234zs6k2u",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:z37gi5ms4spcaarqz6wqj4i3/app.bsky.feed.post/3mx2c7a6lak2n",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:jzchfrua3chjslae64x7h5bp/app.bsky.feed.post/3mxcwj6erv22n",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:thcax6vl7tcu7ztmap43tshv/app.bsky.feed.post/3mxjj55izjk2f",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4cfvzmlojyvjs7ydxmhxmd5p/app.bsky.feed.post/3mxjj7p5uu22h",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:evemyanilrms35yhhuhc425s/app.bsky.feed.post/3mx2bozd6nk2w",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ytuwxm5vaenmehchuwfw52cu/app.bsky.feed.post/3mx4xnuu7z22s",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:emgj2laekgv2vapmu34msttp/app.bsky.feed.post/3mxcwp2qbrc26",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:7irbh7m5khrwwbd2lqyfjdor/app.bsky.feed.post/3mx2brynkxc2g",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:xdwo6pqw7ahphu2egtjukpj3/app.bsky.feed.post/3mx4xod526c2u",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:p3gupq5pu2obe2n4brtwabzc/app.bsky.feed.post/3mxcwm4zcxs2q",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:zqytu7uu6wrnrduynshkoxni/app.bsky.feed.post/3mx4xm6634s2a",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:gfa23j7m2bkw4xr5u65aavoj/app.bsky.feed.post/3mx2cemgf6c25",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:krtq2varqdywk7fzydxk4uwx/app.bsky.feed.post/3mxh26owpus2x",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:vuqzx3x5smrsfll2kqeek3cp/app.bsky.feed.post/3mxjj44irqf2h",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ykm4prl42wqwnsy4r2nko3ij/app.bsky.feed.post/3mx7g2ukkkc2v",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4r4bvbfttks4lvfwqatlijf5/app.bsky.feed.post/3mx7g7ttusk2o",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:bcgtpezwhu5ynanpiezkmfim/app.bsky.feed.post/3mx2cavr3is2q",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:brc33mzj6k2sk3nvuklfv5be/app.bsky.feed.post/3mx2cdnzzws2a",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:fws5rzb4xmky5wu3b77drejz/app.bsky.feed.post/3mx4xlohxqk24",
+      "planet_id": 4,
+      "planet": "Rise of Fascism",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:vk32qwhgdbbpwlg6ucclpxz4/app.bsky.feed.post/3mxh22yzthc2c",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:c7hupmdebpb3ez455kfduoxb/app.bsky.feed.post/3mxjj2ayn422o",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:5c5iq2dpfzfiqgxgau5lf47d/app.bsky.feed.post/3mxh22ib5ms2e",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ctjfgl6hvrmqwiez5l5h4q5a/app.bsky.feed.post/3mxjj2stauk22",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4dtj74pvshxxazqobqwvmts6/app.bsky.feed.post/3mxcwfulzf227",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:dmv23cnfjoasyfrl7jqftnet/app.bsky.feed.post/3mxcwpzkyxk2m",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:nyjm4ylfid2a7mjm6varxuiq/app.bsky.feed.post/3mxjjgtl6cs26",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:6v5fiews5eyvdqobiwlfkws5/app.bsky.feed.post/3mxjjdjh5hk2k",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:3h762cjrign7422cbito3yt3/app.bsky.feed.post/3mxjjaygudk24",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "opposes",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:diultroyjy4m3sd5xjgwotbh/app.bsky.feed.post/3mxjjippz222z",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:nhtte52y6i6lpdsxvxpugvwe/app.bsky.feed.post/3mxjjdkw5ek2s",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:aiwdikara4nttlpz3k43gsuq/app.bsky.feed.post/3mx7gchpwhc2i",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:2pcjoeylzg3uqk4aricwh5jo/app.bsky.feed.post/2ar62aeap5iwv",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:mhasbz4hylsqegaqntbqhuov/app.bsky.feed.post/3mxh23wwjpk2h",
+      "planet_id": 10,
+      "planet": "ICE Abuse",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4qz245vzimsqtch736gyva3m/app.bsky.feed.post/3mx7g4dhdws25",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:kuqq67zw6nclwzd64dscrila/app.bsky.feed.post/3mxcwucarvk2l",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:bctx7gcx7o6ybugsc6fzog4m/app.bsky.feed.post/3mx2c6jr4b22e",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:4v5vhn5b2yij4vopvacuohgy/app.bsky.feed.post/3mxjjat3rq22r",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:oq5np6ovqk37u52uuiubjk5c/app.bsky.feed.post/3mxjjdoyp422m",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:5sfoxzj5myb4yvydxasfe2pi/app.bsky.feed.post/3mxcwksobnc2e",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:mjszpyf5e7ghrh6b7s4d2flh/app.bsky.feed.post/3mxjize6o6c2i",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:65ylosfuymjxkaprsixomzru/app.bsky.feed.post/3mxjiz2yypk26",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:eaklwawgrzudnhab4tenfucp/app.bsky.feed.post/3mx7ga65fq22h",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:qkt4uadn24xbmnmauqjr2rqd/app.bsky.feed.post/3mxh26j2clc2s",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:hf3tuv22earxzkbg7uzxctea/app.bsky.feed.post/3mx2bz2y2ps24",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:ikdijreyt765qbnsghr2a25r/app.bsky.feed.post/3mxh25dn5yc2n",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:wzonfevswmgnwromsro3abtm/app.bsky.feed.post/3mxcwplkobs2b",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:cusaw5uta6s5lnonfv77fqph/app.bsky.feed.post/3mxjiz6fq7c2z",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:lxu7x6niftb3ex4bpjoez7dm/app.bsky.feed.post/3mxjjclxrxk2e",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:oksq7cwkocg2u6apvnqt44ef/app.bsky.feed.post/3mx4xrlgc622r",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:zqcsvmcecn55kqkag63qtm7a/app.bsky.feed.post/3mx4xssjeds26",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:xkzdhl6ejihlv4nzjvjgjeqh/app.bsky.feed.post/3mx2bzr3s6k2t",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:pok5hlrmqcnhlrz372fldldr/app.bsky.feed.post/3mx2bztrcj22i",
+      "planet_id": 7,
+      "planet": "MAGA Fails",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:3un24uosfqjqrvftphh2syko/app.bsky.feed.post/3mxjiu6upu32s",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:mxhyw4euf5fuyn6trdrcolep/app.bsky.feed.post/3mx7g4yeh322k",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:jzowag33px5xy5ntnitkwgg7/app.bsky.feed.post/3mx4xmafvxc2r",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "opposes",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:xpwnqh25vg3cnro3uisnvnq6/app.bsky.feed.post/3mxcwy3ysqs2m",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:3un24uosfqjqrvftphh2syko/app.bsky.feed.post/3mxjiu6uqtf2s",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:ntvc6bg3a7446iyghc4cyrkd/app.bsky.feed.post/3mx2caumwbk23",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:j3ya4kgw5u764z2bxtfiyvd6/app.bsky.feed.post/3mx4xqynkjs2i",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:omcfbxaithucc4o57yzwwsk3/app.bsky.feed.post/3mx2bqcstys25",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:hivo5gejs42bpuc2bk4he2ui/app.bsky.feed.post/3mx2cibuc4227",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:p2xxj7wkwi2yup5wvrg4sg5p/app.bsky.feed.post/3mx2bw32vtc2q",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:xzqomtbik5url7dfbyonmeoc/app.bsky.feed.post/3mx4xqch36k2y",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:3un24uosfqjqrvftphh2syko/app.bsky.feed.post/3mxjiu6uqte2s",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:jymrn5imkck5vrgy4z7e7wfz/app.bsky.feed.post/3mxd6abtbdc2q",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:pqfa5ati67db4mvm6gdsxfzz/app.bsky.feed.post/3mxh256djbk2j",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:xs2ivbxppxfbu52tjpbi2d2j/app.bsky.feed.post/3mxjivhwgw223",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "opposes",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:64ayqksk5fbk36gkuw4cbvav/app.bsky.feed.post/3mx2btr7vmk2t",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:qck2pjgoxhxmn5x6ef2wdk6l/app.bsky.feed.post/3mx2c6lwq642g",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:3ymmeh4blucktr7brtek75b4/app.bsky.feed.post/3mx7gabm3ps24",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:xvo7gsaojuuuxc6rlw374pls/app.bsky.feed.post/3mx4xpusiyk2y",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:7xqorhqjdnphkjlg2qiylimn/app.bsky.feed.post/3mxcwqebfyk2y",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:fp7tw4nziok3nw6ipeb3wqyr/app.bsky.feed.post/3mxcwy2wvtc3s",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:253cgjz2lkve7bftyu25xz5z/app.bsky.feed.post/3mx2bpckjt22n",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:lcssdjtrt6zmv7cktyr6w6pe/app.bsky.feed.post/3mxcwmevgvo32",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:cobayxtzbvcmap2ajv7oqmup/app.bsky.feed.post/3mxjitzs4q22i",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:snapsoancqm2tw6tjsx3egql/app.bsky.feed.post/3mxcwmxzp4s25",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:oxgdesrpzm36ng7jygevhz7q/app.bsky.feed.post/3mxcwnp3iis2b",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "opposes",
+      "deepseek": "opposes"
+    },
+    {
+      "uri": "at://did:plc:6aqujndemxj33k4b6m33h3kn/app.bsky.feed.post/3mxjjhtr2ek2n",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:72aumc5f2eipqnmlrrli4lj4/app.bsky.feed.post/3mx4xmwi4lk2d",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:p2xxj7wkwi2yup5wvrg4sg5p/app.bsky.feed.post/3mxjixywwus2h",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "opposes",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:p2mfl6crjlyqpt3nutlles4y/app.bsky.feed.post/3mxcwqhdyc22p",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "supports",
+      "deepseek": "supports"
+    },
+    {
+      "uri": "at://did:plc:pzij22pazyzrocmes4yf2g7m/app.bsky.feed.post/3mxjivsl2dc2x",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "off-topic"
+    },
+    {
+      "uri": "at://did:plc:34r2ipt6f7idg5w7hnsf7afa/app.bsky.feed.post/3mx7gd5uszk2m",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:adojsnvtwrch7i54n5vuzgex/app.bsky.feed.post/3mxjivr23wc2d",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "other-angle",
+      "deepseek": "other-angle"
+    },
+    {
+      "uri": "at://did:plc:5ain767qzskgixz4ojdlaamk/app.bsky.feed.post/3mxjj4hzscs2u",
+      "planet_id": 8,
+      "planet": "Labour Party",
+      "grok": "off-topic",
+      "deepseek": "supports"
+    }
+  ]
+}
