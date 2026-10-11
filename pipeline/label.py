@@ -1415,7 +1415,8 @@ def resolve_openai_model(explicit: str | None = None) -> str:
 # of becoming a fallback label (which drops the face). Two retries, 2s then
 # 6s. A retry that would run past the section deadline is not started: a
 # timeout retry needs another full request timeout still inside the ceiling.
-OPENAI_REQUEST_TIMEOUT = 60.0
+# 120s: a 100-post stance sample took 83s and the old 60s timeout failed it.
+OPENAI_REQUEST_TIMEOUT = 120.0
 _RETRY_CLASSES = frozenset({"429", "5xx", "timeout"})
 _RETRY_DELAYS = (2.0, 6.0)
 

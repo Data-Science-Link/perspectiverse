@@ -532,12 +532,12 @@ def test_openai_generate_retries_timeouts_with_bounded_backoff(monkeypatch):
     set_label_deadline(None)
     with pytest.raises(RuntimeError, match="timed out"):
         _openai_generate("hello", "model")
-    assert calls == [60.0, 60.0, 60.0]
+    assert calls == [120.0, 120.0, 120.0]
     assert slept == [2.0, 6.0]
 
 
 def test_openai_generate_skips_timeout_retry_that_would_pass_the_deadline(monkeypatch):
-    """A timeout already costs 60s. Do not start another one past the section ceiling."""
+    """A timeout already costs the full request timeout. Do not start another one past the section ceiling."""
     calls = []
     slept = []
 
