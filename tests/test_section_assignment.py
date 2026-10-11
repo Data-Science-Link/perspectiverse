@@ -286,6 +286,54 @@ def test_global_draft_is_reused_when_the_section_list_is_built(monkeypatch):
     assert calls == [4]
 
 
+def test_a_section_ranks_clusters_by_its_own_post_count():
+    """A big in-section cluster outranks a louder cluster with fewer posts here."""
+    posts = _posts(["Politics"] * 12 + ["Politics"] * 8)
+    for index in range(12):
+        posts[index]["author"] = "a" if index < 6 else "b"
+    for index in range(12, 20):
+        posts[index]["author"] = f"voice-{index}"
+    topics = [
+        {"id": 1, "size": 12, "member_indices": list(range(12)), "terms": ["section"]},
+        {"id": 2, "size": 8, "member_indices": list(range(12, 20)), "terms": ["authors"]},
+    ]
+    chosen, fallbacks = live.section_candidate_planets(
+        posts,
+        np.zeros((len(posts), 2)),
+        topics,
+        {"min_planet_posts": 1},
+        10,
+        1,
+    )
+    assert fallbacks == []
+    assert [topic["terms"][0] for topic in chosen["Politics"]] == ["section", "authors"]
+
+
+def test_the_published_section_list_keeps_the_in_section_planet(monkeypatch):
+    """Author reach must not drop a section's own planet when the list is cut to N."""
+    posts = _posts(["World"] * 10 + ["Politics"] * 8 + ["Politics"] * 9)
+    for index, post in enumerate(posts):
+        post["author"] = f"voice-{index}"
+    for index in range(18, 27):
+        posts[index]["author"] = "local"
+    topics = [
+        {"id": 1, "size": 18, "member_indices": list(range(18)), "terms": ["dual"]},
+        {"id": 2, "size": 9, "member_indices": list(range(18, 27)), "terms": ["local"]},
+    ]
+
+    monkeypatch.setattr(live, "_draft_planet", _draft)
+    sections = live._cluster_sections_once(
+        posts,
+        np.zeros((len(posts), 2)),
+        topics,
+        _settings(),
+        1,
+        1,
+    )
+    assert [planet["name"] for planet in sections["Politics"]] == ["local"]
+    assert [planet["name"] for planet in sections["World"]] == ["dual"]
+
+
 def test_a_short_published_list_stays_short(monkeypatch):
     posts = _posts(["Sports"] * 6)
     topics = [

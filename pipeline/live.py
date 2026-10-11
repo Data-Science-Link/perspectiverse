@@ -2096,19 +2096,54 @@ def sections_for_members(posts: list[dict], member_indices: list[int]) -> list[s
     return chosen
 
 
+def _member_indexes(topic: dict) -> list[int]:
+    return [int(index) for index in topic["member_indices"]]
+
+
+def _in_section_count(posts: list[dict], indexes: list[int], section: str) -> int:
+    """Posts in this cluster whose Jev section is ``section``."""
+    return sum(1 for index in indexes if str(posts[index].get("section") or "") == section)
+
+
 def _topic_reach_key(posts: list[dict], topic: dict) -> tuple:
-    """Distinct authors, then size. A once-clustered planet wins a tie with a fallback."""
-    members = [int(index) for index in topic["member_indices"]]
+    """Distinct authors, then size. The global catalog still uses this order."""
+    members = _member_indexes(topic)
     authors = len({str(posts[index].get("author") or "") for index in members})
     fallback = 1 if topic.get("_fallback") else 0
     return (-authors, -len(members), fallback, int(topic.get("id") or 0))
 
 
-def _published_reach_key(posts: list[dict], planet: dict, uri_to_index: dict[str, int]) -> tuple:
-    indices = [uri_to_index[uri] for uri in (planet.get("_member_uris") or []) if uri in uri_to_index]
-    authors = len({str(posts[index].get("author") or "") for index in indices})
-    fallback = 1 if planet.get("_fallback") else 0
-    return (-authors, -int(planet.get("post_count") or len(indices)), fallback)
+def _section_rank_key(posts: list[dict], topic: dict, section: str) -> tuple:
+    """In-section posts, then authors, then size.
+
+    A story that is large inside one section stays ahead of a story that is
+    only large because of posts in other sections, or because it has more
+    authors. The global catalog does not use this key.
+    """
+    members = _member_indexes(topic)
+    authors = len({str(posts[index].get("author") or "") for index in members})
+    return (
+        -_in_section_count(posts, members, section),
+        -authors,
+        -len(members),
+        int(topic.get("id") or 0),
+    )
+
+
+def _published_section_key(
+    posts: list[dict],
+    planet: dict,
+    uri_to_index: dict[str, int],
+    section: str,
+) -> tuple:
+    """Same order as ``_section_rank_key``, for a planet that already has URIs."""
+    indexes = [uri_to_index[uri] for uri in (planet.get("_member_uris") or []) if uri in uri_to_index]
+    authors = len({str(posts[index].get("author") or "") for index in indexes})
+    return (
+        -_in_section_count(posts, indexes, section),
+        -authors,
+        -int(planet.get("post_count") or len(indexes)),
+    )
 
 
 def section_candidate_planets(
@@ -2121,11 +2156,13 @@ def section_candidate_planets(
 ) -> tuple[dict[str, list[dict]], list[str]]:
     """Planets to label for each section, from one global clustering.
 
-    Assignment here is the majority of member posts, so labeling can stop at
-    the planets a section might publish. The Jev call, when it is on, runs
-    after those labels exist and can move a planet. A section with fewer
-    than ``catalog_size`` planets is left short. It is not filled from a
-    second clustering of that section.
+    Every global cluster is eligible. The majority of its posts picks the
+    section, and a second section is included at 35%. Each section then
+    ranks those clusters by how many of their posts are in that section and
+    labels from the top of that list. A cluster that is large inside Politics
+    is not skipped because a louder cluster is larger across the whole
+    window. A section with fewer than ``catalog_size`` planets is left short.
+    It is not filled from a second clustering of that section.
     """
     del matrix, catalog_size, floor
     post_floor = _planet_post_floor(settings)
@@ -2141,7 +2178,7 @@ def section_candidate_planets(
         groups = list(assigned[section])
         if not groups:
             continue
-        groups.sort(key=lambda topic: _topic_reach_key(posts, topic))
+        groups.sort(key=lambda topic, section=section: _section_rank_key(posts, topic, section))
         chosen[section] = groups
     return chosen, []
 
@@ -2360,9 +2397,12 @@ def _cluster_sections_once(
     """List one global clustering under each section, and label each planet once.
 
     A planet already drafted for All topics is not drafted again, and its
-    stance check is not run again. A section with fewer published planets
-    than ``catalog_size`` stays short. Wide relabel stays on the shared
-    section pool.
+    stance check is not run again. Each section ranks every global cluster
+    the majority rule assigns to it by that section's own post count, keeps
+    its top ``catalog_size``, and drafts a cluster only when that exact
+    member set is not already labeled. A section with fewer published
+    planets than ``catalog_size`` stays short. Wide relabel stays on the
+    shared section pool.
     """
     import numpy as np
 
@@ -2452,7 +2492,11 @@ def _cluster_sections_once(
     placed = _place_planets(flat, planet_posts, context, uri_to_index)
     for section in CATEGORIES:
         rows = list(placed.get(section) or [])
-        rows.sort(key=lambda planet: _published_reach_key(planet_posts, planet, uri_to_index))
+        rows.sort(
+            key=lambda planet, section=section: _published_section_key(
+                planet_posts, planet, uri_to_index, section
+            )
+        )
         placed[section] = rows[: int(catalog_size)]
     result: dict[str, list[dict]] = {}
     for section in CATEGORIES:

@@ -440,3 +440,8 @@ Merge conditions are unchanged from the #143 entry: a review by a different mode
 - **Alternatives:** Keep top-up and reject a group unless `story_groups` returns one group (rejected: that is the check Chris Sale passed). Require one face (rejected: a real one-story planet can have two faces, and Vocational High School did).
 - **Revisit when:** A cheap check can show, on this snapshot, that it would have rejected AI in Academia and Chris Sale and kept a top-up planet whose faces are one story for a reason other than a shared function word.
 - **Decided by:** Follow-up on PR #142, 2026-10-11. The product preference for natural grouping over forced filling is Michael's.
+
+### 2026-10-11 — A section keeps the clusters that are large inside it (#90)
+- **Decision:** Under `cluster_once`, every global cluster is assigned by the majority rule. Each section ranks those clusters by how many of their posts are in that section, labels its own top 10, and reuses a label when the member URIs were already drafted. The global catalog is still ranked by distinct authors. Top-up stays off.
+- **Why:** The old section order was distinct authors, then total size (`_topic_reach_key`). Labeling stopped at 10 (`_SectionLabelJob.keep`). On the Oct 11 snapshot the largest global piece of Labour Party had 55 Politics posts and was 11th in Politics by author reach, so it was never labeled. Ranking by in-section posts puts that piece 5th. Global clustering still splits some per-section stories (Trump Corruption, 2024 Election) into pieces too small to be a planet. This change does not glue those pieces back together.
+- **Revisit when:** A section's top 10 by in-section posts still omits a story that global clustering kept as one cluster.
