@@ -107,7 +107,7 @@ def test_planet_section_question_nudges_culture_away_from_other(monkeypatch):
     assert "post's primary subject" not in instructions
 
 
-def test_short_section_falls_back_and_skips_a_group_already_listed(monkeypatch):
+def test_a_short_section_is_not_filled_from_its_own_clustering(monkeypatch):
     sections = ["Politics"] * 10 + ["Education"] * 8
     posts = _posts(sections)
     topics = [
@@ -117,15 +117,8 @@ def test_short_section_falls_back_and_skips_a_group_already_listed(monkeypatch):
     topics.append({"id": 10, "size": 1, "member_indices": [10], "terms": ["education"]})
     topics.append({"id": 11, "size": 1, "member_indices": [11], "terms": ["education"]})
 
-    def fake_cluster(texts, **_kwargs):
-        assert len(texts) == 8
-        return {
-            "topics": [
-                {"id": 0, "size": 2, "member_indices": [0, 1], "terms": ["covered"]},
-                {"id": 1, "size": 1, "member_indices": [5], "terms": ["fresh"]},
-            ],
-            "noise_count": 0,
-        }
+    def fake_cluster(*_args, **_kwargs):
+        raise AssertionError("a short section is not clustered again")
 
     monkeypatch.setattr(live, "cluster_texts", fake_cluster)
     settings = {
@@ -143,10 +136,10 @@ def test_short_section_falls_back_and_skips_a_group_already_listed(monkeypatch):
         10,
         1,
     )
-    assert fallbacks == ["Education"]
+    assert fallbacks == []
     assert len(chosen["Politics"]) == 10
     education_terms = [topic["terms"][0] for topic in chosen["Education"]]
-    assert education_terms == ["education", "education", "fresh"]
+    assert education_terms == ["education", "education"]
 
 
 def _draft(members, _clustered, topic, _context):
@@ -293,7 +286,7 @@ def test_global_draft_is_reused_when_the_section_list_is_built(monkeypatch):
     assert calls == [4]
 
 
-def test_a_short_published_list_is_topped_up_from_that_section(monkeypatch):
+def test_a_short_published_list_stays_short(monkeypatch):
     posts = _posts(["Sports"] * 6)
     topics = [
         {"id": index, "size": 1, "member_indices": [index], "terms": ["keep" if index == 0 else "drop"]}
@@ -305,15 +298,8 @@ def test_a_short_published_list_is_topped_up_from_that_section(monkeypatch):
             return None, ["dropped"]
         return _draft(members, clustered, candidate, context)
 
-    def fake_cluster(texts, **_kwargs):
-        assert len(texts) == 6
-        return {
-            "topics": [
-                {"id": 0, "size": 1, "member_indices": [4], "terms": ["keep"]},
-                {"id": 1, "size": 1, "member_indices": [5], "terms": ["also"]},
-            ],
-            "noise_count": 0,
-        }
+    def fake_cluster(*_args, **_kwargs):
+        raise AssertionError("a short section is not clustered again")
 
     monkeypatch.setattr(live, "_draft_planet", draft)
     monkeypatch.setattr(live, "cluster_texts", fake_cluster)
@@ -328,5 +314,5 @@ def test_a_short_published_list_is_topped_up_from_that_section(monkeypatch):
         1,
         context=context,
     )
-    assert "Sports" in context["section_fallbacks"]
-    assert [planet["name"] for planet in sections["Sports"]] == ["keep", "keep 2", "also"]
+    assert context["section_fallbacks"] == []
+    assert [planet["name"] for planet in sections["Sports"]] == ["keep"]

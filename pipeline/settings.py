@@ -68,8 +68,8 @@ DEFAULTS: dict[str, Any] = {
     # cluster_once: one density pass over all posts. Each planet is listed by
     # section_assignment below. Labels, including the stance check, are written
     # once and reused. A section that publishes fewer than catalog_size planets
-    # is clustered on its own to fill the rest. per_section clusters every
-    # section again and labels those planets separately.
+    # stays short. per_section clusters every section again and labels those
+    # planets separately.
     "section_grouping": "cluster_once",
     # majority: the section that holds the most of the planet's posts (both
     # when the top two are each at least 35%). jev: one section call per

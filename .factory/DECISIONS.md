@@ -433,3 +433,10 @@ Merge conditions are unchanged from the #143 entry: a review by a different mode
 **Still comes back to Michael first, even for covered PRs:** daily cost past the $0.50 target, a new kind of change to what readers see, and liability gates (workflow or CI permissions, secrets, licensing, and public claims).
 
 **Supersedes:** the 2026-10-11 standing-approval entry in #143, which listed #141, #104 and the Jetstream run as covered.
+
+### 2026-10-11 — Do not fill a short section with a second clustering (#90)
+- **Decision:** `cluster_once` does not top up a section that publishes fewer than 10 planets. `_top_up_section` is removed, and `section_candidate_planets` no longer adds a density pass on that section's own posts. A short section shows fewer planets.
+- **Why:** On the Oct 11 snapshot the top-up published seven planets. Two of them, AI in Academia and Chris Sale, glue separate stories (#77). Chris Sale passed `story_groups` only because both faces contain "right". That shared-word check is the one-story test the pipeline already has, and it is not reliable. A stricter stopword list would miss the next glue word. An extra model call per top-up group is not the cheap check. Michael prefers natural grouping over forced filling.
+- **Alternatives:** Keep top-up and reject a group unless `story_groups` returns one group (rejected: that is the check Chris Sale passed). Require one face (rejected: a real one-story planet can have two faces, and Vocational High School did).
+- **Revisit when:** A cheap check can show, on this snapshot, that it would have rejected AI in Academia and Chris Sale and kept a top-up planet whose faces are one story for a reason other than a shared function word.
+- **Decided by:** Follow-up on PR #142, 2026-10-11. The product preference for natural grouping over forced filling is Michael's.
