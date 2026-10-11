@@ -420,9 +420,10 @@ _JEV_FILTER_REASONS = ("short", "language", "link", "duplicate")
 
 @dataclass
 class JevFilterCounts:
-    """Cache hits and pre-filter skips. These are not paid calls."""
+    """Verdict-cache hits, corpus dedup skips, and pre-filter skips (not paid calls)."""
 
     cache_hits: int = 0
+    dedup_skips: int = 0
     short: int = 0
     language: int = 0
     link: int = 0
@@ -441,12 +442,21 @@ def reset_jev_filters() -> None:
 
 
 def note_jev_cache_hits(count: int) -> None:
-    """Count posts answered from the verdict cache. Never raises."""
+    """Count posts answered from ``jev_verdicts`` without a paid call. Never raises."""
     try:
         with _filter_lock:
             _filters.cache_hits += max(0, int(count))
     except Exception as exc:
         warn(f"Cost meter dropped a Jev cache hit: {exc}")
+
+
+def note_jev_dedup_skips(count: int) -> None:
+    """Count retained posts that already have ``section`` and skip Jev. Never raises."""
+    try:
+        with _filter_lock:
+            _filters.dedup_skips += max(0, int(count))
+    except Exception as exc:
+        warn(f"Cost meter dropped a Jev dedup skip: {exc}")
 
 
 def note_jev_prefilter(reason: str, count: int = 1) -> None:
@@ -465,6 +475,7 @@ def jev_filter_counts() -> dict[str, int]:
     with _filter_lock:
         return {
             "cache_hits": _filters.cache_hits,
+            "dedup_skips": _filters.dedup_skips,
             "short": _filters.short,
             "language": _filters.language,
             "link": _filters.link,
@@ -482,6 +493,7 @@ def format_jev_filters(counts: dict[str, int] | None = None) -> str:
     skips = jev_filter_skip_total(current)
     return (
         f"Jev filters: {int(current.get('cache_hits') or 0)} cache hits, "
+        f"{int(current.get('dedup_skips') or 0)} dedup skips, "
         f"{skips} pre-filter skips "
         f"(short {int(current.get('short') or 0)}, "
         f"language {int(current.get('language') or 0)}, "
@@ -860,6 +872,7 @@ def write_cost_run(
             "deepinfra_errors": errors,
             "stance_check_failed": int(stance_check_failed),
             "jev_cache_hits": int(filters["cache_hits"]),
+            "jev_dedup_skips": int(filters["dedup_skips"]),
             "jev_prefilter_skips": {
                 "short": int(filters["short"]),
                 "language": int(filters["language"]),
@@ -872,7 +885,7 @@ def write_cost_run(
             print(f"Cost run file: {destination} ({len(rows)} service row(s)).")
         else:
             print(f"Cost run file: {destination} (no paid calls).")
-        if filters["cache_hits"] or jev_filter_skip_total(filters):
+        if filters["cache_hits"] or filters["dedup_skips"] or jev_filter_skip_total(filters):
             print(format_jev_filters(filters))
         return destination
     except Exception as exc:

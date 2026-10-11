@@ -169,7 +169,8 @@ def test_error_log_keeps_retries_and_final_failures_apart():
             "final_failures": 22,
         }
     )
-    assert "947 call(s)" in line
+    assert line.startswith("DeepInfra labeling: 947 call(s).")
+    assert "DeepInfra errors:" not in line
     assert "Retried attempts: 429=40, 5xx=2, timeout=10, other=0 (52)" in line
     assert "Final failures: 429=1, 5xx=0, timeout=20, other=1 (22)" in line
 

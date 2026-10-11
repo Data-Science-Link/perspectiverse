@@ -43,6 +43,8 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade a run; a quiet day with fewer planets still publishes |
 | `pipeline/pipeline_overlap.py` | GitHub API check for a queued or in-progress Daily Discourse Pipeline run |
 | `pipeline/jev_prefilter.py` | Free pre-filter before Jev: short posts, non-English, link-only, near-duplicates |
+| `pipeline/story_attach.py` | Same-story attach, planet fold, and post-relabel title merge (#114) |
+| `pipeline/schedule_guard.py` | Skip redundant scheduled Daily Discourse Pipeline runs after today's job already succeeded (#97) |
 | `pipeline/assemble.py` | Writes `public/data.json` |
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
 | `pipeline/http_json.py` | Allow-listed JSON HTTP (`api.bsky.app`, `api.openai.com`, `api.deepinfra.com`, `api.typesafe.ai`) |

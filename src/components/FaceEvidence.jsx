@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { formatNumber, sortPosts } from '../lib/layout'
+import { morePostsLabel } from '../lib/postFeed'
 
 export const POST_PREVIEW_COUNT = 5
 
@@ -43,7 +44,7 @@ export function LazyPostFeed({ posts, previewCount = POST_PREVIEW_COUNT, faceKey
           className="text-button post-expand"
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? 'Show fewer posts' : `Show ${sorted.length - previewCount} more posts`}
+          {morePostsLabel(sorted.length - previewCount, expanded)}
         </button>
       )}
       {sorted.length === 0 && <p className="topic-row-meta">No example posts.</p>}
