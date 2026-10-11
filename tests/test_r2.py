@@ -412,7 +412,13 @@ def test_daily_workflow_uploads_only_after_a_successful_run():
     assert "if [ -f /tmp/perspectiverse-snapshot/costs/daily_spend_14d.svg ]" in workflow
     assert "public/data.json" in pages
     assert "live_corpus.db" not in pages
-    assert "python -m pipeline.publish_guard" in workflow
+    assert "cp pipeline/publish_guard.py /tmp/perspectiverse-snapshot/publish_guard.py" in workflow
+    assert 'python "$GUARD"' in workflow
+    assert "Publish guard could not run" in workflow
+    copy_at = workflow.index("cp pipeline/publish_guard.py /tmp/perspectiverse-snapshot/publish_guard.py")
+    checkout_at = workflow.index("git checkout --force -B data-snapshot")
+    guard_at = workflow.index("# BEGIN publish-guard")
+    assert copy_at < checkout_at < guard_at
     assert '"$guard_status" -eq 10' in workflow
     assert "HOLD" in workflow
     assert "label_run.json" in workflow
