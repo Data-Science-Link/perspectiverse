@@ -394,3 +394,20 @@ Append-only. Newest at the bottom.
 **Evidence:** three runs with different samples had 0 failed checks and 4 to 6 of the top 10 with two faces. All 4 blocked sides were same-side or news duplicates ([#129 comment](https://github.com/Data-Science-Link/perspectiverse/pull/129#issuecomment-6113539335)).
 **Known gaps, tracked in #141:** same-side posts counted as opposing, face counts that change with the sample (Gaza, Trump Iran War), and the reader wording when the check works but there's no other side.
 **Amends:** "2026-10-11 One-face threshold is 10%".
+
+### 2026-10-11 Michael's standing approval for outstanding and in-queue work
+**Decision (Michael, in the room, 2026-10-11):** "If y'all need approval from me for anything outstanding - you have my approval. Also please proceed with using your judgement."
+
+**What it covers:** product-gate approval for PRs on the current queue: #90 (label-once), #141 (stance counting), #104 (grouping), and the 2-day paid Jetstream readiness run (#87). The Manager may merge these once a different model's review passes, CI is green on the head commit, the branch is 0 behind main, and the before-and-after numbers on the same data show the change is no worse than main. The Manager posts those numbers in the room before merging but does not wait for a reply. The PR body records "Human reviewed before merge: standing approval, Michael, 2026-10-11" and links this entry.
+
+**Still comes back to Michael first, even under this approval:**
+- anything that would push daily production cost past the $0.50 target
+- a new kind of change to what readers see
+- anything a liability gate covers: workflow or CI permissions, secrets, licensing, and public claims
+- turning on on-demand spend (never allowed without him)
+
+**Unchanged:** the risk-class rules, model routing, up-to-date-before-merge, and the rule that each issue stays open until its own done bar is met.
+
+**Amends:** "Room approval = merge instruction" (2026-10-08). That rule required Michael to name each PR. This entry lets the Manager merge the queued items above without a named approval.
+
+**Scope and revocation:** Michael can narrow or revoke this at any time with a message in the room. Revoking takes effect immediately and applies to anything not yet merged.
