@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { STANCE_CHECK_FAILED, oneViewNote } from '../src/lib/copy.js'
+import { PERSPECTIVES_PENDING, STANCE_CHECK_FAILED, oneViewNote } from '../src/lib/copy.js'
 import { presentSnapshot, presentTopic, splitSentences } from '../src/lib/present.js'
 
 assert.equal(oneViewNote({ opposing_note: 'No clear opposing view found in this sample' }), 'No clear opposing view found in this sample')
-assert.equal(oneViewNote({ stance_check: STANCE_CHECK_FAILED }), STANCE_CHECK_FAILED)
-assert.equal(oneViewNote({ stance_check: STANCE_CHECK_FAILED, opposing_note: 'No clear opposing view found in this sample' }), STANCE_CHECK_FAILED)
+assert.equal(oneViewNote({ stance_check: STANCE_CHECK_FAILED }), PERSPECTIVES_PENDING)
+assert.equal(
+  oneViewNote({ stance_check: STANCE_CHECK_FAILED, opposing_note: 'No clear opposing view found in this sample' }),
+  PERSPECTIVES_PENDING,
+)
+assert.equal(PERSPECTIVES_PENDING, 'Perspectives still being analyzed')
+assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_FAILED }), STANCE_CHECK_FAILED)
 
 function paragraphs(text) {
   return String(text || '')

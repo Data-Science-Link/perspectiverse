@@ -1,8 +1,9 @@
 export const SINGLE_VIEW_NOTE = 'No clear opposing view found in this sample'
 export const STANCE_CHECK_FAILED = 'stance check failed'
+export const PERSPECTIVES_PENDING = 'Perspectives still being analyzed'
 
 export function oneViewNote(topic) {
-  if (topic && topic.stance_check === STANCE_CHECK_FAILED) return STANCE_CHECK_FAILED
+  if (topic && topic.stance_check === STANCE_CHECK_FAILED) return PERSPECTIVES_PENDING
   if (topic && topic.opposing_note) return topic.opposing_note
   return SINGLE_VIEW_NOTE
 }

@@ -130,4 +130,4 @@ Today's Jev ratio (7,232 calls on a 9,874-post file) is a cache-filling day, not
 |---|---|
 | `gaza-two-face-desktop.png`, `gaza-two-face-mobile.png` | Gaza War, two faces (Israel War Crimes, Zionism Condemned). No opposing-view note. This is the layout a split publishes. |
 | `one-face-opposing-note-desktop.png`, `one-face-opposing-note-mobile.png` | US Election Vote, one face, with `No clear opposing view found in this sample`. |
-| `stance-check-failed-desktop.png`, `stance-check-failed-mobile.png` | Pension Triple Lock, one face, marked `stance check failed`, with no opposing-view note. |
+| `stance-check-failed-desktop.png`, `stance-check-failed-mobile.png` | Pension Triple Lock, one face. The data field is `stance check failed`. The reader line is `Perspectives still being analyzed`, not the opposing-view note. This planet was patched for the screenshot; it was not a pipeline failure. |
