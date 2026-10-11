@@ -125,6 +125,36 @@ def test_uri_is_not_scored_twice_including_nonclaims_and_spam(monkeypatch, tmp_p
     connection.close()
 
 
+def test_retained_corpus_section_counts_as_cache_hit_on_second_run(monkeypatch, tmp_path):
+    """Production reloads claims with section set; the next run must not call Jev."""
+    _enable(monkeypatch)
+    calls = {"n": 0}
+
+    def fake(url, **kwargs):
+        calls["n"] += 1
+        return _answer(0.1, "Politics", claim=0.91, tokens=630)
+
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    moment = datetime(2026, 10, 8, tzinfo=timezone.utc)
+    posts = [
+        _post("at://claim", "Congress should publish the mail ballot rules before November."),
+    ]
+    connection = connect(tmp_path / "corpus.db")
+    first = apply_jev(posts, connection=connection, now=moment)
+    assert calls["n"] == 1
+    replace_posts(connection, [post for post in first if post.get("is_claim") is True])
+    reset_meter()
+    reset_jev_state()
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    reloaded = load_posts(connection)
+    assert reloaded[0]["section"] == "Politics"
+    second = apply_jev(reloaded, connection=connection, now=moment)
+    assert calls["n"] == 1
+    assert second == reloaded
+    assert jev_filter_counts()["cache_hits"] == 1
+    connection.close()
+
+
 def test_prefilter_skips_are_not_calls_and_not_cached(monkeypatch, tmp_path):
     _enable(monkeypatch)
     calls = {"n": 0}

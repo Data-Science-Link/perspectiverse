@@ -217,7 +217,10 @@ def _decisions_for(
     hits = 0
     for post in posts:
         if post.get("section"):
+            # Retained claims already carry Jev's section in SQLite. That skip is
+            # not a jev_verdicts lookup, but it avoids a paid call the same way.
             index.add_text(post_text(post))
+            hits += 1
             continue
         uri = str(post.get("uri") or "")
         if uri and uri in cached:
