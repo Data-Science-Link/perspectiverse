@@ -7,16 +7,20 @@ of them. A second face is kept only when the other pole is at least
 one coherent claim. A planet under 100 posts is sampled at most 40 posts.
 A planet of 100 or more is sampled at most 100. The whole planet is used
 when it is smaller than that cap. The whole-planet count is not what this
-pass compares. A call that times out, returns an HTTP error, or cannot be
-parsed is tried once more with a different seed. If that also fails, the
-planet keeps the faces it had before this pass, including a merge from this
-pass. It is marked stance check failed and does not get the one-view note.
+pass compares. The first call uses the pipeline seed. A retry uses that seed
+plus one. Seed 0 draws an even spread. Any other seed draws a different
+sample of the same size. A pole that clears the share but is not one claim
+keeps the faces from before this pass and is marked second side not coherent.
+A call that times out, returns an HTTP error, or cannot be parsed is tried
+once more. If that also fails, the planet keeps those same pre-pass faces.
+It is marked stance check failed and does not get the one-view note.
 """
 
 from __future__ import annotations
 
 import inspect
 import json
+import random
 import sys
 import threading
 from collections.abc import Callable
@@ -36,13 +40,15 @@ STANCES = ("supports", "opposes", "other-angle", "off-topic")
 _MIXED = "mixed remarks"
 _stance_failure_lock = threading.Lock()
 _stance_failures = 0
+_stance_incoherent = 0
 
 
 def reset_stance_check_failures() -> None:
-    """This run's failed stance checks. A live run resets before drafting."""
-    global _stance_failures
+    """This run's failed and incoherent stance checks. A live run resets before drafting."""
+    global _stance_failures, _stance_incoherent
     with _stance_failure_lock:
         _stance_failures = 0
+        _stance_incoherent = 0
 
 
 def note_stance_check_failure() -> None:
@@ -65,12 +71,40 @@ def report_stance_check_failures() -> int:
     return count
 
 
+def note_stance_check_incoherent() -> None:
+    """One planet whose second pole cleared the share and was not one claim."""
+    global _stance_incoherent
+    with _stance_failure_lock:
+        _stance_incoherent += 1
+
+
+def stance_check_incoherent() -> int:
+    with _stance_failure_lock:
+        return _stance_incoherent
+
+
+def report_stance_check_incoherent() -> int:
+    """Error line for this run. Quiet when no second side was rejected."""
+    count = stance_check_incoherent()
+    if count:
+        print(f"Second side not coherent: {count} planet(s)", file=sys.stderr)
+    return count
+
+
 def _mark_call_failed(context: dict) -> None:
     """Count this planet once. A later call in the same pass does not add again."""
     if context.get("stance_check_failed"):
         return
     context["stance_check_failed"] = True
     note_stance_check_failure()
+
+
+def _mark_incoherent(context: dict) -> None:
+    """Count this planet once. A failed call is a different counter."""
+    if context.get("stance_check_incoherent") or context.get("stance_check_failed"):
+        return
+    context["stance_check_incoherent"] = True
+    note_stance_check_incoherent()
 
 
 def stance_share(context: dict | None) -> float:
@@ -131,10 +165,21 @@ def sample_limit(planet_posts: int) -> int:
     return STANCE_SAMPLE_LIMIT
 
 
-def sample_rows(rows: list[tuple], limit: int | None = None) -> list[tuple]:
+def sample_rows(rows: list[tuple], limit: int | None = None, seed: int = 0) -> list[tuple]:
+    """Distance order. Seed 0 is the even spread, including both ends.
+
+    Any other seed draws a different sample of the same size from that order,
+    and the same seed repeats it. A planet smaller than the cap is returned
+    whole, so the seed does not change its membership.
+    """
     ordered = ordered_rows(rows)
-    cap = sample_limit(len(ordered)) if limit is None else limit
-    return [ordered[index] for index in spread_indexes(len(ordered), cap)]
+    cap = sample_limit(len(ordered)) if limit is None else int(limit)
+    count = len(ordered)
+    if count <= cap or int(seed) == 0:
+        indexes = spread_indexes(count, cap)
+    else:
+        indexes = sorted(random.Random(int(seed)).sample(range(count), cap))
+    return [ordered[index] for index in indexes]
 
 
 def second_pole(counts: dict[str, int]) -> tuple[str, int]:
@@ -353,6 +398,14 @@ def parse_stance_response(text: str, count: int) -> dict | None:
     }
 
 
+def _pipeline_seed(context: dict) -> int:
+    """The run seed. Missing or invalid is 0, which is the even-spread sample."""
+    try:
+        return int(context.get("seed"))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _bump(context: dict) -> None:
     calls = context.setdefault("story_calls", {})
     calls["stance"] = int(calls.get("stance") or 0) + 1
@@ -442,9 +495,10 @@ def _call_parsed(
     count: int,
     parse: Callable[[str], object],
 ):
-    """One call, then one retry with seed 1. None when both fail."""
+    """One call at the pipeline seed, then one retry at that seed plus one."""
+    pipeline_seed = _pipeline_seed(context)
     _bump(context)
-    raw, error = _invoke(generate, prompt, None)
+    raw, error = _invoke(generate, prompt, pipeline_seed)
     parsed = None if raw is None else parse(raw)
     if parsed is not None:
         return parsed
@@ -453,7 +507,7 @@ def _call_parsed(
     retry = prompt + "\n\nThe previous reply was not usable. Return one JSON object only, no markdown."
     if kind == "sample":
         retry += f" labels must include every i from 1 to {count}."
-    raw_retry, error_retry = _invoke(generate, retry, 1)
+    raw_retry, error_retry = _invoke(generate, retry, pipeline_seed + 1)
     parsed_retry = None if raw_retry is None else parse(raw_retry)
     if parsed_retry is not None:
         return parsed_retry
@@ -614,7 +668,8 @@ def split_second_stance(
     """One sample call. Split only when the configured share is met."""
     if len(drafted) != 1:
         return drafted, False
-    rows = sample_rows(drafted[0][1])
+    sample_seed = _pipeline_seed(context)
+    rows = sample_rows(drafted[0][1], seed=sample_seed)
     if len(rows) < MIN_FACE_POSTS:
         return drafted, False
     parsed = _call_parsed(
@@ -633,11 +688,13 @@ def split_second_stance(
     share = stance_share(context)
     keep, stance, found, ratio = clears_second_stance(counts, len(rows), share)
     title = parsed["title"]
-    coherent = bool(parsed["coherent"]) and bool(title) and title.lower() != _MIXED
+    model_coherent = bool(parsed["coherent"])
+    coherent = model_coherent and bool(title) and title.lower() != _MIXED
     context["stance_last"] = {
         "sample_n": len(rows),
         "planet_posts": len(drafted[0][1]),
         "sample_cap": sample_limit(len(drafted[0][1])),
+        "sample_seed": sample_seed,
         "counts": counts,
         "labels": list(parsed["labels"]),
         "uris": [str(row[0]) for row in rows],
@@ -646,9 +703,16 @@ def split_second_stance(
         "share": ratio,
         "threshold": share,
         "coherent": coherent,
+        "model_coherent": model_coherent,
+        "title": title,
+        "blocked": False,
         "split": False,
     }
-    if not keep or not coherent:
+    if keep and not coherent:
+        context["stance_last"]["blocked"] = True
+        _mark_incoherent(context)
+        return drafted, True
+    if not keep:
         return drafted, True
     move_uris = {
         str(row[0])
@@ -685,6 +749,7 @@ def apply_stance_pass(
     call the model.
     """
     context.pop("stance_check_failed", None)
+    context.pop("stance_check_incoherent", None)
     context.pop("stance_failure_reason", None)
     if context.get("chosen") == "heuristic" or len(drafted) < 1:
         return drafted, []
@@ -717,6 +782,20 @@ def apply_stance_pass(
         reason = context.get("stance_failure_reason") or "the call failed"
         log.append(
             f"Stance check failed on {subject or 'planet'}: {reason}. "
+            f"Pre-pass faces kept ({before})."
+        )
+        return drafted, log
+    if context.get("stance_check_incoherent"):
+        last = context.get("stance_last") or {}
+        detail = ""
+        if last:
+            detail = (
+                f" sample {last.get('second_n')}/{last.get('sample_n')}"
+                f"={float(last.get('share') or 0):.1%} vs {float(last.get('threshold') or 0):.0%}"
+                f", title {last.get('title')!r}"
+            )
+        log.append(
+            f"Second side not coherent on {subject or 'planet'}:{detail}. "
             f"Pre-pass faces kept ({before})."
         )
         return drafted, log

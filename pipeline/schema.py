@@ -54,6 +54,11 @@ SINGLE_VIEW_NOTE = "No clear opposing view found in this sample"
 # A stance check that timed out, got an HTTP error, or could not be parsed.
 # That planet keeps the faces it already had and does not get SINGLE_VIEW_NOTE.
 STANCE_CHECK_FAILED = "stance check failed"
+# The other pole cleared the share, but the model did not name one claim
+# (coherent false, an empty title, or "Mixed remarks"). Same reader line as a
+# failed call. Counted separately. The one-view note is not used.
+STANCE_CHECK_INCOHERENT = "second side not coherent"
+_STANCE_CHECK_VALUES = frozenset({STANCE_CHECK_FAILED, STANCE_CHECK_INCOHERENT})
 # Salient tokens stored on each published face (pipeline + demo).
 TOP_TERMS_LIMIT = 8
 
@@ -225,8 +230,8 @@ def category_for_members(name: str, terms: list[str], texts: list[str] | None, m
 
 
 def apply_opposing_note(topic: dict[str, Any]) -> None:
-    """One published face gets the opposing-view note. A failed check does not."""
-    if topic.get("stance_check") == STANCE_CHECK_FAILED:
+    """One published face gets the opposing-view note. A pending check does not."""
+    if topic.get("stance_check") in _STANCE_CHECK_VALUES:
         topic.pop("opposing_note", None)
         return
     if len(topic.get("perspectives") or []) == 1:
@@ -264,10 +269,12 @@ def _check_opposing_note(topic: dict[str, Any], label: str) -> None:
 def _check_stance_check(topic: dict[str, Any], label: str) -> None:
     if "stance_check" not in topic or topic.get("stance_check") is None:
         return
-    if topic.get("stance_check") != STANCE_CHECK_FAILED:
-        raise ValueError(f"{label} stance_check must be {STANCE_CHECK_FAILED!r}")
+    if topic.get("stance_check") not in _STANCE_CHECK_VALUES:
+        raise ValueError(
+            f"{label} stance_check must be {STANCE_CHECK_FAILED!r} or {STANCE_CHECK_INCOHERENT!r}"
+        )
     if topic.get("opposing_note"):
-        raise ValueError(f"{label} cannot carry opposing_note when the stance check failed")
+        raise ValueError(f"{label} cannot carry opposing_note when stance_check is set")
 
 
 def _check_face_distinctness(topic: dict[str, Any], label: str) -> None:

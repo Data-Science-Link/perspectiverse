@@ -54,13 +54,19 @@ from pipeline.label import (
     unique_label,
 )
 from pipeline.perspectives import select_representatives, split_perspectives
-from pipeline.stance import apply_stance_pass, report_stance_check_failures, reset_stance_check_failures
+from pipeline.stance import (
+    apply_stance_pass,
+    report_stance_check_failures,
+    report_stance_check_incoherent,
+    reset_stance_check_failures,
+)
 from pipeline.prompt_sample import cosines_to_matrix_centroid, planet_member_cosines, select_prompt_posts
 from pipeline.schema import (
     CATEGORIES,
     MAX_FACES,
     MIN_FACES,
     STANCE_CHECK_FAILED,
+    STANCE_CHECK_INCOHERENT,
     SYSTEM_SIZE,
     apply_opposing_note,
     category_for_members,
@@ -253,6 +259,7 @@ def run_live(
 def _write_cost_run(payload: dict, started_at: datetime) -> None:
     """Best effort. A cost-log error must not fail a snapshot that already wrote."""
     failed_checks = report_stance_check_failures()
+    incoherent_checks = report_stance_check_incoherent()
     try:
         from pipeline.costs import count_published_planets, deepinfra_error_summary, get_meter, write_cost_run
         from pipeline.publish_guard import report_label_health, write_label_run
@@ -264,6 +271,7 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
             started_at=started_at,
             deepinfra_errors=summary,
             stance_check_failed=failed_checks,
+            stance_check_incoherent=incoherent_checks,
         )
         face = section_face_relabel()
         try:
@@ -1298,6 +1306,7 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         return _exclude_for_floor(context, log, topic_name(terms), shown, _post_samples(members))
     drafted, stance_lines = apply_stance_pass(drafted, members, context, subject=topic_name(terms))
     stance_failed = bool(context.pop("stance_check_failed", None))
+    stance_incoherent = bool(context.pop("stance_check_incoherent", None))
     log.extend(stance_lines)
     perspectives = [item[0] for item in drafted]
     planet_prompt_cap = int(context.get("planet_prompt_sample_size") or 20)
@@ -1369,6 +1378,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     }
     if stance_failed:
         planet_out["stance_check"] = STANCE_CHECK_FAILED
+    elif stance_incoherent:
+        planet_out["stance_check"] = STANCE_CHECK_INCOHERENT
     apply_opposing_note(planet_out)
     apply_level_summaries(planet_out, generate=context["summary_model"])
     if context.get("summary_model") is not None and perspectives:

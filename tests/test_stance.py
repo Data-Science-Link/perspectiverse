@@ -12,7 +12,13 @@ from pipeline.live import (
     _drop_unshared_planets,
     _draft_planet,
 )
-from pipeline.schema import SINGLE_VIEW_NOTE, STANCE_CHECK_FAILED
+from pipeline.schema import (
+    SINGLE_VIEW_NOTE,
+    STANCE_CHECK_FAILED,
+    STANCE_CHECK_INCOHERENT,
+    _check_stance_check,
+    apply_opposing_note,
+)
 from pipeline.settings import STANCE_SECOND_FACE_SHARE
 from pipeline.stance import (
     apply_stance_pass,
@@ -22,7 +28,9 @@ from pipeline.stance import (
     parse_merge_groups,
     parse_stance_response,
     report_stance_check_failures,
+    report_stance_check_incoherent,
     reset_stance_check_failures,
+    stance_check_incoherent,
     sample_limit,
     sample_rows,
     second_pole,
@@ -227,7 +235,17 @@ def test_other_angle_is_not_the_second_face():
     assert clears_second_stance(counts, 34, 0.15)[0] is True
 
 
-def test_incoherent_or_mixed_title_does_not_split():
+@pytest.mark.parametrize(
+    ("coherent", "title"),
+    [
+        (False, "Not Genocide"),
+        (False, "Mixed remarks"),
+        (False, ""),
+        (True, "Mixed remarks"),
+        (True, ""),
+    ],
+)
+def test_above_threshold_without_one_claim_keeps_pre_pass_faces(coherent, title):
     uris = [f"g{index}" for index in range(40)]
     labels = ["opposes" if index < 8 else "supports" for index in range(40)]
 
@@ -236,14 +254,79 @@ def test_incoherent_or_mixed_title_does_not_split():
             {
                 "question": "Is this genocide?",
                 "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
-                "second": {"stance": "opposes", "coherent": False, "title": "Mixed remarks", "summary": "No."},
+                "second": {"stance": "opposes", "coherent": coherent, "title": title, "summary": "No."},
             }
         )
 
+    reset_stance_check_failures()
     context = _context(stance_generate=generate)
-    merged, _log = apply_stance_pass([_face("Gaza", uris)], _members(uris), context, subject="Gaza")
+    merged, log = apply_stance_pass([_face("Gaza", uris)], _members(uris), context, subject="Gaza")
+    assert [item[0]["title"] for item in merged] == ["Gaza"]
+    assert context.get("stance_check_incoherent") is True
+    assert context.get("stance_check_failed") is not True
+    assert context["stance_last"]["blocked"] is True
+    assert context["stance_last"]["split"] is False
+    assert "Second side not coherent" in " ".join(log)
+    assert "Pre-pass faces kept (1)" in " ".join(log)
+    assert stance_check_incoherent() == 1
+    assert stance_check_failures() == 0
+    topic = {"perspectives": [{"title": "Gaza"}], "stance_check": STANCE_CHECK_INCOHERENT, "opposing_note": SINGLE_VIEW_NOTE}
+    apply_opposing_note(topic)
+    assert "opposing_note" not in topic
+    _check_stance_check({"stance_check": STANCE_CHECK_INCOHERENT}, "planet")
+    with pytest.raises(ValueError, match="opposing_note"):
+        _check_stance_check({"stance_check": STANCE_CHECK_INCOHERENT, "opposing_note": SINGLE_VIEW_NOTE}, "planet")
+
+
+def test_incoherent_second_side_undoes_a_same_stance_merge():
+    uris = ["a", "b", "c", "d"]
+    drafted = [_face("Iran War", uris[:2]), _face("Trump Invites Attack", uris[2:])]
+    labels = ["supports", "supports", "opposes", "opposes"]
+
+    def generate(prompt: str) -> str:
+        if "Group these faces" in prompt:
+            return json.dumps({"groups": [[0, 1]]})
+        return json.dumps(
+            {
+                "question": "Is there a war?",
+                "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+                "second": {"stance": "opposes", "coherent": False, "title": "No War", "summary": "Against."},
+            }
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass(drafted, _members(uris), context, subject="Trump Iran War")
+    assert [item[0]["title"] for item in merged] == ["Iran War", "Trump Invites Attack"]
+    assert context.get("stance_check_incoherent") is True
+    assert context.get("stance_check_failed") is not True
+    assert "Pre-pass faces kept (2)" in " ".join(log)
+    assert stance_check_incoherent() == 1
+    assert report_stance_check_incoherent() == 1
+
+
+def test_a_below_threshold_side_stays_one_face_even_when_incoherent():
+    uris = [f"i{index}" for index in range(14)]
+    labels = ["supports"] * 14
+    labels[8] = "opposes"
+
+    def generate(_prompt: str) -> str:
+        return json.dumps(
+            {
+                "question": "Are agents abusing power?",
+                "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+                "second": {"stance": "opposes", "coherent": False, "title": "", "summary": ""},
+            }
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass([_face("ICE Abuse", uris)], _members(uris), context, subject="ICE")
     assert len(merged) == 1
-    assert merged[0][0]["title"] == "Gaza"
+    assert context.get("stance_check_incoherent") is not True
+    assert context["stance_last"]["blocked"] is False
+    assert stance_check_incoherent() == 0
+    assert any("1 face(s) -> 1" in line for line in log)
 
 
 def test_heuristic_backend_makes_no_stance_call():
@@ -294,7 +377,7 @@ def test_a_partial_reply_retries_once_and_then_keeps_the_faces():
     merged, log = apply_stance_pass(drafted, _members(uris), context, subject="No Men")
     assert [item[0]["title"] for item in merged] == ["Women's Rights"]
     assert calls["n"] == 2
-    assert calls["seeds"] == [None, 1]
+    assert calls["seeds"] == [0, 1]
     assert context.get("stance_check_failed") is True
     assert "labels cover 3 of 40" in " ".join(log)
     assert "Pre-pass faces kept (1)" in " ".join(log)
@@ -429,6 +512,13 @@ def test_sample_grows_to_100_once_the_planet_reaches_100_posts():
     assert len(large) == 100
     assert large[0][0] == "g0"
     assert large[-1][0] == "g209"
+    shifted = sample_rows([(f"m{index}", 0, index) for index in range(83)], seed=1)
+    repeated = sample_rows([(f"m{index}", 0, index) for index in range(83)], seed=1)
+    assert [row[0] for row in shifted] == [row[0] for row in repeated]
+    assert [row[0] for row in shifted] != [row[0] for row in mid]
+    assert len(shifted) == 40
+    whole = [(f"t{index}", 0, index) for index in range(9)]
+    assert [row[0] for row in sample_rows(whole, seed=1)] == [row[0] for row in sample_rows(whole, seed=3)]
 
 
 def test_share_config_rejects_a_value_outside_zero_to_one():
@@ -575,8 +665,7 @@ def test_draft_planet_runs_the_pass_for_a_model_and_sets_the_note(monkeypatch):
         calls["n"] += 1
         if "Group these faces" in prompt:
             return json.dumps({"groups": [[0, 1]]})
-        count = prompt.count("\n")
-        labels = [{"i": index, "stance": "supports"} for index in range(1, 7)]
+        labels = [{"i": index, "stance": "opposes" if index <= 2 else "supports"} for index in range(1, 7)]
         return json.dumps(
             {
                 "question": "Is the deal wrong?",
@@ -585,19 +674,38 @@ def test_draft_planet_runs_the_pass_for_a_model_and_sets_the_note(monkeypatch):
             }
         )
 
+    reset_stance_check_failures()
     context = _context(stance_generate=generate, backend="openai", model="m", summary_model=None, seed=0, min_planet_posts=1)
     context.pop("story_calls")
     topic = {"id": 1, "terms": ["diesel", "deal"], "member_indices": list(range(6))}
     result, log = _draft_planet(posts, {"matrix": None}, topic, context)
     assert result is not None
     planet = result["planet"]
-    assert len(planet["perspectives"]) == 1
+    assert [face["title"] for face in planet["perspectives"]] == ["Trump Helps Russia", "Russian Diesel Deal"]
     assert planet["post_count"] == 6
     assert sum(face["post_count"] for face in planet["perspectives"]) == 6
-    assert planet["opposing_note"] == SINGLE_VIEW_NOTE
+    assert "opposing_note" not in planet
+    assert SINGLE_VIEW_NOTE not in json.dumps(planet)
+    assert planet["stance_check"] == STANCE_CHECK_INCOHERENT
     assert calls["n"] == 2
     assert len(result["face_rows"]) == 6
-    assert any("Stance on" in line for line in log)
+    assert any("Second side not coherent" in line for line in log)
+    assert any("Pre-pass faces kept (2)" in line for line in log)
+    assert stance_check_incoherent() == 1
+    assert stance_check_failures() == 0
+
+
+def test_the_first_stance_call_uses_the_pipeline_seed():
+    uris = [f"n{index}" for index in range(6)]
+    calls = {"seeds": []}
+
+    def generate(prompt: str, seed: int | None = None) -> str:
+        calls["seeds"].append(seed)
+        return NO_MEN_PARTIAL
+
+    context = _context(stance_generate=generate, seed=7)
+    apply_stance_pass([_face("Women's Rights", uris)], _members(uris), context, subject="No Men")
+    assert calls["seeds"] == [7, 8]
 
 
 def test_kappa_is_zero_when_agreement_equals_chance():
