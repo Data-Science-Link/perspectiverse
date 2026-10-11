@@ -56,9 +56,8 @@ min_planet_posts: 5
 # Share of the stance sample that a second coherent pole must reach before a
 # one-face planet is split. Planets under 100 posts are sampled at most 40
 # posts. Planets of 100 or more are sampled at most 100. The whole planet is
-# used when it is smaller than that cap. One value. 0.10 is the setting this
-# build measures. It is not a decision that 10% is the right bar. The check
-# does not use the whole-planet count.
+# used when it is smaller than that cap. One value. Michael set this at 10%
+# on 2026-10-11 (DECISIONS.md). The check does not use the whole-planet count.
 stance_second_face_share: 0.10
 
 # Content-neutral search tokens. Bluesky search has no random-post endpoint.

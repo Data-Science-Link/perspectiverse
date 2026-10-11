@@ -34,8 +34,8 @@ DEFAULT_PLANET_PROMPT_SAMPLE_SIZE = 20
 STANCE_SAMPLE_LIMIT = 40
 STANCE_SAMPLE_LIMIT_LARGE = 100
 STANCE_SAMPLE_LARGE_PLANET = 100
-# One config value. 0.10 is what this build measures. It is not a decision
-# that 10% is the right bar. Change this number, not the call sites.
+# One config value. Michael set this at 10% on 2026-10-11 (DECISIONS.md).
+# Change this number, not the call sites.
 STANCE_SECOND_FACE_SHARE = 0.10
 
 DEFAULTS: dict[str, Any] = {

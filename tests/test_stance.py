@@ -363,6 +363,7 @@ def test_sample_grows_to_100_once_the_planet_reaches_100_posts():
 
 
 def test_share_config_rejects_a_value_outside_zero_to_one():
+    assert STANCE_SECOND_FACE_SHARE == 0.10
     assert stance_share({"stance_second_face_share": 0.1}) == 0.1
     assert stance_share({"stance_second_face_share": 0}) == STANCE_SECOND_FACE_SHARE
     assert stance_share({"stance_second_face_share": 1.5}) == STANCE_SECOND_FACE_SHARE
