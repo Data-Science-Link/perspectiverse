@@ -361,3 +361,14 @@ Append-only. Newest at the bottom.
 ### 2026-10-10 #118 tracked under #104
 - **Decision:** #118 ("Separatism" puts Canadian separatism and US–Canada threats on one planet) is a coherence failure and is tracked under #104 next to the Gaza and Zionism-motion mix, not under the face fix.
 - **Decided by:** Giver flagged it; the Factory Manager made the sequencing call, 10/10 11:12 AM.
+
+### 2026-10-10 — Publish guard runs from main's copy after the data-snapshot checkout (#130)
+- **Decision:** The publish step copies `pipeline/publish_guard.py` to `/tmp` while the worktree is still main, checks out `data-snapshot`, then runs that copy by path. Exit 10 still keeps the live `data.json`. A crash while the guard is evaluating still publishes (fail open). If the copy is missing, or Python cannot load the module, the step emits `::warning::Publish guard could not run` and publishes (fail open).
+- **Why:** Runs 38066451782 and 38067170954 called `python -m pipeline.publish_guard` after the checkout. `data-snapshot` has no `publish_guard.py`, so Python exited 1 and every run failed open. A degraded day would have been published. #115's tests imported the module from a main checkout and never ran the publish step.
+- **Alternatives:** Evaluate before switching branches (rejected: the step's job is to compare the live file that exists only after checkout). Vendor the module onto `data-snapshot` (rejected: that branch is snapshot data, not pipeline code).
+- **Revisit when:** `data-snapshot` starts carrying the pipeline package, or the guard grows imports that a single-file copy cannot satisfy.
+
+### 2026-10-11 Face fix may be built before the threshold is picked
+- **Decision:** The face fix (#129) may be built and measured as a draft before Michael picks the one-face threshold. The threshold stays a setting. #129 does not merge until Michael picks 5%, 10% or 15% from side-by-side Gaza and Labour numbers, counted on the sample and on the whole planet, with the count the fix uses stated.
+- **Amends:** the 2026-10-10 "One face only when no real second stance exists" entry, whose line said the threshold is confirmed "before anything is built."
+- **Decided by:** inferred from Michael's blanket approval, 2026-10-11 ~11:18 AM CT: "You have my approval on all open PRs." He did not answer the draft-first question directly. Per the blanket-approval rule, that approval covers only the PRs ready at the time (#137, #120, #121, #122), not #129's merge or its threshold. Drafted by the Giver (#106).

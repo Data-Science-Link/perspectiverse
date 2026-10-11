@@ -2094,6 +2094,14 @@ h3 {
   color: var(--ink);
 }
 
+.email-opposing-note {
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .reading-toolbar .back-link {
   width: auto;
   border: 0;
