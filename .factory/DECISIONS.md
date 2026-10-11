@@ -411,3 +411,18 @@ Append-only. Newest at the bottom.
 **Amends:** "Room approval = merge instruction" (2026-10-08). That rule required Michael to name each PR. This entry lets the Manager merge the queued items above without a named approval.
 
 **Scope and revocation:** Michael can narrow or revoke this at any time with a message in the room. Revoking takes effect immediately and applies to anything not yet merged.
+
+### 2026-10-11 Standing approval narrowed to today's drafts and PRs
+**Decision (Michael, in the room, 2026-10-11):** "Sounds good - my approval is for anything in draft or PR state already today."
+
+**What it covers:** only PRs that were open (draft or ready) on 2026-10-11. As of 5:13 PM CT those are:
+- #142, "Label each planet once and reuse it in every section" (#90), draft
+- #102, "Group once and label once; keep sections on the post majority" (#90), draft
+
+Merge conditions are unchanged from the #143 entry: a review by a different model passes, CI is green on the head commit, the branch is 0 behind main, and before-and-after numbers on the same data show the change is no worse than main. The Manager posts those numbers in the room before merging.
+
+**Not covered (needs Michael's named approval when ready):** #141 (stance counting), #104 (grouping), the 2-day paid Jetstream readiness run (#87), and any PR opened after today.
+
+**Still comes back to Michael first, even for covered PRs:** daily cost past the $0.50 target, a new kind of change to what readers see, and liability gates (workflow or CI permissions, secrets, licensing, and public claims).
+
+**Supersedes:** the 2026-10-11 standing-approval entry in #143, which listed #141, #104 and the Jetstream run as covered.
