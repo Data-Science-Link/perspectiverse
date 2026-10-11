@@ -258,6 +258,7 @@ function presentDigest(topics, previous) {
     .sort((a, b) => (b.total_volume_percent || 0) - (a.total_volume_percent || 0))
     .map((topic) => {
       const faces = topic.perspectives || []
+      const oneView = faces.length <= 1
       const argumentsList = []
       for (const face of faces) {
         const lines = (face.arguments || []).map((item) => clean(item)).filter(Boolean)
@@ -268,14 +269,21 @@ function presentDigest(topics, previous) {
           argumentsList.push(...lines)
         }
       }
-      const disagreement = faces
-        .map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
-        .join(' ')
+      const disagreement = oneView
+        ? null
+        : faces
+            .map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
+            .join(' ')
+      const opposingNote = oneView
+        ? topic.opposing_note || 'No clear opposing view found in this sample'
+        : null
       return {
         name: topic.name,
         category: topic.category,
         percent: topic.total_volume_percent,
         arguments: argumentsList.slice(0, 6),
+        oneView,
+        opposingNote,
         disagreement,
       }
     })

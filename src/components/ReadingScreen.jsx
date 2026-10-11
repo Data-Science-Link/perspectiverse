@@ -36,7 +36,8 @@ function emailPlain(digest, updated) {
     lines.push(planet.name || 'Planet')
     if (planet.percent != null) lines.push(formatPercent(planet.percent))
     for (const argument of planet.arguments || []) lines.push(`• ${argument}`)
-    if (planet.disagreement) lines.push(planet.disagreement)
+    if (planet.oneView && planet.opposingNote) lines.push(planet.opposingNote)
+    else if (planet.disagreement) lines.push(planet.disagreement)
     lines.push('')
   }
   return lines.join('\n')
@@ -106,7 +107,12 @@ function EmailView({ data, onClose }) {
                 </ul>
               </div>
             ))}
-            {planet.disagreement && <p className="email-disagreement">{planet.disagreement}</p>}
+            {planet.oneView && planet.opposingNote && (
+              <p className="email-opposing-note">{planet.opposingNote}</p>
+            )}
+            {!planet.oneView && planet.disagreement && (
+              <p className="email-disagreement">{planet.disagreement}</p>
+            )}
           </section>
         ))}
         {!digest?.planets?.length && <p>No planets in this snapshot.</p>}
