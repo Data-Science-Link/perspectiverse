@@ -50,6 +50,9 @@ MIN_FACES = 1
 MAX_FACES = 6
 # Shown when a planet has one perspective. A second face is not padded in.
 SINGLE_VIEW_NOTE = "No clear opposing view found in this sample"
+# A stance check that timed out, got an HTTP error, or could not be parsed.
+# That planet keeps the faces it already had and does not get SINGLE_VIEW_NOTE.
+STANCE_CHECK_FAILED = "stance check failed"
 # Salient tokens stored on each published face (pipeline + demo).
 TOP_TERMS_LIMIT = 8
 
@@ -220,12 +223,32 @@ def category_for_members(name: str, terms: list[str], texts: list[str] | None, m
     return best
 
 
+def apply_opposing_note(topic: dict[str, Any]) -> None:
+    """One published face gets the opposing-view note. A failed check does not."""
+    if topic.get("stance_check") == STANCE_CHECK_FAILED:
+        topic.pop("opposing_note", None)
+        return
+    if len(topic.get("perspectives") or []) == 1:
+        topic["opposing_note"] = SINGLE_VIEW_NOTE
+    else:
+        topic.pop("opposing_note", None)
+
+
 def _check_opposing_note(topic: dict[str, Any], label: str) -> None:
     if "opposing_note" not in topic or topic.get("opposing_note") is None:
         return
     value = topic["opposing_note"]
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} opposing_note must be a non-empty string")
+
+
+def _check_stance_check(topic: dict[str, Any], label: str) -> None:
+    if "stance_check" not in topic or topic.get("stance_check") is None:
+        return
+    if topic.get("stance_check") != STANCE_CHECK_FAILED:
+        raise ValueError(f"{label} stance_check must be {STANCE_CHECK_FAILED!r}")
+    if topic.get("opposing_note"):
+        raise ValueError(f"{label} cannot carry opposing_note when the stance check failed")
 
 
 def _check_face_distinctness(topic: dict[str, Any], label: str) -> None:
@@ -272,6 +295,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
             raise ValueError(f"Topic {topic_id} has an unknown category")
         _check_face_distinctness(topic, f"Topic {topic_id}")
         _check_opposing_note(topic, f"Topic {topic_id}")
+        _check_stance_check(topic, f"Topic {topic_id}")
         perspectives = topic.get("perspectives") or []
         if not MIN_FACES <= len(perspectives) <= MAX_FACES:
             raise ValueError(
@@ -346,6 +370,7 @@ def validate_payload(payload: dict[str, Any]) -> None:
                     raise ValueError(f"Section '{section_name}' topic {topic_id} is missing a name")
                 _check_face_distinctness(topic, f"Section '{section_name}' topic {topic_id}")
                 _check_opposing_note(topic, f"Section '{section_name}' topic {topic_id}")
+                _check_stance_check(topic, f"Section '{section_name}' topic {topic_id}")
                 perspectives = topic.get("perspectives") or []
                 if not MIN_FACES <= len(perspectives) <= MAX_FACES:
                     raise ValueError(

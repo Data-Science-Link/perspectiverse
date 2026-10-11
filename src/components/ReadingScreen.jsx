@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { oneViewNote } from '../lib/copy'
 import { formatNumber, formatPercent, sortPosts } from '../lib/layout'
 import BarChart from './BarChart'
 import { LazyPostFeed, POST_PREVIEW_COUNT, TopTerms } from './FaceEvidence'
@@ -258,7 +259,7 @@ export default function ReadingScreen({
             <h1>{title}</h1>
             {topic && topic.perspectives.length === 1 && (
               <p className="reading-opposing">
-                {topic.opposing_note || 'No clear opposing view found in this sample'}
+                {oneViewNote(topic)}
               </p>
             )}
             {brief && <p className="reading-brief">{brief}</p>}

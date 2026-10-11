@@ -1,3 +1,12 @@
+export const SINGLE_VIEW_NOTE = 'No clear opposing view found in this sample'
+export const STANCE_CHECK_FAILED = 'stance check failed'
+
+export function oneViewNote(topic) {
+  if (topic && topic.stance_check === STANCE_CHECK_FAILED) return STANCE_CHECK_FAILED
+  if (topic && topic.opposing_note) return topic.opposing_note
+  return SINGLE_VIEW_NOTE
+}
+
 export const SITE_TITLE = 'Perspectiverse'
 export const SITE_TAGLINE = 'See every perspective — and where yours stands.'
 export const SOLAR_SYSTEM_LABEL = 'Filter topics'

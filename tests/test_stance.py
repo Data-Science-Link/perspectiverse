@@ -12,7 +12,7 @@ from pipeline.live import (
     _drop_unshared_planets,
     _draft_planet,
 )
-from pipeline.schema import SINGLE_VIEW_NOTE
+from pipeline.schema import SINGLE_VIEW_NOTE, STANCE_CHECK_FAILED
 from pipeline.settings import STANCE_SECOND_FACE_SHARE
 from pipeline.stance import (
     apply_stance_pass,
@@ -20,10 +20,13 @@ from pipeline.stance import (
     cohen_kappa,
     parse_merge_groups,
     parse_stance_response,
+    report_stance_check_failures,
+    reset_stance_check_failures,
     sample_limit,
     sample_rows,
     second_pole,
     spread_indexes,
+    stance_check_failures,
     stance_share,
 )
 from pipeline.story_attach import merge_alike_published_faces
@@ -257,9 +260,40 @@ def test_a_failed_call_keeps_the_faces():
         raise RuntimeError("HTTP 500")
 
     context = _context(stance_generate=generate)
+    before = stance_check_failures()
     merged, log = apply_stance_pass(drafted, _members(uris), context, subject="Planet")
     assert [item[0]["title"] for item in merged] == ["One", "Two"]
     assert any("failed" in line for line in log)
+    assert context.get("stance_check_failed") is True
+    assert stance_check_failures() == before + 1
+
+
+def test_folding_a_failed_check_does_not_add_the_opposing_note():
+    topic = {
+        "id": 1,
+        "name": "Gaza",
+        "stance_check": STANCE_CHECK_FAILED,
+        "perspectives": [
+            {
+                "id": "1A",
+                "title": "Israeli Genocide",
+                "summary": "The posts call the war genocide.",
+                "post_count": 4,
+                "representative_posts": [{"author": "a", "text": "This is genocide.", "likes": 1}],
+            },
+            {
+                "id": "1B",
+                "title": "Israeli Genocide",
+                "summary": "The posts call the war genocide.",
+                "post_count": 2,
+                "representative_posts": [{"author": "b", "text": "This is genocide too.", "likes": 1}],
+            },
+        ],
+    }
+    assert merge_alike_published_faces([topic]) == 1
+    assert len(topic["perspectives"]) == 1
+    assert "opposing_note" not in topic
+    assert topic["stance_check"] == STANCE_CHECK_FAILED
 
 
 def test_locked_face_is_not_dropped_or_relabeled_or_folded_back():
@@ -350,6 +384,83 @@ def test_parsers_and_kappa():
     assert spread_indexes(10, 4)[-1] == 9
     assert cohen_kappa(["supports"] * 4, ["supports"] * 4) == 1.0
     assert cohen_kappa(["supports", "opposes"], ["supports", "opposes"]) == 1.0
+
+
+def test_a_short_sample_is_not_a_failed_stance_check():
+    uris = ["only"]
+    drafted = [_face("Tiny", uris)]
+
+    def generate(_prompt: str) -> str:
+        raise AssertionError("a one-post planet is not sent")
+
+    context = _context(stance_generate=generate)
+    before = stance_check_failures()
+    merged, log = apply_stance_pass(drafted, _members(uris), context, subject="Tiny")
+    assert len(merged) == 1
+    assert context.get("stance_check_failed") is not True
+    assert stance_check_failures() == before
+    assert any("fewer than" in line for line in log)
+
+
+@pytest.mark.parametrize("kind", ["timeout", "http", "unparseable"])
+def test_failed_stance_check_skips_the_opposing_note_and_counts(monkeypatch, kind, capsys):
+    posts = [_post(f"p{index}", f"gaza claim {index}") for index in range(6)]
+
+    def fake_split(texts, seed=0, matrix=None):
+        return {
+            "faces": [
+                {"index": 0, "member_indices": list(range(len(texts))), "size": len(texts), "terms": ["gaza"]},
+            ],
+            "distances": [index / 10 for index in range(len(texts))],
+            "cosines": [0.5] * len(texts),
+            "k_scores": [],
+            "alternatives": [],
+            "k": 1,
+        }
+
+    def fake_label(members, split, terms, context, member_matrix=None, lock_floor=False, prompt_cap=None):
+        uris = [members[index]["uri"] for index in split["faces"][0]["member_indices"]]
+        return [_face("Israeli Genocide", uris)], 1
+
+    def generate(_prompt: str) -> str:
+        if kind == "timeout":
+            raise TimeoutError("timed out")
+        if kind == "http":
+            raise RuntimeError("HTTP 500")
+        return "not json"
+
+    monkeypatch.setattr("pipeline.live.split_perspectives", fake_split)
+    monkeypatch.setattr("pipeline.live._label_faces", fake_label)
+    monkeypatch.setattr("pipeline.live.label_topic", lambda *args, **kwargs: {"name": "Gaza", "label_source": "model"})
+    monkeypatch.setattr("pipeline.live.specific_shared_words", lambda faces: {"gaza"})
+    monkeypatch.setattr("pipeline.live.topic_name_is_weak", lambda *args, **kwargs: False)
+    monkeypatch.setattr("pipeline.live._name_misses_faces", lambda *args, **kwargs: False)
+    monkeypatch.setattr("pipeline.live.apply_level_summaries", lambda topic, generate=None: topic)
+    monkeypatch.setattr("pipeline.live._face_distinctness", lambda *args, **kwargs: 0.0)
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate, backend="openai", model="m", summary_model=None, seed=0, min_planet_posts=1)
+    context.pop("story_calls")
+    topic = {"id": 1, "terms": ["gaza"], "member_indices": list(range(6))}
+    result, log = _draft_planet(posts, {"matrix": None}, topic, context)
+    assert result is not None
+    planet = result["planet"]
+    assert len(planet["perspectives"]) == 1
+    assert planet["post_count"] == 6
+    assert planet["perspectives"][0]["title"] == "Israeli Genocide"
+    assert "opposing_note" not in planet
+    assert SINGLE_VIEW_NOTE not in json.dumps(planet)
+    assert planet["stance_check"] == STANCE_CHECK_FAILED
+    assert stance_check_failures() == 1
+    assert any("the call failed" in line for line in log)
+    kept = _drop_unshared_planets([planet])
+    assert kept[0]["stance_check"] == STANCE_CHECK_FAILED
+    assert "opposing_note" not in kept[0]
+    folded = merge_alike_published_faces(kept)
+    assert folded == 0
+    assert "opposing_note" not in kept[0]
+    assert report_stance_check_failures() == 1
+    assert "Stance check failed: 1 planet(s)" in capsys.readouterr().err
 
 
 def test_draft_planet_runs_the_pass_for_a_model_and_sets_the_note(monkeypatch):

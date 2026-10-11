@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { categoryCounts } from '../lib/categories'
-import { SITE_TAGLINE } from '../lib/copy'
+import { SITE_TAGLINE, oneViewNote } from '../lib/copy'
 import { faceShade, hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent } from '../lib/layout'
 import { LazyPostFeed, TopTerms } from './FaceEvidence'
@@ -177,7 +177,7 @@ function TopicPanel({
         how many posts sat there. A longer bar is the more common view.
       </p>
       {ranked.length === 1 && (
-        <p className="lede">{topic.opposing_note || 'No clear opposing view found in this sample'}</p>
+        <p className="lede">{oneViewNote(topic)}</p>
       )}
       <MiniCube
         topic={topic}
@@ -258,7 +258,7 @@ function PerspectivePanel({
         {ranked.length === 1 ? (
           <>
             <strong>One view</strong>
-            <span>{topic.opposing_note || 'No clear opposing view found in this sample'}</span>
+            <span>{oneViewNote(topic)}</span>
           </>
         ) : (
           <>

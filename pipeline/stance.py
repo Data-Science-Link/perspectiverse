@@ -7,12 +7,16 @@ of them. A second face is kept only when the other pole is at least
 one coherent claim. A planet under 100 posts is sampled at most 40 posts.
 A planet of 100 or more is sampled at most 100. The whole planet is used
 when it is smaller than that cap. The whole-planet count is not what this
-pass compares.
+pass compares. A call that times out, returns an HTTP error, or cannot be
+parsed leaves the faces as they were. That planet is marked stance check
+failed and does not get the one-view note.
 """
 
 from __future__ import annotations
 
 import json
+import sys
+import threading
 from collections.abc import Callable
 
 from pipeline.cluster_math import salient_terms
@@ -28,6 +32,43 @@ from pipeline.settings import (
 POLES = ("supports", "opposes")
 STANCES = ("supports", "opposes", "other-angle", "off-topic")
 _MIXED = "mixed remarks"
+_stance_failure_lock = threading.Lock()
+_stance_failures = 0
+
+
+def reset_stance_check_failures() -> None:
+    """This run's failed stance checks. A live run resets before drafting."""
+    global _stance_failures
+    with _stance_failure_lock:
+        _stance_failures = 0
+
+
+def note_stance_check_failure() -> None:
+    """One planet whose stance call timed out, errored, or could not be parsed."""
+    global _stance_failures
+    with _stance_failure_lock:
+        _stance_failures += 1
+
+
+def stance_check_failures() -> int:
+    with _stance_failure_lock:
+        return _stance_failures
+
+
+def report_stance_check_failures() -> int:
+    """Error line for this run. Quiet when every stance check finished."""
+    count = stance_check_failures()
+    if count:
+        print(f"Stance check failed: {count} planet(s)", file=sys.stderr)
+    return count
+
+
+def _mark_call_failed(context: dict) -> None:
+    """Count this planet once. A later call in the same pass does not add again."""
+    if context.get("stance_check_failed"):
+        return
+    context["stance_check_failed"] = True
+    note_stance_check_failure()
 
 
 def stance_share(context: dict | None) -> float:
@@ -376,9 +417,11 @@ def merge_same_stance(
         return drafted, False
     raw = _call(generate, build_merge_prompt(drafted, members), context)
     if raw is None:
+        _mark_call_failed(context)
         return drafted, False
     groups = parse_merge_groups(raw, len(drafted))
     if groups is None:
+        _mark_call_failed(context)
         return drafted, False
     post_limit = int(context.get("limit") or 36)
     merged = [_fold(drafted, group, post_limit) if len(group) > 1 else drafted[group[0]] for group in groups]
@@ -474,9 +517,11 @@ def split_second_stance(
         return drafted, False
     raw = _call(generate, build_stance_prompt(rows, members, subject), context)
     if raw is None:
+        _mark_call_failed(context)
         return drafted, False
     parsed = parse_stance_response(raw, len(rows))
     if parsed is None:
+        _mark_call_failed(context)
         return drafted, False
     counts: dict[str, int] = {name: 0 for name in STANCES}
     for label in parsed["labels"]:
@@ -530,9 +575,11 @@ def apply_stance_pass(
 ) -> tuple[list, list[str]]:
     """Same-stance merge, then a sample check only when one face would remain.
 
-    A failed call leaves the faces as they were. The heuristic backend returns
-    immediately and does not call the model.
+    A failed call (timeout, HTTP error, unparseable output) leaves the faces
+    as they were and sets ``stance_check_failed`` on the context. The heuristic
+    backend returns immediately and does not call the model.
     """
+    context.pop("stance_check_failed", None)
     if context.get("chosen") == "heuristic" or len(drafted) < 1:
         return drafted, []
     generate = context.get("stance_generate") or context.get("summary_model")
@@ -553,8 +600,13 @@ def apply_stance_pass(
             current = merged
     if len(current) == 1:
         checked, called = split_second_stance(current, members, generate, context, subject=subject)
-        if not called:
+        if not called and context.get("stance_check_failed"):
             log.append(f"Stance check kept one face on {subject or 'planet'}: the call failed.")
+        elif not called:
+            log.append(
+                f"Stance check kept one face on {subject or 'planet'}: "
+                f"fewer than {MIN_FACE_POSTS} posts to check."
+            )
         elif _uri_key(checked) != original_uris:
             log.append(f"Stance check kept one face on {subject or 'planet'}: the split would have dropped posts.")
         else:

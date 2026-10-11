@@ -35,7 +35,7 @@ from pipeline.label import (
     titles_alike,
 )
 from pipeline.assemble import face_id
-from pipeline.schema import SINGLE_VIEW_NOTE, to_percents
+from pipeline.schema import apply_opposing_note, to_percents
 
 # A planet this large is a parent. Smaller survivors can fold into it.
 # Noise posts attach only to a parent, never to another speck.
@@ -531,8 +531,5 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
             face["volume_percent"] = volume
             face["id"] = face_id(topic_id, index)
         topic["perspectives"] = kept
-        if len(kept) == 1:
-            topic["opposing_note"] = SINGLE_VIEW_NOTE
-        else:
-            topic.pop("opposing_note", None)
+        apply_opposing_note(topic)
     return folded

@@ -1056,6 +1056,17 @@ def test_cost_run_records_deepinfra_errors_by_type(tmp_path, monkeypatch):
     )
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["deepinfra_errors"]["final_failures"] == 1
+    assert payload["stance_check_failed"] == 0
+    counted = tmp_path / "cost_run_failed.json"
+    write_cost_run(
+        posts_processed=10,
+        planets_published=1,
+        started_at=datetime(2026, 10, 11, tzinfo=timezone.utc),
+        path=counted,
+        attempts=(),
+        stance_check_failed=1,
+    )
+    assert json.loads(counted.read_text(encoding="utf-8"))["stance_check_failed"] == 1
     assert payload["rows"][0]["retried_calls"] == "2"
     assert payload["rows"][0]["final_failures"] == "1"
     assert payload["rows"][0]["failed_calls"] == "3"

@@ -833,6 +833,7 @@ def write_cost_run(
     path: Path | None = None,
     attempts: tuple[Attempt, ...] | None = None,
     deepinfra_errors: dict | None = None,
+    stance_check_failed: int = 0,
 ) -> Path | None:
     """Write this run's rows to a gitignored file. Never raises."""
     try:
@@ -857,6 +858,7 @@ def write_cost_run(
             "posts_processed": int(posts_processed),
             "planets_published": int(planets_published),
             "deepinfra_errors": errors,
+            "stance_check_failed": int(stance_check_failed),
             "jev_cache_hits": int(filters["cache_hits"]),
             "jev_prefilter_skips": {
                 "short": int(filters["short"]),
