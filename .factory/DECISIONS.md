@@ -372,3 +372,14 @@ Append-only. Newest at the bottom.
 - **Decision:** The face fix (#129) may be built and measured as a draft before Michael picks the one-face threshold. The threshold stays a setting. #129 does not merge until Michael picks 5%, 10% or 15% from side-by-side Gaza and Labour numbers, counted on the sample and on the whole planet, with the count the fix uses stated.
 - **Amends:** the 2026-10-10 "One face only when no real second stance exists" entry, whose line said the threshold is confirmed "before anything is built."
 - **Decided by:** inferred from Michael's blanket approval, 2026-10-11 ~11:18 AM CT: "You have my approval on all open PRs." He did not answer the draft-first question directly. Per the blanket-approval rule, that approval covers only the PRs ready at the time (#137, #120, #121, #122), not #129's merge or its threshold. Drafted by the Giver (#106).
+
+### 2026-10-11 One-face threshold is 10%
+- **Decision:** The face fix (#129) adds an opposing face when at least 10% of a sample (up to 100 posts on big planets) takes the other side, judged by Llama 3.3 70B. A failed check shows readers "Perspectives still being analyzed" and is counted in the run log and cost report, never shown as "no opposing view found."
+- **Why:** Matches Michael's push not to default to one face. 5% risks thin second faces. Gaza sits near the line and will vary with the news; Labour gets two faces at any setting.
+- **Revisit when:** the first week of daily runs shows any failed checks, or Gaza flips often enough to bother readers.
+- **Decided by:** Michael, 10/11 2:06 PM (Manager and Giver recommended 10%).
+
+### 2026-10-11 A merge-triggered run counts as the day's run only after 6 AM CT
+- **Decision (#132):** A successful merge-triggered pipeline run counts as the day's run, so the scheduled run skips, only if it finished after 6 AM CT. Earlier merge runs still let the scheduled run go.
+- **Why:** Avoids paying twice for morning merges (about $0.10 per double run) without serving 2 AM data all day.
+- **Decided by:** Michael, 10/11 2:06 PM (option proposed by the Giver, recommended by the Manager).
