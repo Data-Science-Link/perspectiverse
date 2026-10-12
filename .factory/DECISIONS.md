@@ -464,6 +464,13 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Another model call to confirm the title. Dropping `stance_locked` so a later relabel can rewrite the face (spends a call, and the bad title can still publish).
 - **Revisit when:** A real minority stays on one face because its posts do not repeat a title word, or a false face still publishes on a shared stem.
 
+### 2026-10-12 — A stance claim word has to distinguish the minority (#151)
+- **Decision:** A summary word is not a claim word for `second_claim_grounded` when it is a topic noun of the planet or the majority face. That is a planet top term, a word in the majority face's title or summary, or a word in about 40% of the majority face's posts (at least two). A word in the minority title is the claim and still counts, including a three-letter title word such as "war". Subject words and short title-topic terms stay excluded. The check stays local. It does not add a model call. A miss is still a blocked second side.
+- **Decided by:** owner, via the #151 follow-up after PR #153 (2026-10-12). Drafted from the hand check on that PR.
+- **Why:** "Biological Differences" stayed split because the summary word "athletes" is the shared topic of the Trans Athletes face, not the claim that those posts have a competitive advantage.
+- **Alternatives:** Another model call to confirm the title. Dropping every word that also appears in the majority face, including the minority title (that would drop a real "not genocide" or "anti war" claim).
+- **Revisit when:** A real minority stays on one face because its posts only repeat a word the majority face also uses in its title.
+
 ### 2026-10-12 — Room merges from a named approval (amends 2026-10-08)
 - **Decision:** Room merges (Michael, 2026-10-12, amends 2026-10-08): when Michael approves a PR by name in the Perspectiverse Factory room, the Manager merges it from the room. Michael doesn't need to repeat the approval in a 1:1 chat. This covers only the PRs he names. Normal and high-risk PRs still wait for his OK on each one. All other merge conditions stay the same: PR body updated, 0 commits behind main, checks green on the head commit, and a regular merge commit.
 - **Decided by:** Michael, 2026-10-12: "Yes this is correct."

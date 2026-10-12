@@ -22,6 +22,7 @@ from pipeline.schema import (
 from pipeline.settings import STANCE_SECOND_FACE_SHARE
 from pipeline.stance import (
     apply_stance_pass,
+    claim_words_cover,
     clears_second_stance,
     cohen_kappa,
     explain_stance_failure,
@@ -264,6 +265,212 @@ def test_force_was_proper_minority_still_splits():
     assert context["story_calls"]["stance"] == 1
     assert context.get("stance_check_incoherent") is not True
     assert context["stance_last"]["claim_grounded"] is True
+    assert any("1 face(s) -> 2" in line for line in log)
+
+
+def _second_json(question: str, labels: list[str], title: str, summary: str) -> str:
+    return json.dumps(
+        {
+            "question": question,
+            "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+            "second": {
+                "stance": "opposes",
+                "coherent": True,
+                "title": title,
+                "summary": summary,
+            },
+        }
+    )
+
+
+def test_shared_topic_noun_is_not_a_claim_word():
+    posts = [
+        _post("a", "Women and transgender can be better athletes than him."),
+        _post("b", "Every queer athlete who finds a team makes the locker room safer."),
+    ]
+    summary = (
+        "Some argue that transgender athletes have inherent biological advantages "
+        "that affect competition."
+    )
+    assert claim_words_cover("Biological Differences", summary, posts, "Sports") is True
+    assert (
+        claim_words_cover(
+            "Biological Differences",
+            summary,
+            posts,
+            "Sports",
+            planet_terms=["sports", "athletes"],
+        )
+        is False
+    )
+    assert (
+        claim_words_cover(
+            "Biological Differences",
+            summary,
+            posts,
+            "Sports",
+            majority_posts=[
+                _post("m1", "Trans athletes differ biologically."),
+                _post("m2", "These athletes are in a separate class."),
+            ],
+            majority_title="Other Topic",
+            majority_summary="A different sentence with none of those words.",
+        )
+        is False
+    )
+
+
+def test_biological_differences_collapses_on_the_shared_word_athletes():
+    minority = [
+        "Or maybe less. Women and transgender can be better athletes than him",
+        "Every queer athlete who finds a team that feels like family makes the locker room a little safer for the next kid.",
+    ]
+    majority = [
+        (
+            "They are not like non-transgenders and never will be. That is not bad, only true. "
+            "Transgenders in sport is clearly in a seperate class that crosses biological red lines "
+            "of understanding!"
+        ),
+        "Trans athletes differ biologically from the field they join.",
+        "These athletes are not the same as the women they compete with.",
+    ]
+    texts = minority + majority
+    uris = [f"t{index}" for index in range(len(texts))]
+    labels = ["opposes" if index < len(minority) else "supports" for index in range(len(texts))]
+    members = [_post(uri, text) for uri, text in zip(uris, texts)]
+
+    def generate(_prompt: str) -> str:
+        return _second_json(
+            "Do trans athletes have a competitive advantage?",
+            labels,
+            "Biological Differences",
+            (
+                "Some argue that transgender athletes have inherent biological advantages "
+                "that affect competition."
+            ),
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass(
+        [
+            _face(
+                "Trans Athletes",
+                uris,
+                summary="Trans athletes differ biologically",
+            )
+        ],
+        members,
+        context,
+        subject="Sports",
+        terms=["sports"],
+    )
+    assert [item[0]["title"] for item in merged] == ["Trans Athletes"]
+    assert context["stance_last"]["claim_grounded"] is False
+    assert context["stance_last"]["split"] is False
+    assert context.get("stance_check_incoherent") is True
+    assert context["story_calls"]["stance"] == 1
+    assert "Second side not coherent" in " ".join(log)
+
+
+def test_anti_war_minority_still_splits():
+    minority = [
+        "With MBS' ambitions on the line, Saudi Arabia is increasingly looking for a diplomatic way to end its renewed aggression on Yemen, the report said.",
+        "Saudi Arabia Has Few Options as Houthis Aim at Heart of Its Ambitions Perhaps the NYT should remind its readers about the Saudi led war on Yemen from 2015 through 2021",
+        "The Houthis have already said they don't care whether they cool their heels in Saudi Arabia or invade Yemen, assisting the despots in Arabia means the Houthis will make them a target. Not sure about Turkeys but most Pakistanis oppose involvement in Yemen & won't cry when this war goes badly.",
+        "my country decided to join saudi arabia’s war on yemen, where an oil rich kingdom corrupt to the core is fighting one of the poorest countries on earth.",
+        "i really hope that the wider public as well as the soldiers we send have the hearts and brains to see that yemeni people fighting for their sovereignty today really don’t look that different from us when we were fighting colonizers on our land 100 years ago.",
+        "plus, even if you think pragmatically, this will contribute absolutely nothing to our national interests. we’re joining just because our evil govt decided this year that we should be allies with the saudis",
+    ]
+    majority = [
+        "Houthi forces have explicitly warned that Saudi civilian airports and Aramco oil facilities are targets as heavy fighting spreads across Yemen’s Red Sea coast.",
+        "Houthi strikes on Riyadh airport killed three Saudis as war escalates",
+        "Houthi missile kills 12 at Riyadh airport, second strike this week. UAE backs all measures for Saudi security.",
+        "The escalating conflict with Iran-backed Houthi militants threatens Saudi Crown Prince Mohammad bin Salman’s plans.",
+        "Major Saudi conferences to proceed, organisers say, despite deadly airport attack",
+        "The federal Prime Minister has nothing to do with Saudi Airports or Houthis.",
+        "Syria weighs military aid for Saudi Arabia amid Yemen war, sources say. Syria is considering military assistance to Saudi Arabia amid an escalating war against the Houthis.",
+    ]
+    texts = minority + majority
+    uris = [f"y{index}" for index in range(len(texts))]
+    labels = ["opposes" if index < len(minority) else "supports" for index in range(len(texts))]
+    members = [_post(uri, text) for uri, text in zip(uris, texts)]
+
+    def generate(_prompt: str) -> str:
+        return _second_json(
+            "Should the country join the war?",
+            labels,
+            "Anti War",
+            "Most posts oppose supporting Saudi Arabia in its war against the Houthis in Yemen.",
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass(
+        [
+            _face(
+                "Houthi Attacks",
+                uris,
+                summary="Houthi forces target Saudi airports and facilities",
+            )
+        ],
+        members,
+        context,
+        subject="Saudi Yemen Houthis",
+        terms=["saudi", "yemen", "houthis"],
+    )
+    assert [item[0]["title"] for item in merged] == ["Houthi Attacks", "Anti War"]
+    assert merged[1][2] == len(minority)
+    assert context["stance_last"]["claim_grounded"] is True
+    assert context["story_calls"]["stance"] == 1
+    assert any("1 face(s) -> 2" in line for line in log)
+
+
+def test_dyed_diesel_concerns_still_splits():
+    minority = [
+        "That’s why it’s dyed red in such a vicious way so that once you contaminate your fuel system it stays. The first time you get caught on the highway with red fuel is a $5000 fine, second offense is $10,000 and on a third offense they take your truck.",
+        "So now big rig drivers, and the lifted truck crowd, will compete with farmers for red dye fuel? And what about residual dye in fuel station tanks and truck gas tanks?",
+        "It's not and never was about relief of diesel prices.",
+        "And the trucks will be ruined by tainted gas",
+        "The Nebraska Trucking Association cautioned members not to fill up with the untaxed, tinted diesel fuel. Do not put dyed diesel in your tanks — at least not yet.",
+    ]
+    majority = [
+        "Truckers Warn High Diesel Prices Are Cutting Routes",
+        "Right now Russia is importing diesel. I guess they’re gonna sell diesel that they buy from India?",
+        "Theyre doing this for like 3 days of US diesel exports every month",
+        "Diesel prices are still high this week.",
+        "High diesel prices are cutting routes.",
+        "Diesel prices jumped again.",
+    ]
+    texts = minority + majority
+    uris = [f"d{index}" for index in range(len(texts))]
+    labels = ["opposes" if index < len(minority) else "supports" for index in range(len(texts))]
+    members = [_post(uri, text) for uri, text in zip(uris, texts)]
+
+    def generate(_prompt: str) -> str:
+        return _second_json(
+            "Is dyed diesel the problem?",
+            labels,
+            "Dyed Diesel Concerns",
+            (
+                "Many posts express concerns about the use of dyed diesel fuel, citing "
+                "potential damage to trucks and fines for its use."
+            ),
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass(
+        [_face("Diesel Prices", uris, summary="Diesel prices are high")],
+        members,
+        context,
+        subject="Diesel Fuel Dyed",
+        terms=["diesel", "fuel", "dyed"],
+    )
+    assert [item[0]["title"] for item in merged] == ["Diesel Prices", "Dyed Diesel Concerns"]
+    assert merged[1][2] == len(minority)
+    assert context["stance_last"]["claim_grounded"] is True
+    assert context["story_calls"]["stance"] == 1
     assert any("1 face(s) -> 2" in line for line in log)
 
 
