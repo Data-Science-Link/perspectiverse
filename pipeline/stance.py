@@ -19,7 +19,11 @@ A split that clears that share is still kept as one face unless the model's
 ``second.stance`` is the pole of the posts that would move and a claim word
 from ``second.title`` or ``second.summary`` shows up with the same polarity
 in about 40% of those posts. Subject words and short title-topic terms such
-as ICE are not claim words. That check is local and does not call the model.
+as ICE are not claim words. A summary word is not a claim word when it is a
+topic noun of the planet or the majority face: it is one of the planet's top
+terms, it is in that face's title or summary, or it shows up in about 40% of
+that face's posts. A word in the minority title is the claim, so it still
+counts. That check is local and does not call the model.
 """
 
 from __future__ import annotations
@@ -700,6 +704,43 @@ _NEGATION = frozenset(
         "aint",
     }
 )
+# Three-letter title words can be the claim ("war"). Function words cannot.
+_SHORT_TITLE_SKIP = _NEGATION | frozenset(
+    {
+        "all",
+        "and",
+        "any",
+        "are",
+        "but",
+        "can",
+        "did",
+        "for",
+        "get",
+        "got",
+        "had",
+        "has",
+        "her",
+        "his",
+        "how",
+        "its",
+        "may",
+        "new",
+        "off",
+        "old",
+        "one",
+        "our",
+        "out",
+        "own",
+        "per",
+        "the",
+        "too",
+        "two",
+        "was",
+        "who",
+        "why",
+        "you",
+    }
+)
 
 
 def _coverage_needed(count: int) -> int:
@@ -733,21 +774,84 @@ def _topic_stems(subject: str, title: str) -> set[str]:
     return stems
 
 
-def _claim_mentions(title: str, summary: str, subject: str) -> list[tuple[str, int]]:
+def _mention_tokens(text: str, *, from_title: bool) -> list[tuple[int, str]]:
+    """Content words, plus a three-letter title word that is not a function word."""
+    tokens = _surface_tokens(text)
+    allowed = content_tokens(text)
+    chosen: list[tuple[int, str]] = []
+    for index, token in enumerate(tokens):
+        if token in allowed:
+            chosen.append((index, token))
+            continue
+        if (
+            from_title
+            and len(token) == 3
+            and token not in _SHORT_TITLE_SKIP
+            and token not in _SHORT_SUBJECTS
+        ):
+            chosen.append((index, token))
+    return chosen
+
+
+def _shared_topic_stems(
+    *,
+    majority_posts: list[dict] | None = None,
+    majority_title: str = "",
+    majority_summary: str = "",
+    planet_terms: list[str] | None = None,
+) -> set[str]:
+    """Topic stems common to the planet or the majority face.
+
+    A stem counts when it is one of the planet's top terms, when it is in the
+    majority face's title or summary, or when it shows up in about 40% of that
+    face's posts (at least two). One post is not frequent.
+    """
+    stems: set[str] = set()
+    for term in planet_terms or []:
+        for token in _surface_tokens(term):
+            if len(token) >= 3:
+                stems.add(subject_stem(token))
+    for text in (majority_title, majority_summary):
+        for token in content_tokens(text):
+            stems.add(subject_stem(token))
+    posts = list(majority_posts or [])
+    if len(posts) >= 2:
+        counts: dict[str, int] = {}
+        for post in posts:
+            seen: set[str] = set()
+            for token in content_tokens(_post_text(post)):
+                seen.add(subject_stem(token))
+            for stem in seen:
+                counts[stem] = counts.get(stem, 0) + 1
+        need = _coverage_needed(len(posts))
+        for stem, count in counts.items():
+            if count >= need:
+                stems.add(stem)
+    return stems
+
+
+def _claim_mentions(
+    title: str,
+    summary: str,
+    subject: str,
+    shared: set[str] | None = None,
+) -> list[tuple[str, int]]:
     """Claim words from the title and summary, each with polarity +1 or -1.
 
-    A subject stem and a short title-topic term are left out. Polarity is -1
-    when the word is negated.
+    A subject stem and a short title-topic term are left out. A summary word
+    whose stem is a shared topic noun is left out. A word in the minority
+    title is the claim, so it stays. Polarity is -1 when the word is negated.
     """
     topic = _topic_stems(subject, title)
+    shared_stems = shared or set()
     mentions: list[tuple[str, int]] = []
-    for text in (title, summary):
+    for text, from_title in ((title, True), (summary, False)):
         tokens = _surface_tokens(text)
-        allowed = content_tokens(text)
-        for index, token in enumerate(tokens):
-            if token not in allowed:
-                continue
+        for index, token in _mention_tokens(text, from_title=from_title):
             if token in _SHORT_SUBJECTS or subject_stem(token) in topic or token in topic:
+                continue
+            stem = subject_stem(token)
+            if not from_title and stem in shared_stems:
                 continue
             mentions.append((token, -1 if _negated(tokens, index) else 1))
     return mentions
@@ -769,9 +873,29 @@ def _mentions_claim(text: str, mentions: list[tuple[str, int]]) -> bool:
     return False
 
 
-def claim_words_cover(title: str, summary: str, posts: list[dict], subject: str = "") -> bool:
-    """True when one claim word hits about 40% of ``posts`` at the same polarity."""
-    mentions = _claim_mentions(title, summary, subject)
+def claim_words_cover(
+    title: str,
+    summary: str,
+    posts: list[dict],
+    subject: str = "",
+    *,
+    majority_posts: list[dict] | None = None,
+    majority_title: str = "",
+    majority_summary: str = "",
+    planet_terms: list[str] | None = None,
+) -> bool:
+    """True when claim words hit about 40% of ``posts`` at the same polarity.
+
+    A summary word that is a topic noun of the majority face or the planet
+    does not count. A word in ``title`` does.
+    """
+    shared = _shared_topic_stems(
+        majority_posts=majority_posts,
+        majority_title=majority_title,
+        majority_summary=majority_summary,
+        planet_terms=planet_terms,
+    )
+    mentions = _claim_mentions(title, summary, subject, shared)
     if not mentions or len(posts) < 2:
         return False
     hits = sum(1 for post in posts if _mentions_claim(_post_text(post), mentions))
@@ -786,16 +910,30 @@ def second_claim_grounded(
     summary: str,
     posts: list[dict],
     subject: str = "",
+    majority_posts: list[dict] | None = None,
+    majority_title: str = "",
+    majority_summary: str = "",
+    planet_terms: list[str] | None = None,
 ) -> bool:
     """Both gates for a stance split. No model call.
 
     ``second.stance`` has to be the pole of ``posts``, and a claim word from
     the title or summary has to show up with the same polarity in about 40%
-    of those posts. Subject and title-topic terms do not count.
+    of those posts. Subject terms, short title-topic terms, and topic nouns
+    shared with the majority face or the planet's top terms do not count.
     """
     if second_stance not in POLES or second_stance != stance:
         return False
-    return claim_words_cover(title, summary, posts, subject)
+    return claim_words_cover(
+        title,
+        summary,
+        posts,
+        subject,
+        majority_posts=majority_posts,
+        majority_title=majority_title,
+        majority_summary=majority_summary,
+        planet_terms=planet_terms,
+    )
 
 
 def split_second_stance(
@@ -805,6 +943,7 @@ def split_second_stance(
     context: dict,
     *,
     subject: str,
+    terms: list[str] | None = None,
 ) -> tuple[list, bool]:
     """One sample call. Split only when the share is met and the claim is in the posts."""
     if len(drafted) != 1:
@@ -862,6 +1001,12 @@ def split_second_stance(
     }
     by_uri = {str(post.get("uri") or ""): post for post in members}
     moved_posts = [by_uri[uri] for uri in move_uris if uri in by_uri]
+    stay_posts = [
+        by_uri[str(uri)]
+        for uri, _position, _distance in drafted[0][1]
+        if str(uri) not in move_uris and str(uri) in by_uri
+    ]
+    face = drafted[0][0]
     grounded = second_claim_grounded(
         stance=stance,
         second_stance=parsed["second_stance"],
@@ -869,6 +1014,10 @@ def split_second_stance(
         summary=parsed["summary"],
         posts=moved_posts,
         subject=subject,
+        majority_posts=stay_posts,
+        majority_title=str(face.get("title") or ""),
+        majority_summary=str(face.get("summary") or ""),
+        planet_terms=list(terms) if terms is not None else _surface_tokens(subject),
     )
     context["stance_last"]["stance_aligned"] = parsed["second_stance"] == stance
     context["stance_last"]["claim_grounded"] = grounded
@@ -897,6 +1046,7 @@ def apply_stance_pass(
     context: dict,
     *,
     subject: str = "",
+    terms: list[str] | None = None,
 ) -> tuple[list, list[str]]:
     """Same-stance merge, then a sample check only when one face would remain.
 
@@ -925,7 +1075,9 @@ def apply_stance_pass(
         elif called and _uri_key(merged) != original_uris:
             log.append(f"Stance merge kept {subject or 'planet'}: the groups would have dropped posts.")
     if len(current) == 1 and not context.get("stance_check_failed"):
-        checked, called = split_second_stance(current, members, generate, context, subject=subject)
+        checked, called = split_second_stance(
+            current, members, generate, context, subject=subject, terms=terms
+        )
         if called and _uri_key(checked) == original_uris and not context.get("stance_check_failed"):
             current = checked
         elif not called and not context.get("stance_check_failed"):
