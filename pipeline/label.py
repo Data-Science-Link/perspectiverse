@@ -767,8 +767,9 @@ CATCHALL_LABEL_COVERAGE = 0.30
 # story inside it. "ai" never reaches this function (it is two letters).
 _CATCHALL_GLUE_SHARE = 0.70
 # A catch-all bucket under this size, named by a generic stem, is a fragment.
-# Fragments that share a short subject (AI, ICE) merge into one planet.
-# A fragment with no partner is held: it is not published on its own.
+# It is held out of the catalog. It is not glued onto another planet.
+# This is stricter than the 5-post planet floor from #79. Specific stems still
+# publish at 5 posts.
 _THIN_FRAGMENT_POSTS = 8
 _SHORT_SUBJECTS = frozenset({"ai", "eu", "gop", "ice", "uk", "un", "us"})
 # Attitude words and the weak keys that produced AI Concerns/Use/Dangers/Rights

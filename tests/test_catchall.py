@@ -79,6 +79,61 @@ def test_catchall_reasons_match_the_three_signals():
     assert catchall_reasons(diesel, rare, "Companies") == ["label term in under 30% of posts"]
 
 
+def test_coherence_check_still_flags_a_catchall_before_the_split():
+    """Companies and Think still fail the check before any re-split runs.
+
+    A quiet cluster does not. The split is gated on this check, so a run
+    that reports zero coherence-blocked planets has not turned the guard off.
+    """
+    from pipeline.live import _return_catchall_split
+
+    companies = [{"text": "The company raised prices.", "clean_text": "The company raised prices."}] * 22
+    companies += [{"text": "A model wrote the paper.", "clean_text": "A model wrote the paper."}] * 157
+    reasons = catchall_reasons([], companies, "Companies")
+    assert reasons == ["label term in under 30% of posts"]
+    assert label_term_coverage("Companies", companies) < 0.30
+    think = [{"text": "I think this is the issue.", "clean_text": "I think this is the issue."}] * 23
+    think += [{"text": "A model wrote the paper.", "clean_text": "A model wrote the paper."}] * 133
+    assert "label term in under 30% of posts" in catchall_reasons([], think, "Think")
+    diesel = [{"text": "diesel stockpile refinery price", "clean_text": "diesel stockpile refinery price"}] * 24
+    assert catchall_reasons([], diesel, "Diesel Stockpile") == []
+    # No reasons means the old drop path. The split function is not called.
+    assert (
+        _return_catchall_split(
+            [],
+            {},
+            {"terms": ["diesel"]},
+            {"section": "All topics"},
+            diesel,
+            [],
+            [],
+            0,
+        )
+        is None
+    )
+
+
+def test_companies_blob_is_split_only_after_the_check_flags_it(capsys):
+    """The published log quotes the check, then splits. The blob is not kept whole."""
+    posts, matrix = _posts(
+        [
+            ("psychosis", "ai psychosis psychosis delusion delusion", 16),
+            ("factory", "ai factory factory semiconductor semiconductor", 16),
+            ("conference", "ai conference conference academic academic", 16),
+            ("copyright", "ai copyright copyright artist artist", 16),
+        ]
+    )
+    reasons = catchall_reasons([], posts, "Companies")
+    assert reasons
+    topics, _membership, _faces = _build_topics(
+        posts, _candidate(posts, matrix, ["companies"]), SETTINGS, keep=10
+    )
+    logged = capsys.readouterr().out
+    assert "Splitting Companies: catch-all" in logged
+    assert "label term in under 30% of posts" in logged
+    assert len(topics) > 1
+
+
 def test_thin_generic_ai_fragments_merge_and_a_specific_story_stays():
     """Generic 5-post AI scraps are held. Copyright and book stay specific."""
     from pipeline.label import _fragment_stem
