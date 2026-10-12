@@ -7,6 +7,8 @@ Standard is priced from the published rates in this file. The daily workflow
 appends one row per service and model to ``costs/ledger.csv`` on
 ``data-snapshot`` and regenerates ``costs/README.md`` plus a 14-day SVG.
 A metering or ledger error is a warning. It must not fail the pipeline.
+The daily spend cap is the exception: ``SpendCapExceeded`` stops the run
+instead of publishing once today's paid calls reach $1.00 (#148).
 """
 
 from __future__ import annotations
@@ -200,6 +202,9 @@ def reset_meter() -> None:
     global _meter
     _meter = CostMeter()
     reset_jev_filters()
+    from pipeline.spend_cap import reset_day_state
+
+    reset_day_state()
 
 
 def warn(message: str) -> None:
@@ -563,6 +568,8 @@ def record_attempt(
     status: str,
     error_class: str = "",
 ) -> None:
+    from pipeline.spend_cap import SpendCapExceeded, account_recorded_attempt
+
     try:
         from pipeline.publish_guard import ERROR_CLASSES
 
@@ -573,18 +580,20 @@ def record_attempt(
             recorded_class = error_class
         else:
             recorded_class = "other"
-        get_meter().record(
-            Attempt(
-                service=str(service or "unknown"),
-                model=str(model or "unknown"),
-                input_tokens=max(0, int(input_tokens)),
-                output_tokens=max(0, int(output_tokens)),
-                cost_usd=cost_usd if isinstance(cost_usd, Decimal) else Decimal(str(cost_usd)),
-                cost_source=str(cost_source or ""),
-                status=status_value,
-                error_class=recorded_class,
-            )
+        attempt = Attempt(
+            service=str(service or "unknown"),
+            model=str(model or "unknown"),
+            input_tokens=max(0, int(input_tokens)),
+            output_tokens=max(0, int(output_tokens)),
+            cost_usd=cost_usd if isinstance(cost_usd, Decimal) else Decimal(str(cost_usd)),
+            cost_source=str(cost_source or ""),
+            status=status_value,
+            error_class=recorded_class,
         )
+        get_meter().record(attempt)
+        account_recorded_attempt(attempt)
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         warn(f"Cost meter dropped an attempt: {exc}")
 
@@ -612,7 +621,13 @@ def record_llm_attempt(
     status: str,
     error_class: str = "",
 ) -> None:
-    """Record one DeepInfra (or other OpenAI-compatible) attempt. Never raises."""
+    """Record one DeepInfra (or other OpenAI-compatible) attempt.
+
+    Raises ``SpendCapExceeded`` when today's paid calls are at the hard stop.
+    Any other metering error is a warning.
+    """
+    from pipeline.spend_cap import SpendCapExceeded
+
     try:
         usage = _usage_dict(payload)
         reported = parse_estimated_cost(usage.get("estimated_cost"))
@@ -626,6 +641,8 @@ def record_llm_attempt(
             status=status,
             error_class=error_class,
         )
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         warn(f"Cost log skipped for a labeling call: {exc}")
 
@@ -714,7 +731,13 @@ def record_jev_attempt(
     payload: dict | None,
     status: str,
 ) -> None:
-    """Record one Jev attempt. Cost is computed from input tokens. Never raises."""
+    """Record one Jev attempt. Cost is computed from input tokens.
+
+    Raises ``SpendCapExceeded`` when today's paid calls are at the hard stop.
+    Top-up rounds use this same recorder. Any other metering error is a warning.
+    """
+    from pipeline.spend_cap import SpendCapExceeded
+
     try:
         usage = _usage_dict(payload)
         input_tokens = parse_token_count(usage.get("input_tokens"))
@@ -727,6 +750,8 @@ def record_jev_attempt(
             cost_source="computed",
             status=status,
         )
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         warn(f"Cost log skipped for a Jev call: {exc}")
 

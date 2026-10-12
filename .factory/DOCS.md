@@ -42,6 +42,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Same-story attach | `pipeline/story_attach.py` | Attach strays, fold planets, merge alike face titles after relabel (#114). |
 | Schedule guard | `pipeline/schedule_guard.py` | Scheduled workflow no-op when today's pipeline already succeeded (#97). |
 | Publish guard | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade the new snapshot. A quiet day with fewer planets still publishes (#115). The daily job copies this file off main before it checks out `data-snapshot`, then runs that copy. `data-snapshot` does not carry the module. |
+| Daily spend cap | `pipeline/spend_cap.py` | Warn at $0.50 and hard-stop at $1.00 of labeling, Jev, and top-ups for the UTC day, across every run. A stop does not replace `public/data.json` (#148). |
 | Pipeline overlap check | `pipeline/pipeline_overlap.py`, `scripts/check_pipeline_overlap.py` | GitHub API check for an in-progress Daily Discourse Pipeline run. No DeepInfra calls (#115). |
 | Natural grouping research | `docs/research/natural-grouping.md` | Dense-ball clustering comparison; one-view planets carry `opposing_note` (#94). |
 

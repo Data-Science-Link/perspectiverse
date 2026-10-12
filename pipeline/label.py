@@ -1811,6 +1811,9 @@ def _log_label_error(exc: BaseException, error_class: str, *, retried: bool, ski
 
 
 def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str:
+    from pipeline.spend_cap import guard_before_paid_call
+
+    guard_before_paid_call("labeling")
     api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
@@ -1867,7 +1870,12 @@ def _remember_label_cost(
     status: str,
     error_class: str = "",
 ) -> None:
-    """Best effort. A metering error must not change the label result."""
+    """Best effort. A metering error must not change the label result.
+
+    ``SpendCapExceeded`` still stops the run. A swallowed cap would publish.
+    """
+    from pipeline.spend_cap import SpendCapExceeded
+
     try:
         from pipeline.costs import llm_service_for_base_url, record_llm_attempt
 
@@ -1878,5 +1886,7 @@ def _remember_label_cost(
             status=status,
             error_class="" if status == "success" else error_class,
         )
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         sys.stderr.write(f"WARNING: Cost log skipped for a labeling call: {exc}\n")

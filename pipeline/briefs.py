@@ -176,8 +176,12 @@ def detail_from(
 
 
 def _ask_model(generate: Callable[[str], str], prompt: str) -> dict | None:
+    from pipeline.spend_cap import SpendCapExceeded
+
     try:
         raw = generate(prompt)
+    except SpendCapExceeded:
+        raise
     except Exception:
         return None
     start = str(raw or "").find("{")

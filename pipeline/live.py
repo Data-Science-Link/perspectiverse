@@ -30,6 +30,7 @@ from pipeline.corpus import (
 )
 from pipeline.data_sources.extract_bluesky import extract_posts
 from pipeline.jev import apply_jev, describe_jev, known_scored_uris
+from pipeline.spend_cap import SpendCapExceeded
 from pipeline.cluster_math import salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
 from pipeline.language import partition_posts
@@ -131,7 +132,10 @@ def run_live(
     database = Path(db_path) if db_path else LIVE_CORPUS_DB
     print(describe_jev())
     connection = connect(database)
+    from pipeline.spend_cap import SpendCapExceeded, enforce_before_paid_work
+
     try:
+        enforce_before_paid_work()
         existing = load_posts(connection)
         cleaned, source, refreshed = _collect_posts(
             existing,
@@ -239,6 +243,9 @@ def run_live(
                 f"{sum(len(items) for items in sections.values())} planet(s) in {time.monotonic() - started:.1f}s."
             )
         write_clusters(connection, membership, face_rows)
+    except SpendCapExceeded as exc:
+        _abort_for_spend_cap(started_at, exc)
+        raise
     finally:
         connection.close()
 
@@ -257,6 +264,29 @@ def run_live(
     )
     _write_cost_run(payload, started_at)
     return destination
+
+
+def _abort_for_spend_cap(started_at: datetime, exc: SpendCapExceeded) -> None:
+    """Write the cost run and stop marker. Do not write ``data.json``."""
+    print(
+        "Daily spend cap halted the pipeline before publish. "
+        "Yesterday's edition stays.",
+        file=sys.stderr,
+    )
+    try:
+        from pipeline.costs import get_meter, write_cost_run
+        from pipeline.spend_cap import cost_run_path, write_stop_marker
+
+        write_cost_run(
+            posts_processed=0,
+            planets_published=0,
+            started_at=started_at,
+            path=cost_run_path(),
+            attempts=get_meter().attempts(),
+        )
+        write_stop_marker(exc)
+    except Exception as log_exc:
+        print(f"WARNING: Spend cap stop log skipped: {log_exc}", file=sys.stderr)
 
 
 def _write_cost_run(payload: dict, started_at: datetime) -> None:
@@ -1147,6 +1177,8 @@ def _run_finalize_faces_parallel(
                 job = inflight.pop(future)
                 try:
                     wide = future.result()
+                except SpendCapExceeded:
+                    raise
                 except Exception as exc:  # noqa: BLE001 - keep draft label on failure
                     print(f"Wide face relabel failed ({type(exc).__name__}); keeping draft label.")
                     continue
@@ -2076,9 +2108,14 @@ def _section_pool_size(context: dict) -> int:
 
 
 def _safe_draft(posts: list[dict], clustered: dict, topic: dict, context: dict):
-    """Draft one candidate. A raised error is a log line, not a failed snapshot."""
+    """Draft one candidate. A raised error is a log line, not a failed snapshot.
+
+    A spend-cap stop is not a bad planet. Swallowing it would publish anyway.
+    """
     try:
         return _draft_planet(posts, clustered, topic, context)
+    except SpendCapExceeded:
+        raise
     except Exception as exc:  # noqa: BLE001 - one bad planet must not block the snapshot
         return None, [f"Dropping candidate {topic.get('id')}: drafting failed ({type(exc).__name__}: {exc})."]
 
@@ -2447,6 +2484,8 @@ def _cluster_sections(
                 embed=lambda _texts, m=sub_matrix: m,
                 authors=[str(p.get("author") or "unknown") for p in section_posts],
             )
+        except SpendCapExceeded:
+            raise
         except Exception as exc:  # noqa: BLE001 - one section must not block the snapshot
             print(f"Section {section}: skipped ({type(exc).__name__}: {exc}).")
             continue

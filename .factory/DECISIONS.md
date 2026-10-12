@@ -449,3 +449,11 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Decided by:** owner (Michael, 2026-10-12: "New coordination rules work for me")
 - **Why:** challenge was all rigor, little direction; manager agreed by default; owner had to dig for what needed him.
 - **Revisit when:** after about a week, if priorities still aren't getting challenged, add a strategy seat.
+
+### 2026-10-12 — Hard spend cap: warn $0.50/day, stop $1/day, keep yesterday's edition (#148)
+- **Decision:** The daily pipeline warns when paid spend for the UTC day reaches $0.50 (a log line and a GitHub Actions `::warning` annotation) and hard-stops at $1.00. The stop exits before publish. Yesterday's edition stays: `public/data.json` on `data-snapshot` is not replaced, and Pages does not deploy. The total counts every paid call — labeling, Jev, and top-ups — across all runs that UTC day, including push-triggered and duplicate scheduled runs. A stopped run may append its cost rows so the next run the same day counts them; that commit does not change the edition file.
+- **Decided by:** Michael, 2026-10-12 8:44 AM CT (Option A)
+- **Why:** Nothing stopped a run once spend passed the $0.50 target. The 2026-10-12 readiness test reached $0.812 and would have been able to publish. Later runs the same day, including a push and a second scheduled slot, have to see the dollars already spent.
+- **Alternatives:** B: publish a partial edition, rejected. Readers would get a fresh but incomplete sky. Keeping yesterday's edition is the safer failure.
+- **Revisit:** When stopped days are common enough that a partial edition is worth the quality trade, or when prices change what $0.50 and $1.00 mean.
+

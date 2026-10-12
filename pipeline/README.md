@@ -89,6 +89,8 @@ The daily workflow runs `--live` and publishes a new snapshot. It does not commi
 
 A run does not replace that live `data.json` when labeling failures degraded it: section planets fell by more than a small margin (the larger of 3 and 5% of the live count), or the wide face relabel was left unfinished in most sections, and DeepInfra final failures or retries-plus-finals are over 5% of calls. A real day with fewer planets and a healthy labeler still publishes. The cost ledger can still be updated. The workflow step then fails so Pages does not treat the run as a successful deploy. See `pipeline/publish_guard.py`.
 
+A run also stops without publishing when paid calls for the UTC day reach $1.00. The total is labeling, Jev, and top-ups, across every run that day (scheduled, push, and manual). At $0.50 the log prints a warning and a GitHub Actions `::warning` annotation, and the run continues. At $1.00 it exits 14 before writing `data.json`. The workflow does not deploy. It may append the cost ledger on `data-snapshot` so a later run the same day counts the stopped spend; `public/data.json` is not replaced. See `pipeline/spend_cap.py`.
+
 The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` and `costs/daily_spend_14d.svg` on `data-snapshot` (one row per paid service and model, including Cloudflare R2). Each row includes `trigger` (`schedule`, `push`, `workflow_dispatch`, or backfilled from GitHub Actions) so the chart can stack production spend above merge- and test-triggered spend on the same day (#101). Those files are not under `public/`, so Pages does not deploy them. A cost-log error is a warning and does not stop the snapshot.
 
 ### When the pipeline triggers
