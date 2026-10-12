@@ -1482,7 +1482,9 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     if _below_planet_floor(shown, context):
         # Faces already labeled. Skip the name and the briefs, and do not publish.
         return _exclude_for_floor(context, log, topic_name(terms), shown, _post_samples(members))
-    drafted, stance_lines = apply_stance_pass(drafted, members, context, subject=topic_name(terms))
+    drafted, stance_lines = apply_stance_pass(
+        drafted, members, context, subject=topic_name(terms), terms=list(terms)
+    )
     stance_failed = bool(context.pop("stance_check_failed", None))
     stance_incoherent = bool(context.pop("stance_check_incoherent", None))
     log.extend(stance_lines)
