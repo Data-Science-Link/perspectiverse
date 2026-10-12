@@ -561,6 +561,8 @@ _coherence_stats = {
     "blocked_planets": 0,
     "blocked_uris": set(),
     "leftover_uris": set(),
+    "held_uris": set(),
+    "drops": [],
 }
 
 
@@ -574,14 +576,45 @@ def reset_coherence_stats() -> None:
             "blocked_planets": 0,
             "blocked_uris": set(),
             "leftover_uris": set(),
+            "held_uris": set(),
+            "drops": [],
         }
 
 
 def _note_uris(key_planets: str | None, key_uris: str, uris: list[str]) -> None:
+    cleaned = [uri for uri in uris if uri]
     with _coherence_lock:
         if key_planets is not None:
             _coherence_stats[key_planets] += 1
-        _coherence_stats[key_uris].update(uri for uri in uris if uri)
+            _coherence_stats["drops"].append((key_uris, cleaned))
+        _coherence_stats[key_uris].update(cleaned)
+
+
+def _forget_uris(uris: list[str]) -> None:
+    """A rescued story is published, so its posts are not a vanished drop."""
+    cleaned = {uri for uri in uris if uri}
+    if not cleaned:
+        return
+    planet_key = {"blocked_uris": "blocked_planets", "shared_uris": "shared_planets"}
+    with _coherence_lock:
+        for key_uris in ("leftover_uris", "held_uris", "blocked_uris", "shared_uris"):
+            _coherence_stats[key_uris].difference_update(cleaned)
+        kept_drops = []
+        removed: dict[str, int] = {}
+        for key_uris, dropped in _coherence_stats["drops"]:
+            remaining = [uri for uri in dropped if uri not in cleaned]
+            if len(remaining) == len(dropped):
+                kept_drops.append((key_uris, dropped))
+                continue
+            if remaining:
+                kept_drops.append((key_uris, remaining))
+                continue
+            removed[key_uris] = removed.get(key_uris, 0) + 1
+        _coherence_stats["drops"] = kept_drops
+        for key_uris, count in removed.items():
+            key_planets = planet_key.get(key_uris)
+            if key_planets:
+                _coherence_stats[key_planets] = max(0, int(_coherence_stats[key_planets]) - count)
 
 
 def report_coherence_stats() -> dict:
@@ -591,11 +624,14 @@ def report_coherence_stats() -> dict:
         shared_posts = len(_coherence_stats["shared_uris"])
         blocked_planets = int(_coherence_stats["blocked_planets"])
         blocked_posts = len(_coherence_stats["blocked_uris"])
-        vanished = (
-            set(_coherence_stats["shared_uris"])
-            | set(_coherence_stats["blocked_uris"])
-            | set(_coherence_stats["leftover_uris"])
-        )
+        real_stories: set[str] = set()
+        small_drops: set[str] = set()
+        for key_uris, dropped in _coherence_stats["drops"]:
+            target = real_stories if len(dropped) >= MIN_PLANET_POSTS else small_drops
+            target.update(dropped)
+        held = set(_coherence_stats["held_uris"]) - real_stories
+        leftovers = (set(_coherence_stats["leftover_uris"]) | held | small_drops) - real_stories
+        vanished = real_stories | leftovers
     print(
         f"No face kept a shared claim: {shared_planets} planet(s), {shared_posts} unique posts.",
         file=sys.stderr,
@@ -604,13 +640,22 @@ def report_coherence_stats() -> dict:
         f"Coherence blocked: {blocked_planets} planet(s), {blocked_posts} unique posts.",
         file=sys.stderr,
     )
-    print(f"Vanished posts: {len(vanished)} unique.", file=sys.stderr)
+    print(
+        f"Vanished posts: {len(vanished)} unique. "
+        f"Real stories with 5 or more posts: {len(real_stories)}. "
+        f"Leftovers: {len(leftovers)} "
+        f"({len(held)} in thin fragments held below 8 posts).",
+        file=sys.stderr,
+    )
     return {
         "shared_claim_planets": shared_planets,
         "shared_claim_posts": shared_posts,
         "coherence_blocked_planets": blocked_planets,
         "coherence_blocked_posts": blocked_posts,
         "vanished_posts": len(vanished),
+        "vanished_real_stories": len(real_stories),
+        "vanished_leftovers": len(leftovers),
+        "vanished_held_fragments": len(held),
     }
 
 
@@ -837,7 +882,15 @@ def _label_faces(
         return drafted[:MAX_FACES], labeled
     kept = [item for item in drafted if not _face_has_no_shared_claim(item[0])]
     dropped = [item for item in drafted if _face_has_no_shared_claim(item[0])]
-    kept, _restored = return_same_story_posts(kept, dropped, members)
+    kept, restored = return_same_story_posts(kept, dropped, members)
+    left_out = sum(int(item[2]) for item in dropped) - restored
+    if left_out > 0 and kept:
+        published = sum(int(item[2]) for item in kept)
+        print(
+            f"INFO {topic_name(terms)}: {left_out} of {len(members)} posts stayed off "
+            f"the published face count ({published}). They were on a dropped face "
+            "and did not match the kept face."
+        )
     drafted = _merge_alike_drafts(kept, limit)
     return drafted, labeled
 
@@ -1654,8 +1707,28 @@ def _resplit_catchall(
     floor = _planet_post_floor(context)
     if floor <= 0:
         floor = MIN_PLANET_POSTS
-    buckets = split_catchall_posts(members, floor=floor)
+    held_buckets: list[list[int]] = []
+    buckets = split_catchall_posts(members, floor=floor, notes=log, held_buckets=held_buckets)
+    held = [
+        str(members[index].get("uri") or "")
+        for indexes in held_buckets
+        for index in indexes
+    ]
+    if held:
+        _note_uris(None, "held_uris", held)
     if len(buckets) < 1:
+        if held:
+            # Every specific-looking bucket was a thin fragment. Leave those
+            # posts out. Do not publish the catch-all as one planet.
+            return True, {
+                "planets": [],
+                "split": True,
+                "stories": 0,
+                "held_only": True,
+                "skipped": 0,
+                "floor_excluded": 0,
+                "excluded": [],
+            }, log
         return False, None, log
     assigned = {index for bucket in buckets for index in bucket}
     leftover = [str(members[index].get("uri") or "") for index in range(len(members)) if index not in assigned]
@@ -1680,6 +1753,101 @@ def _resplit_catchall(
     )
 
 
+def _rescue_named_story(
+    posts: list[dict],
+    clustered: dict,
+    topic: dict,
+    context: dict,
+    members: list[dict],
+    label: str,
+    log: list[str],
+):
+    """Publish a story the re-split could not cut, when it already has enough posts.
+
+    Returns the ``_draft_planet`` return value, or None when the cluster is
+    under the planet floor. Callers use None to coherence-block.
+    """
+    del posts, clustered
+    if _below_planet_floor(len(members), context):
+        return None
+    texts = [str(post.get("clean_text") or post.get("text") or "") for post in members]
+    terms = salient_terms(texts, limit=6) or list(topic.get("terms") or [])
+    title = topic_name(terms) or label or "Story"
+    limit = max(1, int(context.get("limit") or 6))
+    ranked = sorted(members, key=lambda post: -int(post.get("likes") or 0))
+    representatives = []
+    for post in ranked[: min(limit, EXAMPLE_POST_CAP)]:
+        text = str(post.get("text") or post.get("clean_text") or "").strip()
+        if not text:
+            continue
+        representatives.append(
+            {
+                "author": str(post.get("author") or "unknown"),
+                "text": text,
+                "likes": int(post.get("likes") or 0),
+            }
+        )
+    if not representatives:
+        return None
+    top_terms = [str(term) for term in terms[:TOP_TERMS_LIMIT] if str(term).strip()] or [title]
+    perspective = {
+        "id": face_id(1, 0),
+        "title": title,
+        "summary": f"These posts are about {title}.",
+        "volume_percent": 100.0,
+        "post_count": len(members),
+        "representative_posts": representatives,
+        "top_terms": top_terms,
+    }
+    calls = context.setdefault(
+        "story_calls",
+        {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0},
+    )
+    named = label_topic(
+        representatives,
+        terms or [title],
+        backend=context["backend"],
+        model=context.get("model"),
+        post_limit=len(representatives),
+    )
+    if context.get("chosen") != "heuristic":
+        calls["names"] += 1
+    name = str(named.get("name") or title)
+    if topic_name_is_weak(name, members, terms):
+        name = title
+    planet_out = {
+        "id": 1,
+        "name": name,
+        "category": category_for_members(name, terms, texts, members),
+        "total_volume_percent": 0.0,
+        "post_count": len(members),
+        "perspectives": [perspective],
+        "_member_uris": [str(post.get("uri") or "") for post in members],
+        "face_distinctness": 0.0,
+    }
+    apply_opposing_note(planet_out)
+    apply_level_summaries(planet_out, generate=context.get("summary_model"))
+    if context.get("summary_model") is not None:
+        calls["briefs"] += 2
+    log.append(
+        f"Keeping {label}: re-split published no planet, so this {len(members)}-post story stays ({name})."
+    )
+    _forget_uris([str(post.get("uri") or "") for post in members])
+    rows = [(str(post.get("uri") or ""), 0, 0.0) for post in members]
+    return _emit_draft(
+        context,
+        {
+            "planet": planet_out,
+            "membership": [str(post.get("uri") or "") for post in members],
+            "face_rows": rows,
+            "split": False,
+        },
+        log,
+        split=False,
+        detection_faces=int(calls.get("faces") or 0),
+    )
+
+
 def _return_catchall_split(
     posts: list[dict],
     clustered: dict,
@@ -1695,8 +1863,9 @@ def _return_catchall_split(
     """Re-split when the coherence test fires and the depth limit allows it.
 
     Returns the ``_draft_planet`` return value when the split is what we
-    publish, or None when the caller should keep its own path. A recognized
-    catch-all that yields no planet is coherence-blocked, not a shared-claim drop.
+    publish, or None when the caller should keep its own path. A story of at
+    least ``min_planet_posts`` whose re-split publishes nothing is kept, not
+    coherence-blocked. Only a cluster under that floor is blocked.
     """
     if depth >= _STORY_SPLIT_LIMIT or not reasons:
         return None
@@ -1712,6 +1881,9 @@ def _return_catchall_split(
                 "but the posts do not separate into specific stories."
             )
             return None
+        rescued = _rescue_named_story(posts, clustered, topic, context, members, label, log)
+        if rescued is not None:
+            return rescued
         section = str(context.get("section") or "All topics")
         log.append(
             f"Coherence blocked on {label}: {'; '.join(reasons)}. "
@@ -1727,7 +1899,24 @@ def _return_catchall_split(
         )
     published = _bundles_from(split_result)
     child_blocked = any(line.startswith("Coherence blocked") for line in split_log)
+    held_only = bool(split_result and split_result.get("held_only"))
+    if held_only and not published:
+        if keep_on_miss:
+            log.append(
+                f"Keeping {label}: thin fragments were held, so the shared claim stays."
+            )
+            return None
+        return _emit_draft(
+            context,
+            split_result,
+            log,
+            split=True,
+            detection_faces=int(context["story_calls"]["faces"]),
+        )
     if not published and not keep_on_miss and not child_blocked:
+        rescued = _rescue_named_story(posts, clustered, topic, context, members, label, log)
+        if rescued is not None:
+            return rescued
         section = str(context.get("section") or "All topics")
         log.append(
             f"Coherence blocked on {label}: {'; '.join(reasons)}. "
@@ -1954,13 +2143,14 @@ def _build_topics(
 
     def stage_result(result: dict | None) -> None:
         bundles = _bundles_from(result)
-        split = bool(result and result.get("split") and len(bundles) > 1)
+        split = bool(result and result.get("split"))
         if not split:
             for bundle in bundles:
                 stage_bundle(bundle)
             return
         for bundle in bundles:
-            if len(bundle.get("membership") or []) >= _SPLIT_CATALOG_POSTS:
+            size = len(bundle.get("membership") or [])
+            if size >= _SPLIT_CATALOG_POSTS:
                 stage_bundle(bundle)
             else:
                 deferred.append(bundle)

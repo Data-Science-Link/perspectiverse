@@ -79,6 +79,45 @@ def test_catchall_reasons_match_the_three_signals():
     assert catchall_reasons(diesel, rare, "Companies") == ["label term in under 30% of posts"]
 
 
+def test_thin_generic_ai_fragments_merge_and_a_specific_story_stays():
+    """Generic 5-post AI scraps are held. Copyright and book stay specific."""
+    from pipeline.label import _fragment_stem
+
+    posts = []
+    for word in ("concern", "problem", "danger", "right"):
+        for copy in range(5):
+            text = f"ai {word} {word} {copy}"
+            posts.append({"text": text, "clean_text": text})
+    for word, extra in (("copyright", "statute"), ("book", "binding")):
+        for copy in range(5):
+            text = f"ai {word} {word} {extra} {extra} {copy}"
+            posts.append({"text": text, "clean_text": text})
+    notes: list[str] = []
+    buckets = split_catchall_posts(posts, floor=5, notes=notes)
+    assert sorted(len(bucket) for bucket in buckets) == [5, 5]
+    assert any("thin fragments" in note for note in notes)
+    lone = [{"text": f"ai concern concern {copy}", "clean_text": f"ai concern concern {copy}"} for copy in range(5)]
+    assert split_catchall_posts(lone, floor=5) == []
+    assert _fragment_stem("already") and _fragment_stem("full") and _fragment_stem("first")
+    assert not _fragment_stem("book") and not _fragment_stem("copyright")
+
+
+def test_unsplit_story_is_kept_instead_of_coherence_blocked(capsys):
+    """A named story of 5 or more posts is published when the re-split finds nothing."""
+    words = ["alphaaa", "bravooo", "charlii", "deltaaa", "echoooo", "foxtrot"]
+    specs = [(word, f"{word} unique{word}", 1) for word in words]
+    posts, matrix = _posts(specs)
+    topics, membership, _faces = _build_topics(
+        posts, _candidate(posts, matrix, ["companies"]), SETTINGS, keep=10
+    )
+    logged = capsys.readouterr().out
+    assert "story stays" in logged
+    assert "Coherence blocked" not in logged
+    assert len(topics) == 1
+    assert topics[0]["post_count"] == 6
+    assert len(membership) == 6
+
+
 def test_split_catchall_posts_separates_ai_stories_and_ignores_glue():
     posts = []
     for word in ("psychosis", "factory", "conference", "copyright"):
@@ -153,6 +192,47 @@ def test_tiny_catchall_children_do_not_crowd_out_a_later_planet(capsys):
     names = " ".join(str(topic.get("name") or "").lower() for topic in topics)
     assert "corruption" in names
     assert len(topics) <= 2
+    del capsys
+
+
+def test_merged_thin_fragments_do_not_jump_the_global_queue(capsys):
+    """Held generic scraps do not take the global slot a later real story needs."""
+    small, small_matrix = _posts(
+        [
+            ("concern", "ai concern concern", 5),
+            ("problem", "ai problem problem", 5),
+            ("danger", "ai danger danger", 5),
+            ("right", "ai right right", 5),
+            ("copyright", "ai copyright copyright statute statute", 5),
+        ]
+    )
+    large, large_matrix = _posts(
+        [("corruption", "trump corruption corruption bribery scandal", 24)]
+    )
+    posts = small + large
+    clustered = {
+        "topics": [
+            {
+                "id": 0,
+                "size": len(small),
+                "member_indices": list(range(len(small))),
+                "terms": ["conference"],
+            },
+            {
+                "id": 1,
+                "size": len(large),
+                "member_indices": list(range(len(small), len(posts))),
+                "terms": ["corruption"],
+            },
+        ],
+        "matrix": np.vstack([small_matrix, large_matrix]),
+        "assignments": [],
+        "noise_count": 0,
+    }
+    topics, _membership, _faces = _build_topics(posts, clustered, SETTINGS, keep=1)
+    names = " ".join(str(topic.get("name") or "").lower() for topic in topics)
+    assert topics and "corruption" in names
+    assert len(topics) == 1
     del capsys
 
 

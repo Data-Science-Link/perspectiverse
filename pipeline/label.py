@@ -15,6 +15,7 @@ import threading
 import time
 from collections.abc import Callable
 
+from pipeline.cluster_math import salient_terms
 from pipeline.http_json import read_json
 
 FALLBACK_TITLE = "Untitled cluster"
@@ -765,7 +766,75 @@ CATCHALL_LABEL_COVERAGE = 0.30
 # A stem in at least this share of the cluster is the blob's glue, not a
 # story inside it. "ai" never reaches this function (it is two letters).
 _CATCHALL_GLUE_SHARE = 0.70
+# A catch-all bucket under this size, named by a generic stem, is a fragment.
+# Fragments that share a short subject (AI, ICE) merge into one planet.
+# A fragment with no partner is held: it is not published on its own.
+_THIN_FRAGMENT_POSTS = 8
 _SHORT_SUBJECTS = frozenset({"ai", "eu", "gop", "ice", "uk", "un", "us"})
+# Attitude words and the weak keys that produced AI Concerns/Use/Dangers/Rights
+# ("already", "full", "first", "both"). Not the title-fragment list below.
+_GENERIC_BUCKET_WORDS = frozenset(
+    {
+        "already",
+        "another",
+        "anything",
+        "both",
+        "break",
+        "call",
+        "calling",
+        "concern",
+        "concerns",
+        "criticism",
+        "danger",
+        "dangers",
+        "doing",
+        "drawback",
+        "drawbacks",
+        "fear",
+        "first",
+        "flaw",
+        "flaws",
+        "full",
+        "gen",
+        "going",
+        "harm",
+        "issue",
+        "issues",
+        "made",
+        "major",
+        "make",
+        "mean",
+        "means",
+        "might",
+        "model",
+        "models",
+        "need",
+        "nothing",
+        "other",
+        "problem",
+        "problems",
+        "really",
+        "right",
+        "rights",
+        "risk",
+        "risks",
+        "saying",
+        "something",
+        "stuff",
+        "thing",
+        "things",
+        "think",
+        "threat",
+        "threats",
+        "use",
+        "used",
+        "using",
+        "want",
+        "way",
+        "while",
+        "worry",
+    }
+)
 
 
 def label_top_term(label: str) -> str:
@@ -860,13 +929,97 @@ def _collapse_stem_roots(stems: set[str]) -> dict[str, str]:
     return root_of
 
 
-def split_catchall_posts(posts: list[dict], *, floor: int) -> list[list[int]]:
+def _generic_stem_keys() -> set[str]:
+    """Stems of attitude words and weak title words, including use→us and make→mak."""
+    keys: set[str] = set()
+    for word in _GENERIC_BUCKET_WORDS | _WEAK_TITLE_WORDS:
+        keys.add(word)
+        stemmed = subject_stem(word)
+        keys.add(stemmed)
+        keys.add(_stem_key(stemmed))
+    return keys
+
+
+def _fragment_stem(stem: str) -> bool:
+    """True when a bucket key is an attitude or a weak word, not a story.
+
+    "use" stems to "us" and "make" stems to "mak". A short specific subject
+    such as "book" is not a fragment.
+    """
+    key = _stem_key(stem)
+    generic = _generic_stem_keys()
+    return key in generic or stem in generic
+
+
+def _surface_fragment(term: str) -> bool:
+    """True when a salient word would not name a specific story."""
+    word = str(term or "").lower()
+    if len(word) <= 3:
+        return True
+    if word in _GENERIC_BUCKET_WORDS or word in _WEAK_TITLE_WORDS:
+        return True
+    return _fragment_stem(subject_stem(word))
+
+
+def _fragment_bucket(posts: list[dict], stem: str, indexes: list[int]) -> bool:
+    """A thin bucket is a fragment when its key, or every salient word, is generic."""
+    if _fragment_stem(stem):
+        return True
+    texts = [
+        str(posts[index].get("clean_text") or posts[index].get("text") or "") for index in indexes
+    ]
+    terms = salient_terms(texts, limit=6)
+    if not terms:
+        return True
+    return all(_surface_fragment(term) for term in terms)
+
+
+def _collapse_thin_fragments(
+    posts: list[dict],
+    keyed: list[tuple[str, list[int]]],
+    *,
+    notes: list[str] | None = None,
+    held_buckets: list[list[int]] | None = None,
+) -> list[list[int]]:
+    """Hold a thin generic bucket. Do not glue it onto a different story.
+
+    A specific stem (copyright, book, psychosis) stays its own bucket even at
+    the planet floor. A generic bucket under 8 posts (concern, use, danger,
+    right) is left out. Joining it to another planet would glue two stories.
+    """
+    kept: list[list[int]] = []
+    held_fragments = 0
+    held_posts = 0
+    for stem, indexes in keyed:
+        if len(indexes) >= _THIN_FRAGMENT_POSTS or not _fragment_bucket(posts, stem, indexes):
+            kept.append(indexes)
+            continue
+        held_fragments += 1
+        held_posts += len(indexes)
+        if held_buckets is not None:
+            held_buckets.append(list(indexes))
+    if notes is not None and held_fragments:
+        notes.append(
+            f"held {held_fragments} thin fragments ({held_posts} posts) "
+            f"below {_THIN_FRAGMENT_POSTS} posts."
+        )
+    return kept
+
+
+def split_catchall_posts(
+    posts: list[dict],
+    *,
+    floor: int,
+    notes: list[str] | None = None,
+    held_buckets: list[list[int]] | None = None,
+) -> list[list[int]]:
     """Index groups of specific stories inside one catch-all cluster.
 
     A stem in 70% or more of the posts is the blob's glue and is not a
     story. Each remaining stem that covers at least ``floor`` posts can name
-    a planet. A post joins its rarest such stem. One bucket that still holds
-    almost every post is not a split. Groups come back largest first.
+    a planet. A post joins its rarest such stem. A thin generic bucket is
+    held out instead of glued onto a different story. One bucket that still
+    holds almost every post is not a split. Groups come back largest first.
     """
     floor = max(int(floor), 2)
     count = len(posts)
@@ -898,10 +1051,13 @@ def split_catchall_posts(posts: list[dict], *, floor: int) -> list[list[int]]:
             continue
         chosen = min(options, key=lambda stem: (counts[stem], stem))
         groups.setdefault(chosen, []).append(index)
-    buckets = [indexes for indexes in groups.values() if len(indexes) >= floor]
+    keyed_buckets = [(stem, indexes) for stem, indexes in groups.items() if len(indexes) >= floor]
+    buckets = _collapse_thin_fragments(
+        posts, keyed_buckets, notes=notes, held_buckets=held_buckets
+    )
     if len(buckets) == 1 and len(buckets[0]) >= int(0.85 * count):
         return []
-    buckets.sort(key=lambda indexes: (-len(indexes), indexes[0]))
+    buckets.sort(key=lambda indexes: (-len(indexes), indexes[0] if indexes else 0))
     return buckets
 
 
