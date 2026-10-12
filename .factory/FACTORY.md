@@ -99,6 +99,8 @@ Scheduled workflows (daily data jobs, nightly builds) can fail with no PR in fli
 - After merge, monitor deploy CI and correct failures
 - Check scheduled (cron) workflow runs each session; a failure becomes a top-priority bug issue
 - Drop process that stopped helping
+- **The manager may decline a check.** When a challenge (from the giver or a reviewer) costs more than it's worth, the manager says so with a reason instead of absorbing every check; the owner can overrule. Agreeing by default turns every catch into scope.
+- **Owner updates.** The manager keeps posting status on ongoing work in the room, and adds one short end-of-day summary: decisions needed from the owner, what shipped, open risks. The debate stays in the room for when the owner wants it.
 
 ## Daily newcomer review (optional, recommended for live products)
 
