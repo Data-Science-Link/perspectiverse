@@ -71,14 +71,21 @@ def main(argv: list[str] | None = None) -> None:
     if not args.live:
         print("No mode flag given; defaulting to --live.")
     print("Starting Perspectiverse pipeline (live mode)...")
-    run_live(
-        fixture=args.fixture,
-        output=args.output,
-        config=args.config,
-        db_path=args.db,
-        queries=args.queries,
-        relabel=args.relabel,
-    )
+    try:
+        run_live(
+            fixture=args.fixture,
+            output=args.output,
+            config=args.config,
+            db_path=args.db,
+            queries=args.queries,
+            relabel=args.relabel,
+        )
+    except Exception as exc:
+        from pipeline.readiness_gate import ReadinessAbort, SpendCapExceeded
+
+        if isinstance(exc, (ReadinessAbort, SpendCapExceeded)):
+            raise SystemExit(exc.exit_code) from exc
+        raise
     print("Pipeline complete.")
 
 

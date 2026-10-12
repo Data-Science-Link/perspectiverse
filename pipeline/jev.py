@@ -602,7 +602,10 @@ def _remember_jev_cost(payload: dict | None, status: str) -> None:
     """Best effort. A metering error must not change the Jev decision."""
     try:
         from pipeline.costs import record_jev_attempt
+        from pipeline.readiness_gate import SpendCapExceeded
 
         record_jev_attempt(requested_model=_model(), payload=payload, status=status)
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         sys.stderr.write(f"WARNING: Cost log skipped for a Jev call: {exc}\n")

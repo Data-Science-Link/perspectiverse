@@ -1870,6 +1870,7 @@ def _remember_label_cost(
     """Best effort. A metering error must not change the label result."""
     try:
         from pipeline.costs import llm_service_for_base_url, record_llm_attempt
+        from pipeline.readiness_gate import SpendCapExceeded
 
         record_llm_attempt(
             service=llm_service_for_base_url(resolve_openai_base_url()),
@@ -1878,5 +1879,7 @@ def _remember_label_cost(
             status=status,
             error_class="" if status == "success" else error_class,
         )
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         sys.stderr.write(f"WARNING: Cost log skipped for a labeling call: {exc}\n")

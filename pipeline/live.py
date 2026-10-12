@@ -131,6 +131,8 @@ def run_live(
     database = Path(db_path) if db_path else LIVE_CORPUS_DB
     print(describe_jev())
     connection = connect(database)
+    from pipeline.readiness_gate import ReadinessAbort, SpendCapExceeded, gate_enabled, verify_supply_before_paid
+
     try:
         existing = load_posts(connection)
         cleaned, source, refreshed = _collect_posts(
@@ -143,10 +145,21 @@ def run_live(
             relabel=relabel,
         )
         if source == "bluesky" and not relabel:
-            cleaned = apply_jev(cleaned, connection=connection, batch=_jev_batch(settings))
+            if gate_enabled():
+                verify_supply_before_paid(target=target, settings=settings)
+            try:
+                cleaned = apply_jev(cleaned, connection=connection, batch=_jev_batch(settings))
+            except SpendCapExceeded as exc:
+                print(f"Readiness spend cap: {exc}", file=sys.stderr)
+                raise
             # Keep only public claims. Non-claims stay in the verdict cache, not the post table.
             cleaned = [p for p in cleaned if p.get("is_claim") is True]
             if refreshed:
+                if gate_enabled() and len(cleaned) < target:
+                    raise ReadinessAbort(
+                        f"Claim shortfall after fetch ({len(cleaned)} of {target}) with readiness "
+                        "gate on; top-up is disabled."
+                    )
                 # Top up: keep fetching until claim count reaches target so the
                 # rolling window stays at the threshold, not below it.
                 if len(cleaned) < target:
@@ -239,6 +252,9 @@ def run_live(
                 f"{sum(len(items) for items in sections.values())} planet(s) in {time.monotonic() - started:.1f}s."
             )
         write_clusters(connection, membership, face_rows)
+    except (ReadinessAbort, SpendCapExceeded) as exc:
+        _write_readiness_abort_cost(started_at, exc)
+        raise
     finally:
         connection.close()
 
@@ -257,6 +273,31 @@ def run_live(
     )
     _write_cost_run(payload, started_at)
     return destination
+
+
+def _write_readiness_abort_cost(started_at: datetime, exc: Exception) -> None:
+    """Log spend when the readiness gate stops the run."""
+    try:
+        from pipeline.costs import format_usd, get_meter, write_cost_run
+        from pipeline.readiness_gate import SpendCapExceeded, metered_jev_labeling_usd
+
+        spent = (
+            exc.spent_usd
+            if isinstance(exc, SpendCapExceeded)
+            else metered_jev_labeling_usd()
+        )
+        print(
+            f"Readiness gate stopped the run: {exc} Metered Jev+labeling spend: {format_usd(spent)}.",
+            file=sys.stderr,
+        )
+        write_cost_run(
+            posts_processed=0,
+            planets_published=0,
+            started_at=started_at,
+            attempts=get_meter().attempts(),
+        )
+    except Exception as log_exc:
+        print(f"WARNING: Cost log skipped on readiness abort: {log_exc}", file=sys.stderr)
 
 
 def _write_cost_run(payload: dict, started_at: datetime) -> None:

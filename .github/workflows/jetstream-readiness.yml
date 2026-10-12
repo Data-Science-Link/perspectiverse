@@ -1,0 +1,168 @@
+# PARKED until #27 (Jetstream ingest on main). Non-publishing readiness path for #87.
+# workflow_dispatch only — does not touch data-snapshot, production R2, public/data.json, or Pages.
+name: Jetstream readiness test (#87)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_day:
+        description: "1 = fresh test corpus; 2 = restore day-1 test corpus from R2 and fetch the next UTC day"
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+
+concurrency:
+  group: jetstream-readiness-87
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      PERSPECTIVERSE_READINESS_GATE: "1"
+      PERSPECTIVERSE_SAMPLE_SIZE: "50000"
+      PYTHONUNBUFFERED: "1"
+      R2_OBJECT_KEY: live_corpus_jetstream_readiness_50k.db
+      TEST_DB: pipeline/data/jetstream_readiness_50k.db
+      TEST_OUTPUT: artifacts/jetstream-readiness/data.json
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Wait until Daily Discourse Pipeline is idle
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if python scripts/check_pipeline_overlap.py; then
+              echo "Production pipeline clear."
+              exit 0
+            fi
+            code=$?
+            if [ "$code" -eq 3 ]; then
+              echo "::error::Could not query GitHub Actions for pipeline overlap."
+              exit 3
+            fi
+            echo "Pipeline busy (exit $code); sleeping 120s..."
+            sleep 120
+          done
+          echo "::error::Timed out waiting for production pipeline."
+          exit 2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipeline
+        run: |
+          uv venv
+          uv pip install -e . --no-deps
+          uv pip install pyyaml "numpy>=1.24,<2" atproto fastembed
+
+      - name: Hard preflight (supply + cap; no paid calls)
+        run: |
+          source .venv/bin/activate
+          python -m pipeline.readiness_gate --sample-size 50000
+
+      - name: Prepare isolated test corpus
+        run: |
+          mkdir -p pipeline/data artifacts/jetstream-readiness
+          if [ "${{ inputs.test_day }}" = "2" ]; then
+            echo "Day 2: restoring test corpus from R2 object ${R2_OBJECT_KEY}"
+          else
+            echo "Day 1: fresh test corpus (no production R2 restore)."
+            rm -f "$TEST_DB"
+          fi
+
+      - name: Restore test corpus from R2 (day 2 only)
+        if: inputs.test_day == '2'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          source .venv/bin/activate
+          status=$(python -m pipeline.r2 restore "$TEST_DB")
+          echo "$status"
+          if [ "$status" = "absent" ]; then
+            echo "::error::Day 2 requires the day-1 test object in R2 (${R2_OBJECT_KEY}). Run test_day=1 first."
+            exit 1
+          fi
+
+      - name: Run readiness pipeline (artifacts only)
+        id: live
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          JEV_MODEL: ${{ secrets.JEV_MODEL }}
+        run: |
+          set -euo pipefail
+          source .venv/bin/activate
+          mkdir -p artifacts/jetstream-readiness
+          LOG=artifacts/jetstream-readiness/pipeline.log
+          : > "$LOG"
+          python -m pipeline.run_pipeline --live \
+            --db "$TEST_DB" \
+            --output "$TEST_OUTPUT" 2>&1 | tee -a "$LOG"
+
+      - name: Postflight spend cap
+        if: steps.live.outcome == 'success'
+        run: |
+          source .venv/bin/activate
+          python scripts/jetstream_readiness_gate.py postflight --cost-run pipeline/data/cost_run.json
+
+      - name: Summarize run metrics
+        if: steps.live.outcome == 'success'
+        run: |
+          source .venv/bin/activate
+          python scripts/jetstream_readiness_report.py \
+            --data-json "$TEST_OUTPUT" \
+            --cost-run pipeline/data/cost_run.json \
+            --log artifacts/jetstream-readiness/pipeline.log \
+            --run-id "${{ github.run_id }}" \
+            --test-day "${{ inputs.test_day }}" \
+            --out artifacts/jetstream-readiness/summary.json
+          cat artifacts/jetstream-readiness/summary.json
+
+      - name: Upload readiness artifacts
+        if: always() && steps.live.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetstream-readiness-day${{ inputs.test_day }}-${{ github.run_id }}
+          path: |
+            artifacts/jetstream-readiness/
+            pipeline/data/cost_run.json
+            pipeline/data/label_run.json
+            ${{ env.TEST_DB }}
+          retention-days: 30
+
+      - name: Upload test corpus to R2 (for day 2)
+        if: steps.live.outcome == 'success'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          source .venv/bin/activate
+          python -m pipeline.r2 upload "$TEST_DB"
