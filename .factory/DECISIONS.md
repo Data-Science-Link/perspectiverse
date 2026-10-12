@@ -426,3 +426,20 @@ Merge conditions are unchanged from the #143 entry: a review by a different mode
 **Still comes back to Michael first, even for covered PRs:** daily cost past the $0.50 target, a new kind of change to what readers see, and liability gates (workflow or CI permissions, secrets, licensing, and public claims).
 
 **Supersedes:** the 2026-10-11 standing-approval entry in #143, which listed #141, #104 and the Jetstream run as covered.
+
+### 2026-10-12 — 8-post floor for generic catch-all fragments (#147, Part of #104)
+- **Decision:** A generic catch-all fragment under 8 posts is held out of the catalog. It is not published and it is not glued onto another planet. Specific named stories keep the 5-post minimum from #79 (`MIN_PLANET_POSTS = 5` in `pipeline/grouping.py`). The 8-post floor does not apply to every planet. It supersedes #79 only for generic fragments.
+- **Decided by:** Michael, in the room, 2026-10-12, 8:07 AM CT: "Approve 147. Ok with 8 post".
+- **Why:** Gluing thin generic scraps (AI Concerns, Use, Dangers, Rights) onto a neighbor joined different stories. Holding them below 8 posts keeps those scraps out. A specific stem still publishes at 5 posts. 191 AI leftover posts remain, so #104 stays open. The 10-planet catalog cap left out 5 planets on run 1 and 6 planets on run 2.
+- **Alternatives:** An 8-post floor for every planet (floors of 8 and 10 were measured for #79 and not shipped). Glue every thin generic fragment onto a neighbor. Keep the 5-post floor for generic fragments too.
+- **Revisit when:** The 191 AI leftovers have a published home, the 10-planet cap stops leaving 5–6 drafted planets out, or a generic fragment of 5–7 posts is a real story readers should see.
+
+A fragment counts as generic only inside `_collapse_thin_fragments` (`pipeline/label.py`). That function holds a bucket when both are true: `len(indexes) < _THIN_FRAGMENT_POSTS` (`_THIN_FRAGMENT_POSTS = 8`) and `_fragment_bucket(posts, stem, indexes)` is true. Otherwise the bucket is kept.
+
+`_fragment_bucket` is true when any of these is true: `_fragment_stem(stem)` is true, `salient_terms` of the bucket texts (limit 6) is empty, or every salient term is a `_surface_fragment`.
+
+`_fragment_stem(stem)` is true when `stem` or `_stem_key(stem)` is in `_generic_stem_keys()`. That set is every word in `_GENERIC_BUCKET_WORDS | _WEAK_TITLE_WORDS`, plus `subject_stem(word)` and `_stem_key` of that stem.
+
+`_surface_fragment(term)` is true when the lowercased word is 3 characters or shorter, or the word is in `_GENERIC_BUCKET_WORDS` or `_WEAK_TITLE_WORDS`, or `_fragment_stem(subject_stem(word))` is true.
+
+A bucket that fails `_fragment_bucket` is not a generic fragment. It still publishes at `MIN_PLANET_POSTS` (5). Copyright, book, Country, and GDP per capita are that case.
