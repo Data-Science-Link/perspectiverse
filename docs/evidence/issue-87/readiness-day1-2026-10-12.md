@@ -2,7 +2,9 @@ Part of #87
 
 Paid Jetstream readiness attempt (Michael approved 2026-10-12, “That 50k test sounds good”). Cloud agent [bc-51cdea34-ae4c-5bd1-8943-e303cb6e8efa](https://cursor.com/agents/bc-51cdea34-ae4c-5bd1-8943-e303cb6e8efa) · model **composer-2.5-fast**.
 
-**Non-publishing path:** PR [#145](https://github.com/Data-Science-Link/perspectiverse/pull/145) adds `Jetstream readiness test (#87)` (`workflow_dispatch` only — no `data-snapshot`, production R2 key, `public/data.json`, or Pages). **Merge is blocked** on branch protection (needs a non-author approver). Day 1 was executed on the agent VM with the same env as that workflow would use; **GitHub Actions run ID is pending merge + dispatch**.
+**Status:** Day 1 on the agent VM was **invalid** ($0.812, ~5.5K claims, no Jetstream on `main`). PR [#145](https://github.com/Data-Science-Link/perspectiverse/pull/145) is **parked until #27**; hard preflight now refuses paid work without Jetstream supply and disables top-up chasing.
+
+**Non-publishing path:** `Jetstream readiness test (#87)` remains `workflow_dispatch` only — no `data-snapshot`, production R2 key, `public/data.json`, or Pages.
 
 ---
 

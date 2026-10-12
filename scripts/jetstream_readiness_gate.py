@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Preflight and postflight checks for the #87 Jetstream readiness workflow.
+"""Postflight checks for the #87 Jetstream readiness workflow.
 
-Does not call paid APIs except reading cost_run.json after the pipeline finishes.
+Hard preflight lives in ``python -m pipeline.readiness_gate`` (requires
+``PERSPECTIVERSE_READINESS_GATE=1``).
 """
 
 from __future__ import annotations
@@ -17,24 +18,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.costs import SERVICE_DEEPINFRA, SERVICE_JEV, format_usd  # noqa: E402
-
-SPEND_CAP_USD = Decimal("0.50")
-# #87 planning: ~663 tokens/call, ~1 call per daily claim slot at steady state.
-JEV_TOKENS_PER_CALL = Decimal("663")
-JEV_USD_PER_M = Decimal("0.042")
-LABELING_USD_DAY = Decimal("0.12")
-
-
-def projected_daily_usd(sample_size: int, *, cache_hit_rate: Decimal = Decimal("0")) -> Decimal:
-    """Conservative preflight projection for a window size (0% cache by default)."""
-    slots = Decimal(max(sample_size, 1)) / Decimal(7)
-    jev = slots * JEV_TOKENS_PER_CALL * JEV_USD_PER_M / Decimal(1_000_000)
-    jev *= Decimal(1) - cache_hit_rate
-    return jev + LABELING_USD_DAY
+from pipeline.readiness_gate import SPEND_CAP_USD  # noqa: E402
 
 
 def _sum_cost_rows(rows: list[dict]) -> tuple[Decimal, Decimal, Decimal, Decimal]:
-    jev = deep = stance = Decimal(0)
+    jev = deep = other = Decimal(0)
     for row in rows:
         service = str(row.get("service") or "")
         amount = Decimal(str(row.get("cost_usd") or "0"))
@@ -43,21 +31,8 @@ def _sum_cost_rows(rows: list[dict]) -> tuple[Decimal, Decimal, Decimal, Decimal
         elif service == SERVICE_DEEPINFRA:
             deep += amount
         else:
-            stance += amount
-    return jev, deep, stance, jev + deep + stance
-
-
-def cmd_preflight(args: argparse.Namespace) -> int:
-    sample = int(args.sample_size)
-    projected = projected_daily_usd(sample)
-    print(f"Preflight sample_size={sample}: projected daily spend ≈ {format_usd(projected)} (cap {format_usd(SPEND_CAP_USD)}).")
-    if projected > SPEND_CAP_USD:
-        print(
-            f"ABORT: projected {format_usd(projected)} exceeds cap {format_usd(SPEND_CAP_USD)}.",
-            file=sys.stderr,
-        )
-        return 11
-    return 0
+            other += amount
+    return jev, deep, other, jev + deep + other
 
 
 def cmd_postflight(args: argparse.Namespace) -> int:
@@ -83,11 +58,8 @@ def cmd_postflight(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Jetstream readiness spend gates (#87)")
+    parser = argparse.ArgumentParser(description="Jetstream readiness postflight (#87)")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    pre = sub.add_parser("preflight", help="Abort before paid work if projection exceeds cap")
-    pre.add_argument("--sample-size", type=int, default=50_000)
-    pre.set_defaults(func=cmd_preflight)
     post = sub.add_parser("postflight", help="Validate cost_run.json after the pipeline")
     post.add_argument("--cost-run", type=Path, required=True)
     post.set_defaults(func=cmd_postflight)

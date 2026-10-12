@@ -565,6 +565,7 @@ def record_attempt(
 ) -> None:
     try:
         from pipeline.publish_guard import ERROR_CLASSES
+        from pipeline.readiness_gate import SpendCapExceeded, enforce_before_recording
 
         status_value = status if status in {"success", "retry", "failure"} else "failure"
         if status_value == "success":
@@ -573,18 +574,20 @@ def record_attempt(
             recorded_class = error_class
         else:
             recorded_class = "other"
-        get_meter().record(
-            Attempt(
-                service=str(service or "unknown"),
-                model=str(model or "unknown"),
-                input_tokens=max(0, int(input_tokens)),
-                output_tokens=max(0, int(output_tokens)),
-                cost_usd=cost_usd if isinstance(cost_usd, Decimal) else Decimal(str(cost_usd)),
-                cost_source=str(cost_source or ""),
-                status=status_value,
-                error_class=recorded_class,
-            )
+        attempt = Attempt(
+            service=str(service or "unknown"),
+            model=str(model or "unknown"),
+            input_tokens=max(0, int(input_tokens)),
+            output_tokens=max(0, int(output_tokens)),
+            cost_usd=cost_usd if isinstance(cost_usd, Decimal) else Decimal(str(cost_usd)),
+            cost_source=str(cost_source or ""),
+            status=status_value,
+            error_class=recorded_class,
         )
+        enforce_before_recording(attempt)
+        get_meter().record(attempt)
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         warn(f"Cost meter dropped an attempt: {exc}")
 
@@ -614,6 +617,8 @@ def record_llm_attempt(
 ) -> None:
     """Record one DeepInfra (or other OpenAI-compatible) attempt. Never raises."""
     try:
+        from pipeline.readiness_gate import SpendCapExceeded
+
         usage = _usage_dict(payload)
         reported = parse_estimated_cost(usage.get("estimated_cost"))
         record_attempt(
@@ -626,6 +631,8 @@ def record_llm_attempt(
             status=status,
             error_class=error_class,
         )
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         warn(f"Cost log skipped for a labeling call: {exc}")
 
@@ -716,17 +723,21 @@ def record_jev_attempt(
 ) -> None:
     """Record one Jev attempt. Cost is computed from input tokens. Never raises."""
     try:
+        from pipeline.readiness_gate import SpendCapExceeded
+
         usage = _usage_dict(payload)
         input_tokens = parse_token_count(usage.get("input_tokens"))
         record_attempt(
             service=SERVICE_JEV,
             model=_model_name(payload, requested_model),
             input_tokens=input_tokens,
-            output_tokens=parse_token_count(usage.get("output_tokens")),
+            output_tokens=parse_token_count(usage.get("completion_tokens")),
             cost_usd=jev_cost_usd(input_tokens),
             cost_source="computed",
             status=status,
         )
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         warn(f"Cost log skipped for a Jev call: {exc}")
 

@@ -1,5 +1,5 @@
-# Non-publishing paid readiness run for #87 / #27 at 50K claim window.
-# Does not push data-snapshot, upload production R2, or touch public/data.json on main.
+# PARKED until #27 (Jetstream ingest on main). Non-publishing readiness path for #87.
+# workflow_dispatch only — does not touch data-snapshot, production R2, public/data.json, or Pages.
 name: Jetstream readiness test (#87)
 
 on:
@@ -27,7 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
+      PERSPECTIVERSE_READINESS_GATE: "1"
       PERSPECTIVERSE_SAMPLE_SIZE: "50000"
+      PYTHONUNBUFFERED: "1"
       R2_OBJECT_KEY: live_corpus_jetstream_readiness_50k.db
       TEST_DB: pipeline/data/jetstream_readiness_50k.db
       TEST_OUTPUT: artifacts/jetstream-readiness/data.json
@@ -72,10 +74,10 @@ jobs:
           uv pip install -e . --no-deps
           uv pip install pyyaml "numpy>=1.24,<2" atproto fastembed
 
-      - name: Preflight spend projection
+      - name: Hard preflight (supply + cap; no paid calls)
         run: |
           source .venv/bin/activate
-          python scripts/jetstream_readiness_gate.py preflight --sample-size 50000
+          python -m pipeline.readiness_gate --sample-size 50000
 
       - name: Prepare isolated test corpus
         run: |
@@ -122,7 +124,6 @@ jobs:
           python -m pipeline.run_pipeline --live \
             --db "$TEST_DB" \
             --output "$TEST_OUTPUT" 2>&1 | tee -a "$LOG"
-          echo "log_path=$LOG" >> "$GITHUB_OUTPUT"
 
       - name: Postflight spend cap
         if: steps.live.outcome == 'success'
