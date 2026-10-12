@@ -443,3 +443,9 @@ A fragment counts as generic only inside `_collapse_thin_fragments` (`pipeline/l
 `_surface_fragment(term)` is true when the lowercased word is 3 characters or shorter, or the word is in `_GENERIC_BUCKET_WORDS` or `_WEAK_TITLE_WORDS`, or `_fragment_stem(subject_stem(word))` is true.
 
 A bucket that fails `_fragment_bucket` is not a generic fragment. It still publishes at `MIN_PLANET_POSTS` (5). Copyright, book, Country, and GDP per capita are that case.
+
+### 2026-10-12 — Giver challenges priorities; manager may decline checks; end-of-day summary
+- **Decision:** Giver asks "is this the right next thing?" once per issue; manager may decline a check with a reason; manager adds a short end-of-day summary on top of in-room status checks. No separate chief-of-staff/strategy bot for now.
+- **Decided by:** owner (Michael, 2026-10-12: "New coordination rules work for me")
+- **Why:** challenge was all rigor, little direction; manager agreed by default; owner had to dig for what needed him.
+- **Revisit when:** after about a week, if priorities still aren't getting challenged, add a strategy seat.
