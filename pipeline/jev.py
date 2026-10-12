@@ -570,6 +570,9 @@ def _classify_batch_chunk(posts: list[dict]) -> list[dict | None]:
 
 
 def _post_systemone(body: dict) -> dict:
+    from pipeline.spend_cap import guard_before_paid_call
+
+    guard_before_paid_call("Jev")
     encoded = json.dumps(body).encode("utf-8")
     headers = {
         "Authorization": f"Bearer {_api_key()}",
@@ -599,10 +602,17 @@ def _post_systemone(body: dict) -> dict:
 
 
 def _remember_jev_cost(payload: dict | None, status: str) -> None:
-    """Best effort. A metering error must not change the Jev decision."""
+    """Best effort. A metering error must not change the Jev decision.
+
+    ``SpendCapExceeded`` still stops the run, including a top-up round.
+    """
+    from pipeline.spend_cap import SpendCapExceeded
+
     try:
         from pipeline.costs import record_jev_attempt
 
         record_jev_attempt(requested_model=_model(), payload=payload, status=status)
+    except SpendCapExceeded:
+        raise
     except Exception as exc:
         sys.stderr.write(f"WARNING: Cost log skipped for a Jev call: {exc}\n")

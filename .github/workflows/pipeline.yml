@@ -102,6 +102,17 @@ jobs:
           echo "$status"
           echo "status=$status" >> "$GITHUB_OUTPUT"
 
+      - name: Load today's cost ledger for the spend cap
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
+        run: |
+          if git fetch origin data-snapshot && git cat-file -e origin/data-snapshot:costs/ledger.csv; then
+            git show origin/data-snapshot:costs/ledger.csv > /tmp/perspectiverse-cost-ledger.csv
+            echo "PERSPECTIVERSE_COST_LEDGER=/tmp/perspectiverse-cost-ledger.csv" >> "$GITHUB_ENV"
+            echo "Loaded costs/ledger.csv from data-snapshot for the daily spend cap."
+          else
+            echo "::warning::No costs/ledger.csv on data-snapshot; the daily spend cap only sees this run."
+          fi
+
       - name: Run live pipeline
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         id: live
@@ -118,6 +129,22 @@ jobs:
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
+
+      - name: Keep yesterday's edition when the daily spend cap stops the run
+        if: failure() && steps.live.outcome == 'failure'
+        run: |
+          source .venv/bin/activate
+          if [ ! -f pipeline/data/spend_cap_stop.json ]; then
+            echo "Live step failed for a reason other than the daily spend cap."
+            exit 1
+          fi
+          set +e
+          python -m pipeline.spend_cap hold-edition --repo . --push
+          status=$?
+          set -e
+          echo "hold-edition exit ${status}. public/data.json was not replaced."
+          echo "::error::Daily spend cap stopped the run. Yesterday's edition was not published."
+          exit 1
 
       - name: Upload corpus to R2
         id: r2upload

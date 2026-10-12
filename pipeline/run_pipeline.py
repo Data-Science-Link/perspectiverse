@@ -67,18 +67,22 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     from pipeline.live import run_live
+    from pipeline.spend_cap import SpendCapExceeded
 
     if not args.live:
         print("No mode flag given; defaulting to --live.")
     print("Starting Perspectiverse pipeline (live mode)...")
-    run_live(
-        fixture=args.fixture,
-        output=args.output,
-        config=args.config,
-        db_path=args.db,
-        queries=args.queries,
-        relabel=args.relabel,
-    )
+    try:
+        run_live(
+            fixture=args.fixture,
+            output=args.output,
+            config=args.config,
+            db_path=args.db,
+            queries=args.queries,
+            relabel=args.relabel,
+        )
+    except SpendCapExceeded as exc:
+        raise SystemExit(exc.exit_code) from exc
     print("Pipeline complete.")
 
 
