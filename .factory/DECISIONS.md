@@ -457,3 +457,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** B: publish a partial edition, rejected. Readers would get a fresh but incomplete sky. Keeping yesterday's edition is the safer failure.
 - **Revisit:** When stopped days are common enough that a partial edition is worth the quality trade, or when prices change what $0.50 and $1.00 mean.
 
+### 2026-10-12 — Stance split keeps one face unless the minority claim is in the posts (#151)
+- **Decision:** A one-face planet stays one face unless both are true: `second.stance` is the pole of the posts that would move, and a claim word from `second.title` or `second.summary` appears with the same polarity in about 40% of those posts. The 40% bar is the existing coverage rule (at least two posts, and at least 40%). Subject words and short title-topic terms (ICE, US, AI, and the planet subject) are not claim words. The check is local. It does not add a model call. A miss is the same blocked second side as a model `coherent: false`: pre-pass faces stay, and the planet is marked second side not coherent.
+- **Decided by:** owner, via the #151 build task (2026-10-12), which specified this rule. Drafted from issue comment 6127945725.
+- **Why:** `split_second_stance` copied `second.title` onto the minority and set `stance_locked`, so the wide relabel and the shared-claim drop never saw it. On 2026-10-12 that published 18 Abolish ICE posts under "ICE Has Role".
+- **Alternatives:** Another model call to confirm the title. Dropping `stance_locked` so a later relabel can rewrite the face (spends a call, and the bad title can still publish).
+- **Revisit when:** A real minority stays on one face because its posts do not repeat a title word, or a false face still publishes on a shared stem.
+

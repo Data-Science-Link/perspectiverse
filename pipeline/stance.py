@@ -14,18 +14,27 @@ keeps the faces from before this pass and is marked second side not coherent.
 A call that times out, returns an HTTP error, or cannot be parsed is tried
 once more. If that also fails, the planet keeps those same pre-pass faces.
 It is marked stance check failed and does not get the one-view note.
+
+A split that clears that share is still kept as one face unless the model's
+``second.stance`` is the pole of the posts that would move and a claim word
+from ``second.title`` or ``second.summary`` shows up with the same polarity
+in about 40% of those posts. Subject words and short title-topic terms such
+as ICE are not claim words. That check is local and does not call the model.
 """
 
 from __future__ import annotations
 
 import inspect
 import json
+import math
 import random
+import re
 import sys
 import threading
 from collections.abc import Callable
 
 from pipeline.cluster_math import salient_terms
+from pipeline.label import _SHORT_SUBJECTS, content_tokens, shares_claim_word, subject_stem
 from pipeline.perspectives import MIN_FACE_POSTS
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import (
@@ -657,6 +666,138 @@ def _split_face(
     return (stay_perspective, stay, len(stay)), (new_face, move, len(move))
 
 
+# Same bar as pipeline.live._coverage_needed: at least two posts, and about 40%.
+_CLAIM_COVERAGE = 0.40
+_SURFACE = re.compile(r"[a-z0-9]+")
+_NEGATION = frozenset(
+    {
+        "not",
+        "no",
+        "never",
+        "nor",
+        "neither",
+        "without",
+        "against",
+        "cannot",
+        "nobody",
+        "nothing",
+        "nowhere",
+        "isnt",
+        "arent",
+        "wasnt",
+        "werent",
+        "dont",
+        "doesnt",
+        "didnt",
+        "cant",
+        "wont",
+        "shouldnt",
+        "wouldnt",
+        "couldnt",
+        "havent",
+        "hasnt",
+        "hadnt",
+        "aint",
+    }
+)
+
+
+def _coverage_needed(count: int) -> int:
+    """At least two posts, and about 40% of the moved posts."""
+    return max(2, math.ceil(_CLAIM_COVERAGE * count - 1e-9))
+
+
+def _surface_tokens(text: str) -> list[str]:
+    lowered = str(text or "").lower().replace("'", "").replace("’", "").replace("`", "")
+    return _SURFACE.findall(lowered)
+
+
+def _negated(tokens: list[str], index: int) -> bool:
+    """True when a negation word sits within the three words before ``index``."""
+    for token in tokens[max(0, index - 3) : index]:
+        if token in _NEGATION:
+            return True
+    return False
+
+
+def _topic_stems(subject: str, title: str) -> set[str]:
+    """Subject words and short title-topic terms. ICE is a topic, not a claim."""
+    stems: set[str] = set()
+    for token in _surface_tokens(subject):
+        if len(token) >= 2:
+            stems.add(subject_stem(token))
+    for token in _surface_tokens(f"{subject} {title}"):
+        if token in _SHORT_SUBJECTS:
+            stems.add(subject_stem(token))
+            stems.add(token)
+    return stems
+
+
+def _claim_mentions(title: str, summary: str, subject: str) -> list[tuple[str, int]]:
+    """Claim words from the title and summary, each with polarity +1 or -1.
+
+    A subject stem and a short title-topic term are left out. Polarity is -1
+    when the word is negated.
+    """
+    topic = _topic_stems(subject, title)
+    mentions: list[tuple[str, int]] = []
+    for text in (title, summary):
+        tokens = _surface_tokens(text)
+        allowed = content_tokens(text)
+        for index, token in enumerate(tokens):
+            if token not in allowed:
+                continue
+            if token in _SHORT_SUBJECTS or subject_stem(token) in topic or token in topic:
+                continue
+            mentions.append((token, -1 if _negated(tokens, index) else 1))
+    return mentions
+
+
+def _post_text(post: dict) -> str:
+    return str(post.get("clean_text") or post.get("text") or "")
+
+
+def _mentions_claim(text: str, mentions: list[tuple[str, int]]) -> bool:
+    tokens = _surface_tokens(text)
+    for index, token in enumerate(tokens):
+        polarity = -1 if _negated(tokens, index) else 1
+        for claim, claim_polarity in mentions:
+            if polarity != claim_polarity:
+                continue
+            if subject_stem(token) == subject_stem(claim) or shares_claim_word(token, claim):
+                return True
+    return False
+
+
+def claim_words_cover(title: str, summary: str, posts: list[dict], subject: str = "") -> bool:
+    """True when one claim word hits about 40% of ``posts`` at the same polarity."""
+    mentions = _claim_mentions(title, summary, subject)
+    if not mentions or len(posts) < 2:
+        return False
+    hits = sum(1 for post in posts if _mentions_claim(_post_text(post), mentions))
+    return hits >= _coverage_needed(len(posts))
+
+
+def second_claim_grounded(
+    *,
+    stance: str,
+    second_stance: str | None,
+    title: str,
+    summary: str,
+    posts: list[dict],
+    subject: str = "",
+) -> bool:
+    """Both gates for a stance split. No model call.
+
+    ``second.stance`` has to be the pole of ``posts``, and a claim word from
+    the title or summary has to show up with the same polarity in about 40%
+    of those posts. Subject and title-topic terms do not count.
+    """
+    if second_stance not in POLES or second_stance != stance:
+        return False
+    return claim_words_cover(title, summary, posts, subject)
+
+
 def split_second_stance(
     drafted: list,
     members: list[dict],
@@ -665,7 +806,7 @@ def split_second_stance(
     *,
     subject: str,
 ) -> tuple[list, bool]:
-    """One sample call. Split only when the configured share is met."""
+    """One sample call. Split only when the share is met and the claim is in the posts."""
     if len(drafted) != 1:
         return drafted, False
     sample_seed = _pipeline_seed(context)
@@ -719,6 +860,22 @@ def split_second_stance(
         for row, label in zip(rows, parsed["labels"])
         if label == stance
     }
+    by_uri = {str(post.get("uri") or ""): post for post in members}
+    moved_posts = [by_uri[uri] for uri in move_uris if uri in by_uri]
+    grounded = second_claim_grounded(
+        stance=stance,
+        second_stance=parsed["second_stance"],
+        title=title,
+        summary=parsed["summary"],
+        posts=moved_posts,
+        subject=subject,
+    )
+    context["stance_last"]["stance_aligned"] = parsed["second_stance"] == stance
+    context["stance_last"]["claim_grounded"] = grounded
+    if len(moved_posts) >= MIN_FACE_POSTS and not grounded:
+        context["stance_last"]["blocked"] = True
+        _mark_incoherent(context)
+        return drafted, True
     post_limit = int(context.get("limit") or 36)
     split = _split_face(
         drafted[0],
