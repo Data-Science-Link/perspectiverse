@@ -180,13 +180,164 @@ def test_one_face_splits_when_the_sample_clears_the_configured_share():
             }
         )
 
+    members = _members(uris)
+    for index in (8, 17, 33, 38):
+        members[index]["text"] = "This war is not genocide."
+        members[index]["clean_text"] = "This war is not genocide."
     context = _context(stance_generate=generate)
-    merged, _log = apply_stance_pass(drafted, _members(uris), context, subject="Gaza")
+    merged, _log = apply_stance_pass(drafted, members, context, subject="Gaza")
     assert [item[0]["title"] for item in merged] == ["Israeli Genocide", "Not Genocide"]
     assert merged[1][0]["stance_locked"] is True
     assert merged[0][2] + merged[1][2] == 40
     assert merged[1][2] == 4
     assert context["story_calls"]["stance"] == 1
+
+
+def test_abolish_ice_under_ice_has_role_stays_one_face():
+    uris = [f"i{index}" for index in range(40)]
+    labels = ["opposes" if index < 18 else "supports" for index in range(40)]
+    members = _members(uris)
+    for index in range(18):
+        members[index]["text"] = "Abolish ICE."
+        members[index]["clean_text"] = "Abolish ICE."
+
+    def generate(_prompt: str) -> str:
+        return json.dumps(
+            {
+                "question": "Does ICE have a legitimate role?",
+                "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+                "second": {
+                    "stance": "opposes",
+                    "coherent": True,
+                    "title": "ICE Has Role",
+                    "summary": (
+                        "Some posts argue that ICE has a legitimate role in law enforcement "
+                        "and should not be abolished."
+                    ),
+                },
+            }
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass([_face("ICE Abuse", uris)], members, context, subject="Ice")
+    assert [item[0]["title"] for item in merged] == ["ICE Abuse"]
+    assert merged[0][2] == 40
+    assert context["stance_last"]["split"] is False
+    assert context["stance_last"]["blocked"] is True
+    assert context["stance_last"]["claim_grounded"] is False
+    assert context.get("stance_check_incoherent") is True
+    assert context["story_calls"]["stance"] == 1
+    assert "Second side not coherent" in " ".join(log)
+    assert stance_check_incoherent() == 1
+
+
+def test_force_was_proper_minority_still_splits():
+    uris = [f"f{index}" for index in range(40)]
+    labels = ["opposes" if index < 18 else "supports" for index in range(40)]
+    members = _members(uris)
+    for index in range(18):
+        members[index]["text"] = "The force was proper."
+        members[index]["clean_text"] = "The force was proper."
+
+    def generate(_prompt: str) -> str:
+        return json.dumps(
+            {
+                "question": "Was the force proper?",
+                "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+                "second": {
+                    "stance": "opposes",
+                    "coherent": True,
+                    "title": "Force Was Proper",
+                    "summary": "These posts say the force was proper.",
+                },
+            }
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass([_face("ICE Abuse", uris)], members, context, subject="Ice")
+    assert [item[0]["title"] for item in merged] == ["ICE Abuse", "Force Was Proper"]
+    assert merged[1][0]["stance_locked"] is True
+    assert merged[1][2] == 18
+    assert merged[0][2] + merged[1][2] == 40
+    assert context["story_calls"]["stance"] == 1
+    assert context.get("stance_check_incoherent") is not True
+    assert context["stance_last"]["claim_grounded"] is True
+    assert any("1 face(s) -> 2" in line for line in log)
+
+
+def test_second_stance_must_match_the_moved_pole():
+    uris = [f"p{index}" for index in range(40)]
+    labels = ["opposes" if index < 18 else "supports" for index in range(40)]
+    members = _members(uris)
+    for index in range(18):
+        members[index]["text"] = "The force was proper."
+        members[index]["clean_text"] = "The force was proper."
+
+    def generate(_prompt: str) -> str:
+        return json.dumps(
+            {
+                "question": "Was the force proper?",
+                "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+                "second": {
+                    "stance": "supports",
+                    "coherent": True,
+                    "title": "Force Was Proper",
+                    "summary": "These posts say the force was proper.",
+                },
+            }
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, _log = apply_stance_pass([_face("ICE Abuse", uris)], members, context, subject="Ice")
+    assert [item[0]["title"] for item in merged] == ["ICE Abuse"]
+    assert context["stance_last"]["stance_aligned"] is False
+    assert context["stance_last"]["split"] is False
+    assert context.get("stance_check_incoherent") is True
+    assert context["story_calls"]["stance"] == 1
+
+
+def test_claim_word_needs_about_forty_percent_of_the_moved_posts():
+    uris = [f"c{index}" for index in range(40)]
+
+    def run(grounded_posts: int) -> dict:
+        labels = ["opposes" if index < 18 else "supports" for index in range(40)]
+        members = _members(uris)
+        for index in range(18):
+            text = "The force was proper." if index < grounded_posts else "Abolish ICE."
+            members[index]["text"] = text
+            members[index]["clean_text"] = text
+
+        def generate(_prompt: str) -> str:
+            return json.dumps(
+                {
+                    "question": "Was the force proper?",
+                    "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+                    "second": {
+                        "stance": "opposes",
+                        "coherent": True,
+                        "title": "Force Was Proper",
+                        "summary": "The force was proper.",
+                    },
+                }
+            )
+
+        reset_stance_check_failures()
+        context = _context(stance_generate=generate)
+        merged, _log = apply_stance_pass([_face("ICE Abuse", uris)], members, context, subject="Ice")
+        context["face_count"] = len(merged)
+        return context
+
+    below = run(7)
+    assert below["face_count"] == 1
+    assert below["stance_last"]["claim_grounded"] is False
+    assert below.get("stance_check_incoherent") is True
+    met = run(8)
+    assert met["face_count"] == 2
+    assert met["stance_last"]["claim_grounded"] is True
+    assert met["stance_last"]["split"] is True
 
 
 def test_share_below_the_config_keeps_one_face():
