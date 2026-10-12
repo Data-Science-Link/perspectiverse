@@ -116,6 +116,46 @@ def test_ai_catchall_becomes_specific_planets_instead_of_a_drop(capsys):
     assert authors == {"psychosis", "factory", "conference", "copyright"}
 
 
+def test_tiny_catchall_children_do_not_crowd_out_a_later_planet(capsys):
+    """A 5-post AI scrap must not take a global slot ahead of a later real story."""
+    small, small_matrix = _posts(
+        [
+            ("psychosis", "ai psychosis psychosis delusion delusion", 5),
+            ("factory", "ai factory factory semiconductor semiconductor", 5),
+            ("conference", "ai conference conference academic academic", 5),
+            ("copyright", "ai copyright copyright artist artist", 5),
+        ]
+    )
+    large, large_matrix = _posts(
+        [("corruption", "trump corruption corruption bribery scandal", 24)]
+    )
+    posts = small + large
+    clustered = {
+        "topics": [
+            {
+                "id": 0,
+                "size": len(small),
+                "member_indices": list(range(len(small))),
+                "terms": ["conference"],
+            },
+            {
+                "id": 1,
+                "size": len(large),
+                "member_indices": list(range(len(small), len(posts))),
+                "terms": ["corruption"],
+            },
+        ],
+        "matrix": np.vstack([small_matrix, large_matrix]),
+        "assignments": [],
+        "noise_count": 0,
+    }
+    topics, _membership, _faces = _build_topics(posts, clustered, SETTINGS, keep=2)
+    names = " ".join(str(topic.get("name") or "").lower() for topic in topics)
+    assert "corruption" in names
+    assert len(topics) <= 2
+    del capsys
+
+
 def test_coherent_politics_story_stays_one_planet(capsys):
     """Trump Corruption shape: the label word is the subject, so it is not re-split."""
     posts, matrix = _posts(

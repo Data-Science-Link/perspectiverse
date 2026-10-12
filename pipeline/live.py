@@ -548,6 +548,11 @@ _FACE_RETRIES = 1
 _STORY_SPLIT_LIMIT = 3
 # A catch-all re-split drafts the largest specific stories, not every speck.
 _CATCHALL_CHILD_CAP = 8
+# A split child this small does not take a global catalog slot ahead of a
+# later candidate. It is published only if the catalog still has room after
+# those candidates. Section catalogs are unchanged: that is where a catch-all
+# such as Technology "Think" is supposed to become specific planets.
+_SPLIT_CATALOG_POSTS = 15
 
 _coherence_lock = threading.Lock()
 _coherence_stats = {
@@ -1914,7 +1919,10 @@ def _build_topics(
     Candidates arrive ranked by distinct authors, so stopping at ``keep``
     publishes the same planets as labeling every candidate and truncating,
     without paying for labels nobody sees (#53). One candidate that raises is
-    logged and skipped instead of failing the snapshot.
+    logged and skipped instead of failing the snapshot. A split child under
+    ``_SPLIT_CATALOG_POSTS`` posts does not fill a slot ahead of a later
+    candidate. Those children fill a slot only when the catalog is not already
+    full of the candidates that outrank the scraps.
     """
     context = dict(context or _label_context(settings))
     context.setdefault("section", "All topics")
@@ -1926,9 +1934,36 @@ def _build_topics(
     membership: list[tuple[str, int]] = []
     face_rows: list[tuple[str, int, int, float]] = []
     seen_names: set[str] = set()
+    deferred: list[dict] = []
 
     def draft(topic: dict):
         return _safe_draft(posts, clustered, topic, context)
+
+    def stage_bundle(bundle: dict) -> None:
+        if len(built) >= target:
+            name = str((bundle.get("planet") or {}).get("name") or "story")
+            print(f"Not publishing {name}: the catalog already has {target} planets.")
+            return
+        planet = _stage_planet(built, seen_names, bundle)
+        topic_id = int(planet["id"])
+        membership.extend((uri, topic_id) for uri in bundle["membership"])
+        face_rows.extend(
+            (uri, topic_id, position, distance)
+            for uri, position, distance in bundle["face_rows"]
+        )
+
+    def stage_result(result: dict | None) -> None:
+        bundles = _bundles_from(result)
+        split = bool(result and result.get("split") and len(bundles) > 1)
+        if not split:
+            for bundle in bundles:
+                stage_bundle(bundle)
+            return
+        for bundle in bundles:
+            if len(bundle.get("membership") or []) >= _SPLIT_CATALOG_POSTS:
+                stage_bundle(bundle)
+            else:
+                deferred.append(bundle)
 
     cursor = 0
     executor = None
@@ -1950,18 +1985,15 @@ def _build_topics(
             for result, log in results:
                 for line in log:
                     print(line)
-                for bundle in _bundles_from(result):
-                    if len(built) >= target:
-                        name = str((bundle.get("planet") or {}).get("name") or "story")
-                        print(f"Not publishing {name}: the catalog already has {target} planets.")
-                        continue
-                    planet = _stage_planet(built, seen_names, bundle)
-                    topic_id = int(planet["id"])
-                    membership.extend((uri, topic_id) for uri in bundle["membership"])
-                    face_rows.extend(
-                        (uri, topic_id, position, distance)
-                        for uri, position, distance in bundle["face_rows"]
-                    )
+                stage_result(result)
+        deferred.sort(
+            key=lambda bundle: (
+                -len(bundle.get("membership") or []),
+                str((bundle.get("planet") or {}).get("name") or ""),
+            )
+        )
+        for bundle in deferred:
+            stage_bundle(bundle)
     finally:
         if executor is not None:
             executor.shutdown(wait=True)
