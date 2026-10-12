@@ -464,3 +464,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Another model call to confirm the title. Dropping `stance_locked` so a later relabel can rewrite the face (spends a call, and the bad title can still publish).
 - **Revisit when:** A real minority stays on one face because its posts do not repeat a title word, or a false face still publishes on a shared stem.
 
+### 2026-10-12 — Room merges from a named approval (amends 2026-10-08)
+- **Decision:** Room merges (Michael, 2026-10-12, amends 2026-10-08): when Michael approves a PR by name in the Perspectiverse Factory room, the Manager merges it from the room. Michael doesn't need to repeat the approval in a 1:1 chat. This covers only the PRs he names. Normal and high-risk PRs still wait for his OK on each one. All other merge conditions stay the same: PR body updated, 0 commits behind main, checks green on the head commit, and a regular merge commit.
+- **Decided by:** Michael, 2026-10-12: "Yes this is correct."
+- **Why:** The 2026-10-08 entry "A named approval in the factory room is a merge instruction" still left a worker asking Michael to repeat a room approval in a 1:1 chat. This records the narrow reading he confirmed: a named approval in the Perspectiverse Factory room is the merge instruction for that PR.
+- **Amends:** "A named approval in the factory room is a merge instruction" (2026-10-08).
+- **Revisit when:** Michael widens this past the PRs he names, or a named room approval is merged without the other conditions.
+
