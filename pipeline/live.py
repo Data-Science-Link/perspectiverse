@@ -36,6 +36,7 @@ from pipeline.language import partition_posts
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
+    catchall_reasons,
     content_tokens,
     label_perspective,
     label_topic,
@@ -43,6 +44,7 @@ from pipeline.label import (
     set_label_deadline,
     shares_claim_word,
     specific_shared_words,
+    split_catchall_posts,
     story_groups,
     subject_stem,
     titles_alike,
@@ -123,6 +125,7 @@ def run_live(
     except Exception as exc:
         print(f"WARNING: Cost meter reset skipped: {exc}", file=sys.stderr)
     reset_stance_check_failures()
+    reset_coherence_stats()
     settings = load_settings(config)
     target = int(settings.get("sample_size") or TARGET_POSTS)
     database = Path(db_path) if db_path else LIVE_CORPUS_DB
@@ -260,6 +263,7 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
     """Best effort. A cost-log error must not fail a snapshot that already wrote."""
     failed_checks = report_stance_check_failures()
     incoherent_checks = report_stance_check_incoherent()
+    report_coherence_stats()
     try:
         from pipeline.costs import count_published_planets, deepinfra_error_summary, get_meter, write_cost_run
         from pipeline.publish_guard import report_label_health, write_label_run
@@ -542,6 +546,67 @@ _FACE_RETRIES = 1
 # A glued candidate is split into stories, and each story is split again
 # the same way. This stops a grab-bag from being cut one post at a time.
 _STORY_SPLIT_LIMIT = 3
+# A catch-all re-split drafts the largest specific stories, not every speck.
+_CATCHALL_CHILD_CAP = 8
+
+_coherence_lock = threading.Lock()
+_coherence_stats = {
+    "shared_planets": 0,
+    "shared_uris": set(),
+    "blocked_planets": 0,
+    "blocked_uris": set(),
+    "leftover_uris": set(),
+}
+
+
+def reset_coherence_stats() -> None:
+    """Clear the per-run catch-all counters. Called at the start of a live run."""
+    global _coherence_stats
+    with _coherence_lock:
+        _coherence_stats = {
+            "shared_planets": 0,
+            "shared_uris": set(),
+            "blocked_planets": 0,
+            "blocked_uris": set(),
+            "leftover_uris": set(),
+        }
+
+
+def _note_uris(key_planets: str | None, key_uris: str, uris: list[str]) -> None:
+    with _coherence_lock:
+        if key_planets is not None:
+            _coherence_stats[key_planets] += 1
+        _coherence_stats[key_uris].update(uri for uri in uris if uri)
+
+
+def report_coherence_stats() -> dict:
+    """Stderr summary. Separate from stance-check failures and from each other."""
+    with _coherence_lock:
+        shared_planets = int(_coherence_stats["shared_planets"])
+        shared_posts = len(_coherence_stats["shared_uris"])
+        blocked_planets = int(_coherence_stats["blocked_planets"])
+        blocked_posts = len(_coherence_stats["blocked_uris"])
+        vanished = (
+            set(_coherence_stats["shared_uris"])
+            | set(_coherence_stats["blocked_uris"])
+            | set(_coherence_stats["leftover_uris"])
+        )
+    print(
+        f"No face kept a shared claim: {shared_planets} planet(s), {shared_posts} unique posts.",
+        file=sys.stderr,
+    )
+    print(
+        f"Coherence blocked: {blocked_planets} planet(s), {blocked_posts} unique posts.",
+        file=sys.stderr,
+    )
+    print(f"Vanished posts: {len(vanished)} unique.", file=sys.stderr)
+    return {
+        "shared_claim_planets": shared_planets,
+        "shared_claim_posts": shared_posts,
+        "coherence_blocked_planets": blocked_planets,
+        "coherence_blocked_posts": blocked_posts,
+        "vanished_posts": len(vanished),
+    }
 
 
 def _planet_post_floor(settings: dict) -> int:
@@ -761,6 +826,8 @@ def _label_faces(
         perspective["_face_member_uris"] = [str(uri) for uri, _position, _distance in rows]
         drafted.append((perspective, rows, int(face["size"])))
     labeled = len(drafted)
+    # Local to this draft (the caller copied context). Parallel planets do not share it.
+    context["_raw_face_drafts"] = list(drafted)
     if lock_floor:
         return drafted[:MAX_FACES], labeled
     kept = [item for item in drafted if not _face_has_no_shared_claim(item[0])]
@@ -1218,6 +1285,9 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     planet is not dropped for having one face. When the faces are different stories
     (no specific shared subject word), the candidate is split into one
     planet per story and each story goes through this same split (#78).
+    A catch-all (more than one story bucket, no shared claim, or a label
+    term in under 30% of posts) is re-split into specific stories instead
+    of being dropped (#104).
     A planet, or a story inside one, with fewer than ``min_planet_posts``
     posts is left out before any label, name, or brief call. It is not
     glued onto a sibling and it does not fill a catalog slot. The planet
@@ -1257,11 +1327,21 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         chosen_split = attempt
         if drafted:
             break
+    raw_faces = _coherence_faces(context.pop("_raw_face_drafts", None) or drafted)
+    cluster_label = topic_name(terms)
+    reasons = catchall_reasons(raw_faces, members, cluster_label)
     if not drafted:
-        log.append(
-            f"Dropping {topic_name(terms)}: no face kept a shared claim "
-            f"({'; '.join(tried)})."
+        split_return = _return_catchall_split(
+            posts, clustered, topic, context, members, reasons, log, depth
         )
+        if split_return is not None:
+            return split_return
+        section = str(context.get("section") or "All topics")
+        log.append(
+            f"Dropping {cluster_label}: no face kept a shared claim "
+            f"({'; '.join(tried)}). {section}, {len(members)} posts."
+        )
+        _note_uris("shared_planets", "shared_uris", [str(post.get("uri") or "") for post in members])
         return _emit_draft(
             context,
             None,
@@ -1292,14 +1372,22 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
                     excluded=[] if split_result is None else list(split_result.get("excluded") or []),
                 )
             log.append(
-                f"Keeping {topic_name(terms)}: faces share no single subject word, "
+                f"Keeping {cluster_label}: faces share no single subject word, "
                 "but they do not separate into stories."
             )
         else:
             log.append(
-                f"Publishing {topic_name(terms)}: further cuts still share no subject word, "
+                f"Publishing {cluster_label}: further cuts still share no subject word, "
                 "so this is the smallest planet."
             )
+    elif "label term in under 30% of posts" in reasons and depth < _STORY_SPLIT_LIMIT:
+        # Faces kept a claim, but the label word is not what the posts are about.
+        # Re-split only when that produces specific planets; otherwise publish.
+        split_return = _return_catchall_split(
+            posts, clustered, topic, context, members, reasons, log, depth, keep_on_miss=True
+        )
+        if split_return is not None:
+            return split_return
     shown = sum(int(item[2]) for item in drafted)
     if _below_planet_floor(shown, context):
         # Faces already labeled. Skip the name and the briefs, and do not publish.
@@ -1445,6 +1533,222 @@ def _bundles_from(result: dict | None) -> list[dict]:
     return []
 
 
+def _coherence_faces(drafted: list) -> list[dict]:
+    """Face records for the coherence test. Membership rows are not required."""
+    faces = []
+    for item in drafted or []:
+        perspective = item[0] if isinstance(item, tuple) else item
+        if not isinstance(perspective, dict):
+            continue
+        faces.append(
+            {
+                "title": perspective.get("title") or "",
+                "summary": perspective.get("summary") or "",
+                "representative_posts": perspective.get("representative_posts") or [],
+            }
+        )
+    return faces
+
+
+def _draft_index_buckets(
+    posts: list[dict],
+    clustered: dict,
+    topic: dict,
+    context: dict,
+    members: list[dict],
+    buckets: list[list[int]],
+    log: list[str],
+    *,
+    header: str,
+    cap: int | None = None,
+) -> tuple[bool, dict | None, list[str]]:
+    """Draft one planet per index bucket. ``handled`` is true when we split.
+
+    A bucket under the planet-post floor is logged and left out. ``cap``
+    keeps only the largest buckets; the rest are logged the same way.
+    """
+    terms = list(topic.get("terms") or [])
+    ordered = sorted(buckets, key=len, reverse=True)
+    if cap is not None and len(ordered) > cap:
+        for indices in ordered[cap:]:
+            texts = [str(members[index].get("clean_text") or members[index].get("text") or "") for index in indices]
+            hint = topic_name(salient_terms(texts, limit=6) or list(terms))
+            log.append(_floor_log(context, hint, len(indices)))
+        ordered = ordered[:cap]
+    eligible: list[list[int]] = []
+    skipped = 0
+    floor_excluded = 0
+    excluded: list[dict] = []
+    for indices in ordered:
+        if not _below_planet_floor(len(indices), context):
+            eligible.append(indices)
+            continue
+        texts = [str(members[index].get("clean_text") or members[index].get("text") or "") for index in indices]
+        hint = topic_name(salient_terms(texts, limit=6) or list(terms))
+        log.append(_floor_log(context, hint, len(indices)))
+        skipped += 1
+        floor_excluded += 1
+        excluded.append(
+            {
+                "section": str(context.get("section") or "All topics"),
+                "label": hint,
+                "posts": len(indices),
+                "samples": _post_samples([{"text": text} for text in texts]),
+            }
+        )
+    log.insert(0, header)
+    if not eligible:
+        return True, {
+            "planets": [],
+            "split": True,
+            "stories": len(buckets),
+            "skipped": skipped,
+            "floor_excluded": floor_excluded,
+            "excluded": excluded,
+        }, log
+    child_context = dict(context)
+    child_context["story_depth"] = int(context.get("story_depth") or 0) + 1
+    child_context.pop("_raw_face_drafts", None)
+    bundles = []
+    for indices in eligible:
+        texts = [str(members[index].get("clean_text") or "") for index in indices]
+        sub_terms = salient_terms(texts, limit=6) or list(terms)
+        subtopic = {
+            "id": topic.get("id"),
+            "terms": sub_terms,
+            "member_indices": [topic["member_indices"][index] for index in indices],
+            "size": len(indices),
+        }
+        child, child_log = _draft_planet(posts, clustered, subtopic, child_context)
+        log.extend(child_log)
+        bundles.extend(_bundles_from(child))
+        if child is not None:
+            skipped += int(child.get("skipped") or 0)
+            floor_excluded += int(child.get("floor_excluded") or 0)
+            excluded.extend(child.get("excluded") or [])
+    return True, {
+        "planets": bundles,
+        "split": True,
+        "stories": len(buckets),
+        "skipped": skipped,
+        "floor_excluded": floor_excluded,
+        "excluded": excluded,
+    }, log
+
+
+def _resplit_catchall(
+    posts: list[dict],
+    clustered: dict,
+    topic: dict,
+    context: dict,
+    members: list[dict],
+    reasons: list[str],
+) -> tuple[bool, dict | None, list[str]]:
+    """Break a catch-all into specific stories. ``handled`` is false when it stays one blob."""
+    log: list[str] = []
+    floor = _planet_post_floor(context)
+    if floor <= 0:
+        floor = MIN_PLANET_POSTS
+    buckets = split_catchall_posts(members, floor=floor)
+    if len(buckets) < 1:
+        return False, None, log
+    assigned = {index for bucket in buckets for index in bucket}
+    leftover = [str(members[index].get("uri") or "") for index in range(len(members)) if index not in assigned]
+    if leftover:
+        _note_uris(None, "leftover_uris", leftover)
+        section = str(context.get("section") or "All topics")
+        log.append(
+            f"INFO {section}: catch-all leftover {len(leftover)} posts not in a specific story."
+        )
+    label = topic_name(list(topic.get("terms") or []))
+    why = "; ".join(reasons) if reasons else "no face kept a shared claim"
+    return _draft_index_buckets(
+        posts,
+        clustered,
+        topic,
+        context,
+        members,
+        buckets,
+        log,
+        header=f"Splitting {label}: catch-all ({why}).",
+        cap=_CATCHALL_CHILD_CAP,
+    )
+
+
+def _return_catchall_split(
+    posts: list[dict],
+    clustered: dict,
+    topic: dict,
+    context: dict,
+    members: list[dict],
+    reasons: list[str],
+    log: list[str],
+    depth: int,
+    *,
+    keep_on_miss: bool = False,
+):
+    """Re-split when the coherence test fires and the depth limit allows it.
+
+    Returns the ``_draft_planet`` return value when the split is what we
+    publish, or None when the caller should keep its own path. A recognized
+    catch-all that yields no planet is coherence-blocked, not a shared-claim drop.
+    """
+    if depth >= _STORY_SPLIT_LIMIT or not reasons:
+        return None
+    label = topic_name(list(topic.get("terms") or []))
+    handled, split_result, split_log = _resplit_catchall(
+        posts, clustered, topic, context, members, reasons
+    )
+    log.extend(split_log)
+    if not handled:
+        if keep_on_miss:
+            log.append(
+                f"Keeping {label}: label term is in under 30% of posts, "
+                "but the posts do not separate into specific stories."
+            )
+            return None
+        section = str(context.get("section") or "All topics")
+        log.append(
+            f"Coherence blocked on {label}: {'; '.join(reasons)}. "
+            f"{section}, {len(members)} posts."
+        )
+        _note_uris("blocked_planets", "blocked_uris", [str(post.get("uri") or "") for post in members])
+        return _emit_draft(
+            context,
+            None,
+            log,
+            split=False,
+            detection_faces=int(context["story_calls"]["faces"]),
+        )
+    published = _bundles_from(split_result)
+    child_blocked = any(line.startswith("Coherence blocked") for line in split_log)
+    if not published and not keep_on_miss and not child_blocked:
+        section = str(context.get("section") or "All topics")
+        log.append(
+            f"Coherence blocked on {label}: {'; '.join(reasons)}. "
+            f"{section}, {len(members)} posts."
+        )
+        _note_uris("blocked_planets", "blocked_uris", [str(post.get("uri") or "") for post in members])
+    if not published and keep_on_miss:
+        log.append(
+            f"Keeping {label}: catch-all re-split produced no planet, so the shared claim stays."
+        )
+        return None
+    detection_faces = int(context["story_calls"]["faces"])
+    if split_result is not None:
+        split_result["detection_faces"] = detection_faces
+    return _emit_draft(
+        context,
+        split_result,
+        log,
+        split=True,
+        detection_faces=detection_faces,
+        skipped=0 if split_result is None else int(split_result.get("skipped") or 0),
+        floor_excluded=0 if split_result is None else int(split_result.get("floor_excluded") or 0),
+        excluded=[] if split_result is None else list(split_result.get("excluded") or []),
+    )
+
+
 def _split_different_stories(
     posts: list[dict],
     clustered: dict,
@@ -1498,78 +1802,17 @@ def _split_different_stories(
             buckets.append(indices)
     if len(buckets) < 2:
         return False, None, log
-    terms = list(topic.get("terms") or [])
-    label = topic_name(terms)
-    eligible: list[list[int]] = []
-    skipped = 0
-    floor_excluded = 0
-    excluded: list[dict] = []
-    for indices in buckets:
-        if not _below_planet_floor(len(indices), context):
-            eligible.append(indices)
-            continue
-        texts = [str(members[index].get("clean_text") or members[index].get("text") or "") for index in indices]
-        hint = topic_name(salient_terms(texts, limit=6) or list(terms))
-        log.append(_floor_log(context, hint, len(indices)))
-        skipped += 1
-        floor_excluded += 1
-        excluded.append(
-            {
-                "section": str(context.get("section") or "All topics"),
-                "label": hint,
-                "posts": len(indices),
-                "samples": _post_samples(
-                    [{"text": text} for text in texts]
-                ),
-            }
-        )
-    if not eligible:
-        log.insert(0, f"Splitting {label}: its faces are different stories ({len(buckets)} stories).")
-        return True, {
-            "planets": [],
-            "split": True,
-            "stories": len(buckets),
-            "skipped": skipped,
-            "floor_excluded": floor_excluded,
-            "excluded": excluded,
-        }, log
-    log.insert(0, f"Splitting {label}: its faces are different stories ({len(buckets)} stories).")
-    child_context = dict(context)
-    child_context["story_depth"] = int(context.get("story_depth") or 0) + 1
-    bundles = []
-    for indices in sorted(eligible, key=len, reverse=True):
-        texts = [str(members[index].get("clean_text") or "") for index in indices]
-        sub_terms = salient_terms(texts, limit=6) or list(terms)
-        subtopic = {
-            "id": topic.get("id"),
-            "terms": sub_terms,
-            "member_indices": [topic["member_indices"][index] for index in indices],
-            "size": len(indices),
-        }
-        child, child_log = _draft_planet(posts, clustered, subtopic, child_context)
-        log.extend(child_log)
-        bundles.extend(_bundles_from(child))
-        if child is not None:
-            skipped += int(child.get("skipped") or 0)
-            floor_excluded += int(child.get("floor_excluded") or 0)
-            excluded.extend(child.get("excluded") or [])
-    if not bundles:
-        return True, {
-            "planets": [],
-            "split": True,
-            "stories": len(buckets),
-            "skipped": skipped,
-            "floor_excluded": floor_excluded,
-            "excluded": excluded,
-        }, log
-    return True, {
-        "planets": bundles,
-        "split": True,
-        "stories": len(buckets),
-        "skipped": skipped,
-        "floor_excluded": floor_excluded,
-        "excluded": excluded,
-    }, log
+    label = topic_name(list(topic.get("terms") or []))
+    return _draft_index_buckets(
+        posts,
+        clustered,
+        topic,
+        context,
+        members,
+        buckets,
+        log,
+        header=f"Splitting {label}: its faces are different stories ({len(buckets)} stories).",
+    )
 
 
 def _merge_alike_drafts(
