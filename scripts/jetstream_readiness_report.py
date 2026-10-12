@@ -19,7 +19,7 @@ from pipeline.costs import SERVICE_DEEPINFRA, SERVICE_JEV, format_usd  # noqa: E
 SECTION_TIMING = re.compile(
     r"Timing: (\d+) section solar system\(s\), (\d+) planet\(s\) in ([0-9.]+)s\."
 )
-GLOBAL_TIMING = re.compile(r"Timing: (\d+) global planet\(s) labeled in ([0-9.]+)s\.")
+GLOBAL_TIMING = re.compile(r"Timing: (\d+) global planet\(s\) labeled in ([0-9.]+)s\.")
 CLUSTER_TIMING = re.compile(
     r"Timing: embedded and clustered (\d+) claims into (\d+) candidate planets in ([0-9.]+)s\."
 )
