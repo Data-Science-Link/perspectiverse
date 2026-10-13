@@ -394,7 +394,10 @@ def test_daily_workflow_has_staggered_crons_and_schedule_guard():
         assert f'cron: "{cron}"' in workflow
     assert "#96" in workflow
     assert "pipeline.schedule_guard" in workflow
-    assert "actions: read" in workflow
+    # actions: write includes read. The schedule guard lists runs; the Jev
+    # verdict cache step saves a new Actions cache key, which read cannot do.
+    assert "actions: write" in workflow
+    assert "jev-verdict-cache-" in workflow
     assert "discourse-pipeline" in workflow
     assert "cancel-in-progress: false" in workflow
     assert "pull_request" not in workflow

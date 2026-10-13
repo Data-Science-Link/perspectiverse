@@ -554,6 +554,7 @@ def test_morning_fetch_and_topup_skip_already_scored_uris(monkeypatch, tmp_path)
     """A URI already in the verdict cache is not fetched again, in either path."""
     from datetime import datetime, timezone
 
+    from pipeline.jev import jev_cache_version
     from pipeline.live import _collect_posts, _topup_claims
     from pipeline.store import connect, save_jev_verdicts
 
@@ -566,7 +567,7 @@ def test_morning_fetch_and_topup_skip_already_scored_uris(monkeypatch, tmp_path)
     connection = connect(tmp_path / "live.db")
     save_jev_verdicts(
         connection,
-        [(scored, 0.1, 0.1, "", "jev-1.13.0", "2026-10-08", "abcd")],
+        [(scored, 0.1, 0.1, "", "jev-1.13.0", "2026-10-08", "abcd", jev_cache_version())],
     )
     existing = {
         "uri": kept,

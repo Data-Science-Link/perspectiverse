@@ -46,7 +46,8 @@ Copy the repo-root `.env.example` to `.env`. The CLI loads it on start without o
 | `live_corpus.db` → `fetched_days` | ledger | UTC dates already searched, so those days are not pulled again |
 | `live_corpus.db` → `topic_membership` | derived | planet id per kept post |
 | `live_corpus.db` → `perspectives` | derived | face index and centroid distance |
-| `live_corpus.db` → `jev_verdicts` | cache | Jev spam, claim, and section scores keyed by post URI; rows older than 14 days are deleted (#92) |
+| `live_corpus.db` → `jev_verdicts` | cache | Jev spam, claim, and section scores reused for the same URI or the same normalized text, and only for the same model and prompt; rows older than 14 days are deleted, and the table is also capped at 320,000 rows (#92) |
+| `jev_verdict_cache.sqlite` | cache file | Cross-run copy of `jev_verdicts` (gitignored; restored by Actions cache, max 80 MB) |
 | `posts.db` | scratch | local override if you pass `--db` |
 
 The public sample searches content-neutral tokens (`the`, `and`, `to`, `of`, `in`, `for`), newest English posts, then keeps a random subset. Bluesky search cannot draw a truly random post; this only stops steering the week toward sports, wars, or AI. The first run with an empty `fetched_days` table replaces the retained file with a 7-day sample, because the previous file was a seeded mix. Later runs drop posts older than 168 hours and search only the newest 24 hours. A UTC day already in `fetched_days` that still has posts is not searched again. If Bluesky 403s, the job **does not drop** — it rebuilds the snapshot from whatever is already retained.
@@ -81,7 +82,7 @@ There is one face call per perspective (title, summary, 2–4 arguments), a repa
 python -m pipeline.run_pipeline --live --relabel --db pipeline/data/live_corpus.db
 ```
 
-The public dropdown is a newspaper: **World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, Other**. With `TYPESAFE_API_KEY` set, `jev_prefilter.py` drops link-only, very short, non-English, and near-duplicate posts before any paid Jev call (#92). Jev then assigns a section to each new post (one `choice` plus a spam `noul` per post). Answers are stored in `jev_verdicts` for 14 days so the same URI is not rescored (#92). A planet's category is the majority section of its members. Without a key, or when a call fails, the keyword map is the fallback. All topics is still one unsupervised clustering of the whole window. A section filter can show fewer planets than All topics. Jev does not name planets and does not replace the embedder. Spam drops at 0.8. A public claim is kept at 0.5. Non-claims stay in the window and out of the planets.
+The public dropdown is a newspaper: **World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, Other**. With `TYPESAFE_API_KEY` set, `jev_prefilter.py` drops link-only, very short, non-English, and near-duplicate posts before any paid Jev call (#92). Jev then assigns a section to each new post (one `choice` plus a spam `noul` per post). Answers are stored in `jev_verdicts` for 14 days so the same URI, or the same normalized text, is not rescored, while the requested model and the question wording stay the same (#92). A capped copy of that table is restored across Actions runs. A planet's category is the majority section of its members. Without a key, or when a call fails, the keyword map is the fallback. All topics is still one unsupervised clustering of the whole window. A section filter can show fewer planets than All topics. Jev does not name planets and does not replace the embedder. Spam drops at 0.8. A public claim is kept at 0.5. Non-claims stay in the window and out of the planets.
 
 ## Publish
 
