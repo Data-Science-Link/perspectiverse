@@ -483,3 +483,16 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** On 2026-10-10, 2026-10-11, and 2026-10-12, `jev_cache_hits` was 0 while dedup skips were about 7,064 on the run that fetched. The table was on disk (the Oct 12 artifact has 27,327 rows from Oct 10–12, and 0 of 8,721 paid URIs were already in it). Cached URIs were removed from the fetch before the lookup, and an exact text match was dropped as a duplicate instead of reused. A fresh runner that did not get the R2 table would score those posts again.
 - **Revisit when:** The 320,000-row cap starts evicting verdicts that are still inside the 7-day window, or a measured week of Jetstream shows a text-repeat rate worth a looser match than an exact fingerprint.
 
+## 2026-10-12 — Complexity rating required before model choice
+- **Decision:** Every issue gets a written complexity rating (simple / standard / complex + reason) and a pinned model before any cloud-agent launch, recorded on the issue and PR body. Complex work uses `grok-4.7`; unpinned launches are stopped and relaunched.
+- **Why:** Owner asked to make sure task complexity is evaluated; a launch went out unpinned and some trivial work ran on Fast mode.
+- **Alternatives:** Leave routing as guidance only (rejected: it slipped).
+- **Decided by:** Owner, in the factory room.
+- **Revisit:** After two weeks of PR bodies, check ratings matched the outcome.
+
+## 2026-10-12 — Complexity uses simple/standard/complex, separate from risk
+- **Decision:** Complexity ratings use simple / standard / complex (they pick the model). Risk class keeps trivial / normal / high (it sets the merge gate). Trivial-risk PRs may merge on green CI without the owner.
+- **Why:** Owner: "Trivial complexity is different than trivial risk"; he is fine with trivial-risk PRs merging without him.
+- **Alternatives:** Reuse the same words for both (rejected: ambiguous gates).
+- **Decided by:** Owner, in the factory room.
+- **Revisit:** With the routing review in two weeks.
