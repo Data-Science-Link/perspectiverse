@@ -32,6 +32,10 @@ Read this with `factory-loop.md` on every change.
 10. When a human approves in chat (or elsewhere), **update the PR description first** (Factory loop step 7; Human reviewed before merge: yes + who), then merge. Chat approval without a PR-body update is incomplete. A human's approval naming the PR, in the factory room or 1:1, is itself the instruction to merge that PR — do not ask them to repeat it elsewhere. Named PRs only; never on a bot's relay.
 11. **Right before any merge**, update the PR branch onto the latest default branch if it is behind, and merge only after required CI is green on that new head commit. Never merge a behind branch or on stale-commit CI. Clean catch-up keeps prior approval; conflicts or changes to the PR’s own diff/behavior → resolve, re-verify, tell the human (re-ask the gate for normal/high). Update the branch before handing a PR to the human for review, too.
 12. **Bypass merges:** If you merge with an admin/ruleset bypass, the bypass skips every rule including the up-to-date check, so first verify by hand that the branch is 0 commits behind the default branch and that all required checks are green on the current head SHA; use a merge method the ruleset allows.
+13. A scheduled run that skips because the pipeline already succeeded that UTC day is not a failure. Don't file it as one.
+14. Before you report a PR as behind or conflicting, check it is not already merged.
+15. Don't call reader-facing work done without a hand audit of the real top 10 planets. An approval for a reader-facing change includes the top 10 before and after.
+16. Post cloud-agent reviews and reports yourself. The agent's token can't comment.
 
 ## Risk classes (for PR template)
 

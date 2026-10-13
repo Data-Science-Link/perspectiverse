@@ -30,7 +30,9 @@ Also follow `liability-gates.md` on every change.
 ## Review & verify
 
 - Self-review against the issue outcome / specs and `liability-gates.md`.
+- A cloud agent's token can't comment. The manager posts that agent's reviews and reports on the PR.
 - Run tests/CI; put evidence on the PR (CI links, tests, **screenshots for UI**).
+- Any reader-facing change shows the top 10 before and after before approval. A done claim waits for a hand audit of the real top 10 planets.
 - Do not merge if required CI is red, pending, or skipped.
 
 ### Merge authority (do not invent exceptions)
@@ -61,7 +63,7 @@ The PR body is the durable audit trail. Chat is ephemeral relative to GitHub.
 - Merge only when the table above allows.
 - **Before handing a PR to the human for review:** update the branch onto latest default branch so it is current at review time.
 - **Immediately before any merge** (trivial auto-merge, or after the human gate):
-  1. Check whether the PR branch is behind the default branch.
+  1. Before you report a PR as behind or conflicting, check it is not already merged. Then check whether the PR branch is behind the default branch.
   2. If behind, update it (GitHub “Update branch” / `update_pull_request_branch`, or merge/rebase main in).
   3. Wait for required CI to pass on the **new head commit**; only then merge.
   4. A human approval given while the branch was behind still stands for a clean catch-up update. If the update hits conflicts or changes the PR’s own diff or behavior: resolve, re-verify, and tell the human what changed before merging (re-ask the gate for normal/high).
@@ -69,5 +71,6 @@ The PR body is the durable audit trail. Chat is ephemeral relative to GitHub.
   6. **Bypass merges:** If you merge with an admin/ruleset bypass, the bypass skips every rule including the up-to-date check, so first verify by hand that the branch is 0 commits behind the default branch and that all required checks are green on the current head SHA; use a merge method the ruleset allows.
 - **After merge — monitor deploy:** watch pages / deploy / CD workflows on the default branch. If deploy CI is red or stuck, open a fix promptly (same issue or new); comment status on the issue. Do not walk away after PR CI alone was green.
 - Close or update the issue when ship + deploy are good (or note follow-ups).
-- **Scheduled jobs:** at the start of each session, check the latest scheduled (cron) workflow runs on the default branch. A failed run becomes a bug issue (failing step + log excerpt), is reported to the human, and goes to the top of the queue. Flag big jumps in run duration too. Also confirm the job's output actually went live (a data commit pushed with the default workflow token won't trigger a deploy workflow). Cron jobs run early, at an odd minute, with a guarded backup cron for important daily jobs; flag a finding when no run has finished by the project's freshness deadline (GitHub often starts scheduled runs hours late).
-- Failures, monitor hits, process lessons → new GitHub issues and/or skill updates. Not chat-only.
+- **Scheduled jobs:** at the start of each session, check the latest scheduled (cron) workflow runs on the default branch. A failed run becomes a bug issue (failing step + log excerpt), is reported to the human, and goes to the top of the queue. A scheduled run skips if the pipeline already succeeded that UTC day. A skip is not a failure. The daily check reports three site-wide numbers: posts in the edition, posts hidden, and posts shown under a title they support. Flag big jumps in run duration too. Also confirm the job's output actually went live (a data commit pushed with the default workflow token won't trigger a deploy workflow). Cron jobs run early, at an odd minute, with a guarded backup cron for important daily jobs; flag a finding when no run has finished by the project's freshness deadline (GitHub often starts scheduled runs hours late).
+- After any slip, write the lesson into the rules or skills. Not chat-only.
+- **End of day:** the manager posts a short summary in the room: decisions needed, what shipped, open risks.
