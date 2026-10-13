@@ -484,7 +484,7 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Revisit when:** The 320,000-row cap starts evicting verdicts that are still inside the 7-day window, or a measured week of Jetstream shows a text-repeat rate worth a looser match than an exact fingerprint.
 
 ## 2026-10-12 — Complexity rating required before model choice
-- **Decision:** Every issue gets a written complexity rating (trivial / normal / hard + reason) and a pinned model before any cloud-agent launch, recorded on the issue and PR body. Hard work uses `grok-4.7`; unpinned launches are stopped and relaunched.
+- **Decision:** Every issue gets a written complexity rating (simple / standard / complex + reason) and a pinned model before any cloud-agent launch, recorded on the issue and PR body. Complex work uses `grok-4.7`; unpinned launches are stopped and relaunched.
 - **Why:** Owner asked to make sure task complexity is evaluated; a launch went out unpinned and some trivial work ran on Fast mode.
 - **Alternatives:** Leave routing as guidance only (rejected: it slipped).
 - **Decided by:** Owner, in the factory room.
