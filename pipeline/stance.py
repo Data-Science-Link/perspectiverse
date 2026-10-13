@@ -16,14 +16,20 @@ once more. If that also fails, the planet keeps those same pre-pass faces.
 It is marked stance check failed and does not get the one-view note.
 
 A split that clears that share is still kept as one face unless the model's
-``second.stance`` is the pole of the posts that would move and a claim word
-from ``second.title`` or ``second.summary`` shows up with the same polarity
-in about 40% of those posts. Subject words and short title-topic terms such
-as ICE are not claim words. A summary word is not a claim word when it is a
-topic noun of the planet or the majority face: it is one of the planet's top
-terms, it is in that face's title or summary, or it shows up in about 40% of
-that face's posts. A word in the minority title is the claim, so it still
-counts. That check is local and does not call the model.
+``second.stance`` is the pole of the posts that would move and the posts
+support that claim. Support is the 40% claim-word check, and, when the posts
+do not repeat the title word, a local fallback: the title denies a stem the
+majority title affirms and the posts do not affirm it, or a negated effect
+in the summary is backed by a paraphrase in enough of the posts. Subject
+words and short title-topic terms such as ICE are not claim words. A summary
+word is not a claim word when it is a topic noun of the planet or the
+majority face. A word in the minority title is the claim, so it still counts
+for the 40% check. The fallback does not call the model and does not lower
+the share bar. A same-stance collapse gets one stricter regrouping call.
+A face whose posts deny the other face's title is not folded in. When the
+opposing share is at least half the bar but still under it, and at least two
+posts, the sample is drawn once more. A second face from that draw still has
+to clear the same bar.
 """
 
 from __future__ import annotations
@@ -261,7 +267,7 @@ def _snippet(post: dict, limit: int = 180) -> str:
     return text[: limit - 1].rstrip() + "…"
 
 
-def build_merge_prompt(drafted: list, members: list[dict]) -> str:
+def build_merge_prompt(drafted: list, members: list[dict], *, again: bool = False) -> str:
     by_uri = {str(post.get("uri") or ""): post for post in members}
     lines = [
         "Group these faces by stance, not by wording.",
@@ -276,6 +282,11 @@ def build_merge_prompt(drafted: list, members: list[dict]) -> str:
         "",
         "Faces:",
     ]
+    if again:
+        lines.insert(
+            6,
+            "Look again. Put a face in its own group when its posts answer the other face's claim the other way.",
+        )
     for index, (perspective, rows, _size) in enumerate(drafted):
         snippets = []
         for uri, _position, _distance in ordered_rows(rows)[:2]:
@@ -573,13 +584,79 @@ def _fold(drafted: list, indexes: list[int], post_limit: int) -> tuple:
     return perspective, rows, len(rows)
 
 
+def _member_posts(item: tuple, members: list[dict]) -> list[dict]:
+    by_uri = {str(post.get("uri") or ""): post for post in members}
+    _perspective, rows, _size = item
+    return [by_uri[str(uri)] for uri, _position, _distance in rows if str(uri) in by_uri]
+
+
+def _try_parsed(
+    generate: Callable,
+    prompt: str,
+    context: dict,
+    *,
+    seed: int,
+    parse: Callable[[str], object],
+):
+    """One extra call. A bad reply is ignored. It does not fail the planet."""
+    _bump(context)
+    raw, error = _invoke(generate, prompt, seed)
+    if error is not None or raw is None:
+        return None
+    return parse(raw)
+
+
+def _partition_opposing(
+    drafted: list,
+    indexes: list[int],
+    members: list[dict],
+    subject: str,
+) -> list[list[int]]:
+    """Keep a face out of a same-stance fold when its posts deny the other title."""
+    if len(indexes) < 2:
+        return [list(indexes)]
+    ranked = sorted(indexes, key=lambda index: (-int(drafted[index][2]), index))
+    base = ranked[0]
+    base_title = str(drafted[base][0].get("title") or "")
+    stay = [base]
+    apart: list[list[int]] = []
+    for index in ranked[1:]:
+        perspective = drafted[index][0]
+        posts = _member_posts(drafted[index], members)
+        if _denies_majority_title(
+            str(perspective.get("title") or ""),
+            str(perspective.get("summary") or ""),
+            posts,
+            subject,
+            base_title,
+        ):
+            apart.append([index])
+        else:
+            stay.append(index)
+    return [stay, *apart]
+
+
+def _near_miss(found: int, sample_n: int, share: float) -> bool:
+    """Under the share bar, at least half of it, and at least two posts."""
+    if sample_n <= 0 or found < MIN_FACE_POSTS:
+        return False
+    ratio = found / sample_n
+    return ratio + 1e-12 < share and ratio + 1e-12 >= (share / 2)
+
+
 def merge_same_stance(
     drafted: list,
     members: list[dict],
     generate: Callable[[str], str],
     context: dict,
+    *,
+    subject: str = "",
 ) -> tuple[list, bool]:
-    """Fold faces the model puts on the same side. False when the call fails."""
+    """Fold faces the model puts on the same side. False when the call fails.
+
+    A collapse is sent back once, with a stricter instruction. A face whose
+    posts deny the other face's title stays separate either way.
+    """
     if len(drafted) < 2:
         return drafted, False
     groups = _call_parsed(
@@ -592,8 +669,23 @@ def merge_same_stance(
     )
     if groups is None:
         return drafted, False
+    # One extra call only when every face would fold into a single face.
+    # Planets that already have two sides are not asked again.
+    if len(groups) == 1 and len(groups[0]) > 1:
+        retried = _try_parsed(
+            generate,
+            build_merge_prompt(drafted, members, again=True),
+            context,
+            seed=_pipeline_seed(context) + 1,
+            parse=lambda raw: parse_merge_groups(raw, len(drafted)),
+        )
+        if retried and len(retried) > 1:
+            groups = retried
+    parted: list[list[int]] = []
+    for group in groups:
+        parted.extend(_partition_opposing(drafted, group, members, subject))
     post_limit = int(context.get("limit") or 36)
-    merged = [_fold(drafted, group, post_limit) if len(group) > 1 else drafted[group[0]] for group in groups]
+    merged = [_fold(drafted, group, post_limit) if len(group) > 1 else drafted[group[0]] for group in parted]
     merged.sort(key=lambda item: -int(item[2]))
     return merged, True
 
@@ -902,6 +994,185 @@ def claim_words_cover(
     return hits >= _coverage_needed(len(posts))
 
 
+# Negated summary words that are not a claim. "argue" and "various" are glue.
+_EFFECT_GLUE = frozenset(
+    {
+        "about",
+        "argue",
+        "citing",
+        "could",
+        "many",
+        "most",
+        "other",
+        "people",
+        "perspectives",
+        "posts",
+        "reasons",
+        "should",
+        "some",
+        "that",
+        "their",
+        "there",
+        "these",
+        "various",
+        "with",
+        "would",
+    }
+)
+# A negated "will not lower" is supported by a small or denied effect, not only the word.
+_MINIMIZERS = frozenset(
+    {
+        "barely",
+        "difference",
+        "enough",
+        "hardly",
+        "less",
+        "little",
+        "marginal",
+        "material",
+        "minimal",
+        "negligible",
+        "slight",
+        "slightly",
+    }
+)
+_DENIAL_EFFECTS = ("lower", "relief", "reduce", "reduction", "help", "difference")
+_EFFECT_DENIAL = re.compile(
+    r"\b(?:won'?t|will not|not going to|no material|cannot|can'?t)\b"
+    r".{0,60}\b(?:difference|lower\w*|relief|reduc\w*|help)\b"
+    r"|\b(?:not|never|no)\s+lower\w*"
+    r"|\bnegat\w*\b.{0,50}\b(?:reduc\w*|relief|cost|price\w*|difference)\b"
+    r"|\bless than\b.{0,24}(?:\d|percent|price|cost|gallon)",
+    re.IGNORECASE,
+)
+
+
+def _adjective_stem(word: str) -> str:
+    """Fold genocidal onto genocide. Other stems stay as they are."""
+    stem = subject_stem(word)
+    if stem.endswith("al") and len(stem) - 2 >= 5:
+        stem = stem[:-2].rstrip("e")
+    return stem
+
+
+def _claim_match(token: str, claim: str) -> bool:
+    if subject_stem(token) == subject_stem(claim) or shares_claim_word(token, claim):
+        return True
+    return _adjective_stem(token) == _adjective_stem(claim)
+
+
+def _effect_mentions(title: str, summary: str, subject: str) -> list[str]:
+    """Negated claim words. Glue and the planet subject are left out."""
+    topic = _topic_stems(subject, "")
+    effects: list[str] = []
+    for claim, polarity in _claim_mentions(title, summary, subject, set()):
+        if polarity >= 0 or claim in _EFFECT_GLUE or claim in _NEGATION or len(claim) < 4:
+            continue
+        if subject_stem(claim) in topic or claim in topic:
+            continue
+        effects.append(claim)
+    return effects
+
+
+def _post_effect_flags(text: str, effects: list[str]) -> tuple[bool, bool]:
+    """Whether one post supports or contradicts a negated effect."""
+    supports = False
+    contradicts = False
+    denial_family = any(_claim_match(effect, word) for effect in effects for word in _DENIAL_EFFECTS)
+    if denial_family and _EFFECT_DENIAL.search(text):
+        supports = True
+    tokens = _surface_tokens(text)
+    for index, token in enumerate(tokens):
+        if not any(_claim_match(token, effect) for effect in effects):
+            continue
+        window = set(tokens[max(0, index - 8) : index + 9])
+        if _negated(tokens, index) or window & _MINIMIZERS:
+            supports = True
+        else:
+            contradicts = True
+    return supports, contradicts
+
+
+def _affirms_any(text: str, claims: list[str]) -> bool:
+    tokens = _surface_tokens(text)
+    for index, token in enumerate(tokens):
+        if _negated(tokens, index):
+            continue
+        if any(_claim_match(token, claim) for claim in claims):
+            return True
+    return False
+
+
+def _denies_majority_title(
+    title: str,
+    summary: str,
+    posts: list[dict],
+    subject: str,
+    majority_title: str,
+) -> bool:
+    """True when the title negates the majority title and the posts do not affirm it.
+
+    'Israel Not Genocidal' denies 'Israel Genocide' even when the posts never
+    say genocidal. They argue the other side. A title that does not negate the
+    majority title does not qualify, so 'ICE Has Role' stays out.
+    """
+    if len(posts) < 2 or not majority_title:
+        return False
+    # The title has to negate the majority title. A summary word such as
+    # "not a threat" against "Canada Threatened" is not that denial: the
+    # posts still have to carry the claim. "Not Genocidal" against
+    # "Genocide" is.
+    negated = _effect_mentions(title, "", subject)
+    if not negated:
+        return False
+    topic = _topic_stems(subject, "")
+    tokens = _surface_tokens(majority_title)
+    affirmed: list[str] = []
+    for index, token in enumerate(tokens):
+        if len(token) < 4 or _negated(tokens, index):
+            continue
+        if subject_stem(token) in topic or token in topic:
+            continue
+        affirmed.append(token)
+    matched = [token for token in affirmed if any(_claim_match(token, claim) for claim in negated)]
+    if not matched:
+        return False
+    affirmers = sum(1 for post in posts if _affirms_any(_post_text(post), matched))
+    return affirmers < _coverage_needed(len(posts))
+
+
+def posts_support_claim(
+    title: str,
+    summary: str,
+    posts: list[dict],
+    subject: str = "",
+    *,
+    majority_title: str = "",
+) -> bool:
+    """True when the posts back the claim without repeating a title word at 40%.
+
+    Local. No model call. The 10% share bar is not involved.
+    """
+    if len(posts) < 2:
+        return False
+    if _denies_majority_title(title, summary, posts, subject, majority_title):
+        return True
+    effects = _effect_mentions(title, summary, subject)
+    if not effects:
+        return False
+    support = 0
+    contra = 0
+    for post in posts:
+        supports, contradicts = _post_effect_flags(_post_text(post), effects)
+        if supports:
+            support += 1
+        elif contradicts:
+            contra += 1
+    need = _coverage_needed(len(posts))
+    threshold = max(2, math.ceil(need / 2))
+    return support >= threshold and support > contra and contra < need
+
+
 def second_claim_grounded(
     *,
     stance: str,
@@ -917,14 +1188,15 @@ def second_claim_grounded(
 ) -> bool:
     """Both gates for a stance split. No model call.
 
-    ``second.stance`` has to be the pole of ``posts``, and a claim word from
-    the title or summary has to show up with the same polarity in about 40%
-    of those posts. Subject terms, short title-topic terms, and topic nouns
-    shared with the majority face or the planet's top terms do not count.
+    ``second.stance`` has to be the pole of ``posts``. The posts then have to
+    support the claim: either a claim word at the same polarity in about 40%
+    of them, or ``posts_support_claim`` when they do not repeat the title word.
+    Subject terms, short title-topic terms, and topic nouns shared with the
+    majority face or the planet's top terms do not count as claim words.
     """
     if second_stance not in POLES or second_stance != stance:
         return False
-    return claim_words_cover(
+    if claim_words_cover(
         title,
         summary,
         posts,
@@ -933,6 +1205,14 @@ def second_claim_grounded(
         majority_title=majority_title,
         majority_summary=majority_summary,
         planet_terms=planet_terms,
+    ):
+        return True
+    return posts_support_claim(
+        title,
+        summary,
+        posts,
+        subject,
+        majority_title=majority_title,
     )
 
 
@@ -988,6 +1268,40 @@ def split_second_stance(
         "blocked": False,
         "split": False,
     }
+    if not keep and _near_miss(found, len(rows), share):
+        retry_rows = sample_rows(drafted[0][1], seed=sample_seed + 2)
+        retry_parsed = _try_parsed(
+            generate,
+            build_stance_prompt(retry_rows, members, subject),
+            context,
+            seed=sample_seed + 2,
+            parse=lambda raw: parse_stance_response(raw, len(retry_rows)),
+        )
+        context["stance_last"]["sample_retried"] = True
+        if retry_parsed is not None:
+            parsed = retry_parsed
+            rows = retry_rows
+            counts = {name: 0 for name in STANCES}
+            for label in parsed["labels"]:
+                counts[label] += 1
+            keep, stance, found, ratio = clears_second_stance(counts, len(rows), share)
+            title = parsed["title"]
+            model_coherent = bool(parsed["coherent"])
+            coherent = model_coherent and bool(title) and title.lower() != _MIXED
+            context["stance_last"].update(
+                {
+                    "sample_n": len(rows),
+                    "counts": counts,
+                    "labels": list(parsed["labels"]),
+                    "uris": [str(row[0]) for row in rows],
+                    "second": stance,
+                    "second_n": found,
+                    "share": ratio,
+                    "coherent": coherent,
+                    "model_coherent": model_coherent,
+                    "title": title,
+                }
+            )
     if keep and not coherent:
         context["stance_last"]["blocked"] = True
         _mark_incoherent(context)
@@ -1021,6 +1335,19 @@ def split_second_stance(
     )
     context["stance_last"]["stance_aligned"] = parsed["second_stance"] == stance
     context["stance_last"]["claim_grounded"] = grounded
+    context["stance_last"]["support_without_title"] = bool(
+        grounded
+        and not claim_words_cover(
+            title,
+            parsed["summary"],
+            moved_posts,
+            subject,
+            majority_posts=stay_posts,
+            majority_title=str(face.get("title") or ""),
+            majority_summary=str(face.get("summary") or ""),
+            planet_terms=list(terms) if terms is not None else _surface_tokens(subject),
+        )
+    )
     if len(moved_posts) >= MIN_FACE_POSTS and not grounded:
         context["stance_last"]["blocked"] = True
         _mark_incoherent(context)
@@ -1069,7 +1396,7 @@ def apply_stance_pass(
     original_uris = _uri_key(drafted)
     current = drafted
     if len(current) >= 2 and not context.get("stance_check_failed"):
-        merged, called = merge_same_stance(current, members, generate, context)
+        merged, called = merge_same_stance(current, members, generate, context, subject=subject)
         if called and _uri_key(merged) == original_uris and not context.get("stance_check_failed"):
             current = merged
         elif called and _uri_key(merged) != original_uris:
@@ -1117,5 +1444,7 @@ def apply_stance_pass(
             f" sample {last.get('second_n')}/{last.get('sample_n')}"
             f"={float(last.get('share') or 0):.1%} vs {float(last.get('threshold') or 0):.0%}"
         )
+        if last.get("support_without_title"):
+            detail += ", posts support the claim without the title word"
     log.append(f"Stance on {subject or 'planet'}: {before} face(s) -> {len(current)}{detail}.")
     return current, log
