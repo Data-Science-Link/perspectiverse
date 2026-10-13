@@ -361,14 +361,16 @@ def test_projection_uses_the_issue_token_assumptions():
 def test_corrupt_verdict_is_warned_and_rescored(monkeypatch, tmp_path, capsys):
     """A bad spam_score fails the cache read open. The post is scored, not dropped."""
     _enable(monkeypatch)
+    from pipeline.jev import jev_cache_version
+
     connection = connect(tmp_path / "corpus.db")
     connection.execute(
         """
         INSERT INTO jev_verdicts (
-            uri, spam_score, claim_score, section, model, scored_on, text_fp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            uri, spam_score, claim_score, section, model, scored_on, text_fp, cache_version
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        ("at://claim", "not-a-score", 0.2, "", "jev-1.13.0", "2026-10-08", ""),
+        ("at://claim", "not-a-score", 0.2, "", "jev-1.13.0", "2026-10-08", "", jev_cache_version()),
     )
     connection.commit()
     calls = {"n": 0}
@@ -512,9 +514,11 @@ def test_morning_fetch_counts_a_cached_uri_as_a_hit(monkeypatch, tmp_path):
     from pipeline.live import _collect_posts
 
     connection = connect(tmp_path / "corpus.db")
+    from pipeline.jev import jev_cache_version
+
     save_jev_verdicts(
         connection,
-        [("at://cached", 0.1, 0.2, "Other", "jev-1.13.0", "2026-10-12", "f" * 16)],
+        [("at://cached", 0.1, 0.2, "Other", "jev-1.13.0", "2026-10-12", "f" * 16, jev_cache_version())],
     )
     seen = {"calls": []}
 
@@ -551,6 +555,68 @@ def test_morning_fetch_counts_a_cached_uri_as_a_hit(monkeypatch, tmp_path):
     assert any("at://cached" in cache_uris and "at://cached" in skip_uris for cache_uris, skip_uris in seen["calls"])
     assert jev_filter_counts()["cache_hits"] == 1
     assert jev_filter_counts()["lookups"] == 1
+
+
+def test_model_or_prompt_change_invalidates_the_cached_verdict(monkeypatch, tmp_path):
+    """A different model name, or different question wording, is scored again."""
+    from pipeline.jev import jev_cache_version, known_scored_uris
+
+    _enable(monkeypatch)
+    calls = {"n": 0}
+
+    def fake(url, **kwargs):
+        del url, kwargs
+        calls["n"] += 1
+        return _answer(0.1, "Politics", claim=0.91, tokens=600)
+
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    text = "Congress should publish the mail ballot rules before November."
+    moment = datetime(2026, 10, 12, tzinfo=timezone.utc)
+    connection = connect(tmp_path / "corpus.db")
+    original = jev_cache_version()
+    apply_jev([_post("at://one", text)], connection=connection, now=moment)
+    assert calls["n"] == 1
+    stored = connection.execute(
+        "SELECT cache_version FROM jev_verdicts WHERE uri = 'at://one'"
+    ).fetchone()
+    assert stored[0] == original
+    assert original.startswith("jev-latest:")
+
+    reset_meter()
+    reset_jev_state()
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    apply_jev([_post("at://two", text)], connection=connection, now=moment)
+    assert calls["n"] == 1
+    assert jev_filter_counts()["cache_hits"] == 1
+
+    monkeypatch.setenv("JEV_MODEL", "jev-other")
+    changed = jev_cache_version()
+    assert changed != original
+    assert known_scored_uris(connection, now=moment) == set()
+    reset_meter()
+    reset_jev_state()
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    apply_jev([_post("at://one", text)], connection=connection, now=moment)
+    assert calls["n"] == 2
+    assert jev_filter_counts()["cache_hits"] == 0
+
+    monkeypatch.delenv("JEV_MODEL", raising=False)
+    monkeypatch.setattr(
+        "pipeline.jev.SPAM_TRUE",
+        "Promo, bot, giveaway, follow-bait, or an advertisement, including a coupon",
+    )
+    assert jev_cache_version() != original
+    assert jev_cache_version() != changed
+    reset_meter()
+    reset_jev_state()
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    apply_jev([_post("at://three", text)], connection=connection, now=moment)
+    assert calls["n"] == 3
+    assert jev_filter_counts()["cache_hits"] == 0
+    connection.close()
 
 
 def test_replay_second_run_hits_and_pays_nothing(tmp_path):

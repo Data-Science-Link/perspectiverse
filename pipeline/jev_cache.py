@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS jev_verdicts (
     section TEXT,
     model TEXT NOT NULL,
     scored_on TEXT NOT NULL,
-    text_fp TEXT NOT NULL DEFAULT ''
+    text_fp TEXT NOT NULL DEFAULT '',
+    cache_version TEXT NOT NULL DEFAULT ''
 );
 """
 
@@ -104,13 +105,22 @@ def import_persistent_cache(connection: sqlite3.Connection, path: Path | None = 
             }
             if "jev_verdicts" not in present:
                 return 0
+            attached = {
+                row[1]
+                for row in connection.execute("PRAGMA jev_cache.table_info(jev_verdicts)")
+            }
+            if "cache_version" not in attached:
+                connection.execute(
+                    "ALTER TABLE jev_cache.jev_verdicts "
+                    "ADD COLUMN cache_version TEXT NOT NULL DEFAULT ''"
+                )
             before = int(connection.execute("SELECT COUNT(*) FROM jev_verdicts").fetchone()[0])
             cursor = connection.execute(
                 """
                 INSERT INTO jev_verdicts (
-                    uri, spam_score, claim_score, section, model, scored_on, text_fp
+                    uri, spam_score, claim_score, section, model, scored_on, text_fp, cache_version
                 )
-                SELECT uri, spam_score, claim_score, section, model, scored_on, text_fp
+                SELECT uri, spam_score, claim_score, section, model, scored_on, text_fp, cache_version
                 FROM jev_cache.jev_verdicts
                 WHERE uri != ''
                 ON CONFLICT(uri) DO UPDATE SET
@@ -119,7 +129,8 @@ def import_persistent_cache(connection: sqlite3.Connection, path: Path | None = 
                     section = excluded.section,
                     model = excluded.model,
                     scored_on = excluded.scored_on,
-                    text_fp = excluded.text_fp
+                    text_fp = excluded.text_fp,
+                    cache_version = excluded.cache_version
                 WHERE excluded.scored_on > jev_verdicts.scored_on
                    OR (
                         excluded.scored_on = jev_verdicts.scored_on
@@ -196,16 +207,16 @@ def _write_snapshot(connection: sqlite3.Connection, cache: Path) -> None:
         snapshot.executescript(_CACHE_SCHEMA)
         rows = connection.execute(
             """
-            SELECT uri, spam_score, claim_score, section, model, scored_on, text_fp
+            SELECT uri, spam_score, claim_score, section, model, scored_on, text_fp, cache_version
             FROM jev_verdicts
             """
         ).fetchall()
         snapshot.executemany(
             """
             INSERT INTO jev_verdicts (
-                uri, spam_score, claim_score, section, model, scored_on, text_fp
+                uri, spam_score, claim_score, section, model, scored_on, text_fp, cache_version
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows,
         )

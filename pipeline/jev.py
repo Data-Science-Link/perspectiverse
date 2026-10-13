@@ -5,6 +5,8 @@ post: a spam noul, a section choice, and a claim noul. That section
 question stays until #90 picks a section once per planet. Answers are cached for 14 days, including non-claims and spam, so the
 same URI is not scored twice inside that window. The same normalized text
 under a new URI reuses that verdict too (a cache hit, not a second call).
+A hit also requires the requested model and the question wording. Changing
+``JEV_MODEL`` or the spam, section, or claim text misses the old row.
 The cross-run copy is ``jev_verdict_cache.sqlite``, capped at 320,000 rows
 and 80 MB. A free pre-filter drops posts Jev is very unlikely to keep. Batching many posts into one request
 is implemented and left off (``jev_batch`` defaults false). The shadow
@@ -18,6 +20,7 @@ the section blank so the keyword map can still label the planet.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -78,6 +81,18 @@ def _model() -> str:
     return (os.getenv("JEV_MODEL") or "").strip() or DEFAULT_MODEL
 
 
+def jev_prompt_version() -> str:
+    """12 hex chars of the per-post questions. The post text is not part of it."""
+    body = per_post_body(" ")
+    raw = json.dumps({"questions": body["questions"]}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
+
+
+def jev_cache_version() -> str:
+    """Requested model plus the prompt id. Either change misses old verdicts."""
+    return f"{_model()}:{jev_prompt_version()}"
+
+
 def describe_jev() -> str:
     """One startup line. Probes /v1/models only when a key is set and this is not pytest."""
     global _disabled_reason
@@ -107,7 +122,7 @@ def known_scored_uris(connection, posts: list[dict] | None = None, now: datetime
         _prepare_cache(connection, posts or [], now)
         from pipeline.store import jev_verdict_uris
 
-        return jev_verdict_uris(connection)
+        return jev_verdict_uris(connection, cache_version=jev_cache_version())
     except Exception as exc:
         sys.stderr.write(f"WARNING: Jev verdict cache was not read: {exc}\n")
         return set()
@@ -146,16 +161,21 @@ def _open_cache(
         return {}, index, {}
     try:
         _prepare_cache(connection, posts, now)
-        from pipeline.store import load_jev_fingerprint_rows, load_jev_fingerprints, load_jev_verdicts
+        from pipeline.store import load_jev_fingerprint_rows, load_jev_verdicts
 
         uris = [str(post.get("uri") or "") for post in posts]
-        cached = {uri: _decision_from_row(row) for uri, row in load_jev_verdicts(connection, uris).items()}
+        version = jev_cache_version()
+        cached = {}
+        for uri, row in load_jev_verdicts(connection, uris).items():
+            if _row_version(row) == version:
+                cached[uri] = _decision_from_row(row)
         by_fingerprint: dict[str, dict] = {}
         for row in load_jev_fingerprint_rows(connection):
             fingerprint = str(row[6] or "")
-            if fingerprint:
-                by_fingerprint[fingerprint] = _decision_from_row(row)
-        for fingerprint in load_jev_fingerprints(connection):
+            # An older model or prompt must not suppress the post as a near-copy.
+            if not fingerprint or _row_version(row) != version:
+                continue
+            by_fingerprint[fingerprint] = _decision_from_row(row)
             index.add_fingerprint(fingerprint)
         return cached, index, by_fingerprint
     except Exception as exc:
@@ -188,6 +208,7 @@ def _prepare_cache(connection, posts: list[dict], now: datetime | None) -> None:
                 "retained",
                 today,
                 text_fingerprint(post_text(post)),
+                "",
             )
         )
     if retained:
@@ -201,8 +222,12 @@ def _today(now: datetime | None) -> str:
     return moment.astimezone(timezone.utc).date().isoformat()
 
 
+def _row_version(row: tuple) -> str:
+    return str(row[7] or "") if len(row) > 7 else ""
+
+
 def _decision_from_row(row: tuple) -> dict:
-    _uri, spam_score, claim_score, section, model, _scored_on, _fingerprint = row
+    _uri, spam_score, claim_score, section, model, _scored_on, _fingerprint = row[:7]
     claim_noul = None if claim_score is None else float(claim_score)
     is_claim = None if claim_noul is None else claim_noul >= CLAIM_THRESHOLD
     spam = None if spam_score is None else float(spam_score)
@@ -214,6 +239,7 @@ def _decision_from_row(row: tuple) -> dict:
         "is_claim": is_claim,
         "model": str(model or ""),
         "cached": True,
+        "cache_version": _row_version(row),
     }
 
 
@@ -229,7 +255,8 @@ def _decisions_for(
 
     A post that already has a section is a dedup skip, not a cache lookup.
     Every other post that is actually sent to Jev, or answered from a stored
-    verdict, is one lookup. Pre-filter drops are not lookups.
+    verdict for this model and prompt, is one lookup. Pre-filter drops are
+    not lookups.
     """
     decisions: dict[str, dict | None] = {}
     pending: list[dict] = []
@@ -237,6 +264,7 @@ def _decisions_for(
     cache_hits = 0
     dedup_skips = 0
     lookups = 0
+    version = jev_cache_version()
     for post in posts:
         if post.get("section"):
             index.add_text(post_text(post))
@@ -244,10 +272,12 @@ def _decisions_for(
             continue
         uri = str(post.get("uri") or "")
         decision = cached.get(uri) if uri else None
+        if decision is not None and decision.get("cache_version") != version:
+            decision = None
         if decision is None:
             fingerprint = text_fingerprint(post_text(post))
             reused = by_fingerprint.get(fingerprint) if fingerprint else None
-            if reused is not None:
+            if reused is not None and reused.get("cache_version") == version:
                 # Remember this URI so the next fetch can skip it by URI.
                 decision = dict(reused)
                 decision["store_uri"] = True
@@ -333,6 +363,7 @@ def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | N
                     str(decision.get("model") or "") or _model(),
                     today,
                     text_fingerprint(post_text(by_uri.get(uri, {}))),
+                    jev_cache_version(),
                 )
             )
         if rows:

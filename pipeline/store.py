@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS jev_verdicts (
     section TEXT, -- null when the call did not ask for a section
     model TEXT NOT NULL,
     scored_on TEXT NOT NULL,
-    text_fp TEXT NOT NULL DEFAULT ''
+    text_fp TEXT NOT NULL DEFAULT '',
+    cache_version TEXT NOT NULL DEFAULT ''
 );
 """
 
@@ -70,6 +71,8 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     verdict_columns = {row[1] for row in connection.execute("PRAGMA table_info(jev_verdicts)")}
     if verdict_columns and "text_fp" not in verdict_columns:
         connection.execute("ALTER TABLE jev_verdicts ADD COLUMN text_fp TEXT NOT NULL DEFAULT ''")
+    if verdict_columns and "cache_version" not in verdict_columns:
+        connection.execute("ALTER TABLE jev_verdicts ADD COLUMN cache_version TEXT NOT NULL DEFAULT ''")
     connection.execute("CREATE INDEX IF NOT EXISTS jev_verdicts_fp ON jev_verdicts(text_fp)")
     connection.commit()
     return connection
@@ -193,7 +196,7 @@ def load_jev_verdicts(connection: sqlite3.Connection, uris: list[str]) -> dict[s
     rows = connection.execute(
         """
         SELECT verdict.uri, verdict.spam_score, verdict.claim_score, verdict.section,
-               verdict.model, verdict.scored_on, verdict.text_fp
+               verdict.model, verdict.scored_on, verdict.text_fp, verdict.cache_version
         FROM jev_verdicts AS verdict
         JOIN _jev_lookup AS wanted ON wanted.uri = verdict.uri
         """
@@ -202,14 +205,6 @@ def load_jev_verdicts(connection: sqlite3.Connection, uris: list[str]) -> dict[s
     for row in rows:
         found[str(row[0])] = row
     return found
-
-
-def load_jev_fingerprints(connection: sqlite3.Connection) -> list[str]:
-    """Simhashes of scored posts, for the near-duplicate index."""
-    rows = connection.execute(
-        "SELECT text_fp FROM jev_verdicts WHERE text_fp != ''"
-    ).fetchall()
-    return [str(row[0]) for row in rows]
 
 
 def load_jev_fingerprint_rows(connection: sqlite3.Connection) -> list[tuple]:
@@ -221,7 +216,7 @@ def load_jev_fingerprint_rows(connection: sqlite3.Connection) -> list[tuple]:
     """
     return connection.execute(
         """
-        SELECT uri, spam_score, claim_score, section, model, scored_on, text_fp
+        SELECT uri, spam_score, claim_score, section, model, scored_on, text_fp, cache_version
         FROM jev_verdicts
         WHERE text_fp != ''
         ORDER BY scored_on ASC,
@@ -232,29 +227,46 @@ def load_jev_fingerprint_rows(connection: sqlite3.Connection) -> list[tuple]:
     ).fetchall()
 
 
-def jev_verdict_uris(connection: sqlite3.Connection) -> set[str]:
-    """Every URI still inside the cache window."""
-    rows = connection.execute("SELECT uri FROM jev_verdicts").fetchall()
+def jev_verdict_uris(connection: sqlite3.Connection, *, cache_version: str | None = None) -> set[str]:
+    """URIs still inside the cache window.
+
+    ``cache_version`` limits the set to verdicts from that model and prompt.
+    Rows from an older model or prompt are left in the table and are not
+    treated as already scored.
+    """
+    if cache_version is None:
+        rows = connection.execute("SELECT uri FROM jev_verdicts").fetchall()
+    else:
+        rows = connection.execute(
+            "SELECT uri FROM jev_verdicts WHERE cache_version = ?",
+            (cache_version,),
+        ).fetchall()
     return {str(row[0]) for row in rows}
 
 
 def save_jev_verdicts(connection: sqlite3.Connection, rows: list[tuple]) -> None:
-    """Insert Jev answers. A real answer replaces a retained-corpus backfill."""
+    """Insert Jev answers. A real answer replaces a retained-corpus backfill.
+
+    A 7-value row is an old caller. Its ``cache_version`` is blank, so a later
+    lookup for the current model and prompt will not reuse it.
+    """
+    stored = [row if len(row) >= 8 else (*row, "") for row in rows]
     connection.executemany(
         """
         INSERT INTO jev_verdicts (
-            uri, spam_score, claim_score, section, model, scored_on, text_fp
+            uri, spam_score, claim_score, section, model, scored_on, text_fp, cache_version
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(uri) DO UPDATE SET
             spam_score = excluded.spam_score,
             claim_score = excluded.claim_score,
             section = excluded.section,
             model = excluded.model,
             scored_on = excluded.scored_on,
-            text_fp = excluded.text_fp
+            text_fp = excluded.text_fp,
+            cache_version = excluded.cache_version
         """,
-        rows,
+        stored,
     )
     connection.commit()
 
@@ -269,9 +281,9 @@ def remember_retained_verdicts(connection: sqlite3.Connection, rows: list[tuple]
     connection.executemany(
         """
         INSERT INTO jev_verdicts (
-            uri, spam_score, claim_score, section, model, scored_on, text_fp
+            uri, spam_score, claim_score, section, model, scored_on, text_fp, cache_version
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(uri) DO UPDATE SET
             scored_on = excluded.scored_on,
             text_fp = CASE
