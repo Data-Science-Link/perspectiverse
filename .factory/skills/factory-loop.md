@@ -64,7 +64,7 @@ The PR body is the durable audit trail. Chat is ephemeral relative to GitHub.
 - **Before handing a PR to the human for review:** update the branch onto latest default branch so it is current at review time.
 - **Immediately before any merge** (trivial auto-merge, or after the human gate):
   1. Before you report a PR as behind or conflicting, check it is not already merged. Then check whether the PR branch is behind the default branch.
-  2. If behind, update it (GitHub “Update branch” / `update_pull_request_branch`, or merge/rebase main in).
+  2. If behind, update it (GitHub “Update branch” / `update_pull_request_branch`, or merge main into the PR branch (no rebase, no force-push)).
   3. Wait for required CI to pass on the **new head commit**; only then merge.
   4. A human approval given while the branch was behind still stands for a clean catch-up update. If the update hits conflicts or changes the PR’s own diff or behavior: resolve, re-verify, and tell the human what changed before merging (re-ask the gate for normal/high).
   5. Never merge a branch that is behind, and never merge on CI results from a stale commit.
@@ -73,5 +73,5 @@ The PR body is the durable audit trail. Chat is ephemeral relative to GitHub.
 - **After merge — monitor deploy:** watch pages / deploy / CD workflows on the default branch. If deploy CI is red or stuck, open a fix promptly (same issue or new); comment status on the issue. Do not walk away after PR CI alone was green.
 - Close or update the issue when ship + deploy are good (or note follow-ups).
 - **Scheduled jobs:** at the start of each session, check the latest scheduled (cron) workflow runs on the default branch. A failed run becomes a bug issue (failing step + log excerpt), is reported to the human, and goes to the top of the queue. A scheduled run skips if the pipeline already succeeded that UTC day. A skip is not a failure. The daily check reports three site-wide numbers: posts in the edition, posts hidden, and posts shown under a title they support. Flag big jumps in run duration too. Also confirm the job's output actually went live (a data commit pushed with the default workflow token won't trigger a deploy workflow). Cron jobs run early, at an odd minute, with a guarded backup cron for important daily jobs; flag a finding when no run has finished by the project's freshness deadline (GitHub often starts scheduled runs hours late).
-- After any slip, write the lesson into the rules or skills. Not chat-only.
+- After any slip, write the lesson into the rules or skills. Monitor hits and cron or deploy failures still become issues. Feed those back as issues and/or skills, not chat-only.
 - **End of day:** the manager posts a short summary in the room: decisions needed, what shipped, open risks.
