@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -24,8 +23,6 @@ from pipeline.settings import STANCE_SECOND_FACE_SHARE
 from pipeline.stance import (
     apply_stance_pass,
     claim_words_cover,
-    posts_support_claim,
-    second_claim_grounded,
     clears_second_stance,
     cohen_kappa,
     explain_stance_failure,
@@ -113,7 +110,7 @@ def test_same_stance_merge_folds_different_titles_and_keeps_every_post():
     assert len(merged) == 1
     assert {row[0] for row in merged[0][1]} == set(uris)
     assert merged[0][2] == 8
-    assert context["story_calls"]["stance"] == 3
+    assert context["story_calls"]["stance"] == 2
     assert any("4 face(s) -> 1" in line for line in log)
 
 
@@ -140,7 +137,7 @@ def test_iran_war_and_iran_conflict_merge_when_the_model_says_one_side():
     assert len(merged) == 1
     assert merged[0][2] == 4
     assert "opposing" not in json.dumps(merged).lower() or True
-    assert calls["n"] == 3
+    assert calls["n"] == 2
 
 
 def test_opposite_group_is_not_merged_and_skips_the_sample_call():
@@ -1048,7 +1045,7 @@ def test_draft_planet_runs_the_pass_for_a_model_and_sets_the_note(monkeypatch):
     assert "opposing_note" not in planet
     assert SINGLE_VIEW_NOTE not in json.dumps(planet)
     assert planet["stance_check"] == STANCE_CHECK_INCOHERENT
-    assert calls["n"] == 3
+    assert calls["n"] == 2
     assert len(result["face_rows"]) == 6
     assert any("Second side not coherent" in line for line in log)
     assert any("Pre-pass faces kept (2)" in line for line in log)
@@ -1073,210 +1070,3 @@ def test_kappa_is_zero_when_agreement_equals_chance():
     left = ["supports"] * 10
     right = ["supports"] * 5 + ["opposes"] * 5
     assert cohen_kappa(left, right) == pytest.approx(0.0)
-
-
-def _loaded(texts: list[str]) -> list[dict]:
-    return [_post(f"p{index}", text) for index, text in enumerate(texts)]
-
-
-def test_israel_not_genocidal_survives_without_the_title_word():
-    posts = _loaded(
-        [
-            "When Israel left Gaza they hoped the gazans would want peace. The Palestinians rejected every peace deal.",
-            "October 7th was the massacre. Hamas started this war.",
-            "The conflict is territorial. Hamas are religious fanatics. Gaza war is simple revenge.",
-            "Israel withdrew from Gaza in 2005. Look at pictures of Gaza in 2022.",
-            "These posts that try to blame Israel for the October 7th massacre are the obstacle.",
-            "If Oct 7 want genocide, how convenient. The attackers gave warning to the civilians.",
-        ]
-    )
-    summary = "Some posts argue that Israel is not committing genocide against Palestinians."
-    assert (
-        claim_words_cover(
-            "Israel Not Genocidal",
-            summary,
-            posts,
-            "Israel",
-            majority_title="Israel Genocide",
-            majority_summary="Israel kills Palestinians in Gaza",
-        )
-        is False
-    )
-    assert (
-        second_claim_grounded(
-            stance="opposes",
-            second_stance="opposes",
-            title="Israel Not Genocidal",
-            summary=summary,
-            posts=posts,
-            subject="Israel",
-            majority_title="Israel Genocide",
-            majority_summary="Israel kills Palestinians in Gaza",
-        )
-        is True
-    )
-    assert posts_support_claim(
-        "Israel Not Genocidal",
-        summary,
-        posts,
-        "Israel",
-        majority_title="Israel Genocide",
-    )
-
-
-def test_no_relief_survives_when_posts_deny_a_price_cut_without_saying_relief():
-    posts = _loaded(
-        [
-            "Trump's diesel deal is a flop. It won't make a material difference to pump prices in the US.",
-            "At maximum, this would lower the price of diesel fuel by less than 1% per gallon.",
-            "The average price of diesel has climbed to $6.26 a gallon.",
-            "Analysts doubt Russia has the surplus diesel to fulfill the shipments.",
-            "He is just making more money for them. Not Lowering prices.",
-            "Won't this largely negate any alleged cost reduction from the small increase in supply?",
-        ]
-    )
-    summary = "Most posts argue that Trump's diesel deal will not lower diesel prices."
-    assert claim_words_cover("No Relief", summary, posts, "Diesel Oil Prices", majority_title="High Fuel Prices") is False
-    assert second_claim_grounded(
-        stance="opposes",
-        second_stance="opposes",
-        title="No Relief",
-        summary=summary,
-        posts=posts,
-        subject="Diesel Oil Prices",
-        majority_title="High Fuel Prices",
-        majority_summary="Fuel prices are high globally.",
-    )
-
-
-def test_audited_faces_restore_two_real_sides_and_no_fakes():
-    fixture = Path(__file__).resolve().parent / "fixtures" / "audited_stance_faces.json"
-    rows = json.loads(fixture.read_text())
-    restored_real = restored_fake = 0
-    for row in rows:
-        posts = _loaded(row["posts"])
-        majority = _loaded(row["majority_posts"])
-        old = claim_words_cover(
-            row["title"],
-            row["summary"],
-            posts,
-            row["subject"],
-            majority_posts=majority,
-            majority_title=row["majority_title"],
-            majority_summary=row["majority_summary"],
-            planet_terms=row["subject"].split(),
-        )
-        new = second_claim_grounded(
-            stance="opposes",
-            second_stance="opposes",
-            title=row["title"],
-            summary=row["summary"],
-            posts=posts,
-            subject=row["subject"],
-            majority_posts=majority,
-            majority_title=row["majority_title"],
-            majority_summary=row["majority_summary"],
-            planet_terms=row["subject"].split(),
-        )
-        if row["kind"] == "real":
-            assert old is False and new is True, row["title"]
-            restored_real += 1
-        elif row["kind"] == "fake":
-            assert old is False, row["title"]
-            if new:
-                restored_fake += 1
-        elif row["kind"] == "keep":
-            assert old is True and new is True, row["title"]
-        elif row["kind"] == "stay-dropped":
-            assert old is False and new is False, row["title"]
-    assert restored_real == 2
-    assert restored_fake == 0
-
-
-def test_same_stance_group_keeps_a_face_that_denies_the_other_title():
-    genocide_uris = [f"g{index}" for index in range(4)]
-    other_uris = [f"o{index}" for index in range(4)]
-    drafted = [
-        _face("Israel Genocide", genocide_uris, summary="Israel is committing genocide in Gaza."),
-        _face(
-            "Not Genocidal",
-            other_uris,
-            summary="Israel is not committing genocide. Palestinians rejected peace.",
-        ),
-    ]
-    members = [_post(uri, "Israel is committing genocide in Gaza.") for uri in genocide_uris]
-    members.extend(
-        [
-            _post(other_uris[0], "When Israel left Gaza they hoped for peace. Palestinians rejected every deal."),
-            _post(other_uris[1], "October 7th was the massacre. Hamas started the war."),
-            _post(other_uris[2], "The conflict is territorial. Hamas are the obstacle to peace."),
-            _post(other_uris[3], "Israel withdrew from Gaza in 2005."),
-        ]
-    )
-
-    def generate(prompt: str) -> str:
-        if "Group these faces" in prompt:
-            return json.dumps({"groups": [[0, 1]]})
-        raise AssertionError("a real opposing draft is not sent back through the sample")
-
-    context = _context(stance_generate=generate)
-    merged, _log = apply_stance_pass(drafted, members, context, subject="Israel")
-    assert sorted(item[0]["title"] for item in merged) == ["Israel Genocide", "Not Genocidal"]
-    assert context["story_calls"]["stance"] == 2
-
-
-def test_a_near_miss_sample_retries_once_and_can_clear_the_same_bar():
-    uris = [f"g{index}" for index in range(40)]
-    members = _members(uris)
-    for index in range(4):
-        members[index]["text"] = "This war is not genocide."
-        members[index]["clean_text"] = "This war is not genocide."
-    calls = {"n": 0}
-
-    def generate(_prompt: str) -> str:
-        calls["n"] += 1
-        oppose = 3 if calls["n"] == 1 else 4
-        labels = ["opposes" if index < oppose else "supports" for index in range(40)]
-        return json.dumps(
-            {
-                "question": "Is this genocide?",
-                "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
-                "second": {
-                    "stance": "opposes",
-                    "coherent": True,
-                    "title": "Not Genocide",
-                    "summary": "These posts say the war is not genocide.",
-                },
-            }
-        )
-
-    context = _context(stance_generate=generate)
-    merged, log = apply_stance_pass([_face("Israel Genocide", uris)], members, context, subject="Israel")
-    assert calls["n"] == 2
-    assert [item[0]["title"] for item in merged] == ["Israel Genocide", "Not Genocide"]
-    assert merged[1][2] == 4
-    assert context["stance_last"]["sample_retried"] is True
-    assert any("1 face(s) -> 2" in line for line in log)
-
-
-def test_one_opposing_post_does_not_retry_the_sample():
-    uris = [f"g{index}" for index in range(40)]
-    calls = {"n": 0}
-
-    def generate(_prompt: str) -> str:
-        calls["n"] += 1
-        labels = ["supports"] * 40
-        labels[0] = "opposes"
-        return json.dumps(
-            {
-                "question": "Is this genocide?",
-                "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
-                "second": {"stance": "opposes", "coherent": True, "title": "Not Genocide", "summary": "No."},
-            }
-        )
-
-    context = _context(stance_generate=generate)
-    merged, _log = apply_stance_pass([_face("Israel Genocide", uris)], _members(uris), context, subject="Israel")
-    assert calls["n"] == 1
-    assert len(merged) == 1
-    assert STANCE_SECOND_FACE_SHARE == 0.10
