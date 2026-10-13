@@ -25,7 +25,7 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 1. **Always pin the model** on every launch. Don't leave it on Auto — Auto can route to a third-party model and draw from Other Models.
 2. **No Fast mode, no long-context (500k / 1M) variants** unless a human asks; both roughly double the price.
 3. Escalate one step at a time, and say why on the issue.
-4. Record the model used and the cloud agent run ID(s) in the PR body (AI disclosure). The run IDs let dev cost be matched to each PR later.
+4. Record the model used and the cloud agent run ID(s) in the PR body (AI disclosure). The run IDs let dev cost be matched to each PR later. A cloud agent's token can't comment, so the manager posts that agent's review and report.
 
 ## When limits are hit
 

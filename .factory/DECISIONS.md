@@ -497,6 +497,20 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Decided by:** Owner, in the factory room.
 - **Revisit:** With the routing review in two weeks.
 
+### 2026-10-12 — Write down the factory habits from the audit (#157)
+- **Decision:** Section A of #157 is now in the `.factory/` playbook. A merge OK Michael gives in the room for a named PR lets the Manager merge it (already decided the same day; still in force). A done claim on reader-facing work waits for a hand audit of the real top 10 planets, and a reader-facing approval shows the top 10 before and after. The daily check reports three site-wide numbers: posts in the edition, posts hidden, and posts shown under a title they support. The Manager posts reviews and reports for cloud agents, whose token can't comment. A scheduled run skips if the pipeline already succeeded that UTC day; a skip is not a failure. Before calling a PR behind or conflicting, check it is not already merged. DECISIONS commits show Michael's account or Cursor Agent because commits go through those accounts; the Giver drafts and the Manager commits. The template `DECISIONS.md` (method changes, Builder) is a separate file from this repo's `DECISIONS.md` (project decisions). The end-of-day summary and the lessons step are active again: the Manager posts an end-of-day summary in the room, and after any slip the lesson is written into the rules or skills. Grouping stays on #104, which is already reopened, rather than a new issue.
+- **Decided by:** Michael, in the room, 2026-10-12. The section A habits were already in use. The same day he brought back the end-of-day summary and the lessons step, and kept grouping on #104.
+- **Why:** These habits were how the factory already ran, and they were only in chat. The summary and the lessons step had stopped and were worth restarting. A new grouping issue would split work that already sits on #104.
+- **Alternatives:** Leave the habits unwritten. Leave the end-of-day summary and the lessons step stopped. File a new grouping issue instead of using reopened #104.
+- **Revisit when:** A written habit stops matching what the room actually does, or #104's done bar is replaced.
+
+### 2026-10-12 — Stop squash and rebase merges
+- **Decision:** The factory merges with a merge commit. Squash merges and rebase merges stop. Squash and rebase merging stay off.
+- **Decided by:** Michael, in the room, 2026-10-12.
+- **Why:** #146 and two other PRs were squash-merged. A merge commit keeps the branch history on main.
+- **Alternatives:** Leave squash and rebase merging on.
+- **Revisit when:** A merge queue needs a different merge method.
+
 ### 2026-10-13 — A real opposing side can pass without repeating the title word (#151)
 - **Decision:** `second_claim_grounded` still requires `second.stance` to be the pole of the posts that would move. A claim word at the same polarity in about 40% of those posts still passes, and subject nouns plus topic nouns shared with the majority face still do not count (#153, #154). When that word check misses, the side can still pass if the posts support the claim: the title negates the majority title (genocidal against genocide) and the posts do not affirm that claim, or the posts deny a price effect the title negates (will not lower, less than 1%). A summary-only negation does not count as denying the majority title. The 10% second-face share bar is unchanged. A sample that is under that bar, at least half of it, and at least two posts, is drawn once more against the same bar. When the merge model would put every drafted face in one group, it is asked once more, with a stricter instruction, and a face whose posts deny the other title stays separate. A planet that already has two groups is not asked again.
 - **Decided by:** Michael, 2026-10-12, by approving the build. The rule is the #151 task: keep Israel Not Genocidal and No Relief, do not bring back the 20 mislabeled faces, and do not silently merge two drafted sides that are the same stance.
