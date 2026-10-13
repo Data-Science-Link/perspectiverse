@@ -485,3 +485,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Leave routing as guidance only (rejected: it slipped).
 - **Decided by:** Owner, in the factory room.
 - **Revisit:** After two weeks of PR bodies, check ratings matched the outcome.
+
+## 2026-10-12 — Complexity uses simple/standard/complex, separate from risk
+- **Decision:** Complexity ratings use simple / standard / complex (they pick the model). Risk class keeps trivial / normal / high (it sets the merge gate). Trivial-risk PRs may merge on green CI without the owner.
+- **Why:** Owner: "Trivial complexity is different than trivial risk"; he is fine with trivial-risk PRs merging without him.
+- **Alternatives:** Reuse the same words for both (rejected: ambiguous gates).
+- **Decided by:** Owner, in the factory room.
+- **Revisit:** With the routing review in two weeks.
