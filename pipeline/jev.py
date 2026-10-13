@@ -2,10 +2,11 @@
 
 Jev does not write planet names or steelmans. The default is one call per
 post: a spam noul, a section choice, and a claim noul. That section
-question stays until #90 picks a section once per planet. Answers are
-cached on the retained corpus for 14 days, including non-claims and spam,
-so a URI is not scored twice inside that window. A free pre-filter drops
-posts Jev is very unlikely to keep. Batching many posts into one request
+question stays until #90 picks a section once per planet. Answers are cached for 14 days, including non-claims and spam, so the
+same URI is not scored twice inside that window. The same normalized text
+under a new URI reuses that verdict too (a cache hit, not a second call).
+The cross-run copy is ``jev_verdict_cache.sqlite``, capped at 320,000 rows
+and 80 MB. A free pre-filter drops posts Jev is very unlikely to keep. Batching many posts into one request
 is implemented and left off (``jev_batch`` defaults false). The shadow
 test failed batched claims, so the live path stays one post per request.
 That request asks spam and claim only. It does not send the section
@@ -127,36 +128,49 @@ def apply_jev(
     """
     if _disabled_reason or not _api_key():
         return list(posts)
-    cached, index = _open_cache(connection, posts, now)
-    decisions = _decisions_for(posts, cached, index, batch=batch)
+    cached, index, by_fingerprint = _open_cache(connection, posts, now)
+    decisions = _decisions_for(posts, cached, index, by_fingerprint, batch=batch)
     if connection is not None:
         _store_verdicts(connection, posts, decisions, now)
+        from pipeline.jev_cache import export_persistent_cache
+
+        export_persistent_cache(connection)
     return _apply_decisions(posts, decisions)
 
 
-def _open_cache(connection, posts: list[dict], now: datetime | None) -> tuple[dict[str, dict], DuplicateIndex]:
+def _open_cache(
+    connection, posts: list[dict], now: datetime | None
+) -> tuple[dict[str, dict], DuplicateIndex, dict[str, dict]]:
     index = DuplicateIndex()
     if connection is None:
-        return {}, index
+        return {}, index, {}
     try:
         _prepare_cache(connection, posts, now)
-        from pipeline.store import load_jev_fingerprints, load_jev_verdicts
+        from pipeline.store import load_jev_fingerprint_rows, load_jev_fingerprints, load_jev_verdicts
 
         uris = [str(post.get("uri") or "") for post in posts]
         cached = {uri: _decision_from_row(row) for uri, row in load_jev_verdicts(connection, uris).items()}
+        by_fingerprint: dict[str, dict] = {}
+        for row in load_jev_fingerprint_rows(connection):
+            fingerprint = str(row[6] or "")
+            if fingerprint:
+                by_fingerprint[fingerprint] = _decision_from_row(row)
         for fingerprint in load_jev_fingerprints(connection):
             index.add_fingerprint(fingerprint)
-        return cached, index
+        return cached, index, by_fingerprint
     except Exception as exc:
         sys.stderr.write(f"WARNING: Jev verdict cache was not read: {exc}\n")
-        return {}, DuplicateIndex()
+        return {}, DuplicateIndex(), {}
 
 
 def _prepare_cache(connection, posts: list[dict], now: datetime | None) -> None:
+    from pipeline.jev_cache import enforce_jev_cache_bound, import_persistent_cache
     from pipeline.store import expire_jev_verdicts, remember_retained_verdicts
 
+    import_persistent_cache(connection)
     today = _today(now)
     expire_jev_verdicts(connection, today)
+    enforce_jev_cache_bound(connection)
     retained = []
     for post in posts:
         uri = str(post.get("uri") or "")
@@ -207,24 +221,40 @@ def _decisions_for(
     posts: list[dict],
     cached: dict[str, dict],
     index: DuplicateIndex,
+    by_fingerprint: dict[str, dict],
     *,
     batch: bool,
 ) -> dict[str, dict | None]:
-    """Decisions keyed by URI. Posts that still need Jev are classified here."""
+    """Decisions keyed by URI. Posts that still need Jev are classified here.
+
+    A post that already has a section is a dedup skip, not a cache lookup.
+    Every other post that is actually sent to Jev, or answered from a stored
+    verdict, is one lookup. Pre-filter drops are not lookups.
+    """
     decisions: dict[str, dict | None] = {}
     pending: list[dict] = []
     skips: Counter[str] = Counter()
     cache_hits = 0
     dedup_skips = 0
+    lookups = 0
     for post in posts:
         if post.get("section"):
             index.add_text(post_text(post))
             dedup_skips += 1
             continue
         uri = str(post.get("uri") or "")
-        if uri and uri in cached:
-            decisions[uri] = cached[uri]
+        decision = cached.get(uri) if uri else None
+        if decision is None:
+            fingerprint = text_fingerprint(post_text(post))
+            reused = by_fingerprint.get(fingerprint) if fingerprint else None
+            if reused is not None:
+                # Remember this URI so the next fetch can skip it by URI.
+                decision = dict(reused)
+                decision["store_uri"] = True
+        if decision is not None:
+            decisions[uri] = decision
             cache_hits += 1
+            lookups += 1
             index.add_text(post_text(post))
             continue
         reason = prefilter_reason(post, index)
@@ -232,9 +262,10 @@ def _decisions_for(
             skips[reason] += 1
             decisions[uri] = {"prefilter": reason}
             continue
+        lookups += 1
         index.add_text(post_text(post))
         pending.append(post)
-    _note_filters(cache_hits, dedup_skips, skips)
+    _note_filters(cache_hits, dedup_skips, skips, lookups)
     if cache_hits or dedup_skips or skips:
         print(
             f"Jev cache hits: {cache_hits}. Dedup skips: {dedup_skips}. "
@@ -247,12 +278,19 @@ def _decisions_for(
     return decisions
 
 
-def _note_filters(cache_hits: int, dedup_skips: int, skips: Counter[str]) -> None:
+def _note_filters(cache_hits: int, dedup_skips: int, skips: Counter[str], lookups: int) -> None:
     try:
-        from pipeline.costs import note_jev_cache_hits, note_jev_dedup_skips, note_jev_prefilter
+        from pipeline.costs import (
+            note_jev_cache_hits,
+            note_jev_cache_lookups,
+            note_jev_dedup_skips,
+            note_jev_prefilter,
+        )
 
         if cache_hits:
             note_jev_cache_hits(cache_hits)
+        if lookups:
+            note_jev_cache_lookups(lookups)
         if dedup_skips:
             note_jev_dedup_skips(dedup_skips)
         for reason, count in skips.items():
@@ -272,7 +310,11 @@ def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | N
         for uri, decision in decisions.items():
             if not uri or not isinstance(decision, dict):
                 continue
-            if decision.get("prefilter") or decision.get("cached"):
+            if decision.get("prefilter"):
+                continue
+            # A URI already stored is not written again. A new URI that reused
+            # another post's text is stored so the next fetch can skip it.
+            if decision.get("cached") and not decision.get("store_uri"):
                 continue
             section = decision.get("section") or None
             # A per-post claim with no section is a failed section answer, so it

@@ -83,6 +83,35 @@ def test_extract_follows_cursor_until_the_window_is_full():
     assert calls == [("the", None, 100), ("the", "next", 100)]
 
 
+def test_skipped_cached_uri_is_counted_once():
+    now = datetime(2026, 9, 26, tzinfo=timezone.utc)
+    fresh = (now - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    reused: set[str] = set()
+
+    def fetch(query, cursor, limit):
+        del query, cursor, limit
+        return {
+            "posts": [
+                _post("at://cached", fresh, "Congress should publish the mail ballot rules before November."),
+                _post("at://cached", fresh, "Congress should publish the mail ballot rules before November."),
+                _post("at://new", fresh, "The city should build public housing near the station this year."),
+            ]
+        }
+
+    posts = extract_posts(
+        sample_size=5,
+        window_hours=168,
+        queries=["the"],
+        fetch=fetch,
+        now=now,
+        skip_uris={"at://cached", "at://already-in-corpus"},
+        cache_uris={"at://cached"},
+        cache_reused=reused,
+    )
+    assert reused == {"at://cached"}
+    assert [post["uri"] for post in posts] == ["at://new"]
+
+
 def test_authenticated_fetch_logs_in_once(monkeypatch):
     import sys
     import types

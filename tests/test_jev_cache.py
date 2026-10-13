@@ -12,6 +12,7 @@ from pipeline.costs import (
     jev_cost_usd,
     jev_filter_counts,
     note_jev_cache_hits,
+    note_jev_cache_lookups,
     note_jev_prefilter,
     project_jev_daily_usd,
     reset_meter,
@@ -311,6 +312,7 @@ def test_batch_request_asks_spam_and_claim_and_not_section(monkeypatch, tmp_path
 def test_filter_counts_are_in_the_run_output_and_tokens_stay_real(tmp_path, capsys):
     reset_meter()
     note_jev_cache_hits(4)
+    note_jev_cache_lookups(4)
     note_jev_prefilter("language", 2)
     from pipeline.costs import record_jev_attempt
 
@@ -328,11 +330,13 @@ def test_filter_counts_are_in_the_run_output_and_tokens_stay_real(tmp_path, caps
     )
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["jev_cache_hits"] == 4
+    assert payload["jev_cache_lookups"] == 4
     assert payload["jev_prefilter_skips"] == {"short": 0, "language": 2, "link": 0, "duplicate": 0}
     assert payload["rows"][0]["input_tokens"] == "612"
     assert payload["rows"][0]["calls"] == "1"
     logged = capsys.readouterr().out
     assert "4 cache hits" in logged
+    assert "Jev cache: hits 4 / lookups 4 (100%), paid calls 1, est cost $0.0000257" in logged
     assert "0 dedup skips" in logged
     assert "language 2" in logged
     assert "612" in path.read_text(encoding="utf-8")
@@ -387,6 +391,189 @@ def test_corrupt_verdict_is_warned_and_rescored(monkeypatch, tmp_path, capsys):
     assert kept[0]["is_claim"] is True
     assert kept[0]["section"] == "Politics"
     connection.close()
+
+
+def test_same_text_under_a_new_uri_reuses_the_verdict(monkeypatch, tmp_path):
+    """A day-later copy is a cache hit, not a second paid call and not a drop."""
+    _enable(monkeypatch)
+    calls = {"n": 0}
+
+    def fake(url, **kwargs):
+        del url, kwargs
+        calls["n"] += 1
+        return _answer(0.1, "Politics", claim=0.91, tokens=600)
+
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    text = "Congress should publish the mail ballot rules before November."
+    moment = datetime(2026, 10, 11, tzinfo=timezone.utc)
+    database = tmp_path / "corpus.db"
+    connection = connect(database)
+    first = apply_jev([_post("at://day-one", text)], connection=connection, now=moment)
+    connection.close()
+    assert calls["n"] == 1
+    assert first[0]["section"] == "Politics"
+    reset_meter()
+    reset_jev_state()
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    later = connect(database)
+    second = apply_jev(
+        [_post("at://day-two", text)],
+        connection=later,
+        now=datetime(2026, 10, 12, tzinfo=timezone.utc),
+    )
+    later.close()
+    assert calls["n"] == 1
+    assert second[0]["uri"] == "at://day-two"
+    assert second[0]["is_claim"] is True
+    assert second[0]["section"] == "Politics"
+    assert jev_filter_counts()["cache_hits"] == 1
+    assert jev_filter_counts()["lookups"] == 1
+    assert jev_filter_counts()["duplicate"] == 0
+    stored = connect(database)
+    rows = stored.execute("SELECT uri FROM jev_verdicts ORDER BY uri").fetchall()
+    stored.close()
+    assert [row[0] for row in rows] == ["at://day-one", "at://day-two"]
+
+
+def test_cache_file_warms_a_fresh_database(monkeypatch, tmp_path):
+    _enable(monkeypatch)
+    monkeypatch.setenv("JEV_VERDICT_CACHE", str(tmp_path / "jev_verdict_cache.sqlite"))
+    calls = {"n": 0}
+
+    def fake(url, **kwargs):
+        del url, kwargs
+        calls["n"] += 1
+        return _answer(0.1, "World", claim=0.9, tokens=600)
+
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    text = "Hospitals need more nurses before the winter flu season begins again."
+    first_db = connect(tmp_path / "one.db")
+    apply_jev([_post("at://kept", text)], connection=first_db, now=datetime(2026, 10, 12, tzinfo=timezone.utc))
+    first_db.close()
+    assert (tmp_path / "jev_verdict_cache.sqlite").is_file()
+    reset_meter()
+    reset_jev_state()
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    fresh = connect(tmp_path / "two.db")
+    kept = apply_jev([_post("at://kept", text)], connection=fresh, now=datetime(2026, 10, 12, tzinfo=timezone.utc))
+    fresh.close()
+    assert calls["n"] == 1
+    assert kept[0]["section"] == "World"
+    assert jev_filter_counts()["cache_hits"] == 1
+    assert jev_filter_counts()["lookups"] == 1
+
+
+def test_cache_bound_drops_the_oldest_rows(tmp_path):
+    from pipeline.jev_cache import enforce_jev_cache_bound, export_persistent_cache
+
+    connection = connect(tmp_path / "corpus.db")
+    save_jev_verdicts(
+        connection,
+        [
+            ("at://d1", 0.1, 0.9, "World", "jev-1.13.0", "2026-10-01", "a" * 16),
+            ("at://d2", 0.1, 0.9, "World", "jev-1.13.0", "2026-10-02", "b" * 16),
+            ("at://d3", 0.1, 0.9, "World", "jev-1.13.0", "2026-10-03", "c" * 16),
+            ("at://d4", 0.1, 0.9, "World", "jev-1.13.0", "2026-10-04", "d" * 16),
+            ("at://d5", 0.1, 0.9, "World", "jev-1.13.0", "2026-10-05", "e" * 16),
+        ],
+    )
+    removed = enforce_jev_cache_bound(connection, max_rows=2)
+    assert removed == 3
+    left = connection.execute("SELECT uri FROM jev_verdicts ORDER BY uri").fetchall()
+    assert [row[0] for row in left] == ["at://d4", "at://d5"]
+    blob = tmp_path / "cache.sqlite"
+    # Long fingerprints so the snapshot is larger than the byte cap.
+    save_jev_verdicts(
+        connection,
+        [
+            (
+                f"at://extra/{index}",
+                0.1,
+                0.9,
+                "Politics",
+                "jev-1.13.0",
+                "2026-10-08",
+                f"{index:064x}",
+            )
+            for index in range(800)
+        ],
+    )
+    export_persistent_cache(connection, blob, max_rows=5_000, max_bytes=24_000)
+    assert blob.is_file()
+    assert blob.stat().st_size <= 24_000
+    surviving = connection.execute("SELECT COUNT(*) FROM jev_verdicts").fetchone()[0]
+    assert surviving < 802
+    connection.close()
+
+
+def test_morning_fetch_counts_a_cached_uri_as_a_hit(monkeypatch, tmp_path):
+    from pipeline.live import _collect_posts
+
+    connection = connect(tmp_path / "corpus.db")
+    save_jev_verdicts(
+        connection,
+        [("at://cached", 0.1, 0.2, "Other", "jev-1.13.0", "2026-10-12", "f" * 16)],
+    )
+    seen = {"calls": []}
+
+    def fake_extract(**kwargs):
+        cache_uris = set(kwargs.get("cache_uris") or ())
+        skip_uris = set(kwargs.get("skip_uris") or ())
+        seen["calls"].append((cache_uris, skip_uris))
+        reused = kwargs.get("cache_reused")
+        if reused is not None and "at://cached" in cache_uris:
+            reused.add("at://cached")
+        return [
+            {
+                "uri": "at://fresh",
+                "author": "new",
+                "text": "People were arguing about the rent increase on my block again today.",
+                "likes": 2,
+                "created_at": "2026-10-12T12:00:00Z",
+            }
+        ]
+
+    monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
+    reset_meter()
+    _collect_posts(
+        [],
+        {"window_hours": 168, "refresh_hours": 24, "seed": 0, "neutral_queries": ["the"]},
+        None,
+        None,
+        10,
+        connection,
+        now=datetime(2026, 10, 12, tzinfo=timezone.utc),
+    )
+    connection.close()
+    assert seen["calls"]
+    assert any("at://cached" in cache_uris and "at://cached" in skip_uris for cache_uris, skip_uris in seen["calls"])
+    assert jev_filter_counts()["cache_hits"] == 1
+    assert jev_filter_counts()["lookups"] == 1
+
+
+def test_replay_second_run_hits_and_pays_nothing(tmp_path):
+    from pipeline.jev_cache import replay_same_posts
+
+    report = replay_same_posts(tmp_path)
+    assert report["run1"]["http_calls"] == report["posts"]
+    assert report["run1"]["paid_calls"] == report["posts"]
+    assert report["run1"]["hits"] == 0
+    assert report["run1"]["lookups"] == report["posts"]
+    assert report["run2"]["http_calls"] == 0
+    assert report["run2"]["paid_calls"] == 0
+    assert report["run2"]["hits"] == report["posts"]
+    assert report["run2"]["lookups"] == report["posts"]
+    assert report["run2"]["cost_usd"] == "0"
+    assert report["run2"]["line"] == (
+        f"Jev cache: hits {report['posts']} / lookups {report['posts']} (100%), "
+        "paid calls 0, est cost $0.00"
+    )
+    assert report["file_only"]["paid_calls"] == 0
+    assert report["file_only"]["hits"] == report["posts"]
+    assert "Jev cache: hits 0 / lookups" in report["run1"]["line"]
+    assert "paid calls 4" in report["run1"]["line"]
 
 
 def test_measure_claim_loss_counts_each_post_once():

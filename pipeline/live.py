@@ -347,6 +347,29 @@ def _jev_batch(settings: dict) -> bool:
     return bool(settings.get("jev_batch"))
 
 
+def _note_cache_reuses(count: int) -> None:
+    """Count URIs the fetch skipped because a prior run already scored them."""
+    if count <= 0:
+        return
+    try:
+        from pipeline.costs import note_jev_cache_hits, note_jev_cache_lookups
+
+        note_jev_cache_hits(count)
+        note_jev_cache_lookups(count)
+    except Exception as exc:
+        print(f"WARNING: Jev cache reuse was not counted: {exc}", file=sys.stderr)
+
+
+def _extract_skipping_cached(cache_only: set[str], **kwargs) -> list[dict]:
+    """Fetch posts, counting cached URIs that search handed back."""
+    reused: set[str] = set()
+    incoming = extract_posts(cache_uris=cache_only, cache_reused=reused, **kwargs)
+    _note_cache_reuses(len(reused))
+    if reused:
+        cache_only.difference_update(reused)
+    return incoming
+
+
 def _topup_claims(
     claims: list[dict],
     *,
@@ -364,8 +387,11 @@ def _topup_claims(
     result = list(claims)
     seen = {post.get("uri") for post in result if post.get("uri")}
     now = datetime.now(timezone.utc)
+    cache_only: set[str] = set()
     if connection is not None:
-        seen.update(known_scored_uris(connection, result, now=now))
+        verdicts = known_scored_uris(connection, result, now=now)
+        cache_only = verdicts - seen
+        seen.update(verdicts)
     neutral = [item for item in (settings.get("neutral_queries") or []) if item]
     refresh_hours = int(settings.get("refresh_hours") or 24)
     # Use a shifted seed so each round samples a different slice of Bluesky.
@@ -378,7 +404,8 @@ def _topup_claims(
         # 4× overfetch compensates for the ~25–35 % claim rate on Bluesky.
         fetch_size = min(gap * 4, 5000)
         try:
-            incoming = extract_posts(
+            incoming = _extract_skipping_cached(
+                cache_only,
                 sample_size=fetch_size,
                 window_hours=refresh_hours,
                 queries=neutral,
@@ -480,12 +507,15 @@ def _collect_posts(
 
     pulled: list[dict] = []
     seen = {post.get("uri") for post in existing if post.get("uri")}
-    seen.update(known_scored_uris(connection, existing, now=moment))
+    verdicts = known_scored_uris(connection, existing, now=moment)
+    cache_only = verdicts - seen
+    seen.update(verdicts)
     rounds = 0
     while len(pulled) < quota and rounds < 6:
         rounds += 1
         try:
-            incoming = extract_posts(
+            incoming = _extract_skipping_cached(
+                cache_only,
                 sample_size=max(quota - len(pulled), 1),
                 window_hours=hours,
                 queries=fetch_queries,

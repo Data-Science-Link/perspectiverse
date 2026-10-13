@@ -30,7 +30,9 @@ concurrency:
 
 permissions:
   contents: write
-  actions: read
+  # actions: write lets this job save the Jev verdict cache. Read is not enough
+  # for actions/cache to store a new key. The cache holds verdict rows only.
+  actions: write
 
 jobs:
   pipeline:
@@ -101,6 +103,20 @@ jobs:
           status=$(python -m pipeline.r2 restore pipeline/data/live_corpus.db)
           echo "$status"
           echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Jev verdict cache
+        # A unique key saves this run's snapshot. restore-keys loads the newest
+        # previous snapshot. Python caps the file at 320,000 rows / 80 MB.
+        # A cache miss still has the verdicts inside the R2 corpus. Failure
+        # here must not block the pipeline.
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
+        continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          path: pipeline/data/jev_verdict_cache.sqlite
+          key: jev-verdict-cache-${{ github.run_id }}
+          restore-keys: |
+            jev-verdict-cache-
 
       - name: Load today's cost ledger for the spend cap
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'

@@ -67,6 +67,10 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     for name, declaration in _POST_COLUMNS:
         if name not in present:
             connection.execute(f"ALTER TABLE posts ADD COLUMN {name} {declaration}")
+    verdict_columns = {row[1] for row in connection.execute("PRAGMA table_info(jev_verdicts)")}
+    if verdict_columns and "text_fp" not in verdict_columns:
+        connection.execute("ALTER TABLE jev_verdicts ADD COLUMN text_fp TEXT NOT NULL DEFAULT ''")
+    connection.execute("CREATE INDEX IF NOT EXISTS jev_verdicts_fp ON jev_verdicts(text_fp)")
     connection.commit()
     return connection
 
@@ -206,6 +210,26 @@ def load_jev_fingerprints(connection: sqlite3.Connection) -> list[str]:
         "SELECT text_fp FROM jev_verdicts WHERE text_fp != ''"
     ).fetchall()
     return [str(row[0]) for row in rows]
+
+
+def load_jev_fingerprint_rows(connection: sqlite3.Connection) -> list[tuple]:
+    """Verdict rows that have a fingerprint, oldest first.
+
+    A later row overwrites an earlier one when the caller builds a map. On
+    the same day a real Jev answer comes after a retained backfill so the
+    real answer wins.
+    """
+    return connection.execute(
+        """
+        SELECT uri, spam_score, claim_score, section, model, scored_on, text_fp
+        FROM jev_verdicts
+        WHERE text_fp != ''
+        ORDER BY scored_on ASC,
+                 CASE WHEN model = ? THEN 0 ELSE 1 END ASC,
+                 uri ASC
+        """,
+        (RETAINED_VERDICT_MODEL,),
+    ).fetchall()
 
 
 def jev_verdict_uris(connection: sqlite3.Connection) -> set[str]:
