@@ -496,3 +496,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Reuse the same words for both (rejected: ambiguous gates).
 - **Decided by:** Owner, in the factory room.
 - **Revisit:** With the routing review in two weeks.
+
+### 2026-10-13 — A real opposing side can pass without repeating the title word (#151)
+- **Decision:** `second_claim_grounded` still requires `second.stance` to be the pole of the posts that would move. A claim word at the same polarity in about 40% of those posts still passes, and subject nouns plus topic nouns shared with the majority face still do not count (#153, #154). When that word check misses, the side can still pass if the posts support the claim: the title negates the majority title (genocidal against genocide) and the posts do not affirm that claim, or the posts deny a price effect the title negates (will not lower, less than 1%). A summary-only negation does not count as denying the majority title. The 10% second-face share bar is unchanged. A sample that is under that bar, at least half of it, and at least two posts, is drawn once more against the same bar. When the merge model would put every drafted face in one group, it is asked once more, with a stricter instruction, and a face whose posts deny the other title stays separate. A planet that already has two groups is not asked again.
+- **Decided by:** Michael, 2026-10-12, by approving the build. The rule is the #151 task: keep Israel Not Genocidal and No Relief, do not bring back the 20 mislabeled faces, and do not silently merge two drafted sides that are the same stance.
+- **Why:** The 40% word check dropped two real sides whose posts never repeat the title word, and four live planets folded both drafted sides into one face.
+- **Alternatives:** Lower the 10% bar. Another model call on every planet. Treat any summary negation as support.
+- **Revisit when:** A mislabeled face publishes again, or a real side still dies because its posts neither repeat a claim word nor match these two support patterns.
