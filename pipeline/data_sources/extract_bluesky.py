@@ -49,6 +49,8 @@ def extract_posts(
     rng: random.Random | None = None,
     per_query: int = 100,
     skip_uris: set[str] | None = None,
+    cache_uris: set[str] | None = None,
+    cache_reused: set[str] | None = None,
 ) -> list[dict]:
     """Return up to ``sample_size`` normalized posts inside the rolling window."""
     moment = now or datetime.now(timezone.utc)
@@ -70,7 +72,15 @@ def extract_posts(
                 break
             for raw in page.get("posts") or []:
                 post = normalize_post(raw)
-                if post is None or post["uri"] in seen:
+                if post is None:
+                    continue
+                if post["uri"] in seen:
+                    # A URI already scored, and not already in the retained
+                    # corpus, is a cache hit. The caller puts those URIs in
+                    # both ``skip_uris`` and ``cache_uris``. Corpus URIs are
+                    # dedup, not hits, so they stay out of ``cache_uris``.
+                    if cache_reused is not None and cache_uris is not None and post["uri"] in cache_uris:
+                        cache_reused.add(post["uri"])
                     continue
                 created = _parse_time(post["created_at"])
                 if created < cutoff or created > moment + timedelta(hours=1):

@@ -428,6 +428,7 @@ class JevFilterCounts:
     """Verdict-cache hits, corpus dedup skips, and pre-filter skips (not paid calls)."""
 
     cache_hits: int = 0
+    lookups: int = 0
     dedup_skips: int = 0
     short: int = 0
     language: int = 0
@@ -455,6 +456,19 @@ def note_jev_cache_hits(count: int) -> None:
         warn(f"Cost meter dropped a Jev cache hit: {exc}")
 
 
+def note_jev_cache_lookups(count: int) -> None:
+    """Count cache probes that were hits or would have been paid calls. Never raises.
+
+    Dedup skips and pre-filter drops are not lookups. The hit rate is
+    hits / lookups.
+    """
+    try:
+        with _filter_lock:
+            _filters.lookups += max(0, int(count))
+    except Exception as exc:
+        warn(f"Cost meter dropped a Jev cache lookup: {exc}")
+
+
 def note_jev_dedup_skips(count: int) -> None:
     """Count retained posts that already have ``section`` and skip Jev. Never raises."""
     try:
@@ -480,6 +494,7 @@ def jev_filter_counts() -> dict[str, int]:
     with _filter_lock:
         return {
             "cache_hits": _filters.cache_hits,
+            "lookups": _filters.lookups,
             "dedup_skips": _filters.dedup_skips,
             "short": _filters.short,
             "language": _filters.language,
@@ -491,6 +506,40 @@ def jev_filter_counts() -> dict[str, int]:
 def jev_filter_skip_total(counts: dict[str, int] | None = None) -> int:
     current = counts if counts is not None else jev_filter_counts()
     return sum(int(current.get(reason) or 0) for reason in _JEV_FILTER_REASONS)
+
+
+def jev_paid_calls(attempts: tuple[Attempt, ...] | None = None) -> tuple[int, Decimal]:
+    """Paid Jev HTTP attempts and their estimated dollar cost."""
+    recorded = attempts if attempts is not None else get_meter().attempts()
+    paid = [attempt for attempt in recorded if attempt.service == SERVICE_JEV]
+    cost = sum((attempt.cost_usd for attempt in paid), start=Decimal("0"))
+    return len(paid), cost
+
+
+def format_jev_cache_rate(hits: int, lookups: int) -> str:
+    """``0%``, ``100%``, or one decimal when the rate is not a whole number."""
+    if lookups <= 0:
+        return "0%"
+    rate = 100.0 * hits / lookups
+    whole = round(rate)
+    if abs(rate - whole) < 0.05:
+        return f"{whole:.0f}%"
+    return f"{rate:.1f}%"
+
+
+def jev_cache_log_line(
+    counts: dict[str, int] | None = None,
+    attempts: tuple[Attempt, ...] | None = None,
+) -> str:
+    """The one per-run line. Dedup skips are not in ``lookups``."""
+    current = counts if counts is not None else jev_filter_counts()
+    hits = int(current.get("cache_hits") or 0)
+    lookups = int(current.get("lookups") or 0)
+    calls, cost = jev_paid_calls(attempts)
+    return (
+        f"Jev cache: hits {hits} / lookups {lookups} ({format_jev_cache_rate(hits, lookups)}), "
+        f"paid calls {calls}, est cost ${format_usd(cost)}"
+    )
 
 
 def format_jev_filters(counts: dict[str, int] | None = None) -> str:
@@ -899,6 +948,7 @@ def write_cost_run(
             "stance_check_failed": int(stance_check_failed),
             "stance_check_incoherent": int(stance_check_incoherent),
             "jev_cache_hits": int(filters["cache_hits"]),
+            "jev_cache_lookups": int(filters.get("lookups") or 0),
             "jev_dedup_skips": int(filters["dedup_skips"]),
             "jev_prefilter_skips": {
                 "short": int(filters["short"]),
@@ -914,6 +964,7 @@ def write_cost_run(
             print(f"Cost run file: {destination} (no paid calls).")
         if filters["cache_hits"] or filters["dedup_skips"] or jev_filter_skip_total(filters):
             print(format_jev_filters(filters))
+        print(jev_cache_log_line(filters, recorded))
         return destination
     except Exception as exc:
         warn(f"Cost log skipped: {exc}")
