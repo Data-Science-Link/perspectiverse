@@ -503,3 +503,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** These habits were how the factory already ran, and they were only in chat. The summary and the lessons step had stopped and were worth restarting. A new grouping issue would split work that already sits on #104.
 - **Alternatives:** Leave the habits unwritten. Leave the end-of-day summary and the lessons step stopped. File a new grouping issue instead of using reopened #104.
 - **Revisit when:** A written habit stops matching what the room actually does, or #104's done bar is replaced.
+
+### 2026-10-12 — Stop squash and rebase merges
+- **Decision:** The factory merges with a merge commit. Squash merges and rebase merges stop. Squash and rebase merging stay off.
+- **Decided by:** Michael, in the room, 2026-10-12.
+- **Why:** #146 and two other PRs were squash-merged. A merge commit keeps the branch history on main.
+- **Alternatives:** Leave squash and rebase merging on.
+- **Revisit when:** A merge queue needs a different merge method.
