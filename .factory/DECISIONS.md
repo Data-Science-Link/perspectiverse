@@ -478,3 +478,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Amends:** "A named approval in the factory room is a merge instruction" (2026-10-08).
 - **Revisit when:** Michael widens this past the PRs he names, or a named room approval is merged without the other conditions.
 
+
+## 2026-10-12 — Complexity rating required before model choice
+- **Decision:** Every issue gets a written complexity rating (trivial / normal / hard + reason) and a pinned model before any cloud-agent launch, recorded on the issue and PR body. Hard work uses `grok-4.7`; unpinned launches are stopped and relaunched.
+- **Why:** Owner asked to make sure task complexity is evaluated; a launch went out unpinned and some trivial work ran on Fast mode.
+- **Alternatives:** Leave routing as guidance only (rejected: it slipped).
+- **Decided by:** Owner, in the factory room.
+- **Revisit:** After two weeks of PR bodies, check ratings matched the outcome.

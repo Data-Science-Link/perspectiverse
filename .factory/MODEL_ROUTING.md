@@ -21,6 +21,7 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 
 ## Cost rules
 
+0. **Rate complexity first.** Every issue gets a triage line on the issue and in the PR body (`Complexity: … — reason; Model: …`) before any launch. When in doubt between normal and hard, pick hard (`grok-4.7`): a failed cheap attempt costs more than the difference.
 1. **Always pin the model** on every launch. Don't leave it on Auto — Auto can route to a third-party model and draw from Other Models.
 2. **No Fast mode, no long-context (500k / 1M) variants** unless a human asks; both roughly double the price.
 3. Escalate one step at a time, and say why on the issue.

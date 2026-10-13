@@ -16,7 +16,7 @@ Also follow `liability-gates.md` on every change.
 - **Hard** — write short product + technical specs on the issue (or linked files); wait for human approval before coding.
 - **High-risk** (license, secrets, auth, crypto, safety, workflows): treat as hard; human review required before merge.
 - Assign a **risk class** on the PR: `trivial` | `normal` | `high` (see merge authority).
-- **Pick the model** from `.factory/MODEL_ROUTING.md` using risk class + type of work; note it on the issue. Pin it on every cloud-agent launch (never Auto). Escalate only per the table.
+- **Rate complexity, then pick the model** (required before any launch). Post a one-line triage note on the issue: `Complexity: trivial | normal | hard — <one-sentence reason>; Model: <pinned model + effort>`. Judge by what the change touches, not its size: workflows, algorithms (clustering, ML, ranking), data stores, money or spend paths, security, or multi-file logic are **hard** and get `grok-4.7` (effort high); everyday features and fixes get `composer-2.5`; docs, syncs and DECISIONS entries are trivial on `composer-2.5`. Use `.factory/MODEL_ROUTING.md`. Pin the model on every cloud-agent launch, including restarts and reviews (never Auto, never Fast). An unpinned or mismatched launch is stopped and relaunched pinned. Copy the triage line into the PR body.
 
 ## Build
 
