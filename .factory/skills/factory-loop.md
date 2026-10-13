@@ -16,7 +16,7 @@ Also follow `liability-gates.md` on every change.
 - **Hard** — write short product + technical specs on the issue (or linked files); wait for human approval before coding.
 - **High-risk** (license, secrets, auth, crypto, safety, workflows): treat as hard; human review required before merge.
 - Assign a **risk class** on the PR: `trivial` | `normal` | `high` (see merge authority).
-- **Rate complexity, then pick the model** (required before any launch). Post a one-line triage note on the issue: `Complexity: simple | standard | complex — <reason>; Risk: trivial | normal | high; Model: <pinned model + effort>`. Complexity picks the model; risk class alone decides the merge gate. Never use risk words (trivial/normal/high) for complexity. Judge by what the change touches, not its size: workflows, algorithms (clustering, ML, ranking), data stores, money or spend paths, security, or multi-file logic are **complex** and get `grok-4.7` (effort high); everyday features and fixes are **standard** on `composer-2.5`; docs, syncs and DECISIONS entries are **simple** on `composer-2.5`. Use `.factory/MODEL_ROUTING.md`. Pin the model on every cloud-agent launch, including restarts and reviews (never Auto, never Fast). An unpinned or mismatched launch is stopped and relaunched pinned. Copy the triage line into the PR body.
+- **Rate complexity, then pick the model** (required before any launch). Post a one-line triage note on the issue: `Complexity: simple | standard | complex — <reason>; Risk: trivial | normal | high; Model: <pinned model + effort>`. Complexity picks the model; risk class alone decides the merge gate. Never use risk words (trivial/normal/high) for complexity. Judge by what the change touches, not its size (workflows, algorithms, data stores, spend paths, security, multi-file logic are **complex**). Then pick the model from the full `.factory/MODEL_ROUTING.md` table — its writing, review, escalation and stuck rows included — not a two-model shortcut. Pin the model on every cloud-agent launch, including restarts and reviews (never Auto, never Fast). An unpinned or mismatched launch is stopped and relaunched pinned. Copy the triage line into the PR body.
 
 ## Build
 
@@ -41,7 +41,7 @@ Also follow `liability-gates.md` on every change.
 | **normal** | Features, bugfixes, behavior changes, **any UI**. **Wait for human product gate** — never auto-merge. |
 | **high** | License/secrets/auth/crypto/safety/workflows/CODEOWNERS/supply chain. **Human required** before merge. |
 
-If unsure → **normal** (wait for human). Behavior changes (e.g. clustering thresholds, defaults users feel) are **normal**, not trivial.
+If unsure → **normal** (wait for human). A PR that changes merge authority or approval rules is never trivial risk. Behavior changes (e.g. clustering thresholds, defaults users feel) are **normal**, not trivial.
 
 ### Record the human gate on the PR (required)
 
