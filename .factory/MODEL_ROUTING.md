@@ -12,15 +12,16 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 
 | Work | Model (pin it) | Pool |
 |---|---|---|
-| **Trivial**: docs, typos, issue filing, rebases, Dependabot, playbook syncs | `composer-2.5` | Cursor |
-| **Normal**: features, bug fixes, UI | `composer-2.5`; escalate to `grok-4.7` (effort medium) after one failed attempt | Cursor |
-| **Hard / high risk**: workflows, algorithms (clustering, ML), data stores, security, multi-file refactors, tech specs | `grok-4.7` (effort high) | Cursor |
+| **Simple**: docs, typos, issue filing, rebases, Dependabot, playbook syncs | `composer-2.5` | Cursor |
+| **Standard**: features, bug fixes, UI | `composer-2.5`; escalate to `grok-4.7` (effort medium) after one failed attempt | Cursor |
+| **Complex**: workflows, algorithms (clustering, ML), data stores, security, multi-file refactors, tech specs | `grok-4.7` (effort high) | Cursor |
 | **Writing**: product specs, roadmap, methodology / user-facing copy | `grok-4.7` (effort medium) | Cursor |
 | **Agent review** | A different model than the builder (e.g. Grok reviews Composer work) | Cursor |
 | **Stuck after two Cursor-model attempts**, or a second opinion on high-risk work | `claude-opus-5-5` or `gpt-5.6-sol` | Other — only if the pool has room or a human approves |
 
 ## Cost rules
 
+0. **Rate complexity first.** Every issue gets a triage line on the issue and in the PR body (`Complexity: simple|standard|complex — reason; Risk: …; Model: …`) before any launch. Complexity words are separate from risk class (trivial/normal/high), which sets the merge gate. When in doubt between standard and complex, pick complex (`grok-4.7`): a failed cheap attempt costs more than the difference.
 1. **Always pin the model** on every launch. Don't leave it on Auto — Auto can route to a third-party model and draw from Other Models.
 2. **No Fast mode, no long-context (500k / 1M) variants** unless a human asks; both roughly double the price.
 3. Escalate one step at a time, and say why on the issue.

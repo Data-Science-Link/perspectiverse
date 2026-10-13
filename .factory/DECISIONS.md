@@ -483,10 +483,23 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** On 2026-10-10, 2026-10-11, and 2026-10-12, `jev_cache_hits` was 0 while dedup skips were about 7,064 on the run that fetched. The table was on disk (the Oct 12 artifact has 27,327 rows from Oct 10–12, and 0 of 8,721 paid URIs were already in it). Cached URIs were removed from the fetch before the lookup, and an exact text match was dropped as a duplicate instead of reused. A fresh runner that did not get the R2 table would score those posts again.
 - **Revisit when:** The 320,000-row cap starts evicting verdicts that are still inside the 7-day window, or a measured week of Jetstream shows a text-repeat rate worth a looser match than an exact fingerprint.
 
+## 2026-10-12 — Complexity rating required before model choice
+- **Decision:** Every issue gets a written complexity rating (simple / standard / complex + reason) and a pinned model before any cloud-agent launch, recorded on the issue and PR body. Complex work uses `grok-4.7`; unpinned launches are stopped and relaunched.
+- **Why:** Owner asked to make sure task complexity is evaluated; a launch went out unpinned and some trivial work ran on Fast mode.
+- **Alternatives:** Leave routing as guidance only (rejected: it slipped).
+- **Decided by:** Owner, in the factory room.
+- **Revisit:** After two weeks of PR bodies, check ratings matched the outcome.
+
+## 2026-10-12 — Complexity uses simple/standard/complex, separate from risk
+- **Decision:** Complexity ratings use simple / standard / complex (they pick the model). Risk class keeps trivial / normal / high (it sets the merge gate). Trivial-risk PRs may merge on green CI without the owner.
+- **Why:** Owner: "Trivial complexity is different than trivial risk"; he is fine with trivial-risk PRs merging without him.
+- **Alternatives:** Reuse the same words for both (rejected: ambiguous gates).
+- **Decided by:** Owner, in the factory room.
+- **Revisit:** With the routing review in two weeks.
+
 ### 2026-10-13 — A real opposing side can pass without repeating the title word (#151)
 - **Decision:** `second_claim_grounded` still requires `second.stance` to be the pole of the posts that would move. A claim word at the same polarity in about 40% of those posts still passes, and subject nouns plus topic nouns shared with the majority face still do not count (#153, #154). When that word check misses, the side can still pass if the posts support the claim: the title negates the majority title (genocidal against genocide) and the posts do not affirm that claim, or the posts deny a price effect the title negates (will not lower, less than 1%). A summary-only negation does not count as denying the majority title. The 10% second-face share bar is unchanged. A sample that is under that bar, at least half of it, and at least two posts, is drawn once more against the same bar. When the merge model would put every drafted face in one group, it is asked once more, with a stricter instruction, and a face whose posts deny the other title stays separate. A planet that already has two groups is not asked again.
 - **Decided by:** Michael, 2026-10-12, by approving the build. The rule is the #151 task: keep Israel Not Genocidal and No Relief, do not bring back the 20 mislabeled faces, and do not silently merge two drafted sides that are the same stance.
 - **Why:** The 40% word check dropped two real sides whose posts never repeat the title word, and four live planets folded both drafted sides into one face.
 - **Alternatives:** Lower the 10% bar. Another model call on every planet. Treat any summary negation as support.
 - **Revisit when:** A mislabeled face publishes again, or a real side still dies because its posts neither repeat a claim word nor match these two support patterns.
-
