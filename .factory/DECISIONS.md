@@ -510,3 +510,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** #146 and two other PRs were squash-merged. A merge commit keeps the branch history on main.
 - **Alternatives:** Leave squash and rebase merging on.
 - **Revisit when:** A merge queue needs a different merge method.
+
+## 2026-10-13 — Revert triggers: measurable ones fire on their own
+- **Decision:** A revert trigger written in a PR body fires automatically when anyone could check it from the run's numbers (e.g. "hidden posts go up", "a top-10 planet loses its second face"). The Manager reverts with a merge commit and posts in the room right after. A trigger that needs judgment (e.g. "a mislabeled side appears") still waits for the owner's word.
+- **Why:** On Oct 13 the #160 check found a face on Public Executions that takes the same stance as the first one (#164), and #160 didn't bring back Gaza's opposing side (#162). Whether a face is mislabeled, and whether #160 caused it, took judgment. Owner: "Yes revert 160 and I'm good with y'all's thoughts on the other behavior."
+- **Alternatives:** Every trigger fires on its own (rejected: judgment calls stay with the owner). Every trigger waits for the owner (rejected: a site that measurably got worse stays up for a day).
+- **Decided by:** Owner, in the factory room.
+- **Revisit when:** An automatic revert fires on a false alarm, or a judgment trigger waits more than a day.
