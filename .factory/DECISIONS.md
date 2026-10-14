@@ -521,9 +521,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 ## 2026-10-14 — Three lessons from the #160 revert
 - **Decision:**
   1. A reader-facing PR may skip posting its top 10 before and after only when its revert trigger can be checked from the run's numbers. Otherwise the before-and-after goes in the room before approval.
-  2. A merge that touches only docs or `.factory/` files skips the full relabel. A merge that changes labeling or grouping code still runs in full, so the site and the next day's check reflect the new code.
+  2. Merges that touch only docs or `.factory/` files don't start the pipeline (already true on main; this records it). Merges that change labeling or grouping code still run in full.
   3. Cache reuse doesn't count as shipped until a second run on the same posts logs real cache hits.
-- **Why:** On Oct 13, #160 went out without its top 10 before and after and was reverted the same day. Four full labeling runs (the #156 and #160 merges, the scheduled run, and the #165 push) pushed spend to $0.505, over the $0.50 target. The cache hit rate stayed at 0% after reuse was called done.
+- **Why:** On Oct 13, #160 went out without its top 10 before and after and was reverted the same day. Four full labeling runs (the #156 and #160 merges, the scheduled run, and the #165 push) pushed spend to $0.505, over the $0.50 target. The cache hit rate stayed at 0% after reuse was called done. Lesson 2 doesn't cut code-merge runs, which caused the Oct 13 overspend; that stays open.
 - **Alternatives:** Always require the top 10 before and after (rejected: slows changes whose triggers are already measurable). Skip the relabel on every merge (rejected: the site would show output from old code).
 - **Decided by:** Owner, in the factory room ("OK lessons").
 - **Revisit when:** A docs-only merge is found to have changed site output, or a cache run logs hits on posts that weren't actually reused.
