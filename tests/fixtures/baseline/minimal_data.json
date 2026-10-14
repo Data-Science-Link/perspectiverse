@@ -1,0 +1,35 @@
+{
+  "last_updated": "2026-01-01",
+  "total_posts": 100,
+  "topics": [],
+  "sections": {
+    "Politics": [
+      {
+        "name": "test-planet",
+        "post_count": 50,
+        "perspectives": [
+          {
+            "id": "1A",
+            "title": "Alpha Beta Gamma",
+            "post_count": 30,
+            "representative_posts": [
+              {"text": "alpha beta gamma discussion"},
+              {"text": "alpha beta gamma again"},
+              {"text": "alpha beta gamma third"}
+            ]
+          },
+          {
+            "id": "1B",
+            "title": "Zebra Quasar",
+            "post_count": 20,
+            "representative_posts": [
+              {"text": "unrelated weather report"},
+              {"text": "another random topic"},
+              {"text": "nothing matching"}
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

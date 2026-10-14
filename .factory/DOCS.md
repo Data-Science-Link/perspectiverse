@@ -45,6 +45,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | Daily spend cap | `pipeline/spend_cap.py` | Warn at $0.50 and hard-stop at $1.00 of labeling, Jev, and top-ups for the UTC day, across every run. A stop does not replace `public/data.json` (#148). |
 | Pipeline overlap check | `pipeline/pipeline_overlap.py`, `scripts/check_pipeline_overlap.py` | GitHub API check for an in-progress Daily Discourse Pipeline run. No DeepInfra calls (#115). |
 | Natural grouping research | `docs/research/natural-grouping.md` | Dense-ball clustering comparison; one-view planets carry `opposing_note` (#94). |
+| Edition baseline metrics | `.factory/BASELINE_METRICS.md`, `scripts/baseline_metrics.py` | Rerunnable `total_posts`, log-derived hidden volume, and unsupported-title face count on a published snapshot. |
 
 ## Frontend (React + R3F)
 
