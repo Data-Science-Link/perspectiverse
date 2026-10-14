@@ -46,7 +46,6 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/jev_prefilter.py` | Free pre-filter before Jev: short posts, non-English, link-only, near-duplicates |
 | `pipeline/story_attach.py` | Same-story attach, planet fold, and post-relabel title merge (#114) |
 | `pipeline/schedule_guard.py` | Skip redundant scheduled Daily Discourse Pipeline runs after today's job already succeeded (#97) |
-| `pipeline/merge_relabel_guard.py` | Skip full relabel on docs/factory-only merge pushes when today's pipeline already labeled the posts |
 | `pipeline/assemble.py` | Writes `public/data.json` |
 | `pipeline/cluster_math.py` | TF-IDF and k-means |
 | `pipeline/http_json.py` | Allow-listed JSON HTTP (`api.bsky.app`, `api.openai.com`, `api.deepinfra.com`, `api.typesafe.ai`) |
