@@ -527,3 +527,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Always require the top 10 before and after (rejected: slows changes whose triggers are already measurable). Skip the relabel on every merge (rejected: the site would show output from old code).
 - **Decided by:** Owner, in the factory room ("OK lessons").
 - **Revisit when:** A docs-only merge is found to have changed site output, or a cache run logs hits on posts that weren't actually reused.
+
+### 2026-10-15 — Same-claim fold keeps a real opposing side (#151, #162, #163, #164, #168)
+- **Decision:** Keep the local support check from #160 (the title denies the majority title, or the posts paraphrase a negated effect) and do not bring back its merge retry or its near-miss sample redraw. Faces the model leaves apart are folded when they make one claim. A title that denies the other title stays apart. When a second side is incoherent and the pre-pass faces were one claim, those duplicates stay folded. A title whose pole contradicts its posts is rewritten, unless the title is already a denial. The 10% share bar is unchanged. Yemen's attack reports and its anti-war posts stay apart.
+- **Decided by:** Michael approved this refix in the factory room on 2026-10-14. The manager commits the rule.
+- **Why:** #160 was reverted the same day. Gaza's opposing side did not come back (#162) and Public Executions gained a same-stance face (#164). The claim-word check had also dropped real sides whose posts never repeat the title word (#151), including Epstein Files Release, which the lexicon misses (#168).
+- **Alternatives:** Ship #160 again (rejected: that is the code that was reverted). Fold every pair the lexicon marks as the same pole (rejected: Yemen is a false alarm). Leave a contradicting title for the wide relabel to fix (rejected: the relabel can write the contradicting title back).
+- **Revisit when:** A hand check of a published edition finds a real second side folded away, or one of Gaza, MAGA, Public Execution, or Epstein Files Release is still one-sided in the top planets.

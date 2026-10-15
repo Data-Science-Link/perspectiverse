@@ -16,14 +16,22 @@ once more. If that also fails, the planet keeps those same pre-pass faces.
 It is marked stance check failed and does not get the one-view note.
 
 A split that clears that share is still kept as one face unless the model's
-``second.stance`` is the pole of the posts that would move and a claim word
-from ``second.title`` or ``second.summary`` shows up with the same polarity
-in about 40% of those posts. Subject words and short title-topic terms such
-as ICE are not claim words. A summary word is not a claim word when it is a
-topic noun of the planet or the majority face: it is one of the planet's top
-terms, it is in that face's title or summary, or it shows up in about 40% of
-that face's posts. A word in the minority title is the claim, so it still
-counts. That check is local and does not call the model.
+``second.stance`` is the pole of the posts that would move and the posts
+support that claim. Support is the 40% claim-word check, and, when the posts
+do not repeat the title word, a local fallback: the title denies a stem the
+majority title affirms and the posts do not affirm it, or a negated effect
+in the summary is backed by a paraphrase in enough of the posts. Subject
+words and short title-topic terms such as ICE are not claim words. A summary
+word is not a claim word when it is a topic noun of the planet or the
+majority face. A word in the minority title is the claim, so it still counts
+for the 40% check. The fallback does not call the model and does not lower
+the share bar.
+
+Two faces that make the same claim are folded even when the model leaves
+them in separate groups. A face whose title denies the other title stays
+apart, so a real opposing side is not folded away. A title whose pole
+contradicts its posts is rewritten locally. Yemen's attack reports and its
+anti-war posts do not share that claim, so they are not folded.
 """
 
 from __future__ import annotations
@@ -39,6 +47,7 @@ from collections.abc import Callable
 
 from pipeline.cluster_math import salient_terms
 from pipeline.label import _SHORT_SUBJECTS, content_tokens, shares_claim_word, subject_stem
+from scripts.baseline_metrics import CONDEMN_CUES, ENDORSE_CUES, NEGATION_CUES, _cue_polarity
 from pipeline.perspectives import MIN_FACE_POSTS
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import (
@@ -578,8 +587,14 @@ def merge_same_stance(
     members: list[dict],
     generate: Callable[[str], str],
     context: dict,
+    *,
+    subject: str = "",
 ) -> tuple[list, bool]:
-    """Fold faces the model puts on the same side. False when the call fails."""
+    """Fold faces the model puts on the same side. False when the call fails.
+
+    A face whose title denies the other title is kept apart. Faces the model
+    left in separate groups are still folded when they make the same claim.
+    """
     if len(drafted) < 2:
         return drafted, False
     groups = _call_parsed(
@@ -592,8 +607,12 @@ def merge_same_stance(
     )
     if groups is None:
         return drafted, False
+    parted: list[list[int]] = []
+    for group in groups:
+        parted.extend(_partition_deniers(drafted, group, subject))
+    parted = _collapse_same_claim(drafted, parted, members, subject)
     post_limit = int(context.get("limit") or 36)
-    merged = [_fold(drafted, group, post_limit) if len(group) > 1 else drafted[group[0]] for group in groups]
+    merged = [_fold(drafted, group, post_limit) if len(group) > 1 else drafted[group[0]] for group in parted]
     merged.sort(key=lambda item: -int(item[2]))
     return merged, True
 
@@ -902,6 +921,497 @@ def claim_words_cover(
     return hits >= _coverage_needed(len(posts))
 
 
+# Words that show up in every drafted summary or post and are not a claim.
+_CLAIM_GLUE = frozenset(
+    {
+        "about",
+        "argue",
+        "been",
+        "claim",
+        "from",
+        "have",
+        "many",
+        "most",
+        "other",
+        "people",
+        "posts",
+        "should",
+        "some",
+        "that",
+        "their",
+        "there",
+        "these",
+        "they",
+        "this",
+        "those",
+        "which",
+        "with",
+        "would",
+    }
+)
+# "stop" and "anti" deny the next claim. They are not general negators.
+_TITLE_NEGATORS = _NEGATION | frozenset({"stop", "anti"})
+# Negated summary words that are not a claim. "argue" and "various" are glue.
+_EFFECT_GLUE = _CLAIM_GLUE | frozenset(
+    {
+        "citing",
+        "could",
+        "perspectives",
+        "reasons",
+        "various",
+    }
+)
+_MINIMIZERS = frozenset(
+    {
+        "barely",
+        "difference",
+        "enough",
+        "hardly",
+        "less",
+        "little",
+        "marginal",
+        "material",
+        "minimal",
+        "negligible",
+        "slight",
+        "slightly",
+    }
+)
+_DENIAL_EFFECTS = ("lower", "relief", "reduce", "reduction", "help", "difference")
+_EFFECT_DENIAL = re.compile(
+    r"\b(?:won'?t|will not|not going to|no material|cannot|can'?t)\b"
+    r".{0,60}\b(?:difference|lower\w*|relief|reduc\w*|help)\b"
+    r"|\b(?:not|never|no)\s+lower\w*"
+    r"|\bnegat\w*\b.{0,50}\b(?:reduc\w*|relief|cost|price\w*|difference)\b"
+    r"|\bless than\b.{0,24}(?:\d|percent|price|cost|gallon)",
+    re.IGNORECASE,
+)
+
+
+def _adjective_stem(word: str) -> str:
+    """Fold genocidal onto genocide. Other stems stay as they are."""
+    stem = subject_stem(word)
+    if stem.endswith("al") and len(stem) - 2 >= 5:
+        stem = stem[:-2].rstrip("e")
+    return stem
+
+
+def _claim_match(token: str, claim: str) -> bool:
+    if subject_stem(token) == subject_stem(claim) or shares_claim_word(token, claim):
+        return True
+    return _adjective_stem(token) == _adjective_stem(claim)
+
+
+def _member_posts(item: tuple, members: list[dict]) -> list[dict]:
+    by_uri = {str(post.get("uri") or ""): post for post in members}
+    _perspective, rows, _size = item
+    return [by_uri[str(uri)] for uri, _position, _distance in rows if str(uri) in by_uri]
+
+
+def _title_denies_title(title: str, other_title: str) -> bool:
+    """True when ``title`` negates a word that ``other_title`` affirms."""
+    title_tokens = _surface_tokens(title)
+    other_tokens = [token for token in _surface_tokens(other_title) if len(token) >= 3]
+    if not other_tokens:
+        return False
+    for index, token in enumerate(title_tokens):
+        if len(token) < 3 or token in _TITLE_NEGATORS:
+            continue
+        window = title_tokens[max(0, index - 3) : index]
+        if not any(word in _TITLE_NEGATORS for word in window):
+            continue
+        if any(_claim_match(token, other) for other in other_tokens):
+            return True
+    return False
+
+
+def _claim_stems(title: str, summary: str, subject: str) -> set[str]:
+    """Distinctive claim stems. The planet subject and glue words are left out."""
+    topic = _topic_stems(subject, "")
+    stems: set[str] = set()
+    for token in _surface_tokens(f"{title} {summary}"):
+        if len(token) < 4 or token in _CLAIM_GLUE or token in _TITLE_NEGATORS:
+            continue
+        stem = _adjective_stem(token)
+        if stem in topic or token in topic or subject_stem(token) in topic:
+            continue
+        stems.add(stem)
+    return stems
+
+
+def _cue_stems(text: str) -> set[str]:
+    stems: set[str] = set()
+    for token in _surface_tokens(text):
+        if token in CONDEMN_CUES or token in ENDORSE_CUES:
+            stems.add(_adjective_stem(token))
+    return stems
+
+
+def _posts_affirm(posts: list[dict], stems: set[str]) -> bool:
+    if not stems or len(posts) < 2:
+        return False
+    claims = list(stems)
+    hits = sum(1 for post in posts if _affirms_any(_post_text(post), claims))
+    return hits >= _coverage_needed(len(posts))
+
+
+def _effect_mentions(title: str, summary: str, subject: str) -> list[str]:
+    """Negated claim words. Glue and the planet subject are left out."""
+    topic = _topic_stems(subject, "")
+    effects: list[str] = []
+    for claim, polarity in _claim_mentions(title, summary, subject, set()):
+        if polarity >= 0 or claim in _EFFECT_GLUE or claim in _NEGATION or len(claim) < 4:
+            continue
+        if subject_stem(claim) in topic or claim in topic:
+            continue
+        effects.append(claim)
+    return effects
+
+
+def _post_effect_flags(text: str, effects: list[str]) -> tuple[bool, bool]:
+    """Whether one post supports or contradicts a negated effect."""
+    supports = False
+    contradicts = False
+    denial_family = any(_claim_match(effect, word) for effect in effects for word in _DENIAL_EFFECTS)
+    if denial_family and _EFFECT_DENIAL.search(text):
+        supports = True
+    tokens = _surface_tokens(text)
+    for index, token in enumerate(tokens):
+        if not any(_claim_match(token, effect) for effect in effects):
+            continue
+        window = set(tokens[max(0, index - 8) : index + 9])
+        if _negated(tokens, index) or window & _MINIMIZERS:
+            supports = True
+        else:
+            contradicts = True
+    return supports, contradicts
+
+
+def _affirms_any(text: str, claims: list[str]) -> bool:
+    tokens = _surface_tokens(text)
+    for index, token in enumerate(tokens):
+        if _negated(tokens, index):
+            continue
+        if any(_claim_match(token, claim) for claim in claims):
+            return True
+    return False
+
+
+def _negated_title_words(title: str) -> list[str]:
+    """Negated words in the title itself. The planet subject is not stripped.
+
+    'Not Genocidal' still denies 'Genocide' when genocide is the planet subject.
+    """
+    tokens = _surface_tokens(title)
+    words: list[str] = []
+    for index, token in enumerate(tokens):
+        if len(token) < 4 or token in _EFFECT_GLUE or token in _NEGATION:
+            continue
+        if _negated(tokens, index):
+            words.append(token)
+    return words
+
+
+def _denies_majority_title(
+    title: str,
+    summary: str,
+    posts: list[dict],
+    subject: str,
+    majority_title: str,
+) -> bool:
+    """True when the title negates the majority title and the posts do not affirm it.
+
+    'Israel Not Genocidal' denies 'Israel Genocide' even when the posts never
+    say genocidal. They argue the other side. A title that does not negate the
+    majority title does not qualify, so 'ICE Has Role' stays out. A summary-only
+    line such as 'not a threat' does not qualify either.
+    """
+    del summary, subject
+    if len(posts) < 2 or not majority_title:
+        return False
+    negated = _negated_title_words(title)
+    if not negated:
+        return False
+    tokens = _surface_tokens(majority_title)
+    affirmed = [
+        token
+        for index, token in enumerate(tokens)
+        if len(token) >= 4 and not _negated(tokens, index)
+    ]
+    matched = [token for token in affirmed if any(_claim_match(token, claim) for claim in negated)]
+    if not matched:
+        return False
+    affirmers = sum(1 for post in posts if _affirms_any(_post_text(post), matched))
+    return affirmers < _coverage_needed(len(posts))
+
+
+def posts_support_claim(
+    title: str,
+    summary: str,
+    posts: list[dict],
+    subject: str = "",
+    *,
+    majority_title: str = "",
+) -> bool:
+    """True when the posts back the claim without repeating a title word at 40%.
+
+    Local. No model call. The 10% share bar is not involved.
+    """
+    if len(posts) < 2:
+        return False
+    if _denies_majority_title(title, summary, posts, subject, majority_title):
+        return True
+    effects = _effect_mentions(title, summary, subject)
+    if not effects:
+        return False
+    support = 0
+    contra = 0
+    for post in posts:
+        supports, contradicts = _post_effect_flags(_post_text(post), effects)
+        if supports:
+            support += 1
+        elif contradicts:
+            contra += 1
+    need = _coverage_needed(len(posts))
+    threshold = max(2, math.ceil(need / 2))
+    return support >= threshold and support > contra and contra < need
+
+
+def _faces_same_claim(
+    left_title: str,
+    left_summary: str,
+    left_posts: list[dict],
+    right_title: str,
+    right_summary: str,
+    right_posts: list[dict],
+    subject: str,
+) -> bool:
+    """True when the two faces make one claim.
+
+    A title that denies the other title is a real opposing side. Yemen's
+    attack reports and its anti-war posts do not cross-affirm each other's
+    cues, so the lexicon's same-pole flag does not fold them.
+    """
+    if _title_denies_title(left_title, right_title) or _title_denies_title(right_title, left_title):
+        return False
+    # A local denial or negated-effect paraphrase is a real opposing side.
+    # 'No Relief' must not fold into 'High Fuel Prices' because both summaries
+    # mention diesel.
+    if posts_support_claim(
+        left_title, left_summary, left_posts, subject, majority_title=right_title
+    ) or posts_support_claim(
+        right_title, right_summary, right_posts, subject, majority_title=left_title
+    ):
+        return False
+    left_text = f"{left_title} {left_summary}"
+    right_text = f"{right_title} {right_summary}"
+    left_cues = _cue_stems(left_text)
+    right_cues = _cue_stems(right_text)
+    left_stems = _claim_stems(left_title, left_summary, subject)
+    right_stems = _claim_stems(right_title, right_summary, subject)
+    shared = left_stems & right_stems
+    if shared and _posts_affirm(left_posts, shared) and _posts_affirm(right_posts, shared):
+        return True
+    # Same cue on both claim texts, and each side's posts say the other's cue.
+    # Yemen stays apart: "killed" and "oppose" are different cues, and the
+    # posts do not say the other face's cue.
+    left_pole, _ignored = _cue_polarity(left_text)
+    right_pole, _ignored = _cue_polarity(right_text)
+    if left_pole and left_pole == right_pole and left_cues and right_cues:
+        if _posts_affirm(left_posts, right_cues) and _posts_affirm(right_posts, left_cues):
+            return True
+    # No cue, or the same cues, and both summaries are about one claim the posts
+    # repeat. "release" still counts when it is also the planet subject. A single
+    # topic word both summaries mention, such as "diesel", is not that claim.
+    if left_cues == right_cues:
+        shared_summary = _summary_claim_overlap(left_summary, right_summary)
+        if shared_summary and _posts_affirm(left_posts, shared_summary) and _posts_affirm(right_posts, shared_summary):
+            return True
+    return False
+
+
+def _summary_claim_overlap(left_summary: str, right_summary: str) -> set[str]:
+    """Stems both summaries are about, not a topic word one of them mentions.
+
+    The overlap has to be at least half of each summary. Epstein's two
+    summaries are mostly "files" and "release". A dyed-diesel summary that
+    only shares "diesel" with "prices are high" does not qualify.
+    """
+    left = _summary_stems(left_summary)
+    right = _summary_stems(right_summary)
+    shared = left & right
+    if not shared:
+        return set()
+    if len(shared) * 2 < len(left) or len(shared) * 2 < len(right):
+        return set()
+    return shared
+
+
+def _summary_stems(summary: str) -> set[str]:
+    """Claim stems in a summary, including a word that is also the planet subject."""
+    stems: set[str] = set()
+    for token in _surface_tokens(summary):
+        if len(token) < 4 or token in _CLAIM_GLUE or token in _TITLE_NEGATORS:
+            continue
+        stems.add(_adjective_stem(token))
+    return stems
+
+
+def _face_posts(item: tuple, members: list[dict]) -> list[dict]:
+    return _member_posts(item, members)
+
+
+def _draft_is_one_claim(drafted: list, members: list[dict], subject: str) -> bool:
+    """True when every drafted face makes the largest face's claim."""
+    if len(drafted) < 2:
+        return False
+    ranked = sorted(range(len(drafted)), key=lambda index: (-int(drafted[index][2]), index))
+    base = drafted[ranked[0]]
+    base_posts = _face_posts(base, members)
+    base_title = str(base[0].get("title") or "")
+    base_summary = str(base[0].get("summary") or "")
+    for index in ranked[1:]:
+        other = drafted[index]
+        if not _faces_same_claim(
+            base_title,
+            base_summary,
+            base_posts,
+            str(other[0].get("title") or ""),
+            str(other[0].get("summary") or ""),
+            _face_posts(other, members),
+            subject,
+        ):
+            return False
+    return True
+
+
+def _partition_deniers(drafted: list, indexes: list[int], subject: str) -> list[list[int]]:
+    """Keep a face out of a fold when its title denies the other title."""
+    del subject
+    if len(indexes) < 2:
+        return [list(indexes)]
+    ranked = sorted(indexes, key=lambda index: (-int(drafted[index][2]), index))
+    base = ranked[0]
+    base_title = str(drafted[base][0].get("title") or "")
+    stay = [base]
+    apart: list[list[int]] = []
+    for index in ranked[1:]:
+        title = str(drafted[index][0].get("title") or "")
+        if _title_denies_title(title, base_title) or _title_denies_title(base_title, title):
+            apart.append([index])
+        else:
+            stay.append(index)
+    return [stay, *apart]
+
+
+def _collapse_same_claim(
+    drafted: list,
+    groups: list[list[int]],
+    members: list[dict],
+    subject: str,
+) -> list[list[int]]:
+    """Fold groups the model left apart when they make one claim."""
+    pending = [list(group) for group in groups if group]
+    changed = True
+    while changed and len(pending) > 1:
+        changed = False
+        for left in range(len(pending)):
+            for right in range(left + 1, len(pending)):
+                left_index = max(pending[left], key=lambda index: (int(drafted[index][2]), -index))
+                right_index = max(pending[right], key=lambda index: (int(drafted[index][2]), -index))
+                left_face = drafted[left_index]
+                right_face = drafted[right_index]
+                if _faces_same_claim(
+                    str(left_face[0].get("title") or ""),
+                    str(left_face[0].get("summary") or ""),
+                    _face_posts(left_face, members),
+                    str(right_face[0].get("title") or ""),
+                    str(right_face[0].get("summary") or ""),
+                    _face_posts(right_face, members),
+                    subject,
+                ):
+                    pending[left] = pending[left] + pending[right]
+                    del pending[right]
+                    changed = True
+                    break
+            if changed:
+                break
+    return pending
+
+
+def _title_pole_is_a_denial(title: str) -> bool:
+    """True when every cue in the title is negated.
+
+    'Israel Not Genocidal' already states the opposing claim. Rewriting it to
+    'Israel Opposed' would drop that claim. 'MAGA Support' has an unnegated
+    endorse cue, so it can still be rewritten when the posts condemn it.
+    """
+    tokens = _surface_tokens(title)
+    negated = 0
+    plain = 0
+    for index, token in enumerate(tokens):
+        if token not in CONDEMN_CUES and token not in ENDORSE_CUES:
+            continue
+        window = tokens[max(0, index - 3) : index]
+        if any(word in NEGATION_CUES for word in window):
+            negated += 1
+        else:
+            plain += 1
+    return negated > 0 and plain == 0
+
+
+def align_contradicting_title(perspective: dict, posts: list[dict]) -> bool:
+    """Rewrite a title whose pole is the opposite of its posts. No model call.
+
+    'MAGA Support' over posts that condemn MAGA becomes 'MAGA Opposed'.
+    A title with no cue, or posts that agree with it, is left as it is.
+    """
+    title = str(perspective.get("title") or "")
+    title_pole, _title_cues = _cue_polarity(title)
+    if not title_pole or _title_pole_is_a_denial(title):
+        return False
+    scored = []
+    for post in posts:
+        pole, _cues = _cue_polarity(_post_text(post))
+        if pole:
+            scored.append(pole)
+    if len(scored) < 2:
+        return False
+    oppose = sum(1 for pole in scored if pole == -title_pole)
+    agree = sum(1 for pole in scored if pole == title_pole)
+    if oppose < 2 or oppose <= agree:
+        return False
+    kept: list[str] = []
+    for word in re.findall(r"[A-Za-z0-9']+", title):
+        low = word.lower()
+        if low in CONDEMN_CUES or low in ENDORSE_CUES or low in NEGATION_CUES:
+            continue
+        if low in {"the", "a", "an", "of", "and", "or", "to", "in", "on", "for"}:
+            continue
+        kept.append(word)
+    subject_words = " ".join(kept).strip() or "This topic"
+    if title_pole > 0:
+        new_title = f"{subject_words} Opposed"
+        new_summary = f"These posts oppose {subject_words}."
+    else:
+        new_title = f"{subject_words} Defended"
+        new_summary = f"These posts defend {subject_words}."
+    perspective["title"] = new_title
+    perspective["summary"] = new_summary
+    perspective.pop("arguments", None)
+    draft = perspective.get("_draft_face_label")
+    if isinstance(draft, dict):
+        draft["title"] = new_title
+        draft["summary"] = new_summary
+        draft.pop("arguments", None)
+    return True
+
+
+def _align_faces(drafted: list, members: list[dict]) -> None:
+    for item in drafted:
+        align_contradicting_title(item[0], _face_posts(item, members))
+
+
 def second_claim_grounded(
     *,
     stance: str,
@@ -917,14 +1427,26 @@ def second_claim_grounded(
 ) -> bool:
     """Both gates for a stance split. No model call.
 
-    ``second.stance`` has to be the pole of ``posts``, and a claim word from
-    the title or summary has to show up with the same polarity in about 40%
-    of those posts. Subject terms, short title-topic terms, and topic nouns
-    shared with the majority face or the planet's top terms do not count.
+    ``second.stance`` has to be the pole of ``posts``. The posts then have to
+    support the claim: either a claim word at the same polarity in about 40%
+    of them, or ``posts_support_claim`` when they do not repeat the title word.
+    A second face that makes the majority face's claim does not pass.
+    Subject terms, short title-topic terms, and topic nouns shared with the
+    majority face or the planet's top terms do not count as claim words.
     """
     if second_stance not in POLES or second_stance != stance:
         return False
-    return claim_words_cover(
+    if _faces_same_claim(
+        title,
+        summary,
+        posts,
+        majority_title,
+        majority_summary,
+        list(majority_posts or []),
+        subject,
+    ):
+        return False
+    if claim_words_cover(
         title,
         summary,
         posts,
@@ -933,6 +1455,14 @@ def second_claim_grounded(
         majority_title=majority_title,
         majority_summary=majority_summary,
         planet_terms=planet_terms,
+    ):
+        return True
+    return posts_support_claim(
+        title,
+        summary,
+        posts,
+        subject,
+        majority_title=majority_title,
     )
 
 
@@ -1059,9 +1589,11 @@ def apply_stance_pass(
     context.pop("stance_check_incoherent", None)
     context.pop("stance_failure_reason", None)
     if context.get("chosen") == "heuristic" or len(drafted) < 1:
+        _align_faces(drafted, members)
         return drafted, []
     generate = context.get("stance_generate") or context.get("summary_model")
     if generate is None:
+        _align_faces(drafted, members)
         return drafted, ["Stance check skipped: no label model."]
     context.pop("stance_last", None)
     log: list[str] = []
@@ -1069,7 +1601,9 @@ def apply_stance_pass(
     original_uris = _uri_key(drafted)
     current = drafted
     if len(current) >= 2 and not context.get("stance_check_failed"):
-        merged, called = merge_same_stance(current, members, generate, context)
+        merged, called = merge_same_stance(
+            current, members, generate, context, subject=subject
+        )
         if called and _uri_key(merged) == original_uris and not context.get("stance_check_failed"):
             current = merged
         elif called and _uri_key(merged) != original_uris:
@@ -1093,6 +1627,7 @@ def apply_stance_pass(
             f"Stance check failed on {subject or 'planet'}: {reason}. "
             f"Pre-pass faces kept ({before})."
         )
+        _align_faces(drafted, members)
         return drafted, log
     if context.get("stance_check_incoherent"):
         last = context.get("stance_last") or {}
@@ -1103,12 +1638,22 @@ def apply_stance_pass(
                 f"={float(last.get('share') or 0):.1%} vs {float(last.get('threshold') or 0):.0%}"
                 f", title {last.get('title')!r}"
             )
+        if _draft_is_one_claim(drafted, members, subject) and _uri_key(current) == original_uris:
+            log.append(
+                f"Second side not coherent on {subject or 'planet'}:{detail}. "
+                f"Same-side faces kept together ({len(current)}). "
+                f"Pre-pass duplicates not restored ({before})."
+            )
+            _align_faces(current, members)
+            return current, log
         log.append(
             f"Second side not coherent on {subject or 'planet'}:{detail}. "
             f"Pre-pass faces kept ({before})."
         )
+        _align_faces(drafted, members)
         return drafted, log
     if _uri_key(current) != original_uris:
+        _align_faces(drafted, members)
         return drafted, [f"Stance pass skipped on {subject or 'planet'}: post count changed."]
     last = context.get("stance_last") or {}
     detail = ""
@@ -1118,4 +1663,5 @@ def apply_stance_pass(
             f"={float(last.get('share') or 0):.1%} vs {float(last.get('threshold') or 0):.0%}"
         )
     log.append(f"Stance on {subject or 'planet'}: {before} face(s) -> {len(current)}{detail}.")
+    _align_faces(current, members)
     return current, log
