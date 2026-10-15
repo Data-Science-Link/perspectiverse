@@ -293,6 +293,7 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
     """Best effort. A cost-log error must not fail a snapshot that already wrote."""
     failed_checks = report_stance_check_failures()
     incoherent_checks = report_stance_check_incoherent()
+    report_unshared_pending_planets()
     report_coherence_stats()
     try:
         from pipeline.costs import count_published_planets, deepinfra_error_summary, get_meter, write_cost_run
@@ -624,11 +625,12 @@ _coherence_stats = {
     "held_uris": set(),
     "drops": [],
 }
+_unshared_pending_planets: list[tuple[str, int]] = []
 
 
 def reset_coherence_stats() -> None:
     """Clear the per-run catch-all counters. Called at the start of a live run."""
-    global _coherence_stats
+    global _coherence_stats, _unshared_pending_planets
     with _coherence_lock:
         _coherence_stats = {
             "shared_planets": 0,
@@ -639,6 +641,29 @@ def reset_coherence_stats() -> None:
             "held_uris": set(),
             "drops": [],
         }
+        _unshared_pending_planets = []
+
+
+def note_unshared_pending_planet(name: str, post_count: int) -> None:
+    """One catalog planet kept with the pending reader line after every face failed the shared-claim check."""
+    with _coherence_lock:
+        _unshared_pending_planets.append((str(name or "").strip() or "?", int(post_count or 0)))
+
+
+def report_unshared_pending_planets() -> int:
+    """Stderr summary for planets published as pending instead of dropped."""
+    with _coherence_lock:
+        rows = list(_unshared_pending_planets)
+    count = len(rows)
+    if not count:
+        return 0
+    largest = max(rows, key=lambda row: row[1])
+    print(
+        f"Kept as pending (no shared claim on any face): {count} planet(s); "
+        f"largest {largest[0]!r} ({largest[1]} posts).",
+        file=sys.stderr,
+    )
+    return count
 
 
 def _note_uris(key_planets: str | None, key_uris: str, uris: list[str]) -> None:
@@ -1401,8 +1426,9 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     count passes, the planet is one perspective and carries
     ``opposing_note``, unless the stance check failed. A second face is not
     forced. A "Mixed remarks" face
-    is dropped; if one real face remains, the planet is still published. The
-    planet is not dropped for having one face. When the faces are different stories
+    is dropped; if one real face remains, the planet is still published. When
+    every face fails the shared-claim check, the planet is kept as pending
+    (#158). The planet is not dropped for having one face. When the faces are different stories
     (no specific shared subject word), the candidate is split into one
     planet per story and each story goes through this same split (#78).
     A catch-all (more than one story bucket, no shared claim, or a label
@@ -2776,6 +2802,39 @@ def _face_has_no_shared_claim(face: dict) -> bool:
     )
 
 
+def _salvage_unshared_pending_faces(topic: dict, faces: list[dict]) -> list[dict]:
+    """Publish one face under the planet name when every face failed the shared-claim check."""
+    if not faces:
+        return []
+    best = max(faces, key=lambda face: int(face.get("post_count") or 0))
+    salvaged = {key: value for key, value in best.items() if not str(key).startswith("_")}
+    planet_name = str(topic.get("name") or "").strip() or str(salvaged.get("title") or "Topic")
+    salvaged["title"] = planet_name
+    salvaged["summary"] = f"Posts grouped under {planet_name}."
+    salvaged.pop("arguments", None)
+    return [salvaged]
+
+
+def _keep_unshared_pending_planet(topic: dict, original: list[dict]) -> bool:
+    """Keep a planet that would have been dropped for having no shared-claim face."""
+    faces = _salvage_unshared_pending_faces(topic, original)
+    if not faces:
+        return False
+    counts = [int(face.get("post_count") or 0) for face in original]
+    total = sum(counts) or int(topic.get("post_count") or 0)
+    if total <= 0:
+        return False
+    if not int(faces[0].get("post_count") or 0):
+        faces[0]["post_count"] = total
+    faces[0]["volume_percent"] = 100.0
+    topic["post_count"] = total
+    topic["perspectives"] = faces
+    topic["stance_check"] = STANCE_CHECK_FAILED
+    topic.pop("opposing_note", None)
+    apply_opposing_note(topic)
+    return True
+
+
 def _assign_section_topic_ids(section: str, topics: list[dict]) -> list[dict]:
     """Give each section planet a globally unique id (e.g. Technology-5)."""
     for topic in topics:
@@ -2843,9 +2902,9 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
 
     A "Mixed remarks" leftover is not kept to pad the planet to two views.
     One remaining face gets ``opposing_note``, unless the stance check failed.
-    A planet with no face left is
-    dropped so the next ranked candidate can fill the catalog. Different
-    stories are split before this guard. More than six faces is still dropped.
+    When every face fails the check, the planet stays with ``stance_check`` set
+    and readers see the pending line (#129). Different stories are split before
+    this guard. More than six faces is still dropped.
     """
     kept = []
     for topic in topics:
@@ -2855,7 +2914,20 @@ def _drop_unshared_planets(topics: list[dict]) -> list[dict]:
             for face in original
             if face.get("stance_locked") or not _face_has_no_shared_claim(face)
         ]
-        if not faces or len(faces) > MAX_FACES:
+        if not faces:
+            if _keep_unshared_pending_planet(topic, original):
+                note_unshared_pending_planet(
+                    str(topic.get("name") or ""),
+                    int(topic.get("post_count") or 0),
+                )
+                kept.append(topic)
+            else:
+                print(
+                    f"Dropping {topic.get('name')}: 0 faces left after "
+                    f"removing unshared claims (need {MIN_FACES}-{MAX_FACES})."
+                )
+            continue
+        if len(faces) > MAX_FACES:
             print(
                 f"Dropping {topic.get('name')}: {len(faces)} faces left after "
                 f"removing unshared claims (need {MIN_FACES}-{MAX_FACES})."

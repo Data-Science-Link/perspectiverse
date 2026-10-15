@@ -147,12 +147,21 @@ def test_title_and_summary_must_share_a_claim_word():
 
 def test_drop_planet_that_admits_no_shared_claim():
     from pipeline.live import _drop_unshared_planets, _renumber_planets
+    from pipeline.schema import STANCE_CHECK_FAILED
 
     mixed = {
         "id": 9,
         "name": "Canada",
         "total_volume_percent": 20,
-        "perspectives": [{"id": "9A", "title": "Canadian Politics", "summary": "These posts share various issues and opinions."}],
+        "post_count": 12,
+        "perspectives": [
+            {
+                "id": "9A",
+                "title": "Canadian Politics",
+                "summary": "These posts share various issues and opinions.",
+                "post_count": 12,
+            }
+        ],
     }
     solid = {
         "id": 10,
@@ -174,15 +183,46 @@ def test_drop_planet_that_admits_no_shared_claim():
         ],
     }
     kept = _drop_unshared_planets([mixed, solid])
-    assert [topic["name"] for topic in kept] == ["Taxes"]
+    assert [topic["name"] for topic in kept] == ["Canada", "Taxes"]
+    assert kept[0]["stance_check"] == STANCE_CHECK_FAILED
+    assert kept[0]["perspectives"][0]["title"] == "Canada"
+    assert "Mixed remarks" not in kept[0]["perspectives"][0]["title"]
+    assert "opposing_note" not in kept[0]
     renumbered, membership, _faces = _renumber_planets(
         kept,
         [("at://gone", 9), ("at://kept", 10)],
         [("at://gone", 9, 0, 0.1), ("at://kept", 10, 0, 0.2)],
     )
     assert renumbered[0]["id"] == 1
+    assert renumbered[0]["name"] == "Canada"
     assert renumbered[0]["perspectives"][0]["id"] == "1A"
-    assert membership == [("at://kept", 1)]
+    assert membership == [("at://gone", 1), ("at://kept", 2)]
+
+
+def test_unshared_pending_planet_logs_a_counter(capsys):
+    from pipeline.live import _drop_unshared_planets, report_unshared_pending_planets, reset_coherence_stats
+
+    reset_coherence_stats()
+    planet = {
+        "id": 1,
+        "name": "Corruption Corrupt",
+        "post_count": 62,
+        "perspectives": [
+            {
+                "id": "1A",
+                "title": "Mixed remarks",
+                "summary": "These posts do not share a claim.",
+                "post_count": 62,
+            }
+        ],
+    }
+    kept = _drop_unshared_planets([planet])
+    assert len(kept) == 1
+    assert report_unshared_pending_planets() == 1
+    err = capsys.readouterr().err
+    assert "Kept as pending (no shared claim on any face): 1 planet(s)" in err
+    assert "Corruption Corrupt" in err
+    assert "(62 posts)" in err
 
 
 def test_live_run_refuses_unlabeled_posts():
