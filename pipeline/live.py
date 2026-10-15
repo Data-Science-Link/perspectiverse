@@ -1483,16 +1483,16 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         if split_return is not None:
             return split_return
         section = str(context.get("section") or "All topics")
-        log.append(
-            f"Dropping {cluster_label}: no face kept a shared claim "
-            f"({'; '.join(tried)}). {section}, {len(members)} posts."
-        )
-        _note_uris("shared_planets", "shared_uris", [str(post.get("uri") or "") for post in members])
-        return _emit_draft(
+        return _emit_unshared_pending_draft(
             context,
-            None,
+            cluster_label,
+            members,
+            terms,
+            member_texts,
+            member_matrix,
             log,
-            split=False,
+            tried=tried,
+            section=section,
             detection_faces=int(context["story_calls"]["faces"]),
         )
     drafted = drafted[:MAX_FACES]
@@ -2799,6 +2799,99 @@ def _face_has_no_shared_claim(face: dict) -> bool:
     return any(
         phrase in summary
         for phrase in ("various opinions", "various issues", "no shared claim", "do not share a claim")
+    )
+
+
+def _pending_face_from_members(
+    planet_name: str,
+    members: list[dict],
+    member_texts: list[str],
+    member_matrix,
+) -> tuple[dict, list[tuple[str, int, float]]]:
+    """One publishable face for every member when no shared-claim label survived."""
+    cosines = (
+        planet_member_cosines(member_matrix, list(range(len(members))))
+        if member_matrix is not None
+        else [0.0] * len(members)
+    )
+    representatives = select_prompt_posts(
+        members,
+        cosines,
+        limit=min(int(EXAMPLE_POST_CAP), len(members)),
+        vectors=member_matrix,
+    )
+    perspective = {
+        "id": face_id(1, 0),
+        "title": planet_name,
+        "summary": f"Posts grouped under {planet_name}.",
+        "volume_percent": 100.0,
+        "post_count": len(members),
+        "representative_posts": representatives,
+        "top_terms": salient_terms(member_texts, limit=TOP_TERMS_LIMIT),
+    }
+    face_rows = [
+        (str(post.get("uri") or ""), 0, float(cosines[index]) if index < len(cosines) else 0.0)
+        for index, post in enumerate(members)
+    ]
+    return perspective, face_rows
+
+
+def _planet_out_pending(
+    name: str,
+    members: list[dict],
+    terms: list[str],
+    member_texts: list[str],
+    member_matrix,
+) -> tuple[dict, list[tuple[str, int, float]]]:
+    perspective, face_rows = _pending_face_from_members(name, members, member_texts, member_matrix)
+    planet_out = {
+        "id": 1,
+        "name": name,
+        "category": category_for_members(name, terms, member_texts, members),
+        "total_volume_percent": 0.0,
+        "post_count": len(members),
+        "perspectives": [perspective],
+        "_member_uris": [str(post.get("uri") or "") for post in members],
+        "stance_check": STANCE_CHECK_FAILED,
+        "face_distinctness": 0.0,
+    }
+    apply_opposing_note(planet_out)
+    return planet_out, face_rows
+
+
+def _emit_unshared_pending_draft(
+    context: dict,
+    name: str,
+    members: list[dict],
+    terms: list[str],
+    member_texts: list[str],
+    member_matrix,
+    log: list[str],
+    *,
+    tried: list[str],
+    section: str,
+    detection_faces: int,
+):
+    """Publish a draft planet as pending instead of dropping it from the catalog."""
+    log.append(
+        f"Keeping {name} as pending: no face kept a shared claim "
+        f"({'; '.join(tried)}). {section}, {len(members)} posts."
+    )
+    note_unshared_pending_planet(name, len(members))
+    planet_out, face_rows = _planet_out_pending(name, members, terms, member_texts, member_matrix)
+    log.append(f"Planet {name}: 100.0% {name} (pending shared-claim check)")
+    return _emit_draft(
+        context,
+        {
+            "planet": planet_out,
+            "membership": [post["uri"] for post in members],
+            "face_rows": face_rows,
+            "split": False,
+            "detection_faces": detection_faces,
+        },
+        log,
+        split=False,
+        detection_faces=detection_faces,
     )
 
 
