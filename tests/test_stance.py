@@ -8,6 +8,7 @@ import pytest
 
 from pipeline.label import titles_alike
 from pipeline.live import (
+    _apply_wide_label_to_face,
     _collect_finalize_face_jobs,
     _drop_unshared_planets,
     _draft_planet,
@@ -21,9 +22,11 @@ from pipeline.schema import (
 )
 from pipeline.settings import STANCE_SECOND_FACE_SHARE
 from pipeline.stance import (
+    align_contradicting_title,
     apply_stance_pass,
     claim_words_cover,
     clears_second_stance,
+    posts_support_claim,
     cohen_kappa,
     explain_stance_failure,
     parse_merge_groups,
@@ -1070,3 +1073,279 @@ def test_kappa_is_zero_when_agreement_equals_chance():
     left = ["supports"] * 10
     right = ["supports"] * 5 + ["opposes"] * 5
     assert cohen_kappa(left, right) == pytest.approx(0.0)
+
+
+def _groups_then_sample(groups: list, sample: str):
+    def generate(prompt: str) -> str:
+        if "Group these faces" in prompt:
+            return json.dumps({"groups": groups})
+        return sample
+
+    return generate
+
+
+def _below_bar_sample(count: int) -> str:
+    return json.dumps(
+        {
+            "question": "Is there another side?",
+            "labels": [{"i": index + 1, "stance": "supports"} for index in range(count)],
+            "second": {"stance": "opposes", "coherent": False, "title": "", "summary": ""},
+        }
+    )
+
+
+def test_gaza_same_side_faces_fold_for_global_and_world():
+    """Global and World both use this pass. Two condemn faces are one claim."""
+    condemn = [
+        "Israel's genocide is racism and it kills civilians.",
+        "This genocide is racist. Israel kills civilians.",
+        "Israel kills civilians in the genocide. It is racism.",
+        "The genocide kills people and the racism continues.",
+    ]
+    other = [
+        "Israel kills Palestinians. The genocide is racism.",
+        "Genocide and racism. Israel kills more civilians.",
+        "Israel kills civilians. Call the genocide racism.",
+        "The racism of this genocide kills civilians.",
+    ]
+    texts = condemn + other
+    uris = [f"g{index}" for index in range(len(texts))]
+    members = [_post(uri, text) for uri, text in zip(uris, texts)]
+    drafted = [
+        _face("Israel Condemned", uris[:4], summary="Israel is accused of racism and genocide"),
+        _face("Gaza Genocide", uris[4:], summary="Israel kills Palestinians in Gaza"),
+    ]
+
+    for subject in ("Gaza Israel", "Israel Gaza Genocide"):
+        reset_stance_check_failures()
+        context = _context(
+            stance_generate=_groups_then_sample([[0], [1]], _below_bar_sample(len(texts)))
+        )
+        merged, log = apply_stance_pass(drafted, members, context, subject=subject)
+        assert len(merged) == 1, subject
+        assert merged[0][2] == len(texts)
+        assert "Execution" not in merged[0][0]["title"]
+        assert any("2 face(s) -> 1" in line for line in log)
+
+
+def test_israel_not_genocidal_survives_without_the_title_word():
+    uris = [f"g{index}" for index in range(40)]
+    minority = [
+        "When Israel left Gaza they hoped the gazans would want peace. The Palestinians rejected every peace deal.",
+        "Israel withdrew from Gaza in 2005. The conflict is territorial, not a slogan.",
+        "These posts blame Israel for October 7. Palestinians rejected the offers.",
+        "Hamas started the attack. Israel had already left Gaza.",
+    ]
+    members = _members(uris)
+    labels = ["supports"] * 40
+    for index, text in enumerate(minority):
+        members[index]["text"] = text
+        members[index]["clean_text"] = text
+        labels[index] = "opposes"
+    # 4/40 is on the 10% line. None of the posts say genocidal.
+    assert all("genocid" not in text.lower() for text in minority)
+
+    def generate(_prompt: str) -> str:
+        return _second_json(
+            "Is Israel committing genocide?",
+            labels,
+            "Israel Not Genocidal",
+            "Some posts argue that Israel is not committing genocide against Palestinians.",
+        )
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, _log = apply_stance_pass(
+        [_face("Israel Genocide", uris, summary="Israel kills Palestinians in Gaza")],
+        members,
+        context,
+        subject="Israel Gaza Genocide",
+    )
+    assert [item[0]["title"] for item in merged] == ["Israel Genocide", "Israel Not Genocidal"]
+    assert posts_support_claim(
+        "Israel Not Genocidal",
+        "Some posts argue that Israel is not committing genocide against Palestinians.",
+        members[:4],
+        "Israel Gaza Genocide",
+        majority_title="Israel Genocide",
+    )
+
+
+def test_public_execution_same_side_faces_stay_one_claim():
+    line = "Public executions are wrong and livestreaming an execution is barbaric."
+    texts = [line for _index in range(8)]
+    uris = [f"e{index}" for index in range(8)]
+    members = [_post(uri, text) for uri, text in zip(uris, texts)]
+    drafted = [
+        _face("Public Executions", uris[:4], summary="Public executions are wrong"),
+        _face("Execution Livestream", uris[4:], summary="Livestreaming executions is wrong"),
+    ]
+    labels = ["opposes" if index < 4 else "supports" for index in range(8)]
+    sample = json.dumps(
+        {
+            "question": "Are executions wrong?",
+            "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+            "second": {
+                "stance": "opposes",
+                "coherent": True,
+                "title": "Execution Livestream",
+                "summary": "Livestreaming executions is wrong",
+            },
+        }
+    )
+    reset_stance_check_failures()
+    context = _context(stance_generate=_groups_then_sample([[0], [1]], sample))
+    merged, log = apply_stance_pass(drafted, members, context, subject="Public Execution")
+    assert len(merged) == 1
+    assert merged[0][2] == 8
+    assert "not restored" in " ".join(log)
+
+
+def test_epstein_release_faces_fold():
+    files = [
+        "Release the Epstein files.",
+        "The public should see the Epstein files released.",
+    ]
+    cover = [
+        "The coverup is delaying the release of the Epstein files.",
+        "Vote to release the Epstein files and end the coverup.",
+    ]
+    texts = files + cover
+    uris = [f"p{index}" for index in range(len(texts))]
+    members = [_post(uri, text) for uri, text in zip(uris, texts)]
+    drafted = [
+        _face("Epstein Files", uris[:2], summary="The Epstein files should be released"),
+        _face("Epstein Coverup", uris[2:], summary="The coverup is blocking release of the files"),
+    ]
+    reset_stance_check_failures()
+    context = _context(
+        stance_generate=_groups_then_sample([[0], [1]], _below_bar_sample(len(texts)))
+    )
+    merged, _log = apply_stance_pass(
+        drafted, members, context, subject="Epstein Files Release"
+    )
+    assert len(merged) == 1
+    assert merged[0][2] == 4
+
+
+def test_maga_support_title_is_rewritten_when_posts_oppose():
+    posts = [
+        "at this point, it's the fucking maga idiots cheering him on that piss me off.",
+        "Of Course He Has, Because MAGA Is A Pedophile Movement.",
+        "To realise how moronic the #MAGA really are.",
+        "MAGA supporters are not who these posts are praising. They are idiots.",
+    ]
+    uris = [f"m{index}" for index in range(len(posts))]
+    members = [_post(uri, text) for uri, text in zip(uris, posts)]
+    face = _face("MAGA Support", uris, summary="MAGA supporters back Trump")
+    face[0]["arguments"] = ["MAGA supporters back Trump despite his actions"]
+    reset_stance_check_failures()
+    context = _context(stance_generate=lambda _prompt: _below_bar_sample(len(posts)))
+    merged, _log = apply_stance_pass([face], members, context, subject="Maga Movement")
+    assert len(merged) == 1
+    assert merged[0][0]["title"] == "MAGA Opposed"
+    assert "support" not in merged[0][0]["summary"].lower()
+    assert "arguments" not in merged[0][0]
+
+
+def test_wide_relabel_does_not_keep_a_maga_support_title():
+    face = {
+        "title": "Stop MAGA",
+        "summary": "MAGA is harmful",
+        "representative_posts": [],
+    }
+    wide = {
+        "title": "MAGA Support",
+        "summary": "MAGA supporters back Trump",
+        "arguments": ["MAGA supporters back Trump"],
+        "representative_posts": [
+            {"text": "MAGA idiots piss me off."},
+            {"text": "MAGA is a pedophile movement."},
+        ],
+    }
+    _apply_wide_label_to_face(face, {"title": "Stop MAGA", "summary": "MAGA is harmful"}, wide)
+    assert face["title"] == "MAGA Opposed"
+    assert "arguments" not in face
+
+
+def test_yemen_attack_reports_stay_apart_from_the_anti_war_side():
+    """Lexicon false alarm: both faces condemn, and they are still different claims."""
+    attacks = [
+        "Houthi strikes on Riyadh airport killed three Saudis as the war escalates.",
+        "Houthi missile kills 12 at Riyadh airport. The attacks continue.",
+    ]
+    opposed = [
+        "Most Pakistanis oppose involvement in Yemen and will not cry when this war goes badly.",
+        "We should not join the Saudi war on Yemen. Oppose sending soldiers.",
+    ]
+    texts = attacks + opposed
+    uris = [f"y{index}" for index in range(len(texts))]
+    members = [_post(uri, text) for uri, text in zip(uris, texts)]
+    drafted = [
+        _face(
+            "Houthi Attacks",
+            uris[:2],
+            summary="Houthi forces killed people at Saudi airports",
+        ),
+        _face(
+            "Anti War",
+            uris[2:],
+            summary="Posts oppose supporting the Saudi war in Yemen",
+        ),
+    ]
+    calls = {"n": 0}
+
+    def generate(prompt: str) -> str:
+        calls["n"] += 1
+        assert "Group these faces" in prompt
+        return json.dumps({"groups": [[0], [1]]})
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, _log = apply_stance_pass(
+        drafted, members, context, subject="Saudi Yemen Houthis"
+    )
+    assert sorted(item[0]["title"] for item in merged) == ["Anti War", "Houthi Attacks"]
+    assert calls["n"] == 1
+
+
+def test_no_relief_survives_when_posts_deny_a_price_cut_without_saying_relief():
+    minority = [
+        "so it won't make a material difference to pump prices in the US.",
+        "this would lower the price of diesel fuel by less than 1% per gallon.",
+        "Prices will not be lower. The cut is less than one percent.",
+    ]
+    # The denying posts have to be the smaller pole. Three of five would be
+    # the majority of the sample, and the split would move the other posts.
+    majority = [
+        "Diesel prices are still high this week.",
+        "High diesel prices are cutting routes.",
+        "Diesel prices jumped again.",
+        "Truckers warn high diesel prices are cutting routes.",
+        "Fuel prices stayed high.",
+        "Diesel is still expensive this week.",
+        "Prices at the pump are high.",
+        "High diesel prices continue.",
+    ]
+    texts = minority + majority
+    uris = [f"n{index}" for index in range(len(texts))]
+    labels = ["opposes" if index < len(minority) else "supports" for index in range(len(texts))]
+    members = [_post(uri, text) for uri, text in zip(uris, texts)]
+    summary = "The deal will not lower diesel prices."
+
+    def generate(_prompt: str) -> str:
+        return _second_json("Will prices fall?", labels, "No Relief", summary)
+
+    reset_stance_check_failures()
+    context = _context(stance_generate=generate)
+    merged, _log = apply_stance_pass(
+        [_face("High Fuel Prices", uris, summary="Diesel prices are high")],
+        members,
+        context,
+        subject="Diesel Oil Prices",
+    )
+    assert [item[0]["title"] for item in merged] == ["High Fuel Prices", "No Relief"]
+    assert align_contradicting_title(
+        {"title": "High Fuel Prices", "summary": "Diesel prices are high"},
+        members,
+    ) is False

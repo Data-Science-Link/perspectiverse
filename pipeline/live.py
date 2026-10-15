@@ -58,6 +58,7 @@ from pipeline.label import (
 )
 from pipeline.perspectives import select_representatives, split_perspectives
 from pipeline.stance import (
+    align_contradicting_title,
     apply_stance_pass,
     report_stance_check_failures,
     report_stance_check_incoherent,
@@ -1128,6 +1129,7 @@ def _apply_wide_label_to_face(face: dict, draft: dict, wide: dict) -> None:
         face["arguments"] = wide["arguments"]
     else:
         face.pop("arguments", None)
+    align_contradicting_title(face, list(face.get("representative_posts") or []))
 
 
 def _run_one_finalize_job(job: _FinalizeFaceJob) -> dict | None:
