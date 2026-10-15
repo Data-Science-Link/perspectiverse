@@ -1,0 +1,9 @@
+INFO Maga: 2 of 10 posts stayed off the published face count (8). They were on a dropped face and did not match the kept face.
+held 1 thin fragments (5 posts) below 8 posts.
+INFO All topics: catch-all leftover 4 posts not in a specific story.
+Timing: 10 global planet(s) labeled in 1.0s.
+INFO Example: 3 of 10 posts stayed off the published face count (7). They were on a dropped face and did not match the kept face.
+held 1 thin fragments (5 posts) below 8 posts.
+INFO Technology: catch-all leftover 6 posts not in a specific story.
+Vanished posts: 12 unique. Real stories with 5 or more posts: 3. Leftovers: 9 (4 in thin fragments held below 8 posts).
+Live snapshot: 100 public claims from 120 posts in the window, 10 excluded as noise, wrote public/data.json

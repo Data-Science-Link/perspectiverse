@@ -1,0 +1,4 @@
+Live snapshot: 100 public claims from 120 posts in the window, 10 excluded as noise, wrote public/data.json
+INFO All topics: catch-all leftover 3 posts not in a specific story.
+INFO Example: 2 of 10 posts stayed off the published face count (8). They were on a dropped face and did not match the kept face.
+held 1 thin fragments (4 posts) below 8 posts.
