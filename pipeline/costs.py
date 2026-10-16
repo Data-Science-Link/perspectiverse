@@ -133,6 +133,10 @@ CHART_PATH = Path("costs/daily_spend_14d.svg")
 COST_RUN_PATH = Path(__file__).resolve().parent / "data" / "cost_run.json"
 R2_USAGE_PATH = Path(__file__).resolve().parent / "data" / "r2_usage.json"
 
+_checkpoint_started_at: datetime | None = None
+_checkpoint_posts = 0
+_checkpoint_planets = 0
+
 _INTEGER_COLUMNS = (
     "calls",
     "failed_calls",
@@ -803,6 +807,47 @@ def record_jev_attempt(
         raise
     except Exception as exc:
         warn(f"Cost log skipped for a Jev call: {exc}")
+
+
+def bind_cost_checkpoint(
+    started_at: datetime,
+    *,
+    posts_processed: int = 0,
+    planets_published: int = 0,
+) -> None:
+    """Remember the run clock so paid calls can flush ``cost_run.json`` incrementally."""
+    global _checkpoint_started_at, _checkpoint_posts, _checkpoint_planets
+    moment = started_at
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    _checkpoint_started_at = moment
+    _checkpoint_posts = int(posts_processed)
+    _checkpoint_planets = int(planets_published)
+
+
+def update_cost_checkpoint_counts(*, posts_processed: int, planets_published: int) -> None:
+    global _checkpoint_posts, _checkpoint_planets
+    _checkpoint_posts = int(posts_processed)
+    _checkpoint_planets = int(planets_published)
+
+
+def flush_cost_checkpoint() -> None:
+    """Write the meter to ``cost_run.json`` after each paid call. Never raises."""
+    if _checkpoint_started_at is None:
+        return
+    try:
+        if not get_meter().attempts():
+            return
+        from pipeline.spend_cap import cost_run_path
+
+        write_cost_run(
+            posts_processed=_checkpoint_posts,
+            planets_published=_checkpoint_planets,
+            started_at=_checkpoint_started_at,
+            path=cost_run_path(),
+        )
+    except Exception as exc:
+        warn(f"Cost checkpoint skipped: {exc}")
 
 
 def run_identity(now: datetime | None = None) -> dict[str, str]:
@@ -2022,6 +2067,10 @@ def append_run_files(
                 return 0
             print("No paid calls in this run; cost ledger left unchanged.")
             return 0
+        run_id = identity["run_id"]
+        if prior:
+            prior = [row for row in prior if row.get("run_id") != run_id]
+            _rewrite_ledger(ledger_path, prior)
         combined = append_ledger(ledger_path, new_rows)
         combined, filled = backfill_triggers(combined)
         if filled:

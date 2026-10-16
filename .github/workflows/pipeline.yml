@@ -87,6 +87,15 @@ jobs:
           uv pip install -e . --no-deps
           uv pip install pyyaml "numpy>=1.24,<2" atproto fastembed
 
+      - name: Pin pipeline modules for ledger steps after git checkout
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
+        run: |
+          DEST="${{ runner.temp }}/perspectiverse-workflow-pipeline"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          cp -a pipeline "$DEST/"
+          echo "PERSPECTIVERSE_LEDGER_PYTHONPATH=$DEST" >> "$GITHUB_ENV"
+
       - name: Download corpus from R2
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         id: r2
@@ -105,13 +114,12 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
 
       - name: Restore Jev verdict cache
-        # A unique key saves this run's snapshot. restore-keys loads the newest
-        # previous snapshot. Python caps the file at 320,000 rows / 80 MB.
-        # A cache miss still has the verdicts inside the R2 corpus. Failure
-        # here must not block the pipeline.
+        # A unique key per run; restore-keys loads the newest previous snapshot.
+        # Python caps the file at 320,000 rows / 80 MB. A cache miss still has
+        # verdicts inside the R2 corpus. Failure here must not block the pipeline.
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         continue-on-error: true
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: pipeline/data/jev_verdict_cache.sqlite
           key: jev-verdict-cache-${{ github.run_id }}
@@ -145,6 +153,87 @@ jobs:
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
+
+      - name: Save Jev verdict cache
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true')
+        uses: actions/cache/save@v4
+        with:
+          path: pipeline/data/jev_verdict_cache.sqlite
+          key: jev-verdict-cache-${{ github.run_id }}
+          restore-keys: |
+            jev-verdict-cache-
+
+      - name: Stage corpus after cancelled live
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'cancelled'
+        env:
+          PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
+        run: |
+          if [ ! -f pipeline/data/live_corpus.db ]; then
+            echo "No local corpus to stage after cancellation."
+            exit 0
+          fi
+          source .venv/bin/activate
+          python -m pipeline.corpus_persist stage-for-halt --db pipeline/data/live_corpus.db
+
+      - name: Upload corpus to R2 after cancelled live
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'cancelled'
+        env:
+          PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ ! -f "$PERSPECTIVERSE_HALT_STAGING/halt_corpus.sha256" ]; then
+            echo "No staged corpus after cancellation; skipping R2 upload."
+            exit 0
+          fi
+          source .venv/bin/activate
+          python -m pipeline.corpus_persist upload-staged
+
+      - name: Stage halted corpus before ledger git checkout
+        if: failure() && steps.live.outcome == 'failure'
+        env:
+          PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
+        run: |
+          if [ ! -f pipeline/data/spend_cap_stop.json ]; then
+            echo "Not a spend-cap stop; skipping halt corpus staging."
+            exit 0
+          fi
+          source .venv/bin/activate
+          python -m pipeline.corpus_persist stage-for-halt --db pipeline/data/live_corpus.db
+
+      - name: Upload halted corpus to R2
+        if: failure() && steps.live.outcome == 'failure'
+        env:
+          PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ ! -f "$PERSPECTIVERSE_HALT_STAGING/halt_corpus.sha256" ]; then
+            echo "No halted corpus marker; skipping R2 upload."
+            exit 0
+          fi
+          source .venv/bin/activate
+          python -m pipeline.corpus_persist upload-staged
+
+      - name: Record partial spend when the run ends early
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome != 'success' && steps.live.outcome != 'skipped' && (steps.live.outcome == 'failure' || steps.live.outcome == 'cancelled')
+        env:
+          PYTHONPATH: ${{ env.PERSPECTIVERSE_LEDGER_PYTHONPATH }}
+        run: |
+          source .venv/bin/activate
+          COST="${{ runner.temp }}/perspectiverse-cost-run.json"
+          if [ -f pipeline/data/cost_run.json ]; then
+            cp pipeline/data/cost_run.json "$COST"
+          fi
+          if [ -f "$COST" ]; then
+            python -m pipeline.spend_cap record-partial-ledger --repo . --push --cost-run "$COST"
+          else
+            python -m pipeline.spend_cap record-partial-ledger --repo . --push
+          fi
 
       - name: Keep yesterday's edition when the daily spend cap stops the run
         if: failure() && steps.live.outcome == 'failure'
@@ -367,3 +456,4 @@ jobs:
             echo "::error::Degraded labeling run was not published. Previous data.json is still what Pages serves."
             exit 1
           fi
+

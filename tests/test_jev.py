@@ -1,6 +1,12 @@
 import json
+import time
+from decimal import Decimal
+
+import pytest
 
 from pipeline.jev import apply_jev, describe_jev, reset_jev_state
+from pipeline.spend_cap import SpendCapExceeded
+from pipeline.store import connect
 
 
 def _post(uri: str, text: str) -> dict:
@@ -134,3 +140,69 @@ def test_rejected_key_disables_later_calls(monkeypatch):
     assert "HTTP 401" in describe_jev()
     posts = [_post("at://a", "A remark that must not be dropped when the key is rejected.")]
     assert apply_jev(posts) == posts
+
+
+def _many_posts(count: int) -> list[dict]:
+    return [
+        _post(
+            f"at://bench/{index}",
+            f"Bench post {index} about transit funding and city council policy today.",
+        )
+        for index in range(count)
+    ]
+
+
+def test_apply_jev_exports_cache_once_for_many_scores(tmp_path, monkeypatch):
+    """Cold scoring stays near linear time: one cache export, not one per row."""
+    reset_jev_state()
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    exports: list[int] = []
+
+    def counting_export(_connection) -> None:
+        exports.append(1)
+
+    monkeypatch.setattr("pipeline.jev._export_jev_cache", counting_export)
+    monkeypatch.setattr(
+        "pipeline.jev._classify_post",
+        lambda post: {
+            "spam_score": 0.1,
+            "claim_score": 0.9,
+            "section": "Politics",
+            "is_claim": True,
+            "model": "jev-1.13.0",
+        },
+    )
+    connection = connect(tmp_path / "bench.db")
+    posts = _many_posts(2500)
+    started = time.perf_counter()
+    apply_jev(posts, connection=connection, update_input=True)
+    elapsed = time.perf_counter() - started
+    connection.close()
+    assert len(exports) == 1
+    # Proxy for the 100k cold path: 2.5k instant scores should stay well under seconds.
+    assert elapsed < 8.0
+
+
+def test_apply_jev_concurrent_cap_keeps_completed_verdicts(tmp_path, monkeypatch):
+    reset_jev_state()
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    posts = _many_posts(8)
+    calls = {"n": 0}
+
+    def fake(url, **kwargs):
+        calls["n"] += 1
+        if calls["n"] >= 5:
+            raise SpendCapExceeded("stop", spent_usd=Decimal("1.00"))
+        return _answer(0.1, "Politics", claim=0.9)
+
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    connection = connect(tmp_path / "cap.db")
+    with pytest.raises(SpendCapExceeded):
+        apply_jev(posts, connection=connection, update_input=True)
+    stored = {
+        row[0]
+        for row in connection.execute("SELECT uri FROM jev_verdicts").fetchall()
+    }
+    connection.close()
+    assert calls["n"] >= 5
+    assert len(stored) >= 4

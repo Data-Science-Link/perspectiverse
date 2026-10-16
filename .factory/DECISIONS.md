@@ -552,3 +552,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** A 300-planet cap (dropped by Michael). A $1 warning with a higher hard stop (not chosen). Keeping $0.50 (rejected, since it delays the quality read).
 - **Revisit when:** If 100K runs keep getting stopped at $1 (the short-day projection is about $1.55), or once the quality read is done.
 - **Done bar:** Real daily runs near 100K posts at $1 a day or less, plus Michael's read on grouping quality. Before any 100K run, two tests must show the stop halting a run: one that starts with the day already at $1, and one that crosses $1 partway through.
+
+### 2026-10-16 — Keep paid posts when the $1 cap halts a run; 10 planets per solar system on the site
+- **Decision:** A run halted at the $1/day cap keeps the posts it already ingested. The site keeps its limit of 10 planets per solar system, which is a display limit and not a grouping cap.
+- **Why:** Michael doesn't want to pay twice for the same posts or let a halted run waste money. 10 planets per solar system is fine for readers.
+- **Alternatives:** Throw away a halted run's posts (pays for the same top-up again and can leave the site stuck on an old edition); raise the display limit for 100K.
+- **Revisit:** If keeping a halted run's posts lets partial or bad data reach a published edition, or if Michael's quality check at 100K calls for showing more planets.
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 11:58 AM CT; Giver draft: https://github.com/Data-Science-Link/perspectiverse/issues/106#issuecomment-6220511569

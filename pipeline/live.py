@@ -121,9 +121,10 @@ def run_live(
     # This process may already have recorded calls (a second live run, or
     # tests). The artifact should be this run only.
     try:
-        from pipeline.costs import reset_meter
+        from pipeline.costs import bind_cost_checkpoint, reset_meter
 
         reset_meter()
+        bind_cost_checkpoint(started_at)
     except Exception as exc:
         print(f"WARNING: Cost meter reset skipped: {exc}", file=sys.stderr)
     reset_stance_check_failures()
@@ -135,6 +136,9 @@ def run_live(
     connection = connect(database)
     from pipeline.spend_cap import SpendCapExceeded, enforce_before_paid_work
 
+    cleaned: list[dict] | None = None
+    corpus_posts: list[dict] | None = None
+    source = "bluesky"
     try:
         enforce_before_paid_work()
         existing = load_posts(connection)
@@ -148,18 +152,26 @@ def run_live(
             relabel=relabel,
         )
         if source == "bluesky" and not relabel:
-            cleaned = apply_jev(cleaned, connection=connection, batch=_jev_batch(settings))
-            # Keep only public claims. Non-claims stay in the verdict cache, not the post table.
-            cleaned = [p for p in cleaned if p.get("is_claim") is True]
+            corpus_posts = list(cleaned)
+            scored = apply_jev(
+                corpus_posts,
+                connection=connection,
+                batch=_jev_batch(settings),
+                update_input=True,
+            )
+            _merge_jev_output(corpus_posts, scored)
+            # Keep only public claims for clustering. Non-claims stay in ``corpus_posts``.
+            cleaned = [p for p in corpus_posts if p.get("is_claim") is True]
             if refreshed:
                 # Top up: keep fetching until claim count reaches target so the
                 # rolling window stays at the threshold, not below it.
                 if len(cleaned) < target:
-                    cleaned = _topup_claims(
+                    cleaned, corpus_posts = _topup_claims(
                         cleaned,
                         target=target,
                         settings=settings,
                         connection=connection,
+                        corpus_posts=corpus_posts,
                     )
                 before = len(cleaned)
                 cleaned = retire_oldest(
@@ -245,9 +257,22 @@ def run_live(
             )
         write_clusters(connection, membership, face_rows)
     except SpendCapExceeded as exc:
+        from pipeline.corpus_persist import persist_paid_corpus
+
+        persist_paid_corpus(
+            connection,
+            corpus_posts if corpus_posts is not None else cleaned,
+            db_path=database,
+        )
         _abort_for_spend_cap(started_at, exc)
         raise
     finally:
+        try:
+            from pipeline.costs import flush_cost_checkpoint
+
+            flush_cost_checkpoint()
+        except Exception as exc:
+            print(f"WARNING: Cost checkpoint on exit skipped: {exc}", file=sys.stderr)
         connection.close()
 
     payload = assemble_payload(
@@ -268,7 +293,10 @@ def run_live(
 
 
 def _abort_for_spend_cap(started_at: datetime, exc: SpendCapExceeded) -> None:
-    """Write the cost run and stop marker. Do not write ``data.json``."""
+    """Write the cost run and stop marker. Do not write ``data.json``.
+
+    The retained corpus should already be saved by ``persist_paid_corpus``.
+    """
     print(
         "Daily spend cap halted the pipeline before publish. "
         "Yesterday's edition stays.",
@@ -298,10 +326,20 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
     report_unshared_pending_planets()
     report_coherence_stats()
     try:
-        from pipeline.costs import count_published_planets, deepinfra_error_summary, get_meter, write_cost_run
+        from pipeline.costs import (
+            count_published_planets,
+            deepinfra_error_summary,
+            get_meter,
+            update_cost_checkpoint_counts,
+            write_cost_run,
+        )
         from pipeline.publish_guard import report_label_health, write_label_run
 
         summary = deepinfra_error_summary(get_meter().attempts())
+        update_cost_checkpoint_counts(
+            posts_processed=int(payload.get("total_posts") or 0),
+            planets_published=count_published_planets(payload),
+        )
         write_cost_run(
             posts_processed=int(payload.get("total_posts") or 0),
             planets_published=count_published_planets(payload),
@@ -351,6 +389,16 @@ def _jev_batch(settings: dict) -> bool:
     return bool(settings.get("jev_batch"))
 
 
+def _merge_jev_output(corpus_posts: list[dict], scored: list[dict]) -> None:
+    """Copy Jev fields from ``scored`` onto the retained window by URI."""
+    by_uri = {str(post.get("uri") or ""): post for post in scored if post.get("uri")}
+    for index, post in enumerate(corpus_posts):
+        uri = str(post.get("uri") or "")
+        update = by_uri.get(uri)
+        if update is not None:
+            corpus_posts[index] = {**post, **update}
+
+
 def _note_cache_reuses(count: int) -> None:
     """Count URIs the fetch skipped because a prior run already scored them."""
     if count <= 0:
@@ -381,7 +429,8 @@ def _topup_claims(
     settings: dict,
     max_rounds: int = 6,
     connection=None,
-) -> list[dict]:
+    corpus_posts: list[dict] | None = None,
+) -> tuple[list[dict], list[dict] | None]:
     """Fetch additional posts and Jev-classify them until claim count reaches target.
 
     Each round over-fetches by 4× the remaining gap to account for the Bluesky
@@ -430,16 +479,23 @@ def _topup_claims(
         if not fresh:
             print(f"Top-up {round_num}: no new posts from Bluesky; stopping.")
             break
-        new_claims = [
-            p for p in apply_jev(fresh, connection=connection, batch=_jev_batch(settings)) if p.get("is_claim") is True
-        ]
+        scored = list(fresh)
+        apply_jev(
+            scored,
+            connection=connection,
+            batch=_jev_batch(settings),
+            update_input=True,
+        )
+        if corpus_posts is not None:
+            corpus_posts.extend(scored)
+        new_claims = [p for p in scored if p.get("is_claim") is True]
         result.extend(new_claims)
         print(
             f"Top-up {round_num}: {len(new_claims)} claims from {len(fresh)} posts "
             f"(total {len(result)}/{target})."
         )
 
-    return result
+    return result, corpus_posts
 
 
 def _collect_posts(

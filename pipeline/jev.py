@@ -26,7 +26,8 @@ import os
 import sys
 import time
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from pipeline.http_json import read_json, read_json_value
@@ -48,6 +49,7 @@ _WORKERS = 8
 BATCH_SIZE = 25
 CLAIM_TRUE = "A position about an event, policy, institution, or public issue"
 CLAIM_FALSE = "Personal status, a joke, fandom aside, small talk, or promo"
+_jev_store_lock = threading.Lock()
 SPAM_TRUE = "Promo, bot, giveaway, follow-bait, or an advertisement"
 SPAM_FALSE = "A person saying something, including a messy or informal remark"
 
@@ -134,22 +136,45 @@ def apply_jev(
     connection=None,
     now: datetime | None = None,
     batch: bool = False,
+    update_input: bool = False,
 ) -> list[dict]:
     """Drop high-confidence spam and attach a section. Unlabeled posts are the only calls.
 
     ``connection`` is the retained corpus. Verdicts, including non-claims and
-    spam, are written there. ``batch`` is the phase-3 request shape and
-    defaults off.
+    spam, are written there as each paid answer returns. ``batch`` is the phase-3
+    request shape and defaults off. When ``update_input`` is true, every post in
+    ``posts`` is updated in place with its score (including non-claims).
     """
     if _disabled_reason or not _api_key():
         return list(posts)
     cached, index, by_fingerprint = _open_cache(connection, posts, now)
-    decisions = _decisions_for(posts, cached, index, by_fingerprint, batch=batch)
-    if connection is not None:
-        _store_verdicts(connection, posts, decisions, now)
-        from pipeline.jev_cache import export_persistent_cache
+    decisions: dict[str, dict | None] = {}
+    halted = None
+    try:
+        decisions = _decisions_for(
+            posts,
+            cached,
+            index,
+            by_fingerprint,
+            batch=batch,
+            connection=connection,
+            now=now,
+            decisions=decisions,
+        )
+    except Exception as exc:
+        from pipeline.spend_cap import SpendCapExceeded
 
-        export_persistent_cache(connection)
+        if not isinstance(exc, SpendCapExceeded):
+            raise
+        halted = exc
+    finally:
+        if connection is not None and decisions:
+            _store_verdicts(connection, posts, decisions, now)
+            _export_jev_cache(connection)
+    if update_input and decisions:
+        _apply_decisions_inplace(posts, decisions)
+    if halted is not None:
+        raise halted
     return _apply_decisions(posts, decisions)
 
 
@@ -243,6 +268,16 @@ def _decision_from_row(row: tuple) -> dict:
     }
 
 
+def _export_jev_cache(connection) -> None:
+    try:
+        from pipeline.jev_cache import export_persistent_cache
+
+        export_persistent_cache(connection)
+        connection.commit()
+    except Exception as exc:
+        sys.stderr.write(f"WARNING: Jev verdict cache file was not written: {exc}\n")
+
+
 def _decisions_for(
     posts: list[dict],
     cached: dict[str, dict],
@@ -250,6 +285,9 @@ def _decisions_for(
     by_fingerprint: dict[str, dict],
     *,
     batch: bool,
+    connection=None,
+    now: datetime | None = None,
+    decisions: dict[str, dict | None] | None = None,
 ) -> dict[str, dict | None]:
     """Decisions keyed by URI. Posts that still need Jev are classified here.
 
@@ -258,7 +296,7 @@ def _decisions_for(
     verdict for this model and prompt, is one lookup. Pre-filter drops are
     not lookups.
     """
-    decisions: dict[str, dict | None] = {}
+    out: dict[str, dict | None] = decisions if decisions is not None else {}
     pending: list[dict] = []
     skips: Counter[str] = Counter()
     cache_hits = 0
@@ -282,7 +320,7 @@ def _decisions_for(
                 decision = dict(reused)
                 decision["store_uri"] = True
         if decision is not None:
-            decisions[uri] = decision
+            out[uri] = decision
             cache_hits += 1
             lookups += 1
             index.add_text(post_text(post))
@@ -290,7 +328,7 @@ def _decisions_for(
         reason = prefilter_reason(post, index)
         if reason:
             skips[reason] += 1
-            decisions[uri] = {"prefilter": reason}
+            out[uri] = {"prefilter": reason}
             continue
         lookups += 1
         index.add_text(post_text(post))
@@ -304,8 +342,15 @@ def _decisions_for(
             f"link {skips['link']}, duplicate {skips['duplicate']})."
         )
     if pending:
-        decisions.update(_classify_many(pending, batch=batch))
-    return decisions
+        _classify_many(
+            pending,
+            batch=batch,
+            connection=connection,
+            store_posts=posts,
+            now=now,
+            out=out,
+        )
+    return out
 
 
 def _note_filters(cache_hits: int, dedup_skips: int, skips: Counter[str], lookups: int) -> None:
@@ -367,9 +412,42 @@ def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | N
                 )
             )
         if rows:
-            save_jev_verdicts(connection, rows)
+            with _jev_store_lock:
+                save_jev_verdicts(connection, rows)
     except Exception as exc:
         sys.stderr.write(f"WARNING: Jev verdict cache was not written: {exc}\n")
+
+
+def _persist_one_verdict(
+    connection,
+    posts: list[dict],
+    uri: str,
+    decision: dict | None,
+    now: datetime | None,
+) -> None:
+    if not uri or not isinstance(decision, dict):
+        return
+    _store_verdicts(connection, posts, {uri: decision}, now)
+
+
+def _apply_decisions_inplace(posts: list[dict], decisions: dict[str, dict | None]) -> None:
+    """Merge Jev scores onto every post in ``posts``. Nothing is dropped."""
+    for index, post in enumerate(posts):
+        uri = str(post.get("uri") or "")
+        decision = decisions.get(uri)
+        if not isinstance(decision, dict) or decision.get("prefilter"):
+            continue
+        updated = dict(post)
+        if decision.get("spam_score") is not None:
+            updated["spam_score"] = decision["spam_score"]
+        section = str(decision.get("section") or "")
+        if section:
+            updated["section"] = section if section in CATEGORIES else "Other"
+        if decision.get("section_confidence") is not None:
+            updated["section_confidence"] = decision["section_confidence"]
+        if decision.get("is_claim") is not None:
+            updated["is_claim"] = bool(decision["is_claim"])
+        posts[index] = updated
 
 
 def _apply_decisions(posts: list[dict], decisions: dict[str, dict | None]) -> list[dict]:
@@ -400,15 +478,52 @@ def _apply_decisions(posts: list[dict], decisions: dict[str, dict | None]) -> li
     return kept
 
 
-def _classify_many(posts: list[dict], *, batch: bool = False) -> dict[str, dict | None]:
+def _classify_many(
+    posts: list[dict],
+    *,
+    batch: bool = False,
+    connection=None,
+    store_posts: list[dict] | None = None,
+    now: datetime | None = None,
+    out: dict[str, dict | None] | None = None,
+) -> dict[str, dict | None]:
+    found: dict[str, dict | None] = out if out is not None else {}
+    corpus = store_posts if store_posts is not None else posts
+
+    def _record(uri: str, decision: dict | None) -> None:
+        if not uri:
+            return
+        found[uri] = decision
+        if connection is not None:
+            _persist_one_verdict(connection, corpus, uri, decision, now)
+
     if batch:
-        found = _classify_batched(posts)
+        batched = _classify_batched(posts)
+        for uri, decision in batched.items():
+            _record(uri, decision)
     else:
         workers = max(1, min(_WORKERS, len(posts)))
-        found = {}
+        halted = None
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            for post, decision in zip(posts, pool.map(_classify_post, posts)):
-                found[str(post.get("uri") or "")] = decision
+            future_map = {pool.submit(_classify_post, post): post for post in posts}
+            for future in as_completed(future_map):
+                post = future_map[future]
+                uri = str(post.get("uri") or "")
+                try:
+                    decision = future.result()
+                except CancelledError:
+                    continue
+                except Exception as exc:
+                    from pipeline.spend_cap import SpendCapExceeded
+
+                    if isinstance(exc, SpendCapExceeded):
+                        halted = exc
+                        continue
+                    raise
+                _record(uri, decision)
+        if halted is not None:
+            raise halted
+
     answered = next((item.get("model") for item in found.values() if item and item.get("model")), "")
     if answered:
         print(f"Jev answered as {answered}.")
