@@ -26,8 +26,9 @@ on:
     inputs:
       fill_budget_usd:
         description: >-
-          Optional UTC-day paid hard stop for this manual run only (max 5.00 USD).
-          Empty keeps the normal cap. Counts spend already on costs/ledger.csv today.
+          Set to any value (e.g. 5) to run a 100K fill dispatch. Uses the shared
+          $5.00 fill budget across tagged ledger rows, not UTC-day boundaries.
+          Refused once the corpus is full or fill spend reaches $5. Empty = normal run.
         required: false
         type: string
         default: ""
@@ -144,6 +145,12 @@ jobs:
           echo "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$claims" >> "$GITHUB_ENV"
           echo "Corpus claims for spend cap: $claims"
 
+      - name: Refuse fill dispatch when the fill campaign is complete
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != ''
+        run: |
+          source .venv/bin/activate
+          PERSPECTIVERSE_FILL_RUN=1 python -m pipeline.spend_cap check-fill-dispatch
+
       - name: Load today's cost ledger for the spend cap
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
@@ -168,7 +175,7 @@ jobs:
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL }}
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           JEV_MODEL: ${{ secrets.JEV_MODEL }}
-          PERSPECTIVERSE_FILL_BUDGET_USD: ${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd || '' }}
+          PERSPECTIVERSE_FILL_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != '' && '1' || '' }}
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db

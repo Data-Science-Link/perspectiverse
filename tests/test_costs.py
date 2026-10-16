@@ -14,6 +14,7 @@ import pytest
 from pipeline.costs import (
     CHART_PATH,
     LEDGER_COLUMNS,
+    LEDGER_TAG_FILL,
     LEDGER_PATH,
     LEGACY_LEDGER_COLUMNS,
     PRE_LABEL_ERROR_COLUMNS,
@@ -28,6 +29,7 @@ from pipeline.costs import (
     TRIGGER_SCHEDULE,
     TRIGGER_UNKNOWN,
     CostLedgerError,
+    Attempt,
     append_ledger,
     append_run_files,
     backfill_triggers,
@@ -52,6 +54,7 @@ from pipeline.costs import (
     reset_meter,
     rows_for_attempts,
     run_identity,
+    PRE_TAGS_LEDGER_COLUMNS,
     weekly_rollup,
     write_cost_run,
 )
@@ -417,6 +420,38 @@ def test_run_file_appends_without_dropping_history(tmp_path, monkeypatch):
         "sample-run-80",
         "sample-run-80",
     ]
+
+
+def test_fill_run_tags_ledger_rows(monkeypatch):
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    rows = rows_for_attempts(
+        (
+            Attempt(
+                service=SERVICE_DEEPINFRA,
+                model="unit",
+                input_tokens=1,
+                output_tokens=1,
+                cost_usd=Decimal("0.01"),
+                cost_source="reported",
+                status="success",
+            ),
+        ),
+        identity=run_identity(datetime(2026, 10, 16, tzinfo=timezone.utc)),
+        posts_processed=1,
+        planets_published=1,
+    )
+    assert rows[0]["tags"] == LEDGER_TAG_FILL
+
+
+def test_read_ledger_upgrades_pre_tags_header(tmp_path):
+    path = tmp_path / "ledger.csv"
+    path.write_text(
+        ",".join(PRE_TAGS_LEDGER_COLUMNS) + "\n"
+        "run,2026-10-16T12:00:00Z,2026-10-16,workflow_dispatch,deepinfra,unit,1,0,1,1,0.01,reported,0,0,0,0,0,0.01,0,0\n",
+        encoding="utf-8",
+    )
+    rows = read_ledger(path)
+    assert rows[0]["tags"] == ""
 
 
 def test_empty_run_does_not_create_a_ledger(tmp_path):

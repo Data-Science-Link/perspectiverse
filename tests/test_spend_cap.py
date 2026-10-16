@@ -27,22 +27,25 @@ from pipeline.spend_cap import (
     DAILY_STOP_AT_TARGET_USD,
     DAILY_STOP_USD,
     DAILY_WARN_USD,
-    FILL_BUDGET_DAY_CEILING_USD,
+    FILL_BUDGET_TOTAL_USD,
     STOP_EXIT,
     SpendCapExceeded,
+    check_fill_dispatch,
     enforce_before_paid_work,
+    fill_paid_usd,
     guard_before_paid_call,
     hold_edition,
     record_partial_ledger,
     stop_usd,
 )
+from pipeline.costs import LEDGER_TAG_FILL
 
 
 @pytest.fixture(autouse=True)
 def _isolated_cap(monkeypatch):
     monkeypatch.delenv("PERSPECTIVERSE_DAILY_SPEND_WARN", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_DAILY_SPEND_STOP", raising=False)
-    monkeypatch.delenv("PERSPECTIVERSE_FILL_BUDGET_USD", raising=False)
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_LEDGER", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_RUN", raising=False)
@@ -66,7 +69,16 @@ def _attempt(**overrides):
     record_attempt(**payload)
 
 
-def _ledger_row(*, run_id: str, trigger: str, service: str, cost: str, day: date, model: str = "unit") -> dict:
+def _ledger_row(
+    *,
+    run_id: str,
+    trigger: str,
+    service: str,
+    cost: str,
+    day: date,
+    model: str = "unit",
+    tags: str = "",
+) -> dict:
     return {
         "run_id": run_id,
         "run_started_utc": f"{day.isoformat()}T06:00:00Z",
@@ -82,6 +94,13 @@ def _ledger_row(*, run_id: str, trigger: str, service: str, cost: str, day: date
         "cost_source": "reported",
         "posts_processed": 0,
         "planets_published": 0,
+        "storage_bytes": 0,
+        "class_a_ops": 0,
+        "class_b_ops": 0,
+        "list_price_usd": Decimal(cost),
+        "retried_calls": 0,
+        "final_failures": 0,
+        "tags": tags,
     }
 
 
@@ -908,49 +927,150 @@ def test_hold_edition_git_reset_leaves_staged_halt_corpus(tmp_path, monkeypatch)
     assert rows == [("at://staged/only",)]
 
 
-def test_fill_budget_override_applies_only_when_env_set(monkeypatch):
-    """Scheduled and push runs do not set the fill env; dispatch may."""
-    assert stop_usd() == DAILY_STOP_USD
-    monkeypatch.setenv("PERSPECTIVERSE_FILL_BUDGET_USD", "5")
-    assert stop_usd() == FILL_BUDGET_DAY_CEILING_USD
-    monkeypatch.delenv("PERSPECTIVERSE_FILL_BUDGET_USD", raising=False)
-    assert stop_usd() == DAILY_STOP_USD
-
-
-def test_fill_budget_counts_prior_ledger_spend(tmp_path, monkeypatch):
+def test_fill_cap_sums_tagged_ledger_across_utc_days(tmp_path, monkeypatch):
+    """Fill spend is the fill-tagged ledger total, not one UTC day."""
     today = date(2026, 10, 16)
+    yesterday = date(2026, 10, 15)
     monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
-    monkeypatch.setenv("PERSPECTIVERSE_FILL_BUDGET_USD", "5")
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
     ledger = tmp_path / "ledger.csv"
     append_ledger(
         ledger,
         [
-            _ledger_row(run_id="earlier", trigger="schedule", service=SERVICE_JEV, cost="4.95", day=today),
+            _ledger_row(
+                run_id="fill-yesterday",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="3.00",
+                day=yesterday,
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="not-fill",
+                trigger="schedule",
+                service=SERVICE_JEV,
+                cost="0.90",
+                day=today,
+            ),
+        ],
+    )
+    assert fill_paid_usd(ledger) == Decimal("3.00")
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    with pytest.raises(SpendCapExceeded) as caught:
+        _attempt(cost_usd=Decimal("2.01"))
+    assert caught.value.spent_usd == Decimal("5.01")
+
+
+def test_fill_dispatch_refused_when_corpus_full_or_fill_spent(monkeypatch, tmp_path):
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-done",
+                trigger="workflow_dispatch",
+                service=SERVICE_DEEPINFRA,
+                cost="5.00",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "12000")
+    assert check_fill_dispatch() == 1
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    assert stop_usd() == DAILY_STOP_AT_TARGET_USD
+
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "100000")
+    assert check_fill_dispatch() == 1
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    assert stop_usd() == DAILY_STOP_AT_TARGET_USD
+
+
+def test_fill_exhausted_before_100k_halts_and_returns_fifty_cent_cap(tmp_path, monkeypatch, capsys):
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "25000")
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-partial",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="4.99",
+                day=today,
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    with pytest.raises(SpendCapExceeded):
+        _attempt(cost_usd=Decimal("0.02"))
+    captured = capsys.readouterr()
+    assert "Fill budget exhausted" in captured.err
+    assert "75,000 short of 100,000" in captured.err
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-final",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="0.02",
+                day=today,
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    assert stop_usd() == DAILY_STOP_AT_TARGET_USD
+
+
+def test_non_fill_run_still_uses_daily_cap_not_fill_total(tmp_path, monkeypatch):
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-yesterday",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="4.50",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="schedule-today",
+                trigger="schedule",
+                service=SERVICE_JEV,
+                cost="0.50",
+                day=today,
+            ),
         ],
     )
     monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
     reset_meter()
     enforce_before_paid_work()
-    with pytest.raises(SpendCapExceeded) as caught:
-        _attempt(cost_usd=Decimal("0.06"))
-    assert caught.value.spent_usd == Decimal("5.01")
-
-
-def test_fill_budget_never_exceeds_five_dollar_day_ceiling(monkeypatch):
-    monkeypatch.setenv("PERSPECTIVERSE_FILL_BUDGET_USD", "9.99")
-    assert stop_usd() == FILL_BUDGET_DAY_CEILING_USD
-
-
-def test_baseline_stop_at_target_corpus_uses_fifty_cents(monkeypatch):
-    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "100000")
-    assert stop_usd() == DAILY_STOP_AT_TARGET_USD
+    with pytest.raises(SpendCapExceeded):
+        _attempt(cost_usd=Decimal("0.51"))
+    assert stop_usd() == DAILY_STOP_USD
 
 
 def test_workflow_dispatch_exposes_fill_budget_input():
     text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
     assert "fill_budget_usd:" in text
-    assert "PERSPECTIVERSE_FILL_BUDGET_USD" in text
-    assert "github.event_name == 'workflow_dispatch'" in text
+    assert "PERSPECTIVERSE_FILL_RUN" in text
+    assert "check-fill-dispatch" in text
     assert "inputs.fill_budget_usd" in text
 
 

@@ -120,11 +120,14 @@ PRE_LABEL_ERROR_COLUMNS = [
     "class_b_ops",
     "list_price_usd",
 ]
-LEDGER_COLUMNS = [
+PRE_TAGS_LEDGER_COLUMNS = [
     *PRE_LABEL_ERROR_COLUMNS,
     "retried_calls",
     "final_failures",
 ]
+LEDGER_COLUMNS = [*PRE_TAGS_LEDGER_COLUMNS, "tags"]
+LEDGER_TAG_FILL = "fill"
+ENV_FILL_RUN = "PERSPECTIVERSE_FILL_RUN"
 
 # Repo-relative paths. These stay off public/ so Pages does not deploy them.
 LEDGER_PATH = Path("costs/ledger.csv")
@@ -951,6 +954,7 @@ def rows_for_attempts(
                 "class_a_ops": 0,
                 "class_b_ops": 0,
                 "list_price_usd": bucket["cost_usd"],
+                "tags": ledger_tags_for_run(),
             }
         )
     return [_stringify_row(row) for row in rows]
@@ -1018,8 +1022,29 @@ def write_cost_run(
         return None
 
 
+def ledger_tags_for_run() -> str:
+    """Comma-separated ledger tags for this run (e.g. ``fill`` for 100K fill dispatches)."""
+    raw = (os.getenv(ENV_FILL_RUN) or "").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return LEDGER_TAG_FILL
+    return ""
+
+
+def parse_ledger_tags(value: str | None) -> frozenset[str]:
+    text = (value or "").strip()
+    if not text:
+        return frozenset()
+    return frozenset(part.strip() for part in text.split(",") if part.strip())
+
+
+def row_has_fill_tag(row: dict[str, str]) -> bool:
+    return LEDGER_TAG_FILL in parse_ledger_tags(row.get("tags"))
+
+
 def _stringify_row(row: dict) -> dict[str, str]:
     filled = dict(row)
+    if "tags" not in filled or filled["tags"] is None:
+        filled["tags"] = ledger_tags_for_run()
     for column in ("storage_bytes", "class_a_ops", "class_b_ops", "retried_calls", "final_failures"):
         if column not in filled or filled[column] is None or filled[column] == "":
             filled[column] = 0
@@ -1047,6 +1072,8 @@ def _stringify_row(row: dict) -> dict[str, str]:
 def _header_kind(fieldnames: list[str]) -> str:
     if fieldnames == LEDGER_COLUMNS:
         return "current"
+    if fieldnames == PRE_TAGS_LEDGER_COLUMNS:
+        return "pre_tags"
     if fieldnames == PRE_LABEL_ERROR_COLUMNS:
         return "pre_label_errors"
     if fieldnames == LEGACY_LEDGER_COLUMNS:
@@ -1068,7 +1095,15 @@ def _with_label_error_columns(row: dict) -> dict[str, str]:
     for column in ("retried_calls", "final_failures"):
         if not str(filled.get(column) or "").strip():
             filled[column] = "0"
+    if "tags" not in filled or filled["tags"] is None:
+        filled["tags"] = ""
     return {column: str(filled.get(column) or "") for column in LEDGER_COLUMNS}
+
+
+def _upgrade_pre_tags_row(raw: dict) -> dict[str, str]:
+    row = {column: raw.get(column) or "" for column in PRE_TAGS_LEDGER_COLUMNS}
+    row["tags"] = ""
+    return {column: str(row.get(column) or "") for column in LEDGER_COLUMNS}
 
 
 def _upgrade_legacy_row(raw: dict) -> dict[str, str]:
@@ -1134,6 +1169,8 @@ def read_ledger(path: Path) -> list[dict[str, str]]:
                 rows.append(_upgrade_legacy_row(raw))
             elif kind == "pre_label_errors":
                 rows.append(_upgrade_pre_label_error_row(raw))
+            elif kind == "pre_tags":
+                rows.append(_upgrade_pre_tags_row(raw))
             else:
                 rows.append(_with_label_error_columns(raw))
         return rows
@@ -1174,7 +1211,7 @@ def append_ledger(path: Path, new_rows: list[dict]) -> list[dict[str, str]]:
             f"{path} header does not match the cost ledger; refusing to rewrite it"
         )
     existing = read_ledger(path)
-    if kind in {"pre_trigger", "legacy", "pre_label_errors"}:
+    if kind in {"pre_trigger", "legacy", "pre_label_errors", "pre_tags"}:
         combined = existing + normalized
         _atomic_write(path, _csv_body(combined, header=True))
         return combined
