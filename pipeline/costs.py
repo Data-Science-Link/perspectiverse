@@ -921,6 +921,7 @@ def write_cost_run(
     deepinfra_errors: dict | None = None,
     stance_check_failed: int = 0,
     stance_check_incoherent: int = 0,
+    kept_pending_unshared: int = 0,
 ) -> Path | None:
     """Write this run's rows to a gitignored file. Never raises."""
     try:
@@ -947,6 +948,7 @@ def write_cost_run(
             "deepinfra_errors": errors,
             "stance_check_failed": int(stance_check_failed),
             "stance_check_incoherent": int(stance_check_incoherent),
+            "kept_pending_unshared": int(kept_pending_unshared),
             "jev_cache_hits": int(filters["cache_hits"]),
             "jev_cache_lookups": int(filters.get("lookups") or 0),
             "jev_dedup_skips": int(filters["dedup_skips"]),

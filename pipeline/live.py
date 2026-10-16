@@ -69,6 +69,7 @@ from pipeline.schema import (
     MAX_FACES,
     MIN_FACES,
     STANCE_CHECK_FAILED,
+    STANCE_CHECK_UNSHARED,
     STANCE_CHECK_INCOHERENT,
     SYSTEM_SIZE,
     apply_opposing_note,
@@ -291,6 +292,7 @@ def _abort_for_spend_cap(started_at: datetime, exc: SpendCapExceeded) -> None:
 
 def _write_cost_run(payload: dict, started_at: datetime) -> None:
     """Best effort. A cost-log error must not fail a snapshot that already wrote."""
+    pending_kept = unshared_pending_planet_count()
     failed_checks = report_stance_check_failures()
     incoherent_checks = report_stance_check_incoherent()
     report_unshared_pending_planets()
@@ -307,6 +309,7 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
             deepinfra_errors=summary,
             stance_check_failed=failed_checks,
             stance_check_incoherent=incoherent_checks,
+            kept_pending_unshared=pending_kept,
         )
         face = section_face_relabel()
         try:
@@ -648,6 +651,12 @@ def note_unshared_pending_planet(name: str, post_count: int) -> None:
     """One catalog planet kept with the pending reader line after every face failed the shared-claim check."""
     with _coherence_lock:
         _unshared_pending_planets.append((str(name or "").strip() or "?", int(post_count or 0)))
+
+
+def unshared_pending_planet_count() -> int:
+    """Planets kept as pending after every face failed the shared-claim check."""
+    with _coherence_lock:
+        return len(_unshared_pending_planets)
 
 
 def report_unshared_pending_planets() -> int:
@@ -2852,7 +2861,7 @@ def _planet_out_pending(
         "post_count": len(members),
         "perspectives": [perspective],
         "_member_uris": [str(post.get("uri") or "") for post in members],
-        "stance_check": STANCE_CHECK_FAILED,
+        "stance_check": STANCE_CHECK_UNSHARED,
         "face_distinctness": 0.0,
     }
     apply_opposing_note(planet_out)
@@ -2922,7 +2931,7 @@ def _keep_unshared_pending_planet(topic: dict, original: list[dict]) -> bool:
     faces[0]["volume_percent"] = 100.0
     topic["post_count"] = total
     topic["perspectives"] = faces
-    topic["stance_check"] = STANCE_CHECK_FAILED
+    topic["stance_check"] = STANCE_CHECK_UNSHARED
     topic.pop("opposing_note", None)
     apply_opposing_note(topic)
     return True

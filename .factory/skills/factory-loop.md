@@ -30,6 +30,7 @@ Also follow `liability-gates.md` on every change.
 ## Review & verify
 
 - Self-review against the issue outcome / specs and `liability-gates.md`.
+- Agent review must flag any PR that uses **`Closes`** on a standing or tracker issue (for example **#106**); those links must be **`Refs`**, not `Closes`, unless the PR truly finishes that issue.
 - A cloud agent's token can't comment. The manager posts that agent's reviews and reports on the PR.
 - Run tests/CI; put evidence on the PR (CI links, tests, **screenshots for UI**).
 - Any reader-facing change shows the top 10 before and after before approval. A done claim waits for a hand audit of the real top 10 planets.

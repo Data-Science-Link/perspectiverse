@@ -147,7 +147,7 @@ def test_title_and_summary_must_share_a_claim_word():
 
 def test_drop_planet_that_admits_no_shared_claim():
     from pipeline.live import _drop_unshared_planets, _renumber_planets
-    from pipeline.schema import STANCE_CHECK_FAILED
+    from pipeline.schema import STANCE_CHECK_UNSHARED
 
     mixed = {
         "id": 9,
@@ -184,7 +184,7 @@ def test_drop_planet_that_admits_no_shared_claim():
     }
     kept = _drop_unshared_planets([mixed, solid])
     assert [topic["name"] for topic in kept] == ["Canada", "Taxes"]
-    assert kept[0]["stance_check"] == STANCE_CHECK_FAILED
+    assert kept[0]["stance_check"] == STANCE_CHECK_UNSHARED
     assert kept[0]["perspectives"][0]["title"] == "Canada"
     assert "Mixed remarks" not in kept[0]["perspectives"][0]["title"]
     assert "opposing_note" not in kept[0]
@@ -201,7 +201,7 @@ def test_drop_planet_that_admits_no_shared_claim():
 
 def test_draft_keeps_planet_when_no_face_survives_shared_claim(monkeypatch):
     from pipeline.live import _draft_planet, report_unshared_pending_planets, reset_coherence_stats
-    from pipeline.schema import STANCE_CHECK_FAILED
+    from pipeline.schema import STANCE_CHECK_UNSHARED
 
     posts = [
         {
@@ -251,7 +251,7 @@ def test_draft_keeps_planet_when_no_face_survives_shared_claim(monkeypatch):
     result, log = _draft_planet(posts, {"matrix": None}, topic, context)
     assert result is not None
     planet = result["planet"]
-    assert planet["stance_check"] == STANCE_CHECK_FAILED
+    assert planet["stance_check"] == STANCE_CHECK_UNSHARED
     assert planet["post_count"] == 8
     assert planet["perspectives"][0]["title"] == planet["name"]
     assert "Mixed remarks" not in planet["perspectives"][0]["title"]
@@ -262,8 +262,10 @@ def test_draft_keeps_planet_when_no_face_survives_shared_claim(monkeypatch):
 
 def test_unshared_pending_planet_logs_a_counter(capsys):
     from pipeline.live import _drop_unshared_planets, report_unshared_pending_planets, reset_coherence_stats
+    from pipeline.stance import report_stance_check_failures, reset_stance_check_failures
 
     reset_coherence_stats()
+    reset_stance_check_failures()
     planet = {
         "id": 1,
         "name": "Corruption Corrupt",
@@ -284,6 +286,8 @@ def test_unshared_pending_planet_logs_a_counter(capsys):
     assert "Kept as pending (no shared claim on any face): 1 planet(s)" in err
     assert "Corruption Corrupt" in err
     assert "(62 posts)" in err
+    assert report_stance_check_failures() == 0
+    assert "Stance check failed:" not in err
 
 
 def test_live_run_refuses_unlabeled_posts():

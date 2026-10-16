@@ -1,12 +1,15 @@
 export const SINGLE_VIEW_NOTE = 'No clear opposing view found in this sample'
 export const STANCE_CHECK_FAILED = 'stance check failed'
 export const STANCE_CHECK_INCOHERENT = 'second side not coherent'
+export const STANCE_CHECK_UNSHARED = 'no shared claim on any face'
 export const PERSPECTIVES_PENDING = 'Perspectives still being analyzed'
 
 function stancePending(topic) {
   return Boolean(
     topic &&
-      (topic.stance_check === STANCE_CHECK_FAILED || topic.stance_check === STANCE_CHECK_INCOHERENT),
+      (topic.stance_check === STANCE_CHECK_FAILED ||
+        topic.stance_check === STANCE_CHECK_INCOHERENT ||
+        topic.stance_check === STANCE_CHECK_UNSHARED),
   )
 }
 

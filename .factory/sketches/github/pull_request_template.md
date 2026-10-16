@@ -5,6 +5,8 @@
 
 <!-- One or two sentences. -->
 
+Issue link: `Closes #` only if this PR **fully finishes** that issue; use `Refs #` for ledgers/trackers (e.g. #106) and partial work.
+
 Closes #
 
 ## Success metric from the original ask

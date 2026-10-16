@@ -58,7 +58,11 @@ STANCE_CHECK_FAILED = "stance check failed"
 # (coherent false, an empty title, or "Mixed remarks"). Same reader line as a
 # failed call. Counted separately. The one-view note is not used.
 STANCE_CHECK_INCOHERENT = "second side not coherent"
-_STANCE_CHECK_VALUES = frozenset({STANCE_CHECK_FAILED, STANCE_CHECK_INCOHERENT})
+# Every face failed the shared-claim check; planet is kept for readers as pending.
+STANCE_CHECK_UNSHARED = "no shared claim on any face"
+_STANCE_CHECK_VALUES = frozenset(
+    {STANCE_CHECK_FAILED, STANCE_CHECK_INCOHERENT, STANCE_CHECK_UNSHARED}
+)
 # Salient tokens stored on each published face (pipeline + demo).
 TOP_TERMS_LIMIT = 8
 
@@ -270,9 +274,8 @@ def _check_stance_check(topic: dict[str, Any], label: str) -> None:
     if "stance_check" not in topic or topic.get("stance_check") is None:
         return
     if topic.get("stance_check") not in _STANCE_CHECK_VALUES:
-        raise ValueError(
-            f"{label} stance_check must be {STANCE_CHECK_FAILED!r} or {STANCE_CHECK_INCOHERENT!r}"
-        )
+        allowed = ", ".join(repr(value) for value in sorted(_STANCE_CHECK_VALUES))
+        raise ValueError(f"{label} stance_check must be one of {allowed}")
     if topic.get("opposing_note"):
         raise ValueError(f"{label} cannot carry opposing_note when stance_check is set")
 

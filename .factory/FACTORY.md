@@ -84,6 +84,11 @@ Scheduled workflows (daily data jobs, nightly builds) can fail with no PR in fli
 - **Repo documentation** → stays in the repo (`README`, `docs/`, …); list paths in `DOCS.md`
 - **Contributor / PR / owners sketches** → copy from `.factory/sketches/` into the repo, then point `DOCS.md` at them
 
+## PR rules (issue linking)
+
+- Use **`Closes #N`** only when this PR fully finishes that issue. Standing ledgers and trackers (for example **#106**) stay open — link them with **`Refs #N`**, not `Closes`.
+- Agent review must **flag** any PR that uses `Closes` on a standing or tracker issue (wrong keyword for the relationship).
+
 ## Rules
 
 - Pin a model on every agent launch per `MODEL_ROUTING.md`; cheapest capable model first; never enable on-demand spend yourself
