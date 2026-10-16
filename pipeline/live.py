@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 import sys
 import threading
@@ -28,9 +29,16 @@ from pipeline.corpus import (
     utc_dates_present,
     window_utc_dates,
 )
-from pipeline.data_sources.extract_bluesky import extract_posts
+from pipeline.costs import format_usd
+from pipeline.data_sources.extract_bluesky import MAX_SEARCH_PAGES, extract_posts, format_search_time
 from pipeline.jev import apply_jev, describe_jev, known_scored_uris
-from pipeline.spend_cap import SpendCapExceeded
+from pipeline.spend_cap import (
+    FILL_BUDGET_TOTAL_USD,
+    SpendCapExceeded,
+    day_paid_usd,
+    guard_before_paid_call,
+    is_fill_run,
+)
 from pipeline.cluster_math import salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
 from pipeline.language import partition_posts
@@ -99,6 +107,16 @@ DEFAULT_SECTION_LABEL_IN_FLIGHT = 12
 # Section solar systems get this many minutes after the global system is built.
 # 0 is a real budget and skips sections. None means this default.
 DEFAULT_SECTION_BUDGET_MINUTES = 20
+# GitHub Actions kills the pipeline job at this many minutes (pipeline.yml).
+PIPELINE_JOB_LIMIT_MINUTES = 360
+# Stop the fill search this long before the job limit so clustering, labeling,
+# and the corpus upload can finish. Checked before each date window.
+FILL_JOB_MARGIN_MINUTES = 45
+# Safety stop if every day still returns posts. Budget and the job clock stop sooner.
+FILL_MAX_LOOKBACK_DAYS = 120
+# Days in a row with no new posts. Older history is not worth the page budget.
+FILL_EMPTY_WINDOWS_STOP = 14
+ENV_JOB_STARTED_AT = "PERSPECTIVERSE_JOB_STARTED_AT"
 
 
 def load_fixture(path: Path) -> list[dict]:
@@ -162,22 +180,36 @@ def run_live(
             _merge_jev_output(corpus_posts, scored)
             # Keep only public claims for clustering. Non-claims stay in ``corpus_posts``.
             cleaned = [p for p in corpus_posts if p.get("is_claim") is True]
-            if refreshed:
+            fill_span_hours = 0
+            if is_fill_run():
+                # Fill only. Scheduled and push runs keep the single latest search.
+                cleaned, corpus_posts, fill_span_hours = _fill_claims_by_day(
+                    cleaned,
+                    target=target,
+                    settings=settings,
+                    connection=connection,
+                    corpus_posts=corpus_posts,
+                    queries=queries,
+                )
+            elif refreshed and len(cleaned) < target:
                 # Top up: keep fetching until claim count reaches target so the
                 # rolling window stays at the threshold, not below it.
-                if len(cleaned) < target:
-                    cleaned, corpus_posts = _topup_claims(
-                        cleaned,
-                        target=target,
-                        settings=settings,
-                        connection=connection,
-                        corpus_posts=corpus_posts,
-                    )
+                cleaned, corpus_posts = _topup_claims(
+                    cleaned,
+                    target=target,
+                    settings=settings,
+                    connection=connection,
+                    corpus_posts=corpus_posts,
+                )
+            if refreshed or fill_span_hours:
                 before = len(cleaned)
+                hours = int(settings["window_hours"])
+                if fill_span_hours:
+                    hours = max(hours, fill_span_hours)
                 cleaned = retire_oldest(
                     cleaned,
                     now=datetime.now(timezone.utc),
-                    window_hours=int(settings["window_hours"]),
+                    window_hours=hours,
                     target=target,
                 )
                 kept = len(cleaned)
@@ -511,6 +543,206 @@ def _topup_claims(
         )
 
     return result, corpus_posts
+
+
+def _job_started_at(now: datetime) -> datetime:
+    """When the Actions job began, or ``now`` when the clock was not recorded."""
+    raw = (os.getenv(ENV_JOB_STARTED_AT) or "").strip()
+    if not raw:
+        return now
+    started = parse_created(raw)
+    if started.year < 2000:
+        return now
+    return started
+
+
+def fill_past_safe_margin(now: datetime) -> bool:
+    """True when the 360-minute job has no more than the fill margin left."""
+    started = _job_started_at(now)
+    deadline = started + timedelta(minutes=PIPELINE_JOB_LIMIT_MINUTES - FILL_JOB_MARGIN_MINUTES)
+    return now >= deadline
+
+
+def _fill_queries(settings: dict, queries: list[str] | None) -> list[str]:
+    chosen = [item for item in (queries or []) if item]
+    if chosen:
+        return chosen
+    return [item for item in (settings.get("neutral_queries") or []) if item]
+
+
+def _fill_claims_by_day(
+    claims: list[dict],
+    *,
+    target: int,
+    settings: dict,
+    connection,
+    corpus_posts: list[dict] | None,
+    queries: list[str] | None = None,
+    now: datetime | None = None,
+    clock=None,
+) -> tuple[list[dict], list[dict] | None, int]:
+    """Fill only: repeat each query on older UTC days until a stop condition.
+
+    Bluesky search caps a query at about 40 pages, so one latest search is
+    about 11K posts. Each UTC day (``since`` / ``until``) gets its own pages.
+    Stops at the claim target, before a paid call once fill spend is at
+    ``FILL_BUDGET_TOTAL_USD``, or when the job clock is inside the safe margin.
+    Does not change ``catalog_size`` (10 planets per solar system).
+
+    Returns claims, the corpus list (including non-claims), and the hour span
+    to keep when retiring. The span is 0 when this walk added no posts.
+    ``SpendCapExceeded`` propagates so the caller keeps posts already paid for.
+    """
+    moment = now or datetime.now(timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    moment = moment.astimezone(timezone.utc)
+    tick = clock or (lambda: datetime.now(timezone.utc))
+    result = list(claims)
+    if corpus_posts is None:
+        corpus_posts = list(result)
+    seen = {post.get("uri") for post in corpus_posts if post.get("uri")}
+    cache_only: set[str] = set()
+    if connection is not None:
+        verdicts = known_scored_uris(connection, result, now=moment)
+        cache_only = verdicts - seen
+        seen.update(verdicts)
+    fetch_queries = _fill_queries(settings, queries)
+    rng = random.Random(int(settings.get("seed") or 0) + len(result))
+    oldest_since: datetime | None = None
+    newest_until: datetime | None = None
+    windows = 0
+    empty_streak = 0
+    stop_reason = "lookback limit"
+    day = moment.date()
+
+    def _log_window(since: datetime, until: datetime, posts: int) -> None:
+        print(
+            f"Fill window {format_search_time(since)} .. {format_search_time(until)}: "
+            f"{posts} posts, {len(result)} claims so far, "
+            f"spend ${format_usd(day_paid_usd())} of ${format_usd(FILL_BUDGET_TOTAL_USD)}."
+        )
+
+    def _log_range() -> None:
+        spent = f"spend ${format_usd(day_paid_usd())} of ${format_usd(FILL_BUDGET_TOTAL_USD)}"
+        if oldest_since is not None and newest_until is not None:
+            print(
+                f"Fill date range {format_search_time(oldest_since)} .. {format_search_time(newest_until)}: "
+                f"{windows} window(s), {len(result)} claims so far, {spent} (stop: {stop_reason})."
+            )
+        else:
+            print(f"Fill date range: none. {len(result)} claims so far, {spent} (stop: {stop_reason}).")
+
+    try:
+        if len(result) >= target:
+            stop_reason = "claim target"
+        elif not fetch_queries:
+            stop_reason = "no search queries"
+            print("Fill walk skipped: no search queries.")
+        else:
+            for offset in range(FILL_MAX_LOOKBACK_DAYS):
+                if len(result) >= target:
+                    stop_reason = "claim target"
+                    break
+                if fill_past_safe_margin(tick()):
+                    stop_reason = (
+                        f"job time margin ({FILL_JOB_MARGIN_MINUTES} minutes left "
+                        f"of {PIPELINE_JOB_LIMIT_MINUTES})"
+                    )
+                    print(
+                        f"Fill stopped: the {PIPELINE_JOB_LIMIT_MINUTES}-minute job limit "
+                        f"has {FILL_JOB_MARGIN_MINUTES} minutes or less left. "
+                        f"{len(result)} claims so far."
+                    )
+                    break
+                since = datetime(day.year, day.month, day.day, tzinfo=timezone.utc) - timedelta(days=offset)
+                until = since + timedelta(days=1)
+                try:
+                    incoming = _extract_skipping_cached(
+                        cache_only,
+                        sample_size=max(target, 1),
+                        window_hours=int(settings.get("window_hours") or 168),
+                        queries=fetch_queries,
+                        rng=rng,
+                        now=moment,
+                        skip_uris=seen,
+                        since=since,
+                        until=until,
+                        pages=MAX_SEARCH_PAGES,
+                        subsample=False,
+                    )
+                except RuntimeError as exc:
+                    print(
+                        f"Fill window {format_search_time(since)} .. {format_search_time(until)} "
+                        f"failed ({exc})."
+                    )
+                    incoming = []
+                fresh = []
+                for post in drop_near_duplicates(clean_posts(incoming)):
+                    uri = post.get("uri")
+                    if not uri or uri in seen:
+                        continue
+                    seen.add(uri)
+                    fresh.append(post)
+                windows += 1
+                if oldest_since is None or since < oldest_since:
+                    oldest_since = since
+                if newest_until is None or until > newest_until:
+                    newest_until = until
+                if not fresh:
+                    empty_streak += 1
+                    _log_window(since, until, 0)
+                    if empty_streak >= FILL_EMPTY_WINDOWS_STOP:
+                        stop_reason = f"{FILL_EMPTY_WINDOWS_STOP} empty days"
+                        print(
+                            f"Fill stopped: {FILL_EMPTY_WINDOWS_STOP} date windows in a row "
+                            "returned no new posts."
+                        )
+                        break
+                    continue
+                empty_streak = 0
+                # Paid scoring starts here. Refuse the batch once fill spend
+                # is already at the cap, before another Jev call.
+                try:
+                    guard_before_paid_call("Jev")
+                except SpendCapExceeded:
+                    stop_reason = "fill spend cap"
+                    _log_window(since, until, len(fresh))
+                    raise
+                batch = list(fresh)
+                corpus_posts.extend(batch)
+                try:
+                    apply_jev(
+                        batch,
+                        connection=connection,
+                        batch=_jev_batch(settings),
+                        update_input=True,
+                    )
+                except SpendCapExceeded:
+                    stop_reason = "fill spend cap"
+                    new_claims = [post for post in batch if post.get("is_claim") is True]
+                    result.extend(new_claims)
+                    _log_window(since, until, len(fresh))
+                    raise
+                new_claims = [post for post in batch if post.get("is_claim") is True]
+                result.extend(new_claims)
+                if connection is not None:
+                    record_fetched_days(
+                        connection,
+                        [since.date().isoformat()],
+                        fetched_at=moment.isoformat(),
+                        kept=len(result),
+                    )
+                _log_window(since, until, len(fresh))
+            else:
+                stop_reason = f"lookback limit ({FILL_MAX_LOOKBACK_DAYS} days)"
+    finally:
+        _log_range()
+
+    span_hours = 0
+    if oldest_since is not None and len(result) > len(claims):
+        span_hours = int((moment - oldest_since).total_seconds() // 3600) + 24
+    return result, corpus_posts, span_hours
 
 
 def _collect_posts(

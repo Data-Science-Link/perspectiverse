@@ -26,9 +26,11 @@ on:
     inputs:
       fill_budget_usd:
         description: >-
-          Set to any value (e.g. 15) to run a 100K fill dispatch. Uses the shared
-          $15.00 fill budget across tagged ledger rows, not UTC-day boundaries.
-          Refused once the corpus is full or fill spend reaches $15. Empty = normal run.
+          Set to any value (e.g. 15) to run a 100K fill dispatch. Walks each
+          Bluesky query back one UTC day at a time (since/until) until 100K
+          claims, the shared $15.00 fill-tagged budget, or the 360-minute job
+          leaves 45 minutes. Refused once the corpus is full or fill spend
+          reaches $15. Empty = normal run (no date walk).
         required: false
         type: string
         default: ""
@@ -48,6 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
+      - name: Record job start for the fill time margin
+        run: echo "PERSPECTIVERSE_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:

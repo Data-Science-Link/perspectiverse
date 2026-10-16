@@ -52,6 +52,8 @@ Copy the repo-root `.env.example` to `.env`. The CLI loads it on start without o
 
 The public sample searches content-neutral tokens (`the`, `and`, `to`, `of`, `in`, `for`), newest English posts, then keeps a random subset. Bluesky search cannot draw a truly random post; this only stops steering the week toward sports, wars, or AI. The first run with an empty `fetched_days` table replaces the retained file with a 7-day sample, because the previous file was a seeded mix. Later runs drop posts older than 168 hours and search only the newest 24 hours. A UTC day already in `fetched_days` that still has posts is not searched again. If Bluesky 403s, the job **does not drop** — it rebuilds the snapshot from whatever is already retained.
 
+A fill dispatch (`workflow_dispatch` with `fill_budget_usd` set) is the exception. Bluesky stops each query at about 40 pages, so one latest search is about 11K posts. That run repeats every query on older UTC days (`since` / `until`, one day at a time) until the corpus has 100,000 claims, fill-tagged spend reaches $15, or the 360-minute job has 45 minutes left. It logs each window's date range, post count, claims, and spend. Scheduled and push runs do not walk days. The 10-planet cap per solar system is unchanged. The next scheduled fetch still drops posts older than 168 hours.
+
 Re-running BERTopic reads this SQLite file. It does not fetch days that are already stored. `--relabel` skips Bluesky and rebuilds names from the same rows.
 
 ## Clustering
@@ -101,7 +103,7 @@ The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` and
 | Scheduled UTC (`06:17`, `07:47`, `09:17`, `10:47`, `12:17`; #97) | Full live pipeline — Bluesky fetch, Jev on new posts only, embed, cluster, label, publish. Later scheduled slots no-op when `pipeline/schedule_guard.py` sees today's run already succeeded on `main`. | ~$0.01/snapshot (DeepInfra labels) + Jev per new post |
 | Push to `main` — pipeline code changed (`pipeline/**`, `pyproject.toml`, `uv.lock`, `.github/workflows/pipeline.yml`) | Same full live pipeline | Same as cron |
 | Push to `main` — site-only files (frontend, `pipeline/README.md`, `pipeline/data/**`, docs) | `pages.yml` redeploy only — no pipeline run, no LLM spend | None |
-| `workflow_dispatch` | Full live pipeline | Same as cron |
+| `workflow_dispatch` | Full live pipeline. With `fill_budget_usd` set, also walks older Bluesky days until 100K claims, the $15 fill budget, or the job's 45-minute margin. Empty input matches cron. | Fill: Jev on new posts, capped at $15 fill-tagged spend. Otherwise same as cron |
 
 **Same-UTC-day reruns are idempotent on fetching:** `live.py` records each fetched UTC date in `fetched_days` and returns the retained corpus unchanged if that day is already present. **Jev only scores new posts:** `jev.py` skips any post that already has a `section` field, so existing posts are never re-classified. R2 and `data-snapshot` writes are serialised by a workflow-level `concurrency: discourse-pipeline` group (cancel-in-progress: false) so pipeline runs never overlap each other. That group does not cover a cloud-agent paid test, which uses the same DeepInfra key outside Actions. Those tests must run `python scripts/check_pipeline_overlap.py` first and wait when it exits 2. See `.factory/DOCS.md`.
 
