@@ -24,8 +24,9 @@ from pipeline.costs import (
 from pipeline.live import _safe_draft, _topup_claims
 from pipeline.run_pipeline import main
 from pipeline.spend_cap import (
-    DAILY_STOP_AT_TARGET_USD,
+    DAILY_STOP_AFTER_FILL_USD,
     DAILY_STOP_USD,
+    DAILY_WARN_AFTER_FILL_USD,
     DAILY_WARN_USD,
     FILL_BUDGET_TOTAL_USD,
     STOP_EXIT,
@@ -37,6 +38,7 @@ from pipeline.spend_cap import (
     hold_edition,
     record_partial_ledger,
     stop_usd,
+    warn_usd,
 )
 from pipeline.costs import LEDGER_TAG_FILL
 
@@ -982,16 +984,18 @@ def test_fill_dispatch_refused_when_corpus_full_or_fill_spent(monkeypatch, tmp_p
     monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "12000")
     assert check_fill_dispatch() == 1
     monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
-    assert stop_usd() == DAILY_STOP_AT_TARGET_USD
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
 
     monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
     monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "100000")
     assert check_fill_dispatch() == 1
     monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
-    assert stop_usd() == DAILY_STOP_AT_TARGET_USD
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
 
 
-def test_fill_exhausted_before_100k_halts_and_returns_fifty_cent_cap(tmp_path, monkeypatch, capsys):
+def test_fill_exhausted_before_100k_halts_and_returns_normal_daily_cap(tmp_path, monkeypatch, capsys):
     today = date(2026, 10, 16)
     monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
     monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
@@ -1031,7 +1035,8 @@ def test_fill_exhausted_before_100k_halts_and_returns_fifty_cent_cap(tmp_path, m
         ],
     )
     monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
-    assert stop_usd() == DAILY_STOP_AT_TARGET_USD
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
 
 
 def test_non_fill_run_still_uses_daily_cap_not_fill_total(tmp_path, monkeypatch):
@@ -1064,6 +1069,25 @@ def test_non_fill_run_still_uses_daily_cap_not_fill_total(tmp_path, monkeypatch)
     with pytest.raises(SpendCapExceeded):
         _attempt(cost_usd=Decimal("0.51"))
     assert stop_usd() == DAILY_STOP_USD
+
+
+def test_fill_run_logs_planet_count_and_labeling_calls(monkeypatch, capsys):
+    from pipeline.live import _log_fill_run_summary
+
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    record_attempt(
+        service=SERVICE_DEEPINFRA,
+        model="unit",
+        input_tokens=1,
+        output_tokens=1,
+        cost_usd=Decimal("0.01"),
+        cost_source="reported",
+        status="success",
+    )
+    payload = {"topics": [{"id": 1}], "sections": {"Politics": [{"id": 2}]}}
+    _log_fill_run_summary(payload)
+    captured = capsys.readouterr()
+    assert "Fill run: 2 published planet(s), 1 labeling call(s)." in captured.out
 
 
 def test_workflow_dispatch_exposes_fill_budget_input():

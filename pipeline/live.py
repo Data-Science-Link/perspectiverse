@@ -288,8 +288,22 @@ def run_live(
         f"from {len(cleaned)} posts in the window, "
         f"{clustered['noise_count']} excluded as noise, wrote {destination}"
     )
+    _log_fill_run_summary(payload)
     _write_cost_run(payload, started_at)
     return destination
+
+
+def _log_fill_run_summary(payload: dict | None = None) -> None:
+    """Planet and labeling totals for a fill dispatch (success or cap halt)."""
+    from pipeline.spend_cap import is_fill_run
+
+    if not is_fill_run():
+        return
+    from pipeline.costs import LLM_SERVICES, count_published_planets, get_meter
+
+    planets = count_published_planets(payload) if payload else 0
+    labeling_calls = sum(1 for attempt in get_meter().attempts() if attempt.service in LLM_SERVICES)
+    print(f"Fill run: {planets} published planet(s), {labeling_calls} labeling call(s).")
 
 
 def _abort_for_spend_cap(started_at: datetime, exc: SpendCapExceeded) -> None:
@@ -302,6 +316,7 @@ def _abort_for_spend_cap(started_at: datetime, exc: SpendCapExceeded) -> None:
         "Yesterday's edition stays.",
         file=sys.stderr,
     )
+    _log_fill_run_summary()
     try:
         from pipeline.costs import get_meter, write_cost_run
         from pipeline.spend_cap import cost_run_path, write_stop_marker

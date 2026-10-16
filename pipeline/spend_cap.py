@@ -4,8 +4,10 @@ Michael, 2026-10-12 8:44 AM CT, Option A: hard stop at $1.00 and do not publish.
 Michael, 2026-10-16 11:35 AM CT: warn and stop both at $1.00 for the 100K ingest
 window. The site keeps yesterday's edition.
 Michael, 2026-10-16 1:29 PM CT: up to $5.00 paid across tagged fill runs to reach
-100K posts, then $0.50/day (#187). Fill spend is summed from ``tags=fill`` ledger
-rows (per-call checkpoints in #186), not UTC-day boundaries.
+100K posts (#187). Fill spend is summed from ``tags=fill`` ledger rows
+(per-call checkpoints in #186), not UTC-day boundaries. After the fill campaign
+ends, the normal UTC-day cap returns (warn then hard stop; see
+``DAILY_STOP_AFTER_FILL_USD``).
 
 The total is every paid call this UTC day: labeling, Jev, and top-ups (top-up
 rounds are more Jev calls). It includes every run that day — scheduled, push,
@@ -44,11 +46,13 @@ from pipeline.costs import (
     format_usd,
 )
 
-# Michael, 2026-10-16. Warn and stop both at $1.00 for the 100K window (#182).
+# Michael, 2026-10-16. Warn and stop both at $1.00 while the fill campaign is open (#182).
 DAILY_WARN_USD = Decimal("1.00")
 DAILY_STOP_USD = Decimal("1.00")
-# Michael, 2026-10-09 / 2026-10-16 1:29 PM CT: standing cap once the window is full.
-DAILY_STOP_AT_TARGET_USD = Decimal("0.50")
+# Normal daily cap after the fill campaign ends (100K claims or $5 fill spend).
+# Michael may lower this to $0.50 once a measured 100K day is logged (#187).
+DAILY_WARN_AFTER_FILL_USD = Decimal("0.50")
+DAILY_STOP_AFTER_FILL_USD = Decimal("1.00")
 # Michael, 2026-10-16 1:29 PM CT: hard stop on total fill-tagged paid spend.
 FILL_BUDGET_TOTAL_USD = Decimal("5.00")
 ENV_WARN = "PERSPECTIVERSE_DAILY_SPEND_WARN"
@@ -195,7 +199,7 @@ def fill_dispatch_allowed() -> bool:
 
 def _baseline_stop_usd() -> Decimal:
     if fill_campaign_complete():
-        return DAILY_STOP_AT_TARGET_USD
+        return DAILY_STOP_AFTER_FILL_USD
     return DAILY_STOP_USD
 
 
@@ -203,7 +207,7 @@ def warn_usd() -> Decimal:
     if is_fill_run():
         return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_WARN_USD)
     if fill_campaign_complete():
-        return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_STOP_AT_TARGET_USD)
+        return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_WARN_AFTER_FILL_USD)
     return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_WARN_USD)
 
 
@@ -229,7 +233,8 @@ def _log_fill_shortfall(total: Decimal) -> None:
     message = (
         f"Fill budget exhausted: paid ${format_usd(total)} of ${format_usd(FILL_BUDGET_TOTAL_USD)} "
         f"across fill-tagged runs; corpus at {claims:,} claims, {gap:,} short of {CLAIM_TARGET:,}. "
-        "Keeping paid posts from this run. Daily hard stop is $0.50 until the corpus is full."
+        f"Keeping paid posts from this run. Daily cap returns to warn ${format_usd(DAILY_WARN_AFTER_FILL_USD)} "
+        f"/ stop ${format_usd(DAILY_STOP_AFTER_FILL_USD)} until the corpus is full."
     )
     print(message, file=sys.stderr)
     print(f"::warning::{message}")
@@ -624,7 +629,10 @@ def check_fill_dispatch() -> int:
             f"fill-tagged spend is ${format_usd(spent)} "
             f"(cap ${format_usd(FILL_BUDGET_TOTAL_USD)}) with {claims:,} claims"
         )
-    message = f"Fill dispatch refused: {reason}. Use a normal run; daily hard stop is $0.50."
+    message = (
+        f"Fill dispatch refused: {reason}. Use a normal run; daily cap is warn "
+        f"${format_usd(DAILY_WARN_AFTER_FILL_USD)} / stop ${format_usd(DAILY_STOP_AFTER_FILL_USD)}."
+    )
     print(f"::error::{message}", file=sys.stderr)
     print(message, file=sys.stderr)
     return 1
