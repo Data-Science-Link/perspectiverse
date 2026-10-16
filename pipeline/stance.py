@@ -15,6 +15,17 @@ A call that times out, returns an HTTP error, or cannot be parsed is tried
 once more. If that also fails, the planet keeps those same pre-pass faces.
 It is marked stance check failed and does not get the one-view note.
 
+When the draft already has two or more geometric faces and the smallest has
+at least ``MIN_FACE_POSTS`` posts, those faces are not merged before the
+stance sample. ``MIN_FACE_POSTS`` is 2, defined in ``pipeline/perspectives.py``.
+That floor only protects a geometric face until the sample has seen it. It
+is not ``MIN_PLANET_POSTS`` (5), the planet floor from #79 in
+``pipeline/grouping.py``. The sample is stratified so each geometric face is
+in it, instead of a draw that can miss a small side. The 10% share is
+unchanged. A sample under that share may still merge same-stance faces
+afterward. A second pole that clears the share and is one grounded claim
+keeps the geometric faces.
+
 A split that clears that share is still kept as one face unless the model's
 ``second.stance`` is the pole of the posts that would move and a claim word
 from ``second.title`` or ``second.summary`` shows up with the same polarity
@@ -1040,6 +1051,203 @@ def split_second_stance(
     return [split[0], split[1]], True
 
 
+def face_keep_floor(drafted: list) -> bool:
+    """True when a geometric minority is large enough to sample before any merge.
+
+    The floor is ``MIN_FACE_POSTS`` (2), defined in ``pipeline/perspectives.py``
+    and imported above. A planet needs at least two faces, and the smallest
+    face needs at least that many posts. This is not the 5-post planet
+    minimum (``MIN_PLANET_POSTS`` in ``pipeline/grouping.py``, #79).
+    """
+    if len(drafted) < 2:
+        return False
+    return min(int(item[2]) for item in drafted) >= MIN_FACE_POSTS
+
+
+def _face_quotas(sizes: list[int], cap: int) -> list[int]:
+    """Slots per face, largest-first. Every face gets one slot when the cap allows.
+
+    Leftover slots then go round-robin, so a small face is filled up to its
+    own post count before the extra room stays with the largest face.
+    """
+    quotas = [0] * len(sizes)
+    remaining = min(max(int(cap), 0), sum(max(0, int(size)) for size in sizes))
+    for index, size in enumerate(sizes):
+        if remaining <= 0:
+            break
+        if int(size) <= 0:
+            continue
+        quotas[index] = 1
+        remaining -= 1
+    while remaining > 0:
+        progressed = False
+        for index, size in enumerate(sizes):
+            if remaining <= 0:
+                break
+            if quotas[index] >= int(size):
+                continue
+            quotas[index] += 1
+            remaining -= 1
+            progressed = True
+        if not progressed:
+            break
+    return quotas
+
+
+def stratified_sample_rows(drafted: list, limit: int | None = None, seed: int = 0) -> list[tuple]:
+    """Stance sample that includes every geometric face.
+
+    The cap is the same ``sample_limit`` as the one-face draw. Seed 0 spreads
+    within each face. Any other seed draws inside a face that is larger than
+    its quota, and the same seed repeats that draw. A planet smaller than the
+    cap is returned whole. Faces are taken largest first.
+    """
+    if not drafted:
+        return []
+    order = sorted(range(len(drafted)), key=lambda index: (-int(drafted[index][2]), index))
+    grouped = [ordered_rows(list(drafted[index][1])) for index in order]
+    total = sum(len(rows) for rows in grouped)
+    cap = sample_limit(total) if limit is None else int(limit)
+    if cap <= 0 or total <= cap:
+        quotas = [len(rows) for rows in grouped]
+    else:
+        quotas = _face_quotas([len(rows) for rows in grouped], cap)
+    seen: set[str] = set()
+    sample: list[tuple] = []
+    for face_index, rows in enumerate(grouped):
+        quota = min(int(quotas[face_index]), len(rows))
+        if quota <= 0:
+            continue
+        if quota >= len(rows) or int(seed) == 0:
+            indexes = spread_indexes(len(rows), quota)
+        else:
+            indexes = sorted(random.Random(int(seed) + face_index).sample(range(len(rows)), quota))
+        for index in indexes:
+            row = rows[index]
+            uri = str(row[0])
+            if uri in seen:
+                continue
+            seen.add(uri)
+            sample.append(row)
+    return sample
+
+
+def _largest_face(drafted: list) -> tuple:
+    index = max(range(len(drafted)), key=lambda item: (int(drafted[item][2]), -item))
+    return drafted[index]
+
+
+def _assess_geometric_sample(
+    drafted: list,
+    members: list[dict],
+    generate: Callable[[str], str],
+    context: dict,
+    *,
+    subject: str,
+    terms: list[str] | None,
+) -> str:
+    """Sample every geometric face before a merge. ``merge``, ``keep``, or ``stop``.
+
+    ``keep`` means the second pole cleared the unchanged 10% share and the
+    claim is grounded, so the geometric faces stay. ``merge`` means the sample
+    is under that share and same-stance merge may run afterward. ``stop``
+    means the call failed or the second pole was not one claim; the caller
+    restores the pre-pass faces.
+    """
+    sample_seed = _pipeline_seed(context)
+    planet_posts = sum(len(item[1]) for item in drafted)
+    minority = min(int(item[2]) for item in drafted)
+    rows = stratified_sample_rows(drafted, seed=sample_seed)
+    if len(rows) < MIN_FACE_POSTS:
+        return "merge"
+    parsed = _call_parsed(
+        generate,
+        build_stance_prompt(rows, members, subject),
+        context,
+        kind="sample",
+        count=len(rows),
+        parse=lambda raw: parse_stance_response(raw, len(rows)),
+    )
+    if parsed is None:
+        return "stop"
+    counts: dict[str, int] = {name: 0 for name in STANCES}
+    for label in parsed["labels"]:
+        counts[label] += 1
+    share = stance_share(context)
+    keep, stance, found, ratio = clears_second_stance(counts, len(rows), share)
+    title = parsed["title"]
+    model_coherent = bool(parsed["coherent"])
+    coherent = model_coherent and bool(title) and title.lower() != _MIXED
+    context["stance_last"] = {
+        "sample_n": len(rows),
+        "planet_posts": planet_posts,
+        "sample_cap": sample_limit(planet_posts),
+        "sample_seed": sample_seed,
+        "counts": counts,
+        "labels": list(parsed["labels"]),
+        "uris": [str(row[0]) for row in rows],
+        "second": stance,
+        "second_n": found,
+        "share": ratio,
+        "threshold": share,
+        "coherent": coherent,
+        "model_coherent": model_coherent,
+        "title": title,
+        "blocked": False,
+        "split": False,
+        "stratified": True,
+        "minority_posts": minority,
+        "geometric_kept": False,
+    }
+    if keep and not coherent:
+        context["stance_last"]["blocked"] = True
+        _mark_incoherent(context)
+        return "stop"
+    if not keep:
+        return "merge"
+    move_uris = {str(row[0]) for row, label in zip(rows, parsed["labels"]) if label == stance}
+    by_uri = {str(post.get("uri") or ""): post for post in members}
+    moved_posts = [by_uri[uri] for uri in move_uris if uri in by_uri]
+    stay_posts = [
+        by_uri[str(uri)]
+        for _perspective, face_rows, _size in drafted
+        for uri, _position, _distance in face_rows
+        if str(uri) not in move_uris and str(uri) in by_uri
+    ]
+    if len(moved_posts) < MIN_FACE_POSTS:
+        return "merge"
+    face = _largest_face(drafted)[0]
+    grounded = second_claim_grounded(
+        stance=stance,
+        second_stance=parsed["second_stance"],
+        title=title,
+        summary=parsed["summary"],
+        posts=moved_posts,
+        subject=subject,
+        majority_posts=stay_posts,
+        majority_title=str(face.get("title") or ""),
+        majority_summary=str(face.get("summary") or ""),
+        planet_terms=list(terms) if terms is not None else _surface_tokens(subject),
+    )
+    context["stance_last"]["stance_aligned"] = parsed["second_stance"] == stance
+    context["stance_last"]["claim_grounded"] = grounded
+    if not grounded:
+        context["stance_last"]["blocked"] = True
+        _mark_incoherent(context)
+        return "stop"
+    context["stance_last"]["geometric_kept"] = True
+    return "keep"
+
+
+def _apply_merge(current: list, members: list[dict], generate: Callable[[str], str], context: dict, log: list[str], original_uris: tuple[str, ...], subject: str) -> list:
+    merged, called = merge_same_stance(current, members, generate, context)
+    if called and _uri_key(merged) == original_uris and not context.get("stance_check_failed"):
+        return merged
+    if called and _uri_key(merged) != original_uris:
+        log.append(f"Stance merge kept {subject or 'planet'}: the groups would have dropped posts.")
+    return current
+
+
 def apply_stance_pass(
     drafted: list,
     members: list[dict],
@@ -1048,7 +1256,13 @@ def apply_stance_pass(
     subject: str = "",
     terms: list[str] | None = None,
 ) -> tuple[list, list[str]]:
-    """Same-stance merge, then a sample check only when one face would remain.
+    """Sample a protected geometric minority before merging it away.
+
+    When ``face_keep_floor`` holds, the stratified sample runs first. A second
+    pole that clears the share and is one grounded claim keeps those geometric
+    faces. A sample under the share may merge same-stance faces afterward.
+    Otherwise this is the same-stance merge, then a sample check only when one
+    face would remain.
 
     A failed call (timeout, HTTP error, unparseable output), after one retry,
     restores the faces from before this pass and sets ``stance_check_failed``
@@ -1068,25 +1282,30 @@ def apply_stance_pass(
     before = len(drafted)
     original_uris = _uri_key(drafted)
     current = drafted
-    if len(current) >= 2 and not context.get("stance_check_failed"):
-        merged, called = merge_same_stance(current, members, generate, context)
-        if called and _uri_key(merged) == original_uris and not context.get("stance_check_failed"):
-            current = merged
-        elif called and _uri_key(merged) != original_uris:
-            log.append(f"Stance merge kept {subject or 'planet'}: the groups would have dropped posts.")
-    if len(current) == 1 and not context.get("stance_check_failed"):
-        checked, called = split_second_stance(
+    if face_keep_floor(current) and not context.get("stance_check_failed"):
+        action = _assess_geometric_sample(
             current, members, generate, context, subject=subject, terms=terms
         )
-        if called and _uri_key(checked) == original_uris and not context.get("stance_check_failed"):
-            current = checked
-        elif not called and not context.get("stance_check_failed"):
-            log.append(
-                f"Stance check kept one face on {subject or 'planet'}: "
-                f"fewer than {MIN_FACE_POSTS} posts to check."
+        if action == "merge" and not context.get("stance_check_failed"):
+            current = _apply_merge(current, members, generate, context, log, original_uris, subject)
+    else:
+        if len(current) >= 2 and not context.get("stance_check_failed"):
+            current = _apply_merge(current, members, generate, context, log, original_uris, subject)
+        if len(current) == 1 and not context.get("stance_check_failed"):
+            checked, called = split_second_stance(
+                current, members, generate, context, subject=subject, terms=terms
             )
-        elif called and _uri_key(checked) != original_uris:
-            log.append(f"Stance check kept one face on {subject or 'planet'}: the split would have dropped posts.")
+            if called and _uri_key(checked) == original_uris and not context.get("stance_check_failed"):
+                current = checked
+            elif not called and not context.get("stance_check_failed"):
+                log.append(
+                    f"Stance check kept one face on {subject or 'planet'}: "
+                    f"fewer than {MIN_FACE_POSTS} posts to check."
+                )
+            elif called and _uri_key(checked) != original_uris:
+                log.append(
+                    f"Stance check kept one face on {subject or 'planet'}: the split would have dropped posts."
+                )
     if context.get("stance_check_failed"):
         reason = context.get("stance_failure_reason") or "the call failed"
         log.append(
@@ -1117,5 +1336,11 @@ def apply_stance_pass(
             f" sample {last.get('second_n')}/{last.get('sample_n')}"
             f"={float(last.get('share') or 0):.1%} vs {float(last.get('threshold') or 0):.0%}"
         )
-    log.append(f"Stance on {subject or 'planet'}: {before} face(s) -> {len(current)}{detail}.")
+    kept_note = ""
+    if last.get("geometric_kept"):
+        kept_note = (
+            f" Geometric faces kept: minority {last.get('minority_posts')} "
+            f">= MIN_FACE_POSTS {MIN_FACE_POSTS} (pipeline/perspectives.py)."
+        )
+    log.append(f"Stance on {subject or 'planet'}: {before} face(s) -> {len(current)}{detail}.{kept_note}")
     return current, log

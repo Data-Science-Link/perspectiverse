@@ -544,3 +544,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** On the Oct 15 run, #158 cut planets dropped with no reader note from 13 to 0, and no real side was lost. Counting pending keeps as failures made the failure count unreadable: all 7 "failed" planets were pending keeps. Two paid passes on Oct 15 brought spend to about $0.505. #176's "Closes #106" auto-closed the ledger. At a 0.1% cache hit rate, 100K posts would cost about $2 a day.
 - **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
 - **Revisit:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit (c) if a merge ever needs a same-day fresh edition.
+
+### 2026-10-16 — Sample a geometric minority before merging it (Refs #170, #168, #172)
+- **Decision:** When the stance pass is given k >= 2 geometric faces and the smallest face has at least MIN_FACE_POSTS posts, do not merge that face away before the stance sample. The sample is stratified so each geometric face is represented. The 10% share (STANCE_SECOND_FACE_SHARE) stays. Planet grouping stays, including the 5-post planet floor. MIN_FACE_POSTS is 2, defined in pipeline/perspectives.py. That is the face-keep floor. It is not #79's MIN_PLANET_POSTS = 5 in pipeline/grouping.py.
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 11:29 AM CT ("Go on Gaza fix"). This logs the rule he approved building. It is not approval to merge the PR.
+- **Why:** On the Oct 16 run, global Israel entered stance as 2 faces and the sample was 5/100 (5% < 10%), so the planet published as one face.
+- **Alternatives:** Lower the 10% share. Raise or lower the 5-post planet floor. Keep merging before the sample and only change the draw.
+- **Revisit when:** A same-posts relabel shows a new false split in the top 10, or the stratified sample still leaves Israel under 10%.
