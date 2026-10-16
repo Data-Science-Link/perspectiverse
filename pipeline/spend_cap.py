@@ -3,6 +3,8 @@
 Michael, 2026-10-12 8:44 AM CT, Option A: hard stop at $1.00 and do not publish.
 Michael, 2026-10-16 11:35 AM CT: warn and stop both at $1.00 for the 100K ingest
 window. The site keeps yesterday's edition.
+Michael, 2026-10-16 1:29 PM CT: up to $5.00 paid in one UTC day to fill to 100K
+posts, then $0.50/day once the corpus is full (#187).
 
 The total is every paid call this UTC day: labeling, Jev, and top-ups (top-up
 rounds are more Jev calls). It includes every run that day — scheduled, push,
@@ -32,6 +34,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+from pipeline.corpus import CLAIM_TARGET
 from pipeline.costs import (
     LLM_SERVICES,
     SERVICE_JEV,
@@ -43,8 +46,14 @@ from pipeline.costs import (
 # Michael, 2026-10-16. Warn and stop both at $1.00 for the 100K window (#182).
 DAILY_WARN_USD = Decimal("1.00")
 DAILY_STOP_USD = Decimal("1.00")
+# Michael, 2026-10-09 / 2026-10-16 1:29 PM CT: standing cap once the window is full.
+DAILY_STOP_AT_TARGET_USD = Decimal("0.50")
+# Michael, 2026-10-16 1:29 PM CT: manual fill runs may not exceed this UTC-day total.
+FILL_BUDGET_DAY_CEILING_USD = Decimal("5.00")
 ENV_WARN = "PERSPECTIVERSE_DAILY_SPEND_WARN"
 ENV_STOP = "PERSPECTIVERSE_DAILY_SPEND_STOP"
+ENV_FILL_BUDGET = "PERSPECTIVERSE_FILL_BUDGET_USD"
+ENV_CORPUS_CLAIMS = "PERSPECTIVERSE_CORPUS_CLAIM_COUNT"
 ENV_LEDGER = "PERSPECTIVERSE_COST_LEDGER"
 ENV_COST_RUN = "PERSPECTIVERSE_COST_RUN"
 ENV_MARKER = "PERSPECTIVERSE_SPEND_CAP_MARKER"
@@ -126,12 +135,48 @@ def _money(raw: str, *, fallback: Decimal) -> Decimal:
     return value
 
 
+def corpus_claim_count() -> int:
+    """Claims already in ``live_corpus.db``, set by the workflow before the live step."""
+    raw = (os.getenv(ENV_CORPUS_CLAIMS) or "").strip()
+    if not raw:
+        return 0
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 0
+
+
+def _fill_budget_override() -> Decimal | None:
+    raw = (os.getenv(ENV_FILL_BUDGET) or "").strip()
+    if not raw:
+        return None
+    requested = _money(raw, fallback=Decimal("0"))
+    if requested > FILL_BUDGET_DAY_CEILING_USD:
+        return FILL_BUDGET_DAY_CEILING_USD
+    return requested
+
+
+def _baseline_stop_usd() -> Decimal:
+    if corpus_claim_count() >= CLAIM_TARGET:
+        return DAILY_STOP_AT_TARGET_USD
+    return DAILY_STOP_USD
+
+
 def warn_usd() -> Decimal:
+    fill = _fill_budget_override()
+    if fill is not None:
+        return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_WARN_USD)
+    if corpus_claim_count() >= CLAIM_TARGET:
+        return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_STOP_AT_TARGET_USD)
     return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_WARN_USD)
 
 
 def stop_usd() -> Decimal:
-    limit = _money(os.getenv(ENV_STOP) or "", fallback=DAILY_STOP_USD)
+    fill = _fill_budget_override()
+    if fill is not None:
+        limit = fill
+    else:
+        limit = _money(os.getenv(ENV_STOP) or "", fallback=_baseline_stop_usd())
     if warn_usd() > limit:
         raise SpendCapExceeded(
             f"Daily spend warn ${format_usd(warn_usd())} is above the stop "

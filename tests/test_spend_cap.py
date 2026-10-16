@@ -24,14 +24,17 @@ from pipeline.costs import (
 from pipeline.live import _safe_draft, _topup_claims
 from pipeline.run_pipeline import main
 from pipeline.spend_cap import (
+    DAILY_STOP_AT_TARGET_USD,
     DAILY_STOP_USD,
     DAILY_WARN_USD,
+    FILL_BUDGET_DAY_CEILING_USD,
     STOP_EXIT,
     SpendCapExceeded,
     enforce_before_paid_work,
     guard_before_paid_call,
     hold_edition,
     record_partial_ledger,
+    stop_usd,
 )
 
 
@@ -39,6 +42,8 @@ from pipeline.spend_cap import (
 def _isolated_cap(monkeypatch):
     monkeypatch.delenv("PERSPECTIVERSE_DAILY_SPEND_WARN", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_DAILY_SPEND_STOP", raising=False)
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_BUDGET_USD", raising=False)
+    monkeypatch.delenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_LEDGER", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_RUN", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_SPEND_CAP_MARKER", raising=False)
@@ -901,6 +906,52 @@ def test_hold_edition_git_reset_leaves_staged_halt_corpus(tmp_path, monkeypatch)
     assert verify_staged_corpus(staged)
     rows = sqlite3.connect(staged).execute("SELECT uri FROM posts").fetchall()
     assert rows == [("at://staged/only",)]
+
+
+def test_fill_budget_override_applies_only_when_env_set(monkeypatch):
+    """Scheduled and push runs do not set the fill env; dispatch may."""
+    assert stop_usd() == DAILY_STOP_USD
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_BUDGET_USD", "5")
+    assert stop_usd() == FILL_BUDGET_DAY_CEILING_USD
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_BUDGET_USD", raising=False)
+    assert stop_usd() == DAILY_STOP_USD
+
+
+def test_fill_budget_counts_prior_ledger_spend(tmp_path, monkeypatch):
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_BUDGET_USD", "5")
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(run_id="earlier", trigger="schedule", service=SERVICE_JEV, cost="4.95", day=today),
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    enforce_before_paid_work()
+    with pytest.raises(SpendCapExceeded) as caught:
+        _attempt(cost_usd=Decimal("0.06"))
+    assert caught.value.spent_usd == Decimal("5.01")
+
+
+def test_fill_budget_never_exceeds_five_dollar_day_ceiling(monkeypatch):
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_BUDGET_USD", "9.99")
+    assert stop_usd() == FILL_BUDGET_DAY_CEILING_USD
+
+
+def test_baseline_stop_at_target_corpus_uses_fifty_cents(monkeypatch):
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "100000")
+    assert stop_usd() == DAILY_STOP_AT_TARGET_USD
+
+
+def test_workflow_dispatch_exposes_fill_budget_input():
+    text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
+    assert "fill_budget_usd:" in text
+    assert "PERSPECTIVERSE_FILL_BUDGET_USD" in text
+    assert "github.event_name == 'workflow_dispatch'" in text
+    assert "inputs.fill_budget_usd" in text
 
 
 def test_over_cap_e2e_halts_before_publish():

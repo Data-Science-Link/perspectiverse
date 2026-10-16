@@ -553,6 +553,13 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Revisit when:** If 100K runs keep getting stopped at $1 (the short-day projection is about $1.55), or once the quality read is done.
 - **Done bar:** Real daily runs near 100K posts at $1 a day or less, plus Michael's read on grouping quality. Before any 100K run, two tests must show the stop halting a run: one that starts with the day already at $1, and one that crosses $1 partway through.
 
+### 2026-10-16 — One-day fill budget up to $5, then $0.50/day at 100K posts (#187)
+- **Decision:** Michael approved spending up to **$5.00** paid in a single UTC day to fill the database to **100,000** posts, then returning to the **$0.50** daily hard stop once the corpus is full. Only a `workflow_dispatch` run with `fill_budget_usd` set may raise that day's paid hard stop; scheduled and push runs keep the normal cap. The override is capped at **$5.00** total for the UTC day, including dollars already on `costs/ledger.csv`. After the claim count reaches `CLAIM_TARGET` (100,000), warn and stop both use **$0.50** unless a fill override is active for that manual run.
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 1:29 PM CT: "Ok you have my approval to pay up to $5 to get our database up to 100K. Then let's go back to the $0.5 after we are filled up. Try to do this today"
+- **Why:** The $1/day cap from the morning blocked filling the window in one UTC day; Michael wants the corpus at 100K for the quality read, then steady production back at the #106 cost bar.
+- **Alternatives:** Keep $1/day until full (too slow). Unlimited spend for one day (rejected). Leave post-fill cap at $1 (rejected).
+- **Revisit when:** The corpus reaches 100K and sustained daily spend at that window is logged for a week.
+
 ### 2026-10-16 — Keep paid posts when the $1 cap halts a run; 10 planets per solar system on the site
 - **Decision:** A run halted at the $1/day cap keeps the posts it already ingested. The site keeps its limit of 10 planets per solar system, which is a display limit and not a grouping cap.
 - **Why:** Michael doesn't want to pay twice for the same posts or let a halted run waste money. 10 planets per solar system is fine for readers.
