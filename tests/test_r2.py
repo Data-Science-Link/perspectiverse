@@ -400,10 +400,13 @@ def test_daily_workflow_uploads_only_after_a_successful_run():
     upload_step = workflow.index("name: Upload corpus to R2\n")
     upload_command = workflow.index("python -m pipeline.r2 upload", upload_step)
     assert "steps.live.outcome == 'success'" in workflow[upload_step:upload_command]
-    halt_step = workflow.index("name: Upload corpus to R2 after spend cap halt")
+    halt_step = workflow.index("name: Upload halted corpus to R2")
     halt_window = workflow[halt_step : halt_step + 800]
-    assert "pipeline/data/spend_cap_stop.json" in halt_window
-    assert "python -m pipeline.r2 upload pipeline/data/live_corpus.db" in halt_window
+    assert "/tmp/perspectiverse-halt-corpus/halt_corpus.sha256" in halt_window
+    assert "corpus_persist upload-staged" in halt_window
+    stage_at = workflow.index("name: Stage halted corpus before ledger git checkout")
+    hold_at = workflow.index("name: Keep yesterday's edition when the daily spend cap stops the run")
+    assert stage_at < halt_step < hold_at
     publish_at = workflow.index("Publish data-snapshot branch")
     publish_window = workflow[publish_at : publish_at + 500]
     assert "steps.r2upload.outcome == 'success'" in publish_window

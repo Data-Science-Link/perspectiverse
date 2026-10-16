@@ -728,7 +728,7 @@ def test_morning_fetch_and_topup_skip_already_scored_uris(monkeypatch, tmp_path)
 
     monkeypatch.setattr("pipeline.live.apply_jev", fake_jev)
     skips.clear()
-    result = _topup_claims(
+    result, _corpus = _topup_claims(
         [existing],
         target=4,
         settings={"seed": 1, "neutral_queries": ["the"], "refresh_hours": 24},

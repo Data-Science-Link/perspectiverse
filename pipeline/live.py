@@ -137,6 +137,7 @@ def run_live(
     from pipeline.spend_cap import SpendCapExceeded, enforce_before_paid_work
 
     cleaned: list[dict] | None = None
+    corpus_posts: list[dict] | None = None
     source = "bluesky"
     try:
         enforce_before_paid_work()
@@ -151,18 +152,25 @@ def run_live(
             relabel=relabel,
         )
         if source == "bluesky" and not relabel:
-            cleaned = apply_jev(cleaned, connection=connection, batch=_jev_batch(settings))
-            # Keep only public claims. Non-claims stay in the verdict cache, not the post table.
-            cleaned = [p for p in cleaned if p.get("is_claim") is True]
+            corpus_posts = list(cleaned)
+            apply_jev(
+                corpus_posts,
+                connection=connection,
+                batch=_jev_batch(settings),
+                update_input=True,
+            )
+            # Keep only public claims for clustering. Non-claims stay in ``corpus_posts``.
+            cleaned = [p for p in corpus_posts if p.get("is_claim") is True]
             if refreshed:
                 # Top up: keep fetching until claim count reaches target so the
                 # rolling window stays at the threshold, not below it.
                 if len(cleaned) < target:
-                    cleaned = _topup_claims(
+                    cleaned, corpus_posts = _topup_claims(
                         cleaned,
                         target=target,
                         settings=settings,
                         connection=connection,
+                        corpus_posts=corpus_posts,
                     )
                 before = len(cleaned)
                 cleaned = retire_oldest(
@@ -250,10 +258,20 @@ def run_live(
     except SpendCapExceeded as exc:
         from pipeline.corpus_persist import persist_paid_corpus
 
-        persist_paid_corpus(connection, cleaned, db_path=database)
+        persist_paid_corpus(
+            connection,
+            corpus_posts if corpus_posts is not None else cleaned,
+            db_path=database,
+        )
         _abort_for_spend_cap(started_at, exc)
         raise
     finally:
+        try:
+            from pipeline.costs import flush_cost_checkpoint
+
+            flush_cost_checkpoint()
+        except Exception as exc:
+            print(f"WARNING: Cost checkpoint on exit skipped: {exc}", file=sys.stderr)
         connection.close()
 
     payload = assemble_payload(
@@ -400,7 +418,8 @@ def _topup_claims(
     settings: dict,
     max_rounds: int = 6,
     connection=None,
-) -> list[dict]:
+    corpus_posts: list[dict] | None = None,
+) -> tuple[list[dict], list[dict] | None]:
     """Fetch additional posts and Jev-classify them until claim count reaches target.
 
     Each round over-fetches by 4× the remaining gap to account for the Bluesky
@@ -449,16 +468,23 @@ def _topup_claims(
         if not fresh:
             print(f"Top-up {round_num}: no new posts from Bluesky; stopping.")
             break
-        new_claims = [
-            p for p in apply_jev(fresh, connection=connection, batch=_jev_batch(settings)) if p.get("is_claim") is True
-        ]
+        scored = list(fresh)
+        apply_jev(
+            scored,
+            connection=connection,
+            batch=_jev_batch(settings),
+            update_input=True,
+        )
+        if corpus_posts is not None:
+            corpus_posts.extend(scored)
+        new_claims = [p for p in scored if p.get("is_claim") is True]
         result.extend(new_claims)
         print(
             f"Top-up {round_num}: {len(new_claims)} claims from {len(fresh)} posts "
             f"(total {len(result)}/{target})."
         )
 
-    return result
+    return result, corpus_posts
 
 
 def _collect_posts(
