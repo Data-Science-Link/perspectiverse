@@ -153,12 +153,13 @@ def run_live(
         )
         if source == "bluesky" and not relabel:
             corpus_posts = list(cleaned)
-            apply_jev(
+            scored = apply_jev(
                 corpus_posts,
                 connection=connection,
                 batch=_jev_batch(settings),
                 update_input=True,
             )
+            _merge_jev_output(corpus_posts, scored)
             # Keep only public claims for clustering. Non-claims stay in ``corpus_posts``.
             cleaned = [p for p in corpus_posts if p.get("is_claim") is True]
             if refreshed:
@@ -386,6 +387,16 @@ def _count_section_planets(payload: dict) -> int:
 def _jev_batch(settings: dict) -> bool:
     """Phase 3 stays off unless the pipeline setting says otherwise."""
     return bool(settings.get("jev_batch"))
+
+
+def _merge_jev_output(corpus_posts: list[dict], scored: list[dict]) -> None:
+    """Copy Jev fields from ``scored`` onto the retained window by URI."""
+    by_uri = {str(post.get("uri") or ""): post for post in scored if post.get("uri")}
+    for index, post in enumerate(corpus_posts):
+        uri = str(post.get("uri") or "")
+        update = by_uri.get(uri)
+        if update is not None:
+            corpus_posts[index] = {**post, **update}
 
 
 def _note_cache_reuses(count: int) -> None:
