@@ -527,3 +527,13 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Always require the top 10 before and after (rejected: slows changes whose triggers are already measurable). Skip the relabel on every merge (rejected: the site would show output from old code).
 - **Decided by:** Owner, in the factory room ("OK lessons").
 - **Revisit when:** A docs-only merge is found to have changed site output, or a cache run logs hits on posts that weren't actually reused.
+
+### 2026-10-14: Missed deadlines, logged done bars, done bars that catch flagged cases
+**Decision:**
+1. If a routine check misses its deadline, that counts as a failure, and we say so in the room right away, the same as a failed run.
+2. Every number used as a done bar or a revert trigger gets printed in the run log, along with how its baseline is measured. The script that produces the baseline is committed next to it, so anyone can rerun it.
+3. A number counts as a done bar only after it catches every case Michael flagged by hand. Those cases are must-pass tests. Right now that's Gaza, MAGA Support, Public Executions and Epstein Files Release (#168).
+
+**Why:** On Oct 14 the morning check broke at 10:20 AM, and nobody said anything until Michael asked at 6 PM. The first version of the #167 baseline caught none of the flagged cases, and the 870 count couldn't be reproduced.
+
+**Approved by:** Michael, 2026-10-14 8:58 PM CT in the Perspectiverse Factory room ("Yes include those too"). These match the Builder's template entry.
