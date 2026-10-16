@@ -147,7 +147,7 @@ def apply_jev(
         return list(posts)
     cached, index, by_fingerprint = _open_cache(connection, posts, now)
     decisions: dict[str, dict | None] = {}
-    halted: BaseException | None = None
+    halted = None
     try:
         decisions = _decisions_for(
             posts,
@@ -159,7 +159,11 @@ def apply_jev(
             now=now,
             decisions=decisions,
         )
-    except BaseException as exc:
+    except Exception as exc:
+        from pipeline.spend_cap import SpendCapExceeded
+
+        if not isinstance(exc, SpendCapExceeded):
+            raise
         halted = exc
     finally:
         if connection is not None and decisions:
