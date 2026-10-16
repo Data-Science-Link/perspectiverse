@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 # Public claims in the rolling window. Non-claims are discarded after Jev
 # classification and never written to the DB. Each morning adds roughly 1/7
 # of this count; retire_oldest evicts the oldest to stay at this ceiling.
-CLAIM_TARGET = 10000
+CLAIM_TARGET = 100_000
 TARGET_POSTS = CLAIM_TARGET
 MIN_GROUP_POSTS = 10
 

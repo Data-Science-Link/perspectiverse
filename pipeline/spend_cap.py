@@ -1,7 +1,8 @@
 """Hard daily cap on paid production calls (#148).
 
-Michael, 2026-10-12 8:44 AM CT, Option A: warn at $0.50, stop at $1.00, and do
-not publish. The site keeps yesterday's edition.
+Michael, 2026-10-12 8:44 AM CT, Option A: hard stop at $1.00 and do not publish.
+Michael, 2026-10-16 11:35 AM CT: warn and stop both at $1.00 for the 100K ingest
+window. The site keeps yesterday's edition.
 
 The total is every paid call this UTC day: labeling, Jev, and top-ups (top-up
 rounds are more Jev calls). It includes every run that day — scheduled, push,
@@ -38,8 +39,8 @@ from pipeline.costs import (
     format_usd,
 )
 
-# Michael, 2026-10-12. Warn is the old $0.50 target. Stop is the hard cap.
-DAILY_WARN_USD = Decimal("0.50")
+# Michael, 2026-10-16. Warn and stop both at $1.00 for the 100K window (#182).
+DAILY_WARN_USD = Decimal("1.00")
 DAILY_STOP_USD = Decimal("1.00")
 ENV_WARN = "PERSPECTIVERSE_DAILY_SPEND_WARN"
 ENV_STOP = "PERSPECTIVERSE_DAILY_SPEND_STOP"
@@ -215,7 +216,7 @@ def _maybe_warn_locked(total: Decimal) -> None:
 
 
 def _raise_if_stopped(total: Decimal, *, where: str) -> None:
-    """Warn at $0.50. Raise once today's paid calls are at $1.00."""
+    """Warn at $1.00. Raise once today's paid calls are at $1.00."""
     _maybe_warn_locked(total)
     limit = stop_usd()
     if total < limit:

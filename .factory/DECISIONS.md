@@ -544,3 +544,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** On the Oct 15 run, #158 cut planets dropped with no reader note from 13 to 0, and no real side was lost. Counting pending keeps as failures made the failure count unreadable: all 7 "failed" planets were pending keeps. Two paid passes on Oct 15 brought spend to about $0.505. #176's "Closes #106" auto-closed the ledger. At a 0.1% cache hit rate, 100K posts would cost about $2 a day.
 - **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
 - **Revisit:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit (c) if a merge ever needs a same-day fresh edition.
+
+### 2026-10-16 — 100K ingest window and $1 UTC-day spend halt (#182, #149, #87)
+- **Decision:** Move the retained public-claims window to **100,000** posts (`CLAIM_TARGET` / default `sample_size`). Raise the daily spend **warn and hard stop** to **$1.00** per UTC day (same threshold for both). The stop counts **every paid call that UTC day** — labeling, Jev, and top-ups — across **all** runs (scheduled, merge/push, reruns), not only the current process, and **halts** the run (exit 14, yesterday's edition stays). **No planet count cap** of any kind; grouping may publish however many planets pass the existing quality floors.
+- **Decided by:** Michael, 2026-10-16 11:35–11:36 AM CT (100K ingest, $1 halt; 11:36 AM: no planet cap).
+- **Why:** A 10K window understates steady Jev and shortfall top-up at production scale. The old $0.50 warn band blocked legitimate same-day merge plus schedule pairs while the $1.00 stop was the real backstop. Planet-count ceilings are a planning mistake, not a product rule — only the dollar cap may halt a run.
+- **Alternatives:** Keep 10K ingest. Keep warn at $0.50 and stop at $1.00. Cap published planets at 300 (rejected 11:36 AM).
+- **Revisit when:** The ledger shows sustained daily totals near $1.00 at 100K with healthy editions, or vendor prices move enough to change what $1.00 buys.

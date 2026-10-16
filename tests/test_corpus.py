@@ -87,7 +87,7 @@ def test_keep_claims_ignores_non_claims_and_caps_the_rest():
     kept = keep_claims(posts, 3, random.Random(0))
     assert sum(1 for post in kept if post.get("is_claim") is True) == 3
     assert any(post["uri"] == "at://aside" for post in kept)
-    assert CLAIM_TARGET == 10000
+    assert CLAIM_TARGET == 100_000
 
 
 def test_uncapped_retain_keeps_posts_past_the_old_ceiling():
@@ -107,6 +107,7 @@ def test_uncapped_retain_keeps_posts_past_the_old_ceiling():
 
 def test_refresh_floor_is_one_seventh_rounded_up():
     assert refresh_floor(10000) == 1429
+    assert refresh_floor(100_000) == 14286
     assert refresh_floor(7) == 1
     assert refresh_floor(8) == 2
     assert refresh_floor(0) == 0
