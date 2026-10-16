@@ -410,7 +410,13 @@ def test_run_file_appends_without_dropping_history(tmp_path, monkeypatch):
     assert "MOCK" not in text
     assert "0.042" in text
     assert main(["append", "--run", str(run_path), "--ledger", str(ledger), "--readme", str(readme)]) == 0
-    assert [row["run_id"] for row in read_ledger(ledger)].count("sample-run-80") == 4
+    # Re-appending the same run_id upserts rows (partial checkpoints), not duplicates.
+    assert [row["run_id"] for row in read_ledger(ledger)].count("sample-run-80") == 2
+    assert [row["run_id"] for row in read_ledger(ledger)] == [
+        "already-there",
+        "sample-run-80",
+        "sample-run-80",
+    ]
 
 
 def test_empty_run_does_not_create_a_ledger(tmp_path):
