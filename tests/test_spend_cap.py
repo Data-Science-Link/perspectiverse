@@ -33,6 +33,7 @@ from pipeline.spend_cap import (
     SpendCapExceeded,
     check_fill_dispatch,
     enforce_before_paid_work,
+    fill_campaign_complete,
     fill_paid_usd,
     guard_before_paid_call,
     hold_edition,
@@ -1038,6 +1039,54 @@ def test_fill_exhausted_before_100k_halts_and_returns_normal_daily_cap(tmp_path,
     monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
     assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
     assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
+
+
+def test_after_fill_campaign_utc_day_warns_at_fifty_cents_stops_at_one_dollar(
+    tmp_path, monkeypatch, capsys
+):
+    """Post-fill daily cap: UTC-day ledger spend warns at $0.50 and hard-stops at $1.00."""
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-done",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="15.00",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="schedule-today",
+                trigger="schedule",
+                service=SERVICE_DEEPINFRA,
+                cost="0.50",
+                day=today,
+            ),
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "50000")
+    assert fill_campaign_complete()
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
+
+    reset_meter()
+    enforce_before_paid_work()
+    captured = capsys.readouterr()
+    assert "::warning::" in captured.out
+    assert "warn $0.50" in captured.out
+    assert "stop $1.00" in captured.out
+
+    _attempt(cost_usd=Decimal("0.49"))
+    capsys.readouterr()
+    with pytest.raises(SpendCapExceeded) as caught:
+        _attempt(cost_usd=Decimal("0.01"))
+    assert caught.value.spent_usd == Decimal("1.00")
+    assert len(get_meter().attempts()) == 2
 
 
 def test_non_fill_run_still_uses_daily_cap_not_fill_total(tmp_path, monkeypatch):
