@@ -1090,12 +1090,66 @@ def test_fill_run_logs_planet_count_and_labeling_calls(monkeypatch, capsys):
     assert "Fill run: 2 published planet(s), 1 labeling call(s)." in captured.out
 
 
-def test_workflow_dispatch_exposes_fill_budget_input():
-    text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
-    assert "fill_budget_usd:" in text
-    assert "PERSPECTIVERSE_FILL_RUN" in text
-    assert "check-fill-dispatch" in text
-    assert "inputs.fill_budget_usd" in text
+def test_fill_dispatch_check_runs_after_ledger_load():
+    """Fill refusal must see fill-tagged spend on data-snapshot, not an empty ledger."""
+    steps = _pipeline_workflow_steps()
+    names = [step.get("name") for step in steps]
+    ledger_at = names.index("Load today's cost ledger for the spend cap")
+    refuse_at = names.index("Refuse fill dispatch when the fill campaign is complete")
+    live_at = next(index for index, step in enumerate(steps) if step.get("id") == "live")
+    assert ledger_at < refuse_at < live_at
+    ledger_step = steps[ledger_at]
+    assert "PERSPECTIVERSE_COST_LEDGER" in ledger_step["run"]
+    assert "data-snapshot:costs/ledger.csv" in ledger_step["run"]
+    workflow_text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
+    assert "timeout-minutes: 360" in workflow_text
+
+
+def test_check_fill_dispatch_refuses_when_ledger_shows_five_dollars_fill_spend(
+    tmp_path, monkeypatch
+):
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-done",
+                trigger="workflow_dispatch",
+                service=SERVICE_DEEPINFRA,
+                cost="5.00",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "12000")
+    assert check_fill_dispatch() == 1
+
+
+def test_check_fill_dispatch_without_ledger_env_ignores_prior_fill_spend(monkeypatch, tmp_path):
+    """Documents why the workflow must set PERSPECTIVERSE_COST_LEDGER before the check step."""
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-done",
+                trigger="workflow_dispatch",
+                service=SERVICE_DEEPINFRA,
+                cost="5.00",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "12000")
+    monkeypatch.delenv("PERSPECTIVERSE_COST_LEDGER", raising=False)
+    assert check_fill_dispatch() == 0
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    assert check_fill_dispatch() == 1
 
 
 def test_over_cap_e2e_halts_before_publish():

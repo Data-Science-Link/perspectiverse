@@ -46,6 +46,7 @@ permissions:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -145,12 +146,6 @@ jobs:
           echo "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$claims" >> "$GITHUB_ENV"
           echo "Corpus claims for spend cap: $claims"
 
-      - name: Refuse fill dispatch when the fill campaign is complete
-        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != ''
-        run: |
-          source .venv/bin/activate
-          PERSPECTIVERSE_FILL_RUN=1 python -m pipeline.spend_cap check-fill-dispatch
-
       - name: Load today's cost ledger for the spend cap
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
@@ -161,6 +156,12 @@ jobs:
           else
             echo "::warning::No costs/ledger.csv on data-snapshot; the daily spend cap only sees this run."
           fi
+
+      - name: Refuse fill dispatch when the fill campaign is complete
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != ''
+        run: |
+          source .venv/bin/activate
+          PERSPECTIVERSE_FILL_RUN=1 python -m pipeline.spend_cap check-fill-dispatch
 
       - name: Run live pipeline
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
