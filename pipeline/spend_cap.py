@@ -296,7 +296,12 @@ def _load_prior_locked() -> None:
 
 
 def day_paid_usd() -> Decimal:
-    """Ledger rows for today plus paid calls metered in this process."""
+    """Paid calls already counted toward the active cap, plus this process.
+
+    A fill run sums every fill-tagged row in ``costs/ledger.csv`` (every UTC
+    day, including per-call checkpoints from earlier fill runs). It does not
+    start again at $0. Any other run sums this UTC day only.
+    """
     with _lock:
         _load_prior_locked()
         return _prior + _run_paid

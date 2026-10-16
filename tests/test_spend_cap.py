@@ -930,6 +930,150 @@ def test_hold_edition_git_reset_leaves_staged_halt_corpus(tmp_path, monkeypatch)
     assert rows == [("at://staged/only",)]
 
 
+def test_prior_fill_rows_of_14_90_halt_the_call_that_would_cross_15(tmp_path, monkeypatch, capsys):
+    """$15 is one total for the whole fill. Earlier fill-tagged ledger rows count.
+
+    Per-call checkpoints from earlier fill runs (#186/#188) are already on
+    ``costs/ledger.csv``. This run must not start at $0. The paid call that
+    would push the total across $15 halts. Once that spend is on the ledger,
+    a normal run uses the $0.50 warning and the $1.00 hard stop.
+    """
+    from datetime import datetime, timezone
+
+    from pipeline.live import _fill_claims_by_day
+    from pipeline.spend_cap import day_paid_usd
+
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "20000")
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-run-1",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="10.00",
+                day=date(2026, 10, 14),
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="fill-run-1-call",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="4.40",
+                day=date(2026, 10, 14),
+                model="jev-call",
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="fill-run-2-call",
+                trigger="workflow_dispatch",
+                service=SERVICE_DEEPINFRA,
+                cost="0.50",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="schedule-today",
+                trigger="schedule",
+                service=SERVICE_JEV,
+                cost="0.40",
+                day=today,
+            ),
+        ],
+    )
+    assert fill_paid_usd(ledger) == Decimal("14.90")
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    assert day_paid_usd() == Decimal("14.90")
+    guard_before_paid_call("Jev")
+
+    costs = [Decimal("0.09"), Decimal("0.02")]
+
+    def fake_extract(**kwargs):
+        since = kwargs["since"]
+        day = since.strftime("%Y-%m-%d")
+        return [
+            {
+                "uri": f"at://fill/{day}",
+                "author": "ada",
+                "text": f"The city should fund public housing on {day} because rents jumped again.",
+                "likes": 2,
+                "created_at": since.strftime("%Y-%m-%dT12:00:00Z"),
+            }
+        ]
+
+    def fake_jev(posts, **_kwargs):
+        record_attempt(
+            service=SERVICE_JEV,
+            model="jev-latest",
+            input_tokens=100,
+            output_tokens=0,
+            cost_usd=costs.pop(0),
+            cost_source="computed",
+            status="success",
+        )
+        for post in posts:
+            post["is_claim"] = True
+            post["section"] = "Politics"
+        return posts
+
+    monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
+    monkeypatch.setattr("pipeline.live.apply_jev", fake_jev)
+    now = datetime(2026, 10, 16, 18, tzinfo=timezone.utc)
+    corpus: list[dict] = []
+    with pytest.raises(SpendCapExceeded) as caught:
+        _fill_claims_by_day(
+            [],
+            target=100_000,
+            settings={"neutral_queries": ["the"], "seed": 0, "window_hours": 168, "jev_batch": False},
+            connection=None,
+            corpus_posts=corpus,
+            now=now,
+            clock=lambda: now,
+        )
+    assert caught.value.spent_usd == Decimal("15.01")
+    assert day_paid_usd() == Decimal("15.01")
+    assert len(get_meter().attempts()) == 2
+    assert [post["uri"] for post in corpus] == ["at://fill/2026-10-16", "at://fill/2026-10-15"]
+    with pytest.raises(SpendCapExceeded):
+        guard_before_paid_call("Jev")
+    assert len(get_meter().attempts()) == 2
+    logged = capsys.readouterr().out
+    assert "spend $14.99 of $15.00" in logged
+    assert "spend $15.01 of $15.00" in logged
+
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-run-3",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="0.11",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    reset_meter()
+    assert fill_campaign_complete()
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD == Decimal("0.50")
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD == Decimal("1.00")
+    enforce_before_paid_work()
+    _attempt(cost_usd=Decimal("0.10"))
+    warned = capsys.readouterr().out
+    assert "warn $0.50" in warned
+    assert "stop $1.00" in warned
+    with pytest.raises(SpendCapExceeded) as daily:
+        _attempt(cost_usd=Decimal("0.50"))
+    assert daily.value.spent_usd == Decimal("1.00")
+
+
 def test_fill_cap_sums_tagged_ledger_across_utc_days(tmp_path, monkeypatch):
     """Fill spend is the fill-tagged ledger total, not one UTC day."""
     today = date(2026, 10, 16)
