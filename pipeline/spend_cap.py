@@ -37,7 +37,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from pipeline.corpus import CLAIM_TARGET
+from pipeline.corpus import TARGET_POSTS
 from pipeline.costs import (
     LLM_SERVICES,
     SERVICE_JEV,
@@ -49,7 +49,7 @@ from pipeline.costs import (
 # Michael, 2026-10-16. Warn and stop both at $1.00 while the fill campaign is open (#182).
 DAILY_WARN_USD = Decimal("1.00")
 DAILY_STOP_USD = Decimal("1.00")
-# Normal daily cap after the fill campaign ends (100K claims or fill budget spent).
+# Normal daily cap after the fill campaign ends (100K quality posts or fill budget spent).
 # Michael may lower this to $0.50 once a measured 100K day is logged (#187).
 DAILY_WARN_AFTER_FILL_USD = Decimal("0.50")
 DAILY_STOP_AFTER_FILL_USD = Decimal("1.00")
@@ -140,15 +140,23 @@ def _money(raw: str, *, fallback: Decimal) -> Decimal:
     return value
 
 
-def corpus_claim_count() -> int:
-    """Claims already in ``live_corpus.db``, set by the workflow before the live step."""
-    raw = (os.getenv(ENV_CORPUS_CLAIMS) or "").strip()
+def _env_count(name: str) -> int:
+    raw = (os.getenv(name) or "").strip()
     if not raw:
         return 0
     try:
         return max(0, int(raw))
     except ValueError:
         return 0
+
+
+def corpus_claim_count() -> int:
+    """Quality posts already in ``live_corpus.db``.
+
+    The workflow sets this from ``count_quality_posts`` before the live step.
+    The fill is done at ``TARGET_POSTS`` of these, the one corpus constant.
+    """
+    return _env_count(ENV_CORPUS_CLAIMS)
 
 
 def _ledger_path() -> Path | None:
@@ -188,7 +196,12 @@ def fill_campaign_spent() -> Decimal:
 
 
 def fill_campaign_complete() -> bool:
-    if corpus_claim_count() >= CLAIM_TARGET:
+    """True when quality posts hit ``TARGET_POSTS`` or fill-tagged spend hits $15.
+
+    Quality posts are Jev claims kept in the database. Raw fetches and
+    non-claims do not finish the fill.
+    """
+    if corpus_claim_count() >= TARGET_POSTS:
         return True
     return fill_campaign_spent() >= FILL_BUDGET_TOTAL_USD
 
@@ -212,6 +225,13 @@ def warn_usd() -> Decimal:
 
 
 def stop_usd() -> Decimal:
+    """Hard stop checked before the next paid call.
+
+    A fill run (``PERSPECTIVERSE_FILL_RUN``) stops at ``FILL_BUDGET_TOTAL_USD``
+    ($15), summed across every fill-tagged ledger row. The $1 UTC-day stop
+    applies only when this process is not a fill run. Passing $1 on a fill
+    run warns; it does not halt.
+    """
     if is_fill_run():
         limit = FILL_BUDGET_TOTAL_USD
     else:
@@ -227,12 +247,13 @@ def stop_usd() -> Decimal:
 
 def _log_fill_shortfall(total: Decimal) -> None:
     claims = corpus_claim_count()
-    if claims >= CLAIM_TARGET:
+    if claims >= TARGET_POSTS:
         return
-    gap = CLAIM_TARGET - claims
+    gap = TARGET_POSTS - claims
     message = (
         f"Fill budget exhausted: paid ${format_usd(total)} of ${format_usd(FILL_BUDGET_TOTAL_USD)} "
-        f"across fill-tagged runs; corpus at {claims:,} claims, {gap:,} short of {CLAIM_TARGET:,}. "
+        f"across fill-tagged runs; corpus at {claims:,} quality posts, "
+        f"{gap:,} short of {TARGET_POSTS:,}. "
         f"Keeping paid posts from this run. Daily cap returns to warn ${format_usd(DAILY_WARN_AFTER_FILL_USD)} "
         f"/ stop ${format_usd(DAILY_STOP_AFTER_FILL_USD)} until the corpus is full."
     )
@@ -296,7 +317,12 @@ def _load_prior_locked() -> None:
 
 
 def day_paid_usd() -> Decimal:
-    """Ledger rows for today plus paid calls metered in this process."""
+    """Paid calls already counted toward the active cap, plus this process.
+
+    A fill run sums every fill-tagged row in ``costs/ledger.csv`` (every UTC
+    day, including per-call checkpoints from earlier fill runs). It does not
+    start again at $0. Any other run sums this UTC day only.
+    """
     with _lock:
         _load_prior_locked()
         return _prior + _run_paid
@@ -622,12 +648,12 @@ def check_fill_dispatch() -> int:
         return 0
     claims = corpus_claim_count()
     spent = fill_campaign_spent()
-    if claims >= CLAIM_TARGET:
-        reason = f"corpus already has {claims:,} claims (target {CLAIM_TARGET:,})"
+    if claims >= TARGET_POSTS:
+        reason = f"corpus already has {claims:,} quality posts (target {TARGET_POSTS:,})"
     else:
         reason = (
             f"fill-tagged spend is ${format_usd(spent)} "
-            f"(cap ${format_usd(FILL_BUDGET_TOTAL_USD)}) with {claims:,} claims"
+            f"(cap ${format_usd(FILL_BUDGET_TOTAL_USD)}) with {claims:,} quality posts"
         )
     message = (
         f"Fill dispatch refused: {reason}. Use a normal run; daily cap is warn "

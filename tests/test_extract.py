@@ -51,6 +51,61 @@ def test_page_budget_grows_with_the_claim_window():
     assert page_budget(10000, 6) > 8
 
 
+def test_since_until_bounds_one_day_and_reaches_the_fetch():
+    now = datetime(2026, 10, 16, 18, tzinfo=timezone.utc)
+    since = datetime(2026, 10, 15, tzinfo=timezone.utc)
+    until = datetime(2026, 10, 16, tzinfo=timezone.utc)
+    seen = []
+
+    def fetch(query, cursor, limit, since=None, until=None):
+        seen.append((query, cursor, limit, since, until))
+        return {
+            "posts": [
+                _post("at://in-day", "2026-10-15T12:00:00Z", "People are talking about rent in the city today."),
+                _post("at://before", "2026-10-14T12:00:00Z", "People are talking about school schedules today."),
+                _post("at://on-until", "2026-10-16T00:00:00Z", "People are talking about the bus route today."),
+            ]
+        }
+
+    posts = extract_posts(
+        sample_size=10,
+        window_hours=168,
+        queries=["the"],
+        fetch=fetch,
+        now=now,
+        since=since,
+        until=until,
+        pages=1,
+        subsample=False,
+    )
+    assert [post["uri"] for post in posts] == ["at://in-day"]
+    assert seen == [("the", None, 100, since, until)]
+
+
+def test_public_search_sends_since_and_until(monkeypatch):
+    from urllib.parse import parse_qs, urlparse
+
+    from pipeline.data_sources.extract_bluesky import _fetch_public
+
+    captured = {}
+
+    def fake_read(url, **_kwargs):
+        captured["url"] = url
+        return {"posts": []}
+
+    monkeypatch.setattr("pipeline.data_sources.extract_bluesky.read_json", fake_read)
+    monkeypatch.delenv("BLUESKY_HANDLE", raising=False)
+    monkeypatch.delenv("BLUESKY_APP_PASSWORD", raising=False)
+    since = datetime(2026, 10, 15, tzinfo=timezone.utc)
+    until = datetime(2026, 10, 16, tzinfo=timezone.utc)
+    _fetch_public("the", None, 100, since=since, until=until)
+    params = parse_qs(urlparse(captured["url"]).query)
+    assert params["since"] == ["2026-10-15T00:00:00Z"]
+    assert params["until"] == ["2026-10-16T00:00:00Z"]
+    assert params["q"] == ["the"]
+    assert params["sort"] == ["latest"]
+
+
 def test_normalize_post_requires_text_and_time():
     assert normalize_post({"uri": "at://x"}) is None
 

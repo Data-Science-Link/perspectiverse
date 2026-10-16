@@ -24,7 +24,9 @@ PUBLIC_SEARCH_URLS = (
     "https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts",
 )
 USER_AGENT = "perspectiverse-pipeline/0.2"
-_MAX_PAGES = 40
+# Bluesky search stops returning new pages around this depth. A fill run
+# starts a fresh cursor per UTC day instead of asking for page 41.
+MAX_SEARCH_PAGES = 40
 
 
 def page_budget(sample_size: int, query_count: int, per_query: int = 100) -> int:
@@ -36,7 +38,14 @@ def page_budget(sample_size: int, query_count: int, per_query: int = 100) -> int
     queries = max(int(query_count), 1)
     per = max(int(per_query), 1)
     needed = math.ceil((max(int(sample_size), 1) * 2) / (queries * per))
-    return min(_MAX_PAGES, max(8, needed))
+    return min(MAX_SEARCH_PAGES, max(8, needed))
+
+
+def format_search_time(moment: datetime) -> str:
+    """UTC timestamp for Bluesky ``since`` / ``until`` (until is exclusive)."""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def extract_posts(
@@ -51,22 +60,37 @@ def extract_posts(
     skip_uris: set[str] | None = None,
     cache_uris: set[str] | None = None,
     cache_reused: set[str] | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    pages: int | None = None,
+    subsample: bool = True,
 ) -> list[dict]:
-    """Return up to ``sample_size`` normalized posts inside the rolling window."""
+    """Return up to ``sample_size`` normalized posts inside the rolling window.
+
+    ``since`` / ``until`` bound one search (until is exclusive). Fill runs pass
+    one UTC day at a time so each query gets its own page budget. Scheduled
+    runs leave both unset. ``pages`` overrides the size-based page budget.
+    ``subsample=False`` keeps every post the pages returned.
+    """
     moment = now or datetime.now(timezone.utc)
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=timezone.utc)
     cutoff = moment - timedelta(hours=window_hours)
+    lower, upper = _search_bounds(cutoff, moment, since, until)
     getter = fetch or _default_fetch
     chooser = rng or random.Random()
     collected: list[dict] = []
     seen: set[str] = set(skip_uris or ())
+    if pages is None:
+        budget = page_budget(sample_size, len(queries), per_query)
+    else:
+        budget = min(MAX_SEARCH_PAGES, max(1, int(pages)))
 
     for query in queries:
         cursor = None
-        for _page in range(page_budget(sample_size, len(queries), per_query)):
+        for _page in range(budget):
             try:
-                page = getter(query, cursor, per_query)
+                page = _invoke_fetch(getter, query, cursor, per_query, since, until)
             except RuntimeError as exc:
                 print(f"Skipping Bluesky query {query!r}: {exc}")
                 break
@@ -83,21 +107,52 @@ def extract_posts(
                         cache_reused.add(post["uri"])
                     continue
                 created = _parse_time(post["created_at"])
-                if created < cutoff or created > moment + timedelta(hours=1):
+                if since is None and until is None:
+                    outside = created < lower or created > moment + timedelta(hours=1)
+                else:
+                    outside = created < lower or created >= upper or created > moment + timedelta(hours=1)
+                if outside:
                     continue
                 seen.add(post["uri"])
                 collected.append(post)
             cursor = page.get("cursor")
-            if not cursor or len(collected) >= sample_size * 2:
+            if not cursor or (subsample and len(collected) >= sample_size * 2):
                 break
             time.sleep(0.35)
-        if len(collected) >= sample_size * 2:
+        if subsample and len(collected) >= sample_size * 2:
             break
         time.sleep(0.2)
 
-    if len(collected) > sample_size:
+    if subsample and len(collected) > sample_size:
         collected = chooser.sample(collected, sample_size)
     return collected
+
+
+def _search_bounds(
+    cutoff: datetime,
+    moment: datetime,
+    since: datetime | None,
+    until: datetime | None,
+) -> tuple[datetime, datetime]:
+    """Inclusive lower bound and exclusive upper bound for one extract."""
+    if since is None and until is None:
+        return cutoff, moment + timedelta(hours=1)
+    lower = _as_utc(since) if since is not None else cutoff
+    upper = _as_utc(until) if until is not None else moment + timedelta(hours=1)
+    return lower, upper
+
+
+def _as_utc(moment: datetime) -> datetime:
+    if moment.tzinfo is None:
+        return moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc)
+
+
+def _invoke_fetch(getter, query: str, cursor: str | None, limit: int, since: datetime | None, until: datetime | None):
+    """Call a 3-argument fetch unless this search is bounded by a date window."""
+    if since is None and until is None:
+        return getter(query, cursor, limit)
+    return getter(query, cursor, limit, since=since, until=until)
 
 
 def extract_grouped_posts(
@@ -173,24 +228,59 @@ def _parse_time(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def _default_fetch(query: str, cursor: str | None, limit: int) -> dict:
+def _default_fetch(
+    query: str,
+    cursor: str | None,
+    limit: int,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> dict:
     handle = (os.getenv("BLUESKY_HANDLE") or "").strip()
     password = os.getenv("BLUESKY_APP_PASSWORD") or ""
     if handle and password.strip():
         try:
-            return _fetch_authenticated(query, cursor, limit)
+            return _fetch_authenticated(query, cursor, limit, since=since, until=until)
         except RuntimeError as exc:
             print(
                 f"Authenticated Bluesky search failed ({exc}). "
                 "Falling back to public AppView search."
             )
-    return _fetch_public(query, cursor, limit)
+    return _fetch_public(query, cursor, limit, since=since, until=until)
 
 
-def _fetch_public(query: str, cursor: str | None, limit: int) -> dict:
-    params = {"q": query, "limit": str(min(limit, 100)), "sort": "latest", "lang": "en"}
+def _search_params(
+    query: str,
+    cursor: str | None,
+    limit: int,
+    since: datetime | None,
+    until: datetime | None,
+    *,
+    limit_as_str: bool,
+) -> dict:
+    capped = min(limit, 100)
+    params: dict = {
+        "q": query,
+        "limit": str(capped) if limit_as_str else capped,
+        "sort": "latest",
+        "lang": "en",
+    }
     if cursor:
         params["cursor"] = cursor
+    if since is not None:
+        params["since"] = format_search_time(since)
+    if until is not None:
+        params["until"] = format_search_time(until)
+    return params
+
+
+def _fetch_public(
+    query: str,
+    cursor: str | None,
+    limit: int,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> dict:
+    params = _search_params(query, cursor, limit, since, until, limit_as_str=True)
     query_string = urllib.parse.urlencode(params)
     last_error: Exception | None = None
     for base in PUBLIC_SEARCH_URLS:
@@ -282,12 +372,16 @@ def _authenticated_client():
     return client
 
 
-def _fetch_authenticated(query: str, cursor: str | None, limit: int) -> dict:
+def _fetch_authenticated(
+    query: str,
+    cursor: str | None,
+    limit: int,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> dict:
     handle = (os.getenv("BLUESKY_HANDLE") or "").strip()
     client = _authenticated_client()
-    params = {"q": query, "limit": min(limit, 100), "sort": "latest", "lang": "en"}
-    if cursor:
-        params["cursor"] = cursor
+    params = _search_params(query, cursor, limit, since, until, limit_as_str=False)
     try:
         response = client.app.bsky.feed.search_posts(params)
     except Exception as exc:  # noqa: BLE001

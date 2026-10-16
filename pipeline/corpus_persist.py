@@ -15,7 +15,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from pipeline.store import connect, replace_posts
+from pipeline.store import connect, write_quality_posts
 
 MARKER_FILENAME = "halt_corpus.sha256"
 CORPUS_FILENAME = "live_corpus.db"
@@ -125,7 +125,7 @@ def persist_paid_corpus(
     """
     try:
         if posts:
-            replace_posts(connection, posts)
+            write_quality_posts(connection, posts)
         from pipeline.jev_cache import export_persistent_cache
 
         export_persistent_cache(connection)

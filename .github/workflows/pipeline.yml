@@ -26,9 +26,11 @@ on:
     inputs:
       fill_budget_usd:
         description: >-
-          Set to any value (e.g. 15) to run a 100K fill dispatch. Uses the shared
-          $15.00 fill budget across tagged ledger rows, not UTC-day boundaries.
-          Refused once the corpus is full or fill spend reaches $15. Empty = normal run.
+          Set to any value (e.g. 15) to run a 100K fill dispatch. Walks each
+          Bluesky query back one UTC day at a time (since/until) until 100K
+          claims, the shared $15.00 fill-tagged budget, or the 360-minute job
+          leaves 45 minutes. Refused once the corpus is full or fill spend
+          reaches $15. Empty = normal run (no date walk).
         required: false
         type: string
         default: ""
@@ -48,6 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
+      - name: Record job start for the fill time margin
+        run: echo "PERSPECTIVERSE_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -136,15 +141,19 @@ jobs:
           restore-keys: |
             jev-verdict-cache-
 
-      - name: Corpus claim count for spend-cap baseline
+      - name: Drop stored spam and non-claims whose verdicts are cached
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
-          claims=0
-          if [ -f pipeline/data/live_corpus.db ]; then
-            claims=$(sqlite3 pipeline/data/live_corpus.db "SELECT COUNT(*) FROM posts WHERE is_claim=1" 2>/dev/null || echo 0)
-          fi
-          echo "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$claims" >> "$GITHUB_ENV"
-          echo "Corpus claims for spend cap: $claims"
+          source .venv/bin/activate
+          python -m pipeline.store drop-non-quality pipeline/data/live_corpus.db
+
+      - name: Corpus quality-post count for the fill done check
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
+        run: |
+          source .venv/bin/activate
+          count=$(python -m pipeline.store count-quality pipeline/data/live_corpus.db)
+          echo "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$count" >> "$GITHUB_ENV"
+          echo "Corpus quality posts for the fill done check: $count"
 
       - name: Load today's cost ledger for the spend cap
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
