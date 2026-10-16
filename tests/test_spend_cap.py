@@ -30,6 +30,7 @@ from pipeline.spend_cap import (
     enforce_before_paid_work,
     guard_before_paid_call,
     hold_edition,
+    record_partial_ledger,
 )
 
 
@@ -346,6 +347,7 @@ def test_workflow_stops_publish_unless_the_live_step_succeeds():
     text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
     assert "PERSPECTIVERSE_COST_LEDGER" in text
     assert "pipeline.spend_cap hold-edition" in text
+    assert "record-partial-ledger" in text
     assert "spend_cap_stop.json" in text
     assert "steps.live.outcome == 'success'" in text
 
@@ -366,6 +368,120 @@ def _heuristic_config(path: Path) -> Path:
         encoding="utf-8",
     )
     return path
+
+
+def test_paid_call_flushes_cost_run_checkpoint(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    from pipeline.costs import bind_cost_checkpoint
+
+    monkeypatch.setenv("PERSPECTIVERSE_COST_RUN", str(tmp_path / "cost_run.json"))
+    started = datetime(2026, 10, 16, 12, 0, tzinfo=timezone.utc)
+    bind_cost_checkpoint(started)
+    record_attempt(
+        service=SERVICE_DEEPINFRA,
+        model="unit",
+        input_tokens=1,
+        output_tokens=1,
+        cost_usd=Decimal("0.12"),
+        cost_source="reported",
+        status="success",
+    )
+    payload = json.loads((tmp_path / "cost_run.json").read_text(encoding="utf-8"))
+    assert payload["rows"]
+    assert Decimal(payload["rows"][0]["cost_usd"]) == Decimal("0.12")
+
+
+def test_killed_run_partial_ledger_counts_on_next_run(tmp_path, monkeypatch):
+    """Interrupted run appends spend; the next run's cap sees it on the ledger."""
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+
+    remote = tmp_path / "remote.git"
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "init", "--bare", "-b", "main", str(remote)], check=True, capture_output=True)
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "dev@example.com")
+    _git(repo, "config", "user.name", "Partial Ledger Test")
+    _git(repo, "remote", "add", "origin", str(remote))
+    (repo / "README").write_text("main\n", encoding="utf-8")
+    _git(repo, "add", "README")
+    _git(repo, "commit", "-m", "main")
+    _git(repo, "checkout", "-b", "data-snapshot")
+    edition = b'{"edition":"yesterday"}\n'
+    public = repo / "public"
+    public.mkdir()
+    (public / "data.json").write_bytes(edition)
+    ledger = repo / "costs" / "ledger.csv"
+    ledger.parent.mkdir(parents=True)
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="38894377011",
+                trigger="schedule",
+                service=SERVICE_JEV,
+                cost="0.40",
+                day=today,
+            )
+        ],
+    )
+    _git(repo, "add", "public/data.json", "costs/ledger.csv")
+    _git(repo, "commit", "-m", "snapshot")
+    _git(repo, "push", "-u", "origin", "data-snapshot")
+    _git(repo, "checkout", "main")
+
+    data = repo / "pipeline" / "data"
+    data.mkdir(parents=True)
+    cost_run = data / "cost_run.json"
+    cost_run.write_text(
+        json.dumps(
+            {
+                "rows": [
+                    _ledger_row(
+                        run_id="killed-mid-run",
+                        trigger="push",
+                        service=SERVICE_DEEPINFRA,
+                        cost="0.35",
+                        day=today,
+                    )
+                ],
+                "run_id": "killed-mid-run",
+                "run_started_utc": "2026-10-16T16:58:00Z",
+                "date_utc": today.isoformat(),
+                "trigger": "push",
+            },
+            default=str,
+        ),
+        encoding="utf-8",
+    )
+    assert record_partial_ledger(repo, push=True, cost_run=cost_run) == 0
+    ledger_text = subprocess.run(
+        ["git", "show", "origin/data-snapshot:costs/ledger.csv"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "killed-mid-run" in ledger_text
+
+    ledger_copy = tmp_path / "ledger.csv"
+    ledger_copy.write_text(ledger_text, encoding="utf-8")
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger_copy))
+    reset_meter()
+    enforce_before_paid_work()
+    with pytest.raises(SpendCapExceeded) as caught:
+        record_attempt(
+            service=SERVICE_DEEPINFRA,
+            model="unit",
+            input_tokens=1,
+            output_tokens=1,
+            cost_usd=Decimal("0.26"),
+            cost_source="reported",
+            status="success",
+        )
+    assert caught.value.spent_usd == Decimal("1.01")
 
 
 def test_spend_cap_halt_persists_corpus_without_publishing(tmp_path, monkeypatch):

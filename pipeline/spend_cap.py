@@ -249,6 +249,12 @@ def account_recorded_attempt(attempt: Attempt) -> None:
         _load_prior_locked()
         global _run_paid
         _run_paid += added
+        try:
+            from pipeline.costs import flush_cost_checkpoint
+
+            flush_cost_checkpoint()
+        except Exception as exc:
+            print(f"WARNING: Cost checkpoint after a paid call skipped: {exc}", file=sys.stderr)
         kind = "Jev" if attempt.service == SERVICE_JEV else "labeling"
         _raise_if_stopped(_prior + _run_paid, where=f"after a {kind} call")
 
@@ -302,6 +308,141 @@ def _sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _stage_ledger_from_cost_run(
+    repo: Path,
+    run_file: Path,
+) -> tuple[dict[str, bytes], bytes | None] | None:
+    """Build cost files to commit on ``data-snapshot``. ``None`` when append fails."""
+    fetched = _git(repo, "fetch", "origin", "data-snapshot", check=False)
+    if fetched.returncode != 0:
+        print(
+            "Ledger commit: data-snapshot is not available; not updating the cost ledger.",
+            file=sys.stderr,
+        )
+        return None
+
+    shown = _git(repo, "show", "origin/data-snapshot:public/data.json", check=False)
+    before = shown.stdout if shown.returncode == 0 else None
+    ledger_bytes = _git(repo, "show", "origin/data-snapshot:costs/ledger.csv", check=False)
+    with tempfile.TemporaryDirectory() as temp_name:
+        temp = Path(temp_name)
+        costs_dir = temp / "costs"
+        costs_dir.mkdir()
+        ledger_path = costs_dir / "ledger.csv"
+        readme_path = costs_dir / "README.md"
+        if ledger_bytes.returncode == 0 and ledger_bytes.stdout:
+            ledger_path.write_bytes(ledger_bytes.stdout)
+        if not run_file.is_file():
+            return ({}, before)
+        from pipeline.costs import append_run_files, load_run_rows
+
+        if not load_run_rows(run_file):
+            return ({}, before)
+        if append_run_files(run_file, ledger_path, readme_path) != 0:
+            print(
+                "::warning::Could not append this run to the cost ledger.",
+                file=sys.stderr,
+            )
+            return None
+        staged = {
+            "costs/ledger.csv": ledger_path,
+            "costs/README.md": readme_path,
+            "costs/daily_spend_14d.svg": costs_dir / "daily_spend_14d.svg",
+        }
+        present = {name: path.read_bytes() for name, path in staged.items() if path.is_file()}
+    return present, before
+
+
+def _commit_ledger_only(
+    repo: Path,
+    present: dict[str, bytes],
+    before: bytes | None,
+    *,
+    push: bool,
+    commit_message: str,
+    log_prefix: str,
+) -> int:
+    repo = Path(repo).resolve()
+    _git(repo, "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
+    _git(repo, "config", "user.name", "github-actions[bot]")
+    _git(repo, "reset", "--hard", "HEAD")
+    _git(repo, "checkout", "--force", "-B", "data-snapshot", "origin/data-snapshot")
+
+    edition = repo / EDITION_GIT_PATH
+    if before is not None:
+        current = edition.read_bytes() if edition.is_file() else b""
+        if current != before:
+            print(f"::error::{log_prefix} found public/data.json already changed. Not pushing.", file=sys.stderr)
+            _git(repo, "reset", "--hard", "origin/data-snapshot")
+            return 1
+        print(f"{log_prefix}: edition sha256 before {_sha256(before)}")
+
+    if present:
+        for name, payload in present.items():
+            destination = repo / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(payload)
+            _git(repo, "add", "--", name)
+
+    if before is not None and edition.read_bytes() != before:
+        print(f"::error::{log_prefix} would replace public/data.json. Not pushing.", file=sys.stderr)
+        _git(repo, "reset", "--hard", "origin/data-snapshot")
+        return 1
+
+    cached = _git(repo, "diff", "--cached", "--name-only")
+    names = [line.decode().strip() for line in cached.stdout.splitlines() if line.strip()]
+    if any(name == EDITION_GIT_PATH or name.startswith("public/") for name in names):
+        print(f"::error::{log_prefix} staged the edition. Not pushing.", file=sys.stderr)
+        _git(repo, "reset", "--hard", "origin/data-snapshot")
+        return 1
+
+    if names:
+        _git(repo, "commit", "-m", commit_message)
+    else:
+        print(f"{log_prefix}: no new cost rows. Edition unchanged.")
+        return 0
+
+    if before is not None:
+        after = edition.read_bytes()
+        if after != before:
+            print(f"::error::{log_prefix} changed public/data.json after commit. Not pushing.", file=sys.stderr)
+            _git(repo, "reset", "--hard", "origin/data-snapshot")
+            return 1
+        print(f"{log_prefix}: edition sha256 after {_sha256(after)} unchanged")
+
+    if push and names:
+        _git(repo, "push", "origin", "data-snapshot")
+        print(f"{log_prefix}: pushed the cost ledger only.")
+    elif names:
+        print(f"{log_prefix}: cost ledger committed locally; push not requested.")
+    return 0
+
+
+def record_partial_ledger(repo: Path, *, push: bool = False, cost_run: Path | None = None) -> int:
+    """Append metered spend from a cancelled, crashed, or killed run.
+
+    Uses ``cost_run.json``, which the pipeline flushes after each paid call.
+    Does not replace ``public/data.json``.
+    """
+    repo = Path(repo).resolve()
+    run_file = Path(cost_run) if cost_run is not None else repo / "pipeline" / "data" / "cost_run.json"
+    staged = _stage_ledger_from_cost_run(repo, run_file)
+    if staged is None:
+        return 1
+    present, before = staged
+    if not present:
+        print("Partial ledger: no paid calls to record.")
+        return 0
+    return _commit_ledger_only(
+        repo,
+        present,
+        before,
+        push=push,
+        commit_message="Record partial spend from an interrupted pipeline run",
+        log_prefix="Partial ledger",
+    )
+
+
 def hold_edition(repo: Path, *, push: bool = False, cost_run: Path | None = None, marker: Path | None = None) -> int:
     """Record this run's paid calls on data-snapshot. Do not replace ``public/data.json``.
 
@@ -317,104 +458,20 @@ def hold_edition(repo: Path, *, push: bool = False, cost_run: Path | None = None
         print("Spend cap hold: no stop marker; not touching data-snapshot.", file=sys.stderr)
         return 1
     run_file = Path(cost_run) if cost_run is not None else repo / "pipeline" / "data" / "cost_run.json"
-
-    fetched = _git(repo, "fetch", "origin", "data-snapshot", check=False)
-    if fetched.returncode != 0:
-        print(
-            "Spend cap hold: data-snapshot is not available; not publishing an edition.",
-            file=sys.stderr,
-        )
+    staged = _stage_ledger_from_cost_run(repo, run_file)
+    if staged is None:
         return STOP_EXIT
-
-    shown = _git(repo, "show", "origin/data-snapshot:public/data.json", check=False)
-    before = shown.stdout if shown.returncode == 0 else None
-    if before is None:
-        print("Spend cap hold: data-snapshot has no public/data.json; not creating one.")
-    else:
-        print(f"Spend cap hold: edition sha256 before {_sha256(before)}")
-
-    ledger_bytes = _git(repo, "show", "origin/data-snapshot:costs/ledger.csv", check=False)
-    with tempfile.TemporaryDirectory() as temp_name:
-        temp = Path(temp_name)
-        costs_dir = temp / "costs"
-        costs_dir.mkdir()
-        ledger_path = costs_dir / "ledger.csv"
-        readme_path = costs_dir / "README.md"
-        if ledger_bytes.returncode == 0 and ledger_bytes.stdout:
-            ledger_path.write_bytes(ledger_bytes.stdout)
-        if run_file.is_file():
-            from pipeline.costs import append_run_files
-
-            if append_run_files(run_file, ledger_path, readme_path) != 0:
-                print(
-                    "::warning::Could not append the capped run to the cost ledger. "
-                    "The edition will not be published.",
-                    file=sys.stderr,
-                )
-                present = {}
-                return STOP_EXIT
-        staged = {
-            "costs/ledger.csv": ledger_path,
-            "costs/README.md": readme_path,
-            "costs/daily_spend_14d.svg": costs_dir / "daily_spend_14d.svg",
-        }
-        present = {name: path.read_bytes() for name, path in staged.items() if path.is_file()}
-
-    _git(repo, "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
-    _git(repo, "config", "user.name", "github-actions[bot]")
-    _git(repo, "reset", "--hard", "HEAD")
-    _git(repo, "checkout", "--force", "-B", "data-snapshot", "origin/data-snapshot")
-
-    edition = repo / EDITION_GIT_PATH
-    if before is not None:
-        current = edition.read_bytes() if edition.is_file() else b""
-        if current != before:
-            print("::error::Spend cap hold found public/data.json already changed. Not pushing.", file=sys.stderr)
-            _git(repo, "reset", "--hard", "origin/data-snapshot")
-            return 1
-
-    if present:
-        for name, payload in present.items():
-            destination = repo / name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(payload)
-            _git(repo, "add", "--", name)
-
-    if before is not None and edition.read_bytes() != before:
-        print("::error::Spend cap hold would replace public/data.json. Not pushing.", file=sys.stderr)
-        _git(repo, "reset", "--hard", "origin/data-snapshot")
+    present, before = staged
+    status = _commit_ledger_only(
+        repo,
+        present,
+        before,
+        push=push,
+        commit_message="Record spend from a capped run; keep the previous discourse edition",
+        log_prefix="Spend cap hold",
+    )
+    if status == 1:
         return 1
-
-    cached = _git(repo, "diff", "--cached", "--name-only")
-    names = [line.decode().strip() for line in cached.stdout.splitlines() if line.strip()]
-    if any(name == EDITION_GIT_PATH or name.startswith("public/") for name in names):
-        print("::error::Spend cap hold staged the edition. Not pushing.", file=sys.stderr)
-        _git(repo, "reset", "--hard", "origin/data-snapshot")
-        return 1
-
-    if names:
-        _git(
-            repo,
-            "commit",
-            "-m",
-            "Record spend from a capped run; keep the previous discourse edition",
-        )
-    else:
-        print("Spend cap hold: no new cost rows. Edition unchanged.")
-
-    if before is not None:
-        after = edition.read_bytes()
-        if after != before:
-            print("::error::Spend cap hold changed public/data.json after commit. Not pushing.", file=sys.stderr)
-            _git(repo, "reset", "--hard", "origin/data-snapshot")
-            return 1
-        print(f"Spend cap hold: edition sha256 after {_sha256(after)} unchanged")
-
-    if push and names:
-        _git(repo, "push", "origin", "data-snapshot")
-        print("Spend cap hold: pushed the cost ledger only.")
-    elif names:
-        print("Spend cap hold: cost ledger committed locally; push not requested.")
     return STOP_EXIT
 
 
@@ -426,9 +483,18 @@ def main(argv: list[str] | None = None) -> int:
     hold.add_argument("--push", action="store_true")
     hold.add_argument("--cost-run", type=Path, default=None)
     hold.add_argument("--marker", type=Path, default=None)
+    partial = sub.add_parser(
+        "record-partial-ledger",
+        help="Append partial metered spend when a run was cancelled or crashed",
+    )
+    partial.add_argument("--repo", type=Path, required=True)
+    partial.add_argument("--push", action="store_true")
+    partial.add_argument("--cost-run", type=Path, default=None)
     args = parser.parse_args(argv)
     if args.command == "hold-edition":
         return hold_edition(args.repo, push=args.push, cost_run=args.cost_run, marker=args.marker)
+    if args.command == "record-partial-ledger":
+        return record_partial_ledger(args.repo, push=args.push, cost_run=args.cost_run)
     return 1
 
 

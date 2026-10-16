@@ -382,3 +382,9 @@ jobs:
             echo "::error::Degraded labeling run was not published. Previous data.json is still what Pages serves."
             exit 1
           fi
+
+      - name: Record partial spend when the run ends early
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome != 'success' && steps.live.outcome != 'skipped'
+        run: |
+          source .venv/bin/activate
+          python -m pipeline.spend_cap record-partial-ledger --repo . --push

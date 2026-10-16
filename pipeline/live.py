@@ -121,9 +121,10 @@ def run_live(
     # This process may already have recorded calls (a second live run, or
     # tests). The artifact should be this run only.
     try:
-        from pipeline.costs import reset_meter
+        from pipeline.costs import bind_cost_checkpoint, reset_meter
 
         reset_meter()
+        bind_cost_checkpoint(started_at)
     except Exception as exc:
         print(f"WARNING: Cost meter reset skipped: {exc}", file=sys.stderr)
     reset_stance_check_failures()
@@ -306,10 +307,20 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
     report_unshared_pending_planets()
     report_coherence_stats()
     try:
-        from pipeline.costs import count_published_planets, deepinfra_error_summary, get_meter, write_cost_run
+        from pipeline.costs import (
+            count_published_planets,
+            deepinfra_error_summary,
+            get_meter,
+            update_cost_checkpoint_counts,
+            write_cost_run,
+        )
         from pipeline.publish_guard import report_label_health, write_label_run
 
         summary = deepinfra_error_summary(get_meter().attempts())
+        update_cost_checkpoint_counts(
+            posts_processed=int(payload.get("total_posts") or 0),
+            planets_published=count_published_planets(payload),
+        )
         write_cost_run(
             posts_processed=int(payload.get("total_posts") or 0),
             planets_published=count_published_planets(payload),
