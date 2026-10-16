@@ -562,25 +562,33 @@ def project_measured_daily_usd(
     jev_usd: Decimal,
     label_usd: Decimal,
     jev_calls: int,
+    measured_planets: int = 0,
     target_posts: int = 100_000,
-) -> dict[str, Decimal | int | bool]:
+    grown_planets: int = JEV_PLANETS_PER_DAY,
+) -> dict[str, Decimal | int | bool | list]:
     """Project one measured run to a larger retained-claim window.
 
     Jev scales with ``refresh_floor`` (one seventh of the window). That quota
     is posts the fetch has not already scored, so a cache hit rate is not an
-    input and does not shrink the bill. Labeling is the measured dollars and
-    is not scaled: the published catalog does not grow with the window.
+    input and does not shrink the bill.
 
-    ``topup`` is true when this run paid for more Jev calls than that quota.
-    Those extra calls are still inside ``jev_usd``, so the scaled total is
-    this run's intensity, not a steady refresh.
+    Labeling is per planet. The return value is three assumptions, not one
+    total. ``under_half_dollar_shown`` is false: none of these is a measured
+    100K day under $0.50.
+
+    ``topup`` is true when this run paid for more Jev calls than its quota.
+    ``shortfall_total_usd`` scales that whole Jev bill and leaves labeling at
+    the measured dollars. The three assumptions use the steady quota bill, so
+    a shortfall day does not inflate them.
     """
     from pipeline.corpus import refresh_floor
 
     posts = int(measured_posts)
     calls = int(jev_calls)
-    if posts < 0 or calls < 0 or int(target_posts) < 0:
-        raise ValueError("measured_posts, jev_calls, and target_posts must be >= 0")
+    planets = int(measured_planets)
+    grown = int(grown_planets)
+    if posts < 0 or calls < 0 or int(target_posts) < 0 or planets < 0 or grown < 0:
+        raise ValueError("counts must be >= 0")
     jev = jev_usd if isinstance(jev_usd, Decimal) else Decimal(str(jev_usd))
     label = label_usd if isinstance(label_usd, Decimal) else Decimal(str(label_usd))
     if jev < 0 or label < 0:
@@ -590,25 +598,170 @@ def project_measured_daily_usd(
     if quota <= 0 or calls <= 0:
         raise ValueError("a projection needs a scored window and at least one paid Jev call")
     scale = Decimal(target_quota) / Decimal(quota)
-    projected_jev = jev * scale
+    shortfall_jev = jev * scale
+    topup = calls > quota
+    # A shortfall's extra calls are not the daily quota. The range uses the
+    # cost of one target quota at this run's dollars per call.
+    steady_jev = (jev / Decimal(calls)) * Decimal(target_quota) if topup else shortfall_jev
+    assumptions: list[dict[str, Decimal | str | int]] = [
+        {
+            "id": "flat",
+            "assumption": "flat labeling, planet count stays at this run",
+            "label_usd": label,
+            "total_usd": steady_jev + label,
+        }
+    ]
+    if planets > 0 and grown > 0:
+        grown_label = label * Decimal(grown) / Decimal(planets)
+        assumptions.append(
+            {
+                "id": "planets",
+                "assumption": f"planets grow to {grown}",
+                "planets": grown,
+                "label_usd": grown_label,
+                "total_usd": steady_jev + grown_label,
+            }
+        )
+    window_label = label * scale
+    assumptions.append(
+        {
+            "id": "window",
+            "assumption": "labeling scales with the window",
+            "label_usd": window_label,
+            "total_usd": steady_jev + window_label,
+        }
+    )
     return {
-        "jev_usd": projected_jev,
+        "steady_jev_usd": steady_jev,
+        "shortfall_jev_usd": shortfall_jev,
+        "shortfall_total_usd": shortfall_jev + label,
         "label_usd": label,
-        "total_usd": projected_jev + label,
         "scale": scale,
         "measured_quota": quota,
         "target_quota": target_quota,
-        "topup": calls > quota,
+        "measured_planets": planets,
+        "topup": topup,
+        "assumptions": assumptions,
+        "under_half_dollar_shown": False,
     }
+
+
+_GROUPING_FLOOR = (
+    "Does not show fewer planets, drop or merge separate planets, "
+    "or relax the 5-post minimum."
+)
+
+
+def projection_levers(
+    projected: dict,
+    *,
+    turnover_days: int = JEV_WINDOW_DAYS,
+) -> list[dict[str, Decimal | str | bool]]:
+    """Spend options that still publish every planet the posts support.
+
+    Reusing a label for an unchanged planet is not a cap on how many planets
+    are shown. None of these show fewer planets, drop or merge separate
+    stories, or lower the 5-post floor. Each option names its effect on
+    grouping quality and its dollars per day.
+    """
+    if int(turnover_days) <= 0:
+        raise ValueError("turnover_days must be >= 1")
+    planets_case = next(
+        (item for item in projected["assumptions"] if item["id"] == "planets"),
+        None,
+    )
+    if planets_case is None:
+        raise ValueError("levers need the planets-grow assumption")
+    jev = projected["steady_jev_usd"]
+    if not isinstance(jev, Decimal):
+        jev = Decimal(str(jev))
+    label = planets_case["label_usd"]
+    if not isinstance(label, Decimal):
+        label = Decimal(str(label))
+    days = Decimal(int(turnover_days))
+    share_total = jev + (label / days)
+    every_total = jev + label
+    third_total = jev + (label / Decimal(3))
+    half_total = jev + (label / Decimal(2))
+    shortfall_note = ""
+    if every_total >= Decimal("0.50"):
+        shortfall_note = " This option alone does not clear $0.50."
+    return [
+        {
+            "id": "reuse",
+            "name": "Reuse labels for unchanged planets",
+            "total_if_share_change_usd": share_total,
+            "total_if_every_planet_changes_usd": every_total,
+            "change_share": f"1/{int(turnover_days)}",
+            "clears_half_dollar_if_share_changes": share_total < Decimal("0.50"),
+            "grouping_quality": (
+                "Grouping quality unchanged: same planets, same groups. "
+                "A planet keeps its label until its posts or the prompt change. "
+                "This reuses labels for unchanged planets. It is not a cap on labels. "
+                + _GROUPING_FLOOR
+            ),
+        },
+        {
+            "id": "cheaper_model",
+            "name": "Cheaper labeling model",
+            "total_at_one_third_price_usd": third_total,
+            "total_at_half_price_usd": half_total,
+            "clears_half_dollar_at_one_third": third_total < Decimal("0.50"),
+            "clears_half_dollar_at_half": half_total < Decimal("0.50"),
+            "grouping_quality": (
+                "Planet membership unchanged: clustering does not use this model, "
+                "so the same posts stay on the same planets. Naming quality can get worse: "
+                "face titles and the second-stance check use the model, and a cheaper model "
+                "can misname a side. " + _GROUPING_FLOOR
+            ),
+        },
+        {
+            "id": "no_shortfall",
+            "name": "Avoid top-up shortfalls",
+            "total_usd": every_total,
+            "clears_half_dollar": every_total < Decimal("0.50"),
+            "grouping_quality": (
+                "Grouping quality on a filled day unchanged. Stopping a shortfall leaves "
+                "yesterday's edition and does not remove planets from a day that already filled. "
+                + _GROUPING_FLOOR
+                + shortfall_note
+            ),
+        },
+    ]
+
+
+def projection_levers_line(projected: dict) -> str:
+    """One log line: each option's $/day and its effect on grouping quality."""
+    if not any(item["id"] == "planets" for item in projected["assumptions"]):
+        return ""
+    reuse, cheaper, quiet = projection_levers(projected)
+    return (
+        "Jev 100K levers: "
+        f"{reuse['name']} ${format_usd(reuse['total_if_share_change_usd'])}/day "
+        f"if {reuse['change_share']} of planets change, "
+        f"${format_usd(reuse['total_if_every_planet_changes_usd'])}/day if every planet changes "
+        f"({reuse['grouping_quality']}); "
+        f"{cheaper['name']} ${format_usd(cheaper['total_at_one_third_price_usd'])}/day "
+        "at one-third price, "
+        f"${format_usd(cheaper['total_at_half_price_usd'])}/day at half price "
+        f"({cheaper['grouping_quality']}); "
+        f"{quiet['name']} ${format_usd(quiet['total_usd'])}/day "
+        f"({quiet['grouping_quality']})."
+    )
 
 
 def measured_window_projection_line(
     *,
     measured_posts: int,
+    measured_planets: int = 0,
     attempts: tuple[Attempt, ...] | None = None,
     target_posts: int = 100_000,
 ) -> str:
-    """One log line. Steady days scale the new-post quota. A shortfall says so."""
+    """Projection line, plus a lever line when this run published planets.
+
+    Three labeling assumptions, a shortfall total when this run topped up,
+    and each spend option's dollars per day with its effect on grouping quality.
+    """
     recorded = attempts if attempts is not None else get_meter().attempts()
     calls, jev = jev_paid_calls(recorded)
     label = sum(
@@ -629,15 +782,26 @@ def measured_window_projection_line(
         jev_usd=jev,
         label_usd=label,
         jev_calls=calls,
+        measured_planets=measured_planets,
         target_posts=target_posts,
     )
     kind = "shortfall top-up" if projected["topup"] else "steady new-post quota"
-    return (
-        f"Jev {target_posts // 1000}K projection: ${format_usd(projected['total_usd'])}/day "
-        f"({kind}; Jev ${format_usd(projected['jev_usd'])} = this run's ${format_usd(jev)} "
-        f"scaled with the new-post quota from {measured_posts} to {target_posts} posts; "
-        f"labeling ${format_usd(label)} stays the measured amount)."
+    pieces = [
+        f"{item['assumption']} ${format_usd(item['total_usd'])}/day"
+        for item in projected["assumptions"]
+    ]
+    line = (
+        f"Jev {target_posts // 1000}K projection: {kind}; "
+        f"Jev ${format_usd(projected['steady_jev_usd'])} from this run's ${format_usd(jev)}. "
+        f"Assumptions: {'; '.join(pieces)}. "
+        "100K under $0.50 is not shown."
     )
+    if projected["topup"]:
+        line += f" Shortfall top-up ${format_usd(projected['shortfall_total_usd'])}/day."
+    levers = projection_levers_line(projected)
+    if levers:
+        line += "\n" + levers
+    return line
 
 
 def project_jev_daily_usd(window_posts: int, *, batched: bool = False) -> Decimal:
@@ -1052,6 +1216,7 @@ def write_cost_run(
         print(
             measured_window_projection_line(
                 measured_posts=int(posts_processed),
+                measured_planets=int(planets_published),
                 attempts=recorded,
             )
         )

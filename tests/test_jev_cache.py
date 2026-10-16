@@ -19,6 +19,7 @@ from pipeline.costs import (
     note_jev_prefilter,
     project_jev_daily_usd,
     project_measured_daily_usd,
+    projection_levers,
     record_attempt,
     reset_meter,
     write_cost_run,
@@ -363,11 +364,16 @@ def test_projection_uses_the_issue_token_assumptions():
     assert jev_cost_usd(1_000_000) == Decimal("0.042")
 
 
-def test_oct_16_steady_day_projects_100k_at_or_under_half_dollar():
+def _assumption(projected: dict, assumption_id: str) -> dict:
+    return next(item for item in projected["assumptions"] if item["id"] == assumption_id)
+
+
+def test_oct_16_steady_day_is_a_range_and_under_half_dollar_is_not_shown():
     """Run 38894377011. The new-post quota scales. The cache hit rate does not.
 
-    Ledger: 9,985 posts, 1,362 paid Jev calls, Jev $0.03808182, labeling $0.11712596.
-    Hits were 2/1,364. A 45% discount is not applied.
+    Ledger: 9,985 posts, 110 published planets, 1,362 paid Jev calls,
+    Jev $0.03808182, labeling $0.11712596. Hits were 2/1,364.
+    A 45% discount is not applied. Flat labeling is one assumption.
     """
     jev = Decimal("0.03808182")
     label = Decimal("0.11712596")
@@ -376,21 +382,72 @@ def test_oct_16_steady_day_projects_100k_at_or_under_half_dollar():
         jev_usd=jev,
         label_usd=label,
         jev_calls=1362,
+        measured_planets=110,
     )
     assert projected["topup"] is False
-    assert projected["total_usd"] == projected["jev_usd"] + label
-    assert projected["jev_usd"] == jev * projected["scale"]
-    assert projected["total_usd"] <= Decimal("0.50")
-    assert projected["total_usd"] > Decimal("0.49")
-    # The same dollars with the observed 0.1% hits, or with the rejected 45% assumption.
+    assert projected["under_half_dollar_shown"] is False
+    assert projected["steady_jev_usd"] == jev * projected["scale"]
+    flat = _assumption(projected, "flat")
+    planets = _assumption(projected, "planets")
+    window = _assumption(projected, "window")
+    assert flat["assumption"] == "flat labeling, planet count stays at this run"
+    assert flat["total_usd"] == projected["steady_jev_usd"] + label
+    assert Decimal("0.49") < flat["total_usd"] < Decimal("0.50")
+    assert planets["assumption"] == "planets grow to 300"
+    assert planets["total_usd"] == projected["steady_jev_usd"] + (label * Decimal(300) / Decimal(110))
+    assert Decimal("0.70") < planets["total_usd"] < Decimal("0.71")
+    assert window["assumption"] == "labeling scales with the window"
+    assert window["total_usd"] == projected["steady_jev_usd"] + (label * projected["scale"])
+    assert Decimal("1.55") < window["total_usd"] < Decimal("1.56")
+    # Hit rate is not an input, so the rejected 45% discount is not applied.
     again = project_measured_daily_usd(
         measured_posts=9985,
         jev_usd=jev,
         label_usd=label,
         jev_calls=1362,
+        measured_planets=110,
     )
-    assert again["total_usd"] == projected["total_usd"]
-    assert projected["total_usd"] != (jev * projected["scale"] * Decimal("0.55")) + label
+    assert _assumption(again, "flat")["total_usd"] == flat["total_usd"]
+    assert flat["total_usd"] != (jev * projected["scale"] * Decimal("0.55")) + label
+
+
+def test_oct_16_levers_keep_grouping_quality_and_name_dollars():
+    """No option shows fewer planets, merges stories, or lowers the 5-post floor."""
+    projected = project_measured_daily_usd(
+        measured_posts=9985,
+        jev_usd=Decimal("0.03808182"),
+        label_usd=Decimal("0.11712596"),
+        jev_calls=1362,
+        measured_planets=110,
+    )
+    levers = projection_levers(projected)
+    assert [item["id"] for item in levers] == ["reuse", "cheaper_model", "no_shortfall"]
+    planets_total = _assumption(projected, "planets")["total_usd"]
+    for item in levers:
+        assert "cap" not in item["id"]
+        assert "cap" not in item["name"].lower()
+        quality = item["grouping_quality"]
+        assert "Does not show fewer planets" in quality
+        assert "drop or merge separate planets" in quality
+        assert "5-post minimum" in quality
+    reuse, cheaper, quiet = levers
+    assert reuse["name"] == "Reuse labels for unchanged planets"
+    assert "not a cap" in reuse["grouping_quality"]
+    assert "Grouping quality unchanged" in reuse["grouping_quality"]
+    assert reuse["change_share"] == "1/7"
+    assert reuse["clears_half_dollar_if_share_changes"] is True
+    assert Decimal("0.42") < reuse["total_if_share_change_usd"] < Decimal("0.43")
+    assert reuse["total_if_every_planet_changes_usd"] == planets_total
+    assert "Planet membership unchanged" in cheaper["grouping_quality"]
+    assert "misname a side" in cheaper["grouping_quality"]
+    assert cheaper["clears_half_dollar_at_one_third"] is True
+    assert cheaper["clears_half_dollar_at_half"] is False
+    assert Decimal("0.48") < cheaper["total_at_one_third_price_usd"] < Decimal("0.49")
+    assert Decimal("0.54") < cheaper["total_at_half_price_usd"] < Decimal("0.55")
+    assert quiet["clears_half_dollar"] is False
+    assert quiet["total_usd"] == planets_total
+    assert "does not clear $0.50" in quiet["grouping_quality"]
+    assert "filled day unchanged" in quiet["grouping_quality"]
 
 
 def test_oct_15_shortfall_is_not_a_steady_100k_day():
@@ -400,9 +457,17 @@ def test_oct_15_shortfall_is_not_a_steady_100k_day():
         jev_usd=Decimal("0.28440674"),
         label_usd=Decimal("0.11022006"),
         jev_calls=10230,
+        measured_planets=110,
     )
     assert projected["topup"] is True
-    assert projected["total_usd"] > Decimal("0.50")
+    assert projected["under_half_dollar_shown"] is False
+    assert Decimal("3.04") < projected["shortfall_total_usd"] < Decimal("3.05")
+    # Extra calls stay out of the range. The steady quota is one target day's calls.
+    steady = (Decimal("0.28440674") / Decimal(10230)) * Decimal(projected["target_quota"])
+    assert projected["steady_jev_usd"] == steady
+    assert _assumption(projected, "flat")["total_usd"] == steady + Decimal("0.11022006")
+    assert _assumption(projected, "planets")["total_usd"] < Decimal("0.70")
+    assert _assumption(projected, "planets")["total_usd"] != projected["shortfall_total_usd"]
 
 
 def test_projection_line_names_the_quota_and_skips_a_relabel(tmp_path, capsys):
@@ -439,8 +504,22 @@ def test_projection_line_names_the_quota_and_skips_a_relabel(tmp_path, capsys):
     logged = capsys.readouterr().out
     assert "steady new-post quota" in logged
     assert "Jev 100K projection:" in logged
-    total_text = logged.split("Jev 100K projection: $", 1)[1].split("/day", 1)[0]
-    assert Decimal(total_text) <= Decimal("0.50")
+    assert "flat labeling, planet count stays at this run $" in logged
+    assert "planets grow to 300 $" in logged
+    assert "labeling scales with the window $" in logged
+    assert "100K under $0.50 is not shown." in logged
+    assert "Jev 100K levers:" in logged
+    assert "Reuse labels for unchanged planets" in logged
+    assert "Cheaper labeling model" in logged
+    assert "Avoid top-up shortfalls" in logged
+    assert "Does not show fewer planets" in logged
+    assert "not a cap" in logged
+    flat_text = logged.split("flat labeling, planet count stays at this run $", 1)[1].split("/day", 1)[0]
+    planets_text = logged.split("planets grow to 300 $", 1)[1].split("/day", 1)[0]
+    window_text = logged.split("labeling scales with the window $", 1)[1].split("/day", 1)[0]
+    assert Decimal("0.49") < Decimal(flat_text) < Decimal("0.50")
+    assert Decimal("0.70") < Decimal(planets_text) < Decimal("0.71")
+    assert Decimal("1.55") < Decimal(window_text) < Decimal("1.56")
 
 
 def test_corrupt_verdict_is_warned_and_rescored(monkeypatch, tmp_path, capsys):
