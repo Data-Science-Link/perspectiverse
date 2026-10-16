@@ -26,6 +26,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import threading
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -304,6 +305,27 @@ def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProc
     )
 
 
+def _push_data_snapshot(repo: Path, *, attempts: int = 4) -> int:
+    """Push ``data-snapshot``, rebasing on concurrent updates when needed."""
+    branch = "data-snapshot"
+    for attempt in range(attempts):
+        pushed = _git(repo, "push", "origin", branch, check=False)
+        if pushed.returncode == 0:
+            return 0
+        fetched = _git(repo, "fetch", "origin", branch, check=False)
+        if fetched.returncode != 0:
+            return pushed.returncode
+        rebased = _git(repo, "pull", "--rebase", "origin", branch, check=False)
+        if rebased.returncode != 0:
+            _git(repo, "rebase", "--abort", check=False)
+            merged = _git(repo, "merge", "--no-edit", f"origin/{branch}", check=False)
+            if merged.returncode != 0:
+                _git(repo, "merge", "--abort", check=False)
+        if attempt + 1 < attempts:
+            time.sleep(min(16, 2**attempt))
+    return 1
+
+
 def _sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
@@ -411,7 +433,9 @@ def _commit_ledger_only(
         print(f"{log_prefix}: edition sha256 after {_sha256(after)} unchanged")
 
     if push and names:
-        _git(repo, "push", "origin", "data-snapshot")
+        if _push_data_snapshot(repo) != 0:
+            print(f"::error::{log_prefix} could not push data-snapshot after retries.", file=sys.stderr)
+            return 1
         print(f"{log_prefix}: pushed the cost ledger only.")
     elif names:
         print(f"{log_prefix}: cost ledger committed locally; push not requested.")

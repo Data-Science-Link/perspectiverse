@@ -26,7 +26,8 @@ import os
 import sys
 import time
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from pipeline.http_json import read_json, read_json_value
@@ -48,6 +49,7 @@ _WORKERS = 8
 BATCH_SIZE = 25
 CLAIM_TRUE = "A position about an event, policy, institution, or public issue"
 CLAIM_FALSE = "Personal status, a joke, fandom aside, small talk, or promo"
+_jev_store_lock = threading.Lock()
 SPAM_TRUE = "Promo, bot, giveaway, follow-bait, or an advertisement"
 SPAM_FALSE = "A person saying something, including a messy or informal remark"
 
@@ -410,9 +412,22 @@ def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | N
                 )
             )
         if rows:
-            save_jev_verdicts(connection, rows)
+            with _jev_store_lock:
+                save_jev_verdicts(connection, rows)
     except Exception as exc:
         sys.stderr.write(f"WARNING: Jev verdict cache was not written: {exc}\n")
+
+
+def _persist_one_verdict(
+    connection,
+    posts: list[dict],
+    uri: str,
+    decision: dict | None,
+    now: datetime | None,
+) -> None:
+    if not uri or not isinstance(decision, dict):
+        return
+    _store_verdicts(connection, posts, {uri: decision}, now)
 
 
 def _apply_decisions_inplace(posts: list[dict], decisions: dict[str, dict | None]) -> None:
@@ -479,21 +494,33 @@ def _classify_many(
         if not uri:
             return
         found[uri] = decision
-        if connection is None or not isinstance(decision, dict):
-            return
-        _store_verdicts(connection, corpus, {uri: decision}, now)
-        _export_jev_cache(connection)
+        if connection is not None:
+            _persist_one_verdict(connection, corpus, uri, decision, now)
 
     if batch:
         batched = _classify_batched(posts)
         for uri, decision in batched.items():
             _record(uri, decision)
     else:
-        # Sequential when persisting: a spend-cap stop must keep every paid verdict.
-        for post in posts:
-            uri = str(post.get("uri") or "")
-            decision = _classify_post(post)
-            _record(uri, decision)
+        workers = max(1, min(_WORKERS, len(posts)))
+        halted = None
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            future_map = {pool.submit(_classify_post, post): post for post in posts}
+            for future in as_completed(future_map):
+                post = future_map[future]
+                uri = str(post.get("uri") or "")
+                try:
+                    decision = future.result()
+                except Exception as exc:
+                    from pipeline.spend_cap import SpendCapExceeded
+
+                    if isinstance(exc, SpendCapExceeded):
+                        halted = exc
+                        continue
+                    raise
+                _record(uri, decision)
+        if halted is not None:
+            raise halted
 
     answered = next((item.get("model") for item in found.values() if item and item.get("model")), "")
     if answered:
