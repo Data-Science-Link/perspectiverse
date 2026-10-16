@@ -943,7 +943,7 @@ def test_fill_cap_sums_tagged_ledger_across_utc_days(tmp_path, monkeypatch):
                 run_id="fill-yesterday",
                 trigger="workflow_dispatch",
                 service=SERVICE_JEV,
-                cost="3.00",
+                cost="12.00",
                 day=yesterday,
                 tags=LEDGER_TAG_FILL,
             ),
@@ -956,12 +956,13 @@ def test_fill_cap_sums_tagged_ledger_across_utc_days(tmp_path, monkeypatch):
             ),
         ],
     )
-    assert fill_paid_usd(ledger) == Decimal("3.00")
+    assert fill_paid_usd(ledger) == Decimal("12.00")
     monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
     reset_meter()
     with pytest.raises(SpendCapExceeded) as caught:
-        _attempt(cost_usd=Decimal("2.01"))
-    assert caught.value.spent_usd == Decimal("5.01")
+        _attempt(cost_usd=Decimal("3.01"))
+    assert caught.value.spent_usd == Decimal("15.01")
+    assert FILL_BUDGET_TOTAL_USD == Decimal("15.00")
 
 
 def test_fill_dispatch_refused_when_corpus_full_or_fill_spent(monkeypatch, tmp_path):
@@ -973,7 +974,7 @@ def test_fill_dispatch_refused_when_corpus_full_or_fill_spent(monkeypatch, tmp_p
                 run_id="fill-done",
                 trigger="workflow_dispatch",
                 service=SERVICE_DEEPINFRA,
-                cost="5.00",
+                cost="15.00",
                 day=date(2026, 10, 15),
                 tags=LEDGER_TAG_FILL,
             )
@@ -1008,7 +1009,7 @@ def test_fill_exhausted_before_100k_halts_and_returns_normal_daily_cap(tmp_path,
                 run_id="fill-partial",
                 trigger="workflow_dispatch",
                 service=SERVICE_JEV,
-                cost="4.99",
+                cost="14.99",
                 day=today,
                 tags=LEDGER_TAG_FILL,
             )
@@ -1116,7 +1117,7 @@ def test_check_fill_dispatch_refuses_when_ledger_shows_five_dollars_fill_spend(
                 run_id="fill-done",
                 trigger="workflow_dispatch",
                 service=SERVICE_DEEPINFRA,
-                cost="5.00",
+                cost="15.00",
                 day=date(2026, 10, 15),
                 tags=LEDGER_TAG_FILL,
             )
@@ -1138,7 +1139,7 @@ def test_check_fill_dispatch_without_ledger_env_ignores_prior_fill_spend(monkeyp
                 run_id="fill-done",
                 trigger="workflow_dispatch",
                 service=SERVICE_DEEPINFRA,
-                cost="5.00",
+                cost="15.00",
                 day=date(2026, 10, 15),
                 tags=LEDGER_TAG_FILL,
             )

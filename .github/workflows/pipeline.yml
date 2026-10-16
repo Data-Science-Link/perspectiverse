@@ -26,9 +26,9 @@ on:
     inputs:
       fill_budget_usd:
         description: >-
-          Set to any value (e.g. 5) to run a 100K fill dispatch. Uses the shared
-          $5.00 fill budget across tagged ledger rows, not UTC-day boundaries.
-          Refused once the corpus is full or fill spend reaches $5. Empty = normal run.
+          Set to any value (e.g. 15) to run a 100K fill dispatch. Uses the shared
+          $15.00 fill budget across tagged ledger rows, not UTC-day boundaries.
+          Refused once the corpus is full or fill spend reaches $15. Empty = normal run.
         required: false
         type: string
         default: ""

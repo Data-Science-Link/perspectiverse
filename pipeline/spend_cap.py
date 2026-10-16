@@ -3,8 +3,8 @@
 Michael, 2026-10-12 8:44 AM CT, Option A: hard stop at $1.00 and do not publish.
 Michael, 2026-10-16 11:35 AM CT: warn and stop both at $1.00 for the 100K ingest
 window. The site keeps yesterday's edition.
-Michael, 2026-10-16 1:29 PM CT: up to $5.00 paid across tagged fill runs to reach
-100K posts (#187). Fill spend is summed from ``tags=fill`` ledger rows
+Michael, 2026-10-16 1:29 PM CT / 2:46 PM CT: up to $15.00 paid across tagged fill
+runs to reach 100K posts (#187). Fill spend is summed from ``tags=fill`` ledger rows
 (per-call checkpoints in #186), not UTC-day boundaries. After the fill campaign
 ends, the normal UTC-day cap returns (warn then hard stop; see
 ``DAILY_STOP_AFTER_FILL_USD``).
@@ -49,12 +49,12 @@ from pipeline.costs import (
 # Michael, 2026-10-16. Warn and stop both at $1.00 while the fill campaign is open (#182).
 DAILY_WARN_USD = Decimal("1.00")
 DAILY_STOP_USD = Decimal("1.00")
-# Normal daily cap after the fill campaign ends (100K claims or $5 fill spend).
+# Normal daily cap after the fill campaign ends (100K claims or fill budget spent).
 # Michael may lower this to $0.50 once a measured 100K day is logged (#187).
 DAILY_WARN_AFTER_FILL_USD = Decimal("0.50")
 DAILY_STOP_AFTER_FILL_USD = Decimal("1.00")
 # Michael, 2026-10-16 1:29 PM CT: hard stop on total fill-tagged paid spend.
-FILL_BUDGET_TOTAL_USD = Decimal("5.00")
+FILL_BUDGET_TOTAL_USD = Decimal("15.00")
 ENV_WARN = "PERSPECTIVERSE_DAILY_SPEND_WARN"
 ENV_STOP = "PERSPECTIVERSE_DAILY_SPEND_STOP"
 ENV_FILL_RUN = "PERSPECTIVERSE_FILL_RUN"
