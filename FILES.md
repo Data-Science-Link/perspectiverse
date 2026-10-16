@@ -34,7 +34,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/settings.py` | YAML config loader |
 | `pipeline/cleaning.py` | URL, handle, and spam cleaning |
 | `pipeline/jev.py` | Jev spam (drop at 0.8), public-claim (keep at 0.5), newspaper section; 14-day verdict cache; phase-3 spam+claim batch left off |
-| `pipeline/corpus.py` | Rolling 7-day window of up to 10,000 filtered claims |
+| `pipeline/corpus.py` | Rolling 7-day window of up to 100,000 filtered claims |
 | `pipeline/store.py` | SQLite posts, fetched days, derived membership, and the `jev_verdicts` cache |
 | `pipeline/topics.py` | Up to 10 planets (MiniLM, lexical, or BERTopic), author cap, cohesion gate |
 | `pipeline/perspectives.py` | 1–6 faces and representative posts |
