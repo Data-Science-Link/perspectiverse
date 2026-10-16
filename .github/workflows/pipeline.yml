@@ -149,6 +149,8 @@ jobs:
 
       - name: Stage halted corpus before ledger git checkout
         if: failure() && steps.live.outcome == 'failure'
+        env:
+          PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
         run: |
           if [ ! -f pipeline/data/spend_cap_stop.json ]; then
             echo "Not a spend-cap stop; skipping halt corpus staging."
@@ -160,12 +162,13 @@ jobs:
       - name: Upload halted corpus to R2
         if: failure() && steps.live.outcome == 'failure'
         env:
+          PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
-          if [ ! -f /tmp/perspectiverse-halt-corpus/halt_corpus.sha256 ]; then
+          if [ ! -f "$PERSPECTIVERSE_HALT_STAGING/halt_corpus.sha256" ]; then
             echo "No halted corpus marker; skipping R2 upload."
             exit 0
           fi

@@ -12,6 +12,7 @@ import hashlib
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 from pipeline.store import connect, replace_posts
@@ -24,7 +25,9 @@ ENV_STAGING = "PERSPECTIVERSE_HALT_STAGING"
 
 def staging_root() -> Path:
     raw = (os.getenv(ENV_STAGING) or "").strip()
-    return Path(raw) if raw else Path("/tmp/perspectiverse-halt-corpus")
+    if raw:
+        return Path(raw)
+    return Path(tempfile.gettempdir()) / "perspectiverse-halt-corpus"
 
 
 def marker_path(db_dir: Path | None = None) -> Path:
