@@ -33,6 +33,10 @@ from pipeline.schema import MAX_FACES, MIN_FACES
 # minority of ~5 % is kept rather than merged into the majority face (#41).
 MIN_FACE_SHARE = 0.05
 # One post is a remark, not a group of people holding a view.
+# pipeline.stance uses this same value as the face-keep floor: when a planet
+# has two or more geometric faces and the smallest has at least this many
+# posts, those faces are not merged away before the stance sample. This is
+# not MIN_PLANET_POSTS (5), the planet floor from #79 in pipeline/grouping.py.
 MIN_FACE_POSTS = 2
 # Planet merge treats 0.72 as the same subject. Two stances of that subject
 # usually land between 0.75 and 0.88, so the face line has to sit higher.

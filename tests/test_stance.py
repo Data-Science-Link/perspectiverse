@@ -19,6 +19,8 @@ from pipeline.schema import (
     _check_stance_check,
     apply_opposing_note,
 )
+from pipeline.grouping import MIN_PLANET_POSTS
+from pipeline.perspectives import MIN_FACE_POSTS
 from pipeline.settings import STANCE_SECOND_FACE_SHARE
 from pipeline.stance import (
     apply_stance_pass,
@@ -26,6 +28,7 @@ from pipeline.stance import (
     clears_second_stance,
     cohen_kappa,
     explain_stance_failure,
+    face_keep_floor,
     parse_merge_groups,
     parse_stance_response,
     report_stance_check_failures,
@@ -38,6 +41,7 @@ from pipeline.stance import (
     spread_indexes,
     stance_check_failures,
     stance_share,
+    stratified_sample_rows,
 )
 from pipeline.story_attach import merge_alike_published_faces
 
@@ -117,11 +121,12 @@ def test_same_stance_merge_folds_different_titles_and_keeps_every_post():
 def test_iran_war_and_iran_conflict_merge_when_the_model_says_one_side():
     uris = ["a", "b", "c", "d"]
     drafted = [_face("Iran War", uris[:2]), _face("Iran Conflict", uris[2:])]
-    calls = {"n": 0}
+    calls = {"n": 0, "prompts": []}
 
     def generate(prompt: str) -> str:
         calls["n"] += 1
-        if calls["n"] == 1:
+        calls["prompts"].append(prompt)
+        if "Group these faces" in prompt:
             assert "Iran War" in prompt and "Iran Conflict" in prompt
             return json.dumps({"groups": [[0, 1]]})
         return json.dumps(
@@ -138,16 +143,27 @@ def test_iran_war_and_iran_conflict_merge_when_the_model_says_one_side():
     assert merged[0][2] == 4
     assert "opposing" not in json.dumps(merged).lower() or True
     assert calls["n"] == 2
+    assert "Group these faces" not in calls["prompts"][0]
+    assert "Group these faces" in calls["prompts"][1]
 
 
-def test_opposite_group_is_not_merged_and_skips_the_sample_call():
+def test_opposite_group_is_not_merged_after_the_stratified_sample():
     uris = ["a", "b", "c", "d"]
     drafted = [_face("Iran War", uris[:2]), _face("Stop the War", uris[2:])]
-    calls = {"n": 0}
+    calls = {"n": 0, "prompts": []}
 
-    def generate(_prompt: str) -> str:
+    def generate(prompt: str) -> str:
         calls["n"] += 1
-        return json.dumps({"groups": [[0], [1]]})
+        calls["prompts"].append(prompt)
+        if "Group these faces" in prompt:
+            return json.dumps({"groups": [[0], [1]]})
+        return json.dumps(
+            {
+                "question": "Is the war wrong?",
+                "labels": [{"i": index, "stance": "supports"} for index in range(1, 5)],
+                "second": {"stance": "opposes", "coherent": False, "title": "", "summary": ""},
+            }
+        )
 
     context = _context(stance_generate=generate)
     merged, _log = apply_stance_pass(drafted, _members(uris), context, subject="Iran")
@@ -155,7 +171,9 @@ def test_opposite_group_is_not_merged_and_skips_the_sample_call():
         item[0]["title"] for item in merged
     ) == ["Iran War", "Stop the War"]
     assert sum(item[2] for item in merged) == 4
-    assert calls["n"] == 1
+    assert calls["n"] == 2
+    assert "Group these faces" not in calls["prompts"][0]
+    assert "Group these faces" in calls["prompts"][1]
 
 
 def test_one_face_splits_when_the_sample_clears_the_configured_share():
@@ -1045,7 +1063,8 @@ def test_draft_planet_runs_the_pass_for_a_model_and_sets_the_note(monkeypatch):
     assert "opposing_note" not in planet
     assert SINGLE_VIEW_NOTE not in json.dumps(planet)
     assert planet["stance_check"] == STANCE_CHECK_INCOHERENT
-    assert calls["n"] == 2
+    # The stratified sample is already incoherent, so the merge call does not run.
+    assert calls["n"] == 1
     assert len(result["face_rows"]) == 6
     assert any("Second side not coherent" in line for line in log)
     assert any("Pre-pass faces kept (2)" in line for line in log)
@@ -1070,3 +1089,173 @@ def test_kappa_is_zero_when_agreement_equals_chance():
     left = ["supports"] * 10
     right = ["supports"] * 5 + ["opposes"] * 5
     assert cohen_kappa(left, right) == pytest.approx(0.0)
+
+
+def _labels_from_prompt(prompt: str) -> list[str]:
+    labels = []
+    for line in prompt.splitlines():
+        if ". " not in line or not line[0].isdigit():
+            continue
+        text = line.split(". ", 1)[1]
+        labels.append("opposes" if text.startswith("not genocide") else "supports")
+    return labels
+
+
+def _stance_reply(labels: list[str], *, title: str = "Not Genocide") -> str:
+    return json.dumps(
+        {
+            "question": "Is this genocide?",
+            "labels": [{"i": index + 1, "stance": label} for index, label in enumerate(labels)],
+            "second": {
+                "stance": "opposes",
+                "coherent": True,
+                "title": title,
+                "summary": "These posts say it is not genocide.",
+            },
+        }
+    )
+
+
+def test_face_keep_floor_is_min_face_posts_not_the_planet_floor():
+    """The new floor is MIN_FACE_POSTS = 2 in pipeline/perspectives.py, not #79's 5."""
+    assert MIN_FACE_POSTS == 2
+    assert MIN_PLANET_POSTS == 5
+    assert STANCE_SECOND_FACE_SHARE == 0.10
+    assert face_keep_floor([_face("Major", ["a", "b", "c"]), _face("Minor", ["d", "e"])]) is True
+    assert face_keep_floor([_face("Major", [f"a{i}" for i in range(10)]), _face("Minor", ["b"])]) is False
+    four = [_face("Major", [f"a{i}" for i in range(10)]), _face("Minor", [f"b{i}" for i in range(4)])]
+    assert face_keep_floor(four) is True
+    assert face_keep_floor([_face("Only", ["a", "b"])]) is False
+
+
+def test_stratified_sample_includes_every_post_of_a_small_geometric_face():
+    majority = [(f"m{index}", 0, index) for index in range(140)]
+    minority = [(f"n{index}", 1, 0.5) for index in range(12)]
+    drafted = [({"title": "Major"}, majority, len(majority)), ({"title": "Minor"}, minority, len(minority))]
+    sample = stratified_sample_rows(drafted, seed=0)
+    uris = [row[0] for row in sample]
+    assert len(sample) == 100
+    assert sum(uri.startswith("n") for uri in uris) == 12
+    repeated = stratified_sample_rows(drafted, seed=0)
+    assert [row[0] for row in repeated] == uris
+    drawn = stratified_sample_rows(drafted, seed=3)
+    again = stratified_sample_rows(drafted, seed=3)
+    assert [row[0] for row in drawn] == [row[0] for row in again]
+    assert sum(row[0].startswith("n") for row in drawn) == 12
+
+
+def test_geometric_minority_is_kept_when_the_stratified_sample_clears_ten_percent():
+    majority_uris = [f"m{index}" for index in range(90)]
+    minority_uris = [f"n{index}" for index in range(12)]
+    drafted = [
+        _face("Israel Genocide", majority_uris),
+        _face("Israel Defense", minority_uris),
+    ]
+    members = [_post(uri, "The posts call this genocide.") for uri in majority_uris]
+    members.extend(_post(uri, "not genocide, the war is not that.") for uri in minority_uris)
+    prompts: list[str] = []
+
+    def generate(prompt: str) -> str:
+        prompts.append(prompt)
+        assert "Group these faces" not in prompt
+        labels = _labels_from_prompt(prompt)
+        assert len(labels) == 100
+        assert labels.count("opposes") == 12
+        return _stance_reply(labels)
+
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass(drafted, members, context, subject="Gaza", terms=["gaza"])
+    assert [item[0]["title"] for item in merged] == ["Israel Genocide", "Israel Defense"]
+    assert [item[2] for item in merged] == [90, 12]
+    assert context["stance_last"]["geometric_kept"] is True
+    assert context["stance_last"]["stratified"] is True
+    assert context["stance_last"]["threshold"] == 0.10
+    assert context["stance_last"]["share"] == pytest.approx(0.12)
+    assert context.get("stance_check_incoherent") is not True
+    assert len(prompts) == 1
+    assert "MIN_FACE_POSTS 2" in " ".join(log)
+    assert "pipeline/perspectives.py" in " ".join(log)
+    assert any("2 face(s) -> 2" in line for line in log)
+
+
+def test_a_stratified_sample_under_ten_percent_still_merges():
+    majority_uris = [f"m{index}" for index in range(146)]
+    minority_uris = [f"n{index}" for index in range(5)]
+    drafted = [
+        _face("Israel Genocide", majority_uris),
+        _face("Israel Defense", minority_uris),
+    ]
+    members = [_post(uri, "The posts call this genocide.") for uri in majority_uris]
+    members.extend(_post(uri, "not genocide, the war is not that.") for uri in minority_uris)
+    prompts: list[str] = []
+
+    def generate(prompt: str) -> str:
+        prompts.append(prompt)
+        if "Group these faces" in prompt:
+            return json.dumps({"groups": [[0, 1]]})
+        labels = _labels_from_prompt(prompt)
+        assert labels.count("opposes") == 5
+        assert len(labels) == 100
+        return _stance_reply(labels)
+
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass(drafted, members, context, subject="Gaza", terms=["gaza"])
+    assert len(merged) == 1
+    assert merged[0][2] == 151
+    assert context["stance_last"]["geometric_kept"] is False
+    assert context["stance_last"]["share"] == pytest.approx(0.05)
+    assert context["stance_last"]["threshold"] == 0.10
+    assert len(prompts) == 2
+    assert "Group these faces" not in prompts[0]
+    assert "Group these faces" in prompts[1]
+    assert any("2 face(s) -> 1" in line for line in log)
+    assert "Geometric faces kept" not in " ".join(log)
+
+
+def test_a_one_post_minority_is_below_the_face_keep_floor_and_merges_first():
+    uris = [f"p{index}" for index in range(9)]
+    drafted = [_face("Israel Genocide", uris[:8]), _face("Aside", uris[8:])]
+    prompts: list[str] = []
+
+    def generate(prompt: str) -> str:
+        prompts.append(prompt)
+        if "Group these faces" in prompt:
+            return json.dumps({"groups": [[0, 1]]})
+        return json.dumps(
+            {
+                "question": "Is this genocide?",
+                "labels": [{"i": index, "stance": "supports"} for index in range(1, 10)],
+                "second": {"stance": "opposes", "coherent": False, "title": "", "summary": ""},
+            }
+        )
+
+    context = _context(stance_generate=generate)
+    merged, _log = apply_stance_pass(drafted, _members(uris), context, subject="Gaza")
+    assert len(merged) == 1
+    assert "Group these faces" in prompts[0]
+
+
+def test_two_post_minority_on_a_small_planet_clears_the_unchanged_share():
+    """Two posts is the face-keep floor. It is not the 5-post planet floor."""
+    majority_uris = [f"m{index}" for index in range(18)]
+    minority_uris = ["n0", "n1"]
+    drafted = [_face("Israel Genocide", majority_uris), _face("Israel Defense", minority_uris)]
+    members = [_post(uri, "The posts call this genocide.") for uri in majority_uris]
+    members.extend(_post(uri, "not genocide, the war is not that.") for uri in minority_uris)
+    prompts: list[str] = []
+
+    def generate(prompt: str) -> str:
+        prompts.append(prompt)
+        labels = _labels_from_prompt(prompt)
+        assert len(labels) == 20
+        assert labels.count("opposes") == 2
+        return _stance_reply(labels)
+
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass(drafted, members, context, subject="Gaza", terms=["gaza"])
+    assert [item[0]["title"] for item in merged] == ["Israel Genocide", "Israel Defense"]
+    assert context["stance_last"]["share"] == pytest.approx(0.10)
+    assert context["stance_last"]["minority_posts"] == MIN_FACE_POSTS
+    assert MIN_FACE_POSTS < MIN_PLANET_POSTS
+    assert len(prompts) == 1
+    assert "Geometric faces kept" in " ".join(log)
