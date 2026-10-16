@@ -225,6 +225,13 @@ def warn_usd() -> Decimal:
 
 
 def stop_usd() -> Decimal:
+    """Hard stop checked before the next paid call.
+
+    A fill run (``PERSPECTIVERSE_FILL_RUN``) stops at ``FILL_BUDGET_TOTAL_USD``
+    ($15), summed across every fill-tagged ledger row. The $1 UTC-day stop
+    applies only when this process is not a fill run. Passing $1 on a fill
+    run warns; it does not halt.
+    """
     if is_fill_run():
         limit = FILL_BUDGET_TOTAL_USD
     else:

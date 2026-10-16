@@ -36,6 +36,7 @@ from pipeline.spend_cap import (
     fill_campaign_complete,
     fill_paid_usd,
     guard_before_paid_call,
+    is_fill_run,
     hold_edition,
     record_partial_ledger,
     stop_usd,
@@ -1108,6 +1109,36 @@ def test_fill_cap_sums_tagged_ledger_across_utc_days(tmp_path, monkeypatch):
         _attempt(cost_usd=Decimal("3.01"))
     assert caught.value.spent_usd == Decimal("15.01")
     assert FILL_BUDGET_TOTAL_USD == Decimal("15.00")
+
+
+def test_fill_run_hard_stop_is_the_15_dollar_total(tmp_path, monkeypatch):
+    """A fill run that is already past $1 keeps calling. The hard stop is $15."""
+    from pipeline.spend_cap import day_paid_usd
+
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-past-daily",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="1.50",
+                day=today,
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    assert is_fill_run()
+    assert stop_usd() == FILL_BUDGET_TOTAL_USD == Decimal("15.00")
+    guard_before_paid_call("Jev")
+    _attempt(cost_usd=Decimal("0.10"))
+    assert day_paid_usd() == Decimal("1.60")
 
 
 def test_fill_dispatch_refused_when_corpus_full_or_fill_spent(monkeypatch, tmp_path):
