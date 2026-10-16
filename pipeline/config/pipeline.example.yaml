@@ -5,7 +5,7 @@
 # evicts the oldest claims until the total is back at this ceiling.
 window_hours: 168
 refresh_hours: 24
-sample_size: 10000
+sample_size: 100000
 
 # Smallest group that can be a planet. Tuned on the 10K corpus: 5 puts most
 # posts that sit near a center into a group; 8 leaves just under half. The

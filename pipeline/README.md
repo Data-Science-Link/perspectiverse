@@ -1,6 +1,6 @@
 # Data Engineering Pipeline
 
-Daily job: keep a rolling 7-day window of up to 10,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check. Non-claims stay in the SQLite file and do not count toward that 10,000. Cluster up to 10 planets and 1–6 faces, generate names and a short steelman per face, and write `public/data.json`. If search cannot fill 10,000 claims, the run keeps the shortfall and logs it.
+Daily job: keep a rolling 7-day window of up to 100,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check. Non-claims stay in the SQLite file and do not count toward that 100,000. Cluster up to 10 planets and 1–6 faces, generate names and a short steelman per face, and write `public/data.json`. If search cannot fill 100,000 claims, the run keeps the shortfall and logs it.
 
 The 2026-09-28 audit of the synthetic era is in [Pipeline Audit 2026-09-28](../project_documentation/Pipeline%20Audit%202026-09-28.md).
 
@@ -42,7 +42,7 @@ Copy the repo-root `.env.example` to `.env`. The CLI loads it on start without o
 
 | Path | Kind | Contents |
 | --- | --- | --- |
-| `live_corpus.db` → `posts` | retained window | Up to 10,000 filtered claims, plus non-claims that were fetched with them |
+| `live_corpus.db` → `posts` | retained window | Up to 100,000 filtered claims, plus non-claims that were fetched with them |
 | `live_corpus.db` → `fetched_days` | ledger | UTC dates already searched, so those days are not pulled again |
 | `live_corpus.db` → `topic_membership` | derived | planet id per kept post |
 | `live_corpus.db` → `perspectives` | derived | face index and centroid distance |
@@ -90,7 +90,7 @@ The daily workflow runs `--live` and publishes a new snapshot. It does not commi
 
 A run does not replace that live `data.json` when labeling failures degraded it: section planets fell by more than a small margin (the larger of 3 and 5% of the live count), or the wide face relabel was left unfinished in most sections, and DeepInfra final failures or retries-plus-finals are over 5% of calls. A real day with fewer planets and a healthy labeler still publishes. The cost ledger can still be updated. The workflow step then fails so Pages does not treat the run as a successful deploy. See `pipeline/publish_guard.py`.
 
-A run also stops without publishing when paid calls for the UTC day reach $1.00. The total is labeling, Jev, and top-ups, across every run that day (scheduled, push, and manual). At $0.50 the log prints a warning and a GitHub Actions `::warning` annotation, and the run continues. At $1.00 it exits 14 before writing `data.json`. The workflow does not deploy. It may append the cost ledger on `data-snapshot` so a later run the same day counts the stopped spend; `public/data.json` is not replaced. See `pipeline/spend_cap.py`.
+A run also stops without publishing when paid calls for the UTC day reach $1.00. The total is labeling, Jev, and top-ups, across every run that day (scheduled, push, and manual). At $1.00 the log prints a warning and a GitHub Actions `::warning` annotation, then exits 14 before writing `data.json`. The workflow does not deploy. It may append the cost ledger on `data-snapshot` so a later run the same day counts the stopped spend; `public/data.json` is not replaced. See `pipeline/spend_cap.py`.
 
 The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` and `costs/daily_spend_14d.svg` on `data-snapshot` (one row per paid service and model, including Cloudflare R2). Each row includes `trigger` (`schedule`, `push`, `workflow_dispatch`, or backfilled from GitHub Actions) so the chart can stack production spend above merge- and test-triggered spend on the same day (#101). Those files are not under `public/`, so Pages does not deploy them. A cost-log error is a warning and does not stop the snapshot.
 
@@ -132,7 +132,7 @@ R2's free tier includes 10 GB. This file stays under a gigabyte.
 
 ## Layout
 
-- `config/pipeline.example.yaml` — window, 10,000-claim target, neutral search tokens
+- `config/pipeline.example.yaml` — window, 100,000-claim target, neutral search tokens
 - `settings.py` — loads the example, then `pipeline.yaml` if you created one
 - `data_sources/extract_bluesky.py` — Bluesky extract with host fallback
 - `cleaning.py`, `jev_prefilter.py`, `jev.py`, `corpus.py`, `store.py` — regex, free pre-filter, Jev decisions, 7-day window, SQLite (`jev_verdicts` cache, #92)

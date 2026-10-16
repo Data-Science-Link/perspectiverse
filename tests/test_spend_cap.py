@@ -1,4 +1,4 @@
-"""Daily spend cap: warn at $0.50, stop at $1.00, do not publish (#148)."""
+"""Daily spend cap: warn and hard stop at $1.00 UTC-day total, do not publish (#148, #182)."""
 
 from __future__ import annotations
 
@@ -79,32 +79,58 @@ def _ledger_row(*, run_id: str, trigger: str, service: str, cost: str, day: date
 
 
 def test_defaults_are_the_production_thresholds():
-    assert DAILY_WARN_USD == Decimal("0.50")
+    assert DAILY_WARN_USD == Decimal("1.00")
     assert DAILY_STOP_USD == Decimal("1.00")
     assert STOP_EXIT == 14
 
 
 def test_warn_threshold_logs_and_annotation(capsys):
-    _attempt(cost_usd=Decimal("0.49"))
+    _attempt(cost_usd=Decimal("0.99"))
     captured = capsys.readouterr()
     assert "::warning::" not in captured.out
     assert "WARNING:" not in captured.err
 
-    _attempt(cost_usd=Decimal("0.01"))
+    with pytest.raises(SpendCapExceeded):
+        _attempt(cost_usd=Decimal("0.01"))
     captured = capsys.readouterr()
     assert "::warning::" in captured.out
-    assert "Daily spend reached $0.50" in captured.out
-    assert "warn $0.50" in captured.out
+    assert "Daily spend reached $1.00" in captured.out
+    assert "warn $1.00" in captured.out
     assert "stop $1.00" in captured.out
-    assert "WARNING: Daily spend reached $0.50" in captured.err
-
-    _attempt(cost_usd=Decimal("0.01"))
-    captured = capsys.readouterr()
-    assert "::warning::" not in captured.out
-    assert len(get_meter().attempts()) == 3
+    assert "WARNING: Daily spend reached $1.00" in captured.err
+    assert "::error::" in captured.out
+    assert len(get_meter().attempts()) == 2
 
 
-def test_stop_threshold_raises_and_keeps_the_call_on_the_meter(capsys):
+def test_prior_same_day_ledger_at_stop_halts_before_first_paid_call(tmp_path, monkeypatch):
+    """Earlier runs today already at $1.00: no paid call in this process."""
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(run_id="38894377011", trigger="schedule", service=SERVICE_JEV, cost="0.60", day=today),
+            _ledger_row(
+                run_id="38930594047",
+                trigger="push",
+                service=SERVICE_DEEPINFRA,
+                cost="0.40",
+                day=today,
+            ),
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    with pytest.raises(SpendCapExceeded) as caught:
+        enforce_before_paid_work()
+    assert caught.value.spent_usd == Decimal("1.00")
+    with pytest.raises(SpendCapExceeded):
+        guard_before_paid_call("labeling")
+    assert len(get_meter().attempts()) == 0
+
+
+def test_mid_run_crossing_stop_halts_before_next_paid_call(capsys):
     _attempt(cost_usd=Decimal("0.99"))
     capsys.readouterr()
     with pytest.raises(SpendCapExceeded) as caught:
@@ -158,11 +184,14 @@ def test_cross_run_accumulation_counts_every_trigger_and_skips_r2(tmp_path, monk
     reset_meter()
     enforce_before_paid_work()
     captured = capsys.readouterr()
-    assert "::warning::" in captured.out
-    assert "$0.90" in captured.out
+    assert "::warning::" not in captured.out
     with pytest.raises(SpendCapExceeded) as caught:
         _attempt(cost_usd=Decimal("0.10"))
     assert caught.value.spent_usd == Decimal("1.00")
+    assert "::error::" in capsys.readouterr().out
+    assert len(get_meter().attempts()) == 1
+    with pytest.raises(SpendCapExceeded):
+        guard_before_paid_call("Jev")
     assert len(get_meter().attempts()) == 1
 
 

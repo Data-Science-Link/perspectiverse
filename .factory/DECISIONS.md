@@ -544,3 +544,11 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** On the Oct 15 run, #158 cut planets dropped with no reader note from 13 to 0, and no real side was lost. Counting pending keeps as failures made the failure count unreadable: all 7 "failed" planets were pending keeps. Two paid passes on Oct 15 brought spend to about $0.505. #176's "Closes #106" auto-closed the ledger. At a 0.1% cache hit rate, 100K posts would cost about $2 a day.
 - **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
 - **Revisit:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit (c) if a merge ever needs a same-day fresh edition.
+
+### 2026-10-16: $1/day hard cost cap, no planet cap, scale to 100K posts
+- **Decision:** The daily cost cap is $1. It's a hard stop that adds up every run in the UTC day (scheduled, merge and rerun runs), and it supersedes the 2026-10-09 "under $0.50/day" bar as a planning target. Warn and stop both sit at $1.00 so the halt is unambiguous. The factory should get daily runs to about 100K posts. Michael did not add a planet-count halt; the existing per-solar-system `catalog_size: 10` display ceiling is unchanged.
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 11:36 AM CT; Giver revised draft: https://github.com/Data-Science-Link/perspectiverse/issues/106#issuecomment-6220140069
+- **Why:** Michael wants a bigger sample for judging how good the planet and perspective groupings are. Under the prior thresholds, the $0.50 warn only logged; the $1.00 stop is what halted the run.
+- **Alternatives:** A 300-planet cap (dropped by Michael). A $1 warning with a higher hard stop (not chosen). Keeping $0.50 (rejected, since it delays the quality read).
+- **Revisit when:** If 100K runs keep getting stopped at $1 (the short-day projection is about $1.55), or once the quality read is done.
+- **Done bar:** Real daily runs near 100K posts at $1 a day or less, plus Michael's read on grouping quality. Before any 100K run, two tests must show the stop halting a run: one that starts with the day already at $1, and one that crosses $1 partway through.
