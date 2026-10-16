@@ -350,6 +350,129 @@ def test_workflow_stops_publish_unless_the_live_step_succeeds():
     assert "steps.live.outcome == 'success'" in text
 
 
+def _heuristic_config(path: Path) -> Path:
+    path.write_text(
+        "\n".join(
+            [
+                "min_cluster_size: 8",
+                "cluster_backend: lexical",
+                "label_backend: heuristic",
+                "sample_size: 200",
+                "window_hours: 168",
+                "representative_posts: 12",
+                "seed: 0",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_spend_cap_halt_persists_corpus_without_publishing(tmp_path, monkeypatch):
+    """Mid-labeling stop keeps scored posts in SQLite; data.json is untouched."""
+    import sqlite3
+
+    from tests.corpus import build_tiny_posts
+
+    fixture = tmp_path / "posts.json"
+    scored = [
+        {
+            **post,
+            "is_claim": True,
+            "section": "Politics",
+            "section_confidence": 0.9,
+        }
+        for post in build_tiny_posts()
+    ]
+    fixture.write_text(json.dumps(scored), encoding="utf-8")
+    config = _heuristic_config(tmp_path / "pipeline.yaml")
+    database = tmp_path / "live_corpus.db"
+    edition = tmp_path / "data.json"
+    edition.write_text('{"edition":"yesterday"}\n', encoding="utf-8")
+    before_edition = edition.read_bytes()
+
+    def halt_during_labeling(*_args, **_kwargs):
+        raise SpendCapExceeded("stop", spent_usd=Decimal("1.00"))
+
+    monkeypatch.setattr("pipeline.live._build_topics", halt_during_labeling)
+    with pytest.raises(SystemExit) as caught:
+        main(
+            [
+                "--live",
+                "--fixture",
+                str(fixture),
+                "--config",
+                str(config),
+                "--output",
+                str(edition),
+                "--db",
+                str(database),
+            ]
+        )
+    assert caught.value.code == 14
+    assert edition.read_bytes() == before_edition
+    connection = sqlite3.connect(database)
+    assert connection.execute("SELECT COUNT(*) FROM posts").fetchone()[0] == len(scored)
+    assert connection.execute("SELECT COUNT(*) FROM topic_membership").fetchone()[0] == 0
+    connection.close()
+
+
+def test_spend_cap_halt_next_run_does_not_rescore_jev(tmp_path, monkeypatch):
+    """A halted run's Jev verdicts are reused; no new paid Jev calls on the next pass."""
+    from datetime import datetime, timezone
+
+    from pipeline.jev import apply_jev, reset_jev_state
+    from pipeline.store import connect, load_posts, record_fetched_days, replace_posts
+    from tests.test_jev import _answer
+
+    reset_jev_state()
+    database = tmp_path / "live_corpus.db"
+    connection = connect(database)
+    post = {
+        "uri": "at://fixture/paid/1",
+        "author": "reader",
+        "text": "City council should fund more buses instead of widening the highway again.",
+        "clean_text": "City council should fund more buses instead of widening the highway again.",
+        "likes": 3,
+        "created_at": "2026-10-16T12:00:00Z",
+    }
+    replace_posts(connection, [post])
+    record_fetched_days(
+        connection,
+        ["2026-10-16"],
+        fetched_at=datetime(2026, 10, 16, tzinfo=timezone.utc).isoformat(),
+        kept=1,
+    )
+    connection.close()
+
+    paid_calls = {"n": 0}
+
+    def fake(url, **kwargs):
+        paid_calls["n"] += 1
+        return _answer(0.1, "Politics", claim=0.9)
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+
+    connection = connect(database)
+    scored = apply_jev([post], connection=connection)
+    assert paid_calls["n"] == 1
+    assert scored[0].get("section") == "Politics"
+
+    from pipeline.corpus_persist import persist_paid_corpus
+
+    persist_paid_corpus(connection, scored, db_path=database)
+    connection.close()
+
+    paid_calls["n"] = 0
+    connection = connect(database)
+    kept = load_posts(connection)
+    assert kept[0].get("section") == "Politics"
+    apply_jev(kept, connection=connection)
+    connection.close()
+    assert paid_calls["n"] == 0
+
+
 def test_over_cap_e2e_halts_before_publish():
     script = Path("scripts/spend_cap_over_cap_e2e.py")
     result = subprocess.run(

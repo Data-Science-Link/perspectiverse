@@ -41,6 +41,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/label.py` | Ollama, OpenAI-compatible (DeepInfra), or heuristic titles |
 | `pipeline/costs.py` | Thread-safe meter for DeepInfra and Jev spend; cache-hit and pre-filter counts; weekly ledger on `data-snapshot`; retried calls and final failures are separate columns |
 | `pipeline/spend_cap.py` | Daily paid-call cap: warn and hard stop at $1.00 UTC-day total, keep yesterday's `data.json` (#148, #182) |
+| `pipeline/corpus_persist.py` | Save retained corpus and Jev cache when a spend-cap halt stops before publish (#185) |
 | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade a run; a quiet day with fewer planets still publishes |
 | `pipeline/pipeline_overlap.py` | GitHub API check for a queued or in-progress Daily Discourse Pipeline run |
 | `pipeline/jev_prefilter.py` | Free pre-filter before Jev: short posts, non-English, link-only, near-duplicates |

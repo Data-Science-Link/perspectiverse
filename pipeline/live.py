@@ -135,6 +135,8 @@ def run_live(
     connection = connect(database)
     from pipeline.spend_cap import SpendCapExceeded, enforce_before_paid_work
 
+    cleaned: list[dict] | None = None
+    source = "bluesky"
     try:
         enforce_before_paid_work()
         existing = load_posts(connection)
@@ -245,6 +247,9 @@ def run_live(
             )
         write_clusters(connection, membership, face_rows)
     except SpendCapExceeded as exc:
+        from pipeline.corpus_persist import persist_paid_corpus
+
+        persist_paid_corpus(connection, cleaned, db_path=database)
         _abort_for_spend_cap(started_at, exc)
         raise
     finally:
@@ -268,7 +273,10 @@ def run_live(
 
 
 def _abort_for_spend_cap(started_at: datetime, exc: SpendCapExceeded) -> None:
-    """Write the cost run and stop marker. Do not write ``data.json``."""
+    """Write the cost run and stop marker. Do not write ``data.json``.
+
+    The retained corpus should already be saved by ``persist_paid_corpus``.
+    """
     print(
         "Daily spend cap halted the pipeline before publish. "
         "Yesterday's edition stays.",

@@ -397,9 +397,13 @@ def test_daily_workflow_uploads_only_after_a_successful_run():
     pages = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
     assert "python -m pipeline.r2 restore pipeline/data/live_corpus.db" in workflow
     assert "python -m pipeline.r2 upload pipeline/data/live_corpus.db" in workflow
-    upload_step = workflow.index("name: Upload corpus to R2")
-    upload_command = workflow.index("python -m pipeline.r2 upload")
+    upload_step = workflow.index("name: Upload corpus to R2\n")
+    upload_command = workflow.index("python -m pipeline.r2 upload", upload_step)
     assert "steps.live.outcome == 'success'" in workflow[upload_step:upload_command]
+    halt_step = workflow.index("name: Upload corpus to R2 after spend cap halt")
+    halt_window = workflow[halt_step : halt_step + 800]
+    assert "pipeline/data/spend_cap_stop.json" in halt_window
+    assert "python -m pipeline.r2 upload pipeline/data/live_corpus.db" in halt_window
     publish_at = workflow.index("Publish data-snapshot branch")
     publish_window = workflow[publish_at : publish_at + 500]
     assert "steps.r2upload.outcome == 'success'" in publish_window

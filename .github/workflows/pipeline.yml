@@ -162,6 +162,21 @@ jobs:
           echo "::error::Daily spend cap stopped the run. Yesterday's edition was not published."
           exit 1
 
+      - name: Upload corpus to R2 after spend cap halt
+        if: failure() && steps.live.outcome == 'failure'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ ! -f pipeline/data/spend_cap_stop.json ]; then
+            echo "Not a spend-cap stop; skipping R2 upload."
+            exit 0
+          fi
+          source .venv/bin/activate
+          python -m pipeline.r2 upload pipeline/data/live_corpus.db
+
       - name: Upload corpus to R2
         id: r2upload
         if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success'
