@@ -516,6 +516,8 @@ def _classify_many(
 
                     if isinstance(exc, SpendCapExceeded):
                         halted = exc
+                        for pending in future_map:
+                            pending.cancel()
                         continue
                     raise
                 _record(uri, decision)

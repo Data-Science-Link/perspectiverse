@@ -436,13 +436,141 @@ def test_jev_cache_workflow_uses_explicit_restore_and_save():
     steps = _pipeline_workflow_steps()
     restore = next(step for step in steps if step.get("name") == "Restore Jev verdict cache")
     save = next(step for step in steps if step.get("name") == "Save Jev verdict cache")
+    live_at = next(index for index, step in enumerate(steps) if step.get("id") == "live")
+    restore_at = steps.index(restore)
+    save_at = steps.index(save)
+    assert restore_at < live_at < save_at
     assert restore["uses"] == "actions/cache/restore@v4"
     assert save["uses"] == "actions/cache/save@v4"
     assert "always()" in save["if"]
     assert restore["with"]["key"] == save["with"]["key"]
     assert restore["with"]["key"].endswith("github.run_id }}")
+    assert "jev-verdict-cache-" in save["with"]["restore-keys"]
     workflow_text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
     assert "save-always" not in workflow_text
+
+
+def test_cancelled_live_stages_corpus_and_uploads_to_r2():
+    steps = _pipeline_workflow_steps()
+    names = [step.get("name") for step in steps]
+    live_at = next(index for index, step in enumerate(steps) if step.get("id") == "live")
+    save_at = names.index("Save Jev verdict cache")
+    stage_at = names.index("Stage corpus after cancelled live")
+    upload_at = names.index("Upload corpus to R2 after cancelled live")
+    assert live_at < save_at < stage_at < upload_at
+    assert "steps.live.outcome == 'cancelled'" in steps[stage_at]["if"]
+    assert "corpus_persist upload-staged" in steps[upload_at]["run"]
+
+
+def _write_cost_run(path: Path, *, run_id: str, cost: str, day: date | None = None) -> None:
+    when = day or date(2026, 10, 16)
+    path.write_text(
+        json.dumps(
+            {
+                "rows": [
+                    _ledger_row(
+                        run_id=run_id,
+                        trigger="push",
+                        service=SERVICE_DEEPINFRA,
+                        cost=cost,
+                        day=when,
+                    )
+                ],
+                "run_id": run_id,
+                "run_started_utc": f"{when.isoformat()}T12:00:00Z",
+                "date_utc": when.isoformat(),
+                "trigger": "push",
+            },
+            default=str,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _init_data_snapshot_remote(tmp_path: Path) -> tuple[Path, Path]:
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "--bare", "-b", "main", str(remote)], check=True, capture_output=True)
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    _git(seed, "init", "-b", "main")
+    _git(seed, "config", "user.email", "dev@example.com")
+    _git(seed, "config", "user.name", "Spend Cap Test")
+    _git(seed, "remote", "add", "origin", str(remote))
+    (seed / "README").write_text("main\n", encoding="utf-8")
+    _git(seed, "add", "README")
+    _git(seed, "commit", "-m", "main")
+    _git(seed, "push", "-u", "origin", "main")
+    _git(seed, "checkout", "-b", "data-snapshot")
+    public = seed / "public"
+    public.mkdir()
+    (public / "data.json").write_text('{"edition":"yesterday"}\n', encoding="utf-8")
+    costs = seed / "costs"
+    costs.mkdir()
+    (costs / "ledger.csv").write_text(
+        "run_id,run_started_utc,date_utc,trigger,service,model,calls,failed_calls,"
+        "input_tokens,output_tokens,cost_usd,cost_source,posts_processed,planets_published\n",
+        encoding="utf-8",
+    )
+    _git(seed, "add", "public/data.json", "costs/ledger.csv")
+    _git(seed, "commit", "-m", "snapshot")
+    _git(seed, "push", "-u", "origin", "data-snapshot")
+    _git(seed, "checkout", "main")
+    return remote, seed
+
+
+def _clone_snapshot(tmp_path: Path, remote: Path, name: str) -> Path:
+    clone = tmp_path / name
+    subprocess.run(["git", "clone", str(remote), str(clone)], check=True, capture_output=True)
+    _git(clone, "config", "user.email", "dev@example.com")
+    _git(clone, "config", "user.name", "Spend Cap Test")
+    _git(clone, "checkout", "main")
+    return clone
+
+
+def test_two_clones_push_both_run_rows_after_push_retry(tmp_path, monkeypatch):
+    """Clone A and B both land on the remote ledger when B's first push is rejected."""
+    from pipeline.spend_cap import record_partial_ledger
+
+    remote, _seed = _init_data_snapshot_remote(tmp_path)
+    repo_a = _clone_snapshot(tmp_path, remote, "clone-a")
+    repo_b = _clone_snapshot(tmp_path, remote, "clone-b")
+    cost_a = tmp_path / "run-a.json"
+    cost_b = tmp_path / "run-b.json"
+    _write_cost_run(cost_a, run_id="run-a", cost="0.21")
+    _write_cost_run(cost_b, run_id="run-b", cost="0.33")
+
+    assert record_partial_ledger(repo_a, push=True, cost_run=cost_a) == 0
+
+    import pipeline.spend_cap as spend_cap_module
+
+    original_git = spend_cap_module._git
+    push_attempts = {"b": 0}
+
+    def fake_git(repo: Path, *args: str, check: bool = True):
+        if (
+            Path(repo).resolve() == repo_b.resolve()
+            and args
+            and args[0] == "push"
+            and push_attempts["b"] == 0
+        ):
+            push_attempts["b"] += 1
+            return subprocess.CompletedProcess(args, 1, b"", b"rejected")
+        return original_git(repo, *args, check=check)
+
+    monkeypatch.setattr(spend_cap_module, "_git", fake_git)
+    assert record_partial_ledger(repo_b, push=True, cost_run=cost_b) == 0
+    assert push_attempts["b"] == 1
+
+    _git(repo_a, "fetch", "origin", "data-snapshot")
+    ledger = subprocess.run(
+        ["git", "show", "origin/data-snapshot:costs/ledger.csv"],
+        cwd=repo_a,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "run-a" in ledger
+    assert "run-b" in ledger
 
 
 def test_partial_ledger_step_runs_before_hold_edition():

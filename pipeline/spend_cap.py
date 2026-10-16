@@ -305,25 +305,7 @@ def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProc
     )
 
 
-def _push_data_snapshot(repo: Path, *, attempts: int = 4) -> int:
-    """Push ``data-snapshot``, rebasing on concurrent updates when needed."""
-    branch = "data-snapshot"
-    for attempt in range(attempts):
-        pushed = _git(repo, "push", "origin", branch, check=False)
-        if pushed.returncode == 0:
-            return 0
-        fetched = _git(repo, "fetch", "origin", branch, check=False)
-        if fetched.returncode != 0:
-            return pushed.returncode
-        rebased = _git(repo, "pull", "--rebase", "origin", branch, check=False)
-        if rebased.returncode != 0:
-            _git(repo, "rebase", "--abort", check=False)
-            merged = _git(repo, "merge", "--no-edit", f"origin/{branch}", check=False)
-            if merged.returncode != 0:
-                _git(repo, "merge", "--abort", check=False)
-        if attempt + 1 < attempts:
-            time.sleep(min(16, 2**attempt))
-    return 1
+PUSH_RETRY = 2
 
 
 def _sha256(payload: bytes) -> str:
@@ -433,13 +415,49 @@ def _commit_ledger_only(
         print(f"{log_prefix}: edition sha256 after {_sha256(after)} unchanged")
 
     if push and names:
-        if _push_data_snapshot(repo) != 0:
-            print(f"::error::{log_prefix} could not push data-snapshot after retries.", file=sys.stderr)
-            return 1
+        pushed = _git(repo, "push", "origin", "data-snapshot", check=False)
+        if pushed.returncode != 0:
+            return PUSH_RETRY
         print(f"{log_prefix}: pushed the cost ledger only.")
     elif names:
         print(f"{log_prefix}: cost ledger committed locally; push not requested.")
     return 0
+
+
+def _commit_ledger_with_push_retry(
+    repo: Path,
+    run_file: Path,
+    *,
+    push: bool,
+    commit_message: str,
+    log_prefix: str,
+    attempts: int = 4,
+) -> int:
+    """Stage from ``cost_run``, commit on ``data-snapshot``, and push with reset retries."""
+    repo = Path(repo).resolve()
+    run_file = Path(run_file)
+    for attempt in range(attempts):
+        staged = _stage_ledger_from_cost_run(repo, run_file)
+        if staged is None:
+            return 1
+        present, before = staged
+        if not present:
+            print(f"{log_prefix}: no new cost rows. Edition unchanged.")
+            return 0
+        status = _commit_ledger_only(
+            repo,
+            present,
+            before,
+            push=push,
+            commit_message=commit_message,
+            log_prefix=log_prefix,
+        )
+        if status != PUSH_RETRY:
+            return status
+        if attempt + 1 < attempts:
+            time.sleep(min(16, 2**attempt))
+    print(f"::error::{log_prefix} could not push data-snapshot after retries.", file=sys.stderr)
+    return 1
 
 
 def record_partial_ledger(repo: Path, *, push: bool = False, cost_run: Path | None = None) -> int:
@@ -450,17 +468,9 @@ def record_partial_ledger(repo: Path, *, push: bool = False, cost_run: Path | No
     """
     repo = Path(repo).resolve()
     run_file = Path(cost_run) if cost_run is not None else repo / "pipeline" / "data" / "cost_run.json"
-    staged = _stage_ledger_from_cost_run(repo, run_file)
-    if staged is None:
-        return 1
-    present, before = staged
-    if not present:
-        print("Partial ledger: no paid calls to record.")
-        return 0
-    return _commit_ledger_only(
+    return _commit_ledger_with_push_retry(
         repo,
-        present,
-        before,
+        run_file,
         push=push,
         commit_message="Record partial spend from an interrupted pipeline run",
         log_prefix="Partial ledger",
@@ -482,14 +492,9 @@ def hold_edition(repo: Path, *, push: bool = False, cost_run: Path | None = None
         print("Spend cap hold: no stop marker; not touching data-snapshot.", file=sys.stderr)
         return 1
     run_file = Path(cost_run) if cost_run is not None else repo / "pipeline" / "data" / "cost_run.json"
-    staged = _stage_ledger_from_cost_run(repo, run_file)
-    if staged is None:
-        return STOP_EXIT
-    present, before = staged
-    status = _commit_ledger_only(
+    status = _commit_ledger_with_push_retry(
         repo,
-        present,
-        before,
+        run_file,
         push=push,
         commit_message="Record spend from a capped run; keep the previous discourse edition",
         log_prefix="Spend cap hold",

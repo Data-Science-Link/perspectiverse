@@ -126,13 +126,6 @@ jobs:
           restore-keys: |
             jev-verdict-cache-
 
-      - name: Save Jev verdict cache
-        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true')
-        uses: actions/cache/save@v4
-        with:
-          path: pipeline/data/jev_verdict_cache.sqlite
-          key: jev-verdict-cache-${{ github.run_id }}
-
       - name: Load today's cost ledger for the spend cap
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
@@ -160,6 +153,43 @@ jobs:
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
+
+      - name: Save Jev verdict cache
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true')
+        uses: actions/cache/save@v4
+        with:
+          path: pipeline/data/jev_verdict_cache.sqlite
+          key: jev-verdict-cache-${{ github.run_id }}
+          restore-keys: |
+            jev-verdict-cache-
+
+      - name: Stage corpus after cancelled live
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'cancelled'
+        env:
+          PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
+        run: |
+          if [ ! -f pipeline/data/live_corpus.db ]; then
+            echo "No local corpus to stage after cancellation."
+            exit 0
+          fi
+          source .venv/bin/activate
+          python -m pipeline.corpus_persist stage-for-halt --db pipeline/data/live_corpus.db
+
+      - name: Upload corpus to R2 after cancelled live
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'cancelled'
+        env:
+          PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ ! -f "$PERSPECTIVERSE_HALT_STAGING/halt_corpus.sha256" ]; then
+            echo "No staged corpus after cancellation; skipping R2 upload."
+            exit 0
+          fi
+          source .venv/bin/activate
+          python -m pipeline.corpus_persist upload-staged
 
       - name: Stage halted corpus before ledger git checkout
         if: failure() && steps.live.outcome == 'failure'
