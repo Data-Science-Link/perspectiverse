@@ -88,11 +88,14 @@ from pipeline.settings import load_settings
 from pipeline.store import (
     LIVE_CORPUS_DB,
     connect,
+    drop_non_quality_posts,
     fetched_day_set,
+    is_quality_post,
     load_posts,
     record_fetched_days,
     replace_posts,
     write_clusters,
+    write_quality_posts,
 )
 from pipeline.story_attach import merge_alike_published_faces, return_same_story_posts
 from pipeline.topics import CANDIDATE_POOL, cluster_texts
@@ -153,6 +156,7 @@ def run_live(
     database = Path(db_path) if db_path else LIVE_CORPUS_DB
     print(describe_jev())
     connection = connect(database)
+    drop_non_quality_posts(connection)
     from pipeline.spend_cap import SpendCapExceeded, enforce_before_paid_work
 
     cleaned: list[dict] | None = None
@@ -179,8 +183,9 @@ def run_live(
                 update_input=True,
             )
             _merge_jev_output(corpus_posts, scored)
-            # Keep only public claims for clustering. Non-claims stay in ``corpus_posts``.
-            cleaned = [p for p in corpus_posts if p.get("is_claim") is True]
+            # Only quality claims are stored or clustered. Rejected URIs stay in the Jev cache.
+            cleaned = [p for p in corpus_posts if is_quality_post(p)]
+            corpus_posts = list(cleaned)
             fill_span_hours = 0
             if is_fill_run():
                 # Fill only. Scheduled and push runs keep the single latest search.
@@ -221,7 +226,10 @@ def run_live(
         if not cleaned:
             raise RuntimeError("No quality posts in the retained corpus or the extract.")
 
-        replace_posts(connection, cleaned)
+        if source == "bluesky" and not relabel:
+            write_quality_posts(connection, cleaned)
+        else:
+            replace_posts(connection, cleaned)
         planet_posts = posts_for_planets(
             cleaned,
             require_claims=source == "bluesky" and not relabel,
@@ -535,8 +543,8 @@ def _topup_claims(
             update_input=True,
         )
         if corpus_posts is not None:
-            corpus_posts.extend(scored)
-        new_claims = [p for p in scored if p.get("is_claim") is True]
+            corpus_posts.extend([post for post in scored if is_quality_post(post)])
+        new_claims = [p for p in scored if is_quality_post(p)]
         result.extend(new_claims)
         print(
             f"Top-up {round_num}: {len(new_claims)} claims from {len(fresh)} posts "
@@ -586,18 +594,20 @@ def _fill_claims_by_day(
 
     Bluesky search caps a query at about 40 pages, so one latest search is
     about 11K posts. Each UTC day (``since`` / ``until``) gets its own pages.
-    Stops when retained posts reach ``target`` (the one corpus constant,
-    ``TARGET_POSTS``, when the caller passes the default), before a paid call
-    once fill spend is at ``FILL_BUDGET_TOTAL_USD``, when the job clock is
-    inside the safe margin, after ``FILL_MAX_LOOKBACK_DAYS``, or after
-    ``FILL_EMPTY_WINDOWS_STOP`` searches in a row that returned zero posts.
-    Claims do not finish the walk. A window whose posts are all already in
-    the corpus does not count as empty. The current UTC day is not searched
-    again when the corpus already has a post from that day (the latest search
-    just ran). Does not change ``catalog_size`` (10 planets per solar system).
+    Stops when quality posts (Jev claims that are not spam) reach ``target``.
+    That number is ``TARGET_POSTS``, the one corpus constant, when the caller
+    passes the default. Also stops before a paid call once fill spend is at
+    ``FILL_BUDGET_TOTAL_USD``, when the job clock is inside the safe margin,
+    after ``FILL_MAX_LOOKBACK_DAYS``, or after ``FILL_EMPTY_WINDOWS_STOP``
+    searches in a row that returned zero posts. Spam and non-claims are not
+    kept. A window whose posts are all already in the corpus does not count
+    as empty. The current UTC day is not searched again when the corpus
+    already has a post from that day (the latest search just ran). Does not
+    change ``catalog_size`` (10 planets per solar system).
 
-    Returns claims, the corpus list (including non-claims), and the hour span
-    to keep when retiring. The span is 0 when this walk added no posts.
+    Returns quality claims, the corpus list (quality posts, plus an in-flight
+    window when the spend cap halts mid-batch), and the hour span to keep
+    when retiring. The span is 0 when this walk added no posts.
     ``SpendCapExceeded`` propagates so the caller keeps posts already paid for.
     """
     moment = now or datetime.now(timezone.utc)
@@ -627,7 +637,7 @@ def _fill_claims_by_day(
         extra = f" {note}" if note else ""
         print(
             f"Fill window {format_search_time(since)} .. {format_search_time(until)}: "
-            f"{posts} posts{extra}, {len(corpus_posts)} posts retained, {len(result)} claims so far, "
+            f"{posts} posts{extra}, {len(result)} quality posts so far, "
             f"spend ${format_usd(day_paid_usd())} of ${format_usd(FILL_BUDGET_TOTAL_USD)}."
         )
 
@@ -636,18 +646,18 @@ def _fill_claims_by_day(
         if oldest_since is not None and newest_until is not None:
             print(
                 f"Fill date range {format_search_time(oldest_since)} .. {format_search_time(newest_until)}: "
-                f"{windows} window(s), {len(corpus_posts)} posts retained, {len(result)} claims so far, "
+                f"{windows} window(s), {len(result)} quality posts so far, "
                 f"{spent} (stop: {stop_reason})."
             )
         else:
             print(
-                f"Fill date range: none. {len(corpus_posts)} posts retained, "
-                f"{len(result)} claims so far, {spent} (stop: {stop_reason})."
+                f"Fill date range: none. {len(result)} quality posts so far, "
+                f"{spent} (stop: {stop_reason})."
             )
 
     try:
-        if len(corpus_posts) >= target:
-            stop_reason = "retained posts"
+        if len(result) >= target:
+            stop_reason = "quality posts"
         elif not fetch_queries:
             stop_reason = "no search queries"
             print("Fill walk skipped: no search queries.")
@@ -660,8 +670,8 @@ def _fill_claims_by_day(
                     f"Fill skipped {day.isoformat()}: the corpus already has posts from that UTC day."
                 )
             for offset in range(start_offset, FILL_MAX_LOOKBACK_DAYS):
-                if len(corpus_posts) >= target:
-                    stop_reason = "retained posts"
+                if len(result) >= target:
+                    stop_reason = "quality posts"
                     break
                 if fill_past_safe_margin(tick()):
                     stop_reason = (
@@ -671,7 +681,7 @@ def _fill_claims_by_day(
                     print(
                         f"Fill stopped: the {PIPELINE_JOB_LIMIT_MINUTES}-minute job limit "
                         f"has {FILL_JOB_MARGIN_MINUTES} minutes or less left. "
-                        f"{len(corpus_posts)} posts retained, {len(result)} claims so far."
+                        f"{len(result)} quality posts so far."
                     )
                     break
                 since = datetime(day.year, day.month, day.day, tzinfo=timezone.utc) - timedelta(days=offset)
@@ -751,12 +761,18 @@ def _fill_claims_by_day(
                     )
                 except SpendCapExceeded:
                     stop_reason = "fill spend cap"
-                    new_claims = [post for post in batch if post.get("is_claim") is True]
+                    new_claims = [post for post in batch if is_quality_post(post)]
                     result.extend(new_claims)
                     _log_window(since, until, len(fresh))
                     raise
-                new_claims = [post for post in batch if post.get("is_claim") is True]
+                new_claims = [post for post in batch if is_quality_post(post)]
                 result.extend(new_claims)
+                batch_uris = {post.get("uri") for post in batch}
+                corpus_posts[:] = [
+                    post
+                    for post in corpus_posts
+                    if post.get("uri") not in batch_uris or is_quality_post(post)
+                ]
                 if connection is not None:
                     record_fetched_days(
                         connection,

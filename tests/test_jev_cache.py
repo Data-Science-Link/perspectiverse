@@ -158,7 +158,7 @@ def test_retained_corpus_section_counts_as_dedup_skip_on_second_run(monkeypatch,
     connection.close()
 
 
-def test_prefilter_skips_are_not_calls_and_not_cached(monkeypatch, tmp_path):
+def test_prefilter_skips_are_not_calls_and_their_uris_are_cached(monkeypatch, tmp_path):
     _enable(monkeypatch)
     calls = {"n": 0}
 
@@ -182,7 +182,19 @@ def test_prefilter_skips_are_not_calls_and_not_cached(monkeypatch, tmp_path):
     assert calls["n"] == 1
     assert [post["uri"] for post in kept] == ["at://headline"]
     stored = {row[0] for row in connection.execute("SELECT uri FROM jev_verdicts")}
-    assert stored == {"at://headline"}
+    assert stored == {"at://short", "at://link", "at://nl", "at://langs", "at://headline", "at://copy"}
+    reasons = {
+        row[0]: row[1]
+        for row in connection.execute("SELECT uri, model FROM jev_verdicts WHERE model LIKE 'prefilter:%'")
+    }
+    assert reasons["at://short"] == "prefilter:short"
+    assert reasons["at://link"] == "prefilter:link"
+    assert reasons["at://copy"] == "prefilter:duplicate"
+    from pipeline.jev import known_scored_uris
+
+    assert known_scored_uris(connection, now=datetime(2026, 10, 8, tzinfo=timezone.utc)) >= set(reasons)
+    apply_jev(posts, connection=connection, now=datetime(2026, 10, 8, tzinfo=timezone.utc))
+    assert calls["n"] == 1
     counts = jev_filter_counts()
     assert counts["short"] == 1
     assert counts["link"] == 1

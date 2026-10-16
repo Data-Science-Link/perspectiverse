@@ -106,11 +106,10 @@ def test_fill_walks_older_utc_days_until_the_claim_target(monkeypatch, capsys):
     assert span == int((NOW - seen[-1]).total_seconds() // 3600) + 24
     logged = capsys.readouterr().out
     assert "Fill window 2026-10-16T00:00:00Z .. 2026-10-17T00:00:00Z: 1 posts" in logged
-    assert "3 claims so far" in logged
+    assert "3 quality posts so far" in logged
     assert "spend $0.00 of $15.00" in logged
     assert "Fill date range 2026-10-14T00:00:00Z .. 2026-10-17T00:00:00Z: 3 window(s)" in logged
-    assert "3 posts retained, 3 claims so far" in logged
-    assert "stop: retained posts" in logged
+    assert "stop: quality posts" in logged
     assert corpus is not None and len(corpus) == 3
 
 
@@ -317,40 +316,45 @@ def test_resumed_fill_walks_past_already_seen_days(monkeypatch, capsys):
     assert f"Fill skipped {NOW.date().isoformat()}" in logged
     assert "none new" in logged
     assert "empty days" not in logged
-    assert "21 posts retained, 21 claims so far" in logged
-    assert "stop: retained posts" in logged
+    assert "21 quality posts so far" in logged
+    assert "stop: quality posts" in logged
 
 
-def test_fill_stops_on_retained_posts_while_claims_are_still_short(monkeypatch, capsys):
-    """The walk is done at the post target even when none of those posts are claims."""
+def test_fill_stops_on_quality_posts_and_drops_non_claims(monkeypatch, capsys):
+    """Non-claims do not finish the fill and are not kept on the corpus."""
 
     def fake_extract(**kwargs):
         since = kwargs["since"]
         return [_post(since + timedelta(hours=6), f"at://post/{since.date().isoformat()}")]
 
-    def not_a_claim(posts, **_kwargs):
+    def mixed(posts, **_kwargs):
         for post in posts:
-            post["is_claim"] = False
+            post["is_claim"] = post["uri"].endswith("2026-10-14")
+            if post["is_claim"]:
+                post["section"] = "Politics"
+            else:
+                post["spam_score"] = 0.1
         return posts
 
     monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
-    monkeypatch.setattr("pipeline.live.apply_jev", not_a_claim)
+    monkeypatch.setattr("pipeline.live.apply_jev", mixed)
     monkeypatch.setattr("pipeline.live.guard_before_paid_call", lambda _kind: None)
     claims, corpus, _span = _fill_claims_by_day(
         [],
-        target=3,
+        target=1,
         settings=_settings(),
         connection=None,
         corpus_posts=[],
         now=NOW,
         clock=lambda: NOW,
     )
-    assert claims == []
-    assert corpus is not None and len(corpus) == 3
+    assert [post["uri"] for post in claims] == ["at://post/2026-10-14"]
+    assert corpus is not None
+    assert [post["uri"] for post in corpus] == ["at://post/2026-10-14"]
     logged = capsys.readouterr().out
-    assert "3 posts retained, 0 claims so far" in logged
-    assert "stop: retained posts" in logged
-    assert "stop: claim target" not in logged
+    assert "0 quality posts so far" in logged
+    assert "1 quality posts so far" in logged
+    assert "stop: quality posts" in logged
 
 
 def test_scheduled_collect_does_not_walk_date_windows(monkeypatch, tmp_path):

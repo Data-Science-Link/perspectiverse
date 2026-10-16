@@ -141,18 +141,19 @@ jobs:
           restore-keys: |
             jev-verdict-cache-
 
-      - name: Corpus counts for the fill done check
+      - name: Drop stored spam and non-claims whose verdicts are cached
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
-          posts=0
-          claims=0
-          if [ -f pipeline/data/live_corpus.db ]; then
-            posts=$(sqlite3 pipeline/data/live_corpus.db "SELECT COUNT(*) FROM posts" 2>/dev/null || echo 0)
-            claims=$(sqlite3 pipeline/data/live_corpus.db "SELECT COUNT(*) FROM posts WHERE is_claim=1" 2>/dev/null || echo 0)
-          fi
-          echo "PERSPECTIVERSE_CORPUS_POST_COUNT=$posts" >> "$GITHUB_ENV"
-          echo "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$claims" >> "$GITHUB_ENV"
-          echo "Corpus for fill done check: $posts retained posts, $claims claims"
+          source .venv/bin/activate
+          python -m pipeline.store drop-non-quality pipeline/data/live_corpus.db
+
+      - name: Corpus quality-post count for the fill done check
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
+        run: |
+          source .venv/bin/activate
+          count=$(python -m pipeline.store count-quality pipeline/data/live_corpus.db)
+          echo "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$count" >> "$GITHUB_ENV"
+          echo "Corpus quality posts for the fill done check: $count"
 
       - name: Load today's cost ledger for the spend cap
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'

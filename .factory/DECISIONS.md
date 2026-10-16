@@ -580,3 +580,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** The quality read is about the retained database, and a claim count stops short of that or keeps going after the table is already full.
 - **Alternatives:** Keep the claim target (rejected). Add a separate post-target constant (rejected; one constant).
 - **Revisit when:** A fill log shows retained posts and claims far enough apart that the $15 cap or the job margin stops the walk well under 100K posts.
+
+### 2026-10-16 — The database keeps quality posts only (#106)
+- **Decision:** The fill is done at **100,000 quality posts** in `posts`: a post that passed the pre-filter and that Jev called a claim, and not spam. That count uses `TARGET_POSTS` (the same constant as `CLAIM_TARGET`). Spam and non-claims are not inserted. Their URIs and verdicts stay in `jev_verdicts` so a later run does not fetch or score them again. A cleanup removes non-claims already in the database only after that verdict is in the cache. This supersedes the "100,000 retained posts" done-target from earlier today.
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 3:33 PM CT: "The database should hold quality posts that are used for building planets. Discard spam or non claims. We need to build 100k quality posts in our database. Cant we filter before inserting into the database?"
+- **Why:** Planets are built from claims. Storing spam and non-claims fills the table with posts that never become planets, and fetching them again would pay twice.
+- **Alternatives:** Count every stored row (rejected the same day). Delete non-claims even when the cache has no verdict (rejected; the URI would be lost).
+- **Revisit when:** A fill log shows the cache evicting rejected URIs inside the 14-day window and the same posts are scored again.

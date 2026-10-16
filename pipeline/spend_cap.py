@@ -49,7 +49,7 @@ from pipeline.costs import (
 # Michael, 2026-10-16. Warn and stop both at $1.00 while the fill campaign is open (#182).
 DAILY_WARN_USD = Decimal("1.00")
 DAILY_STOP_USD = Decimal("1.00")
-# Normal daily cap after the fill campaign ends (100K retained posts or fill budget spent).
+# Normal daily cap after the fill campaign ends (100K quality posts or fill budget spent).
 # Michael may lower this to $0.50 once a measured 100K day is logged (#187).
 DAILY_WARN_AFTER_FILL_USD = Decimal("0.50")
 DAILY_STOP_AFTER_FILL_USD = Decimal("1.00")
@@ -58,7 +58,6 @@ FILL_BUDGET_TOTAL_USD = Decimal("15.00")
 ENV_WARN = "PERSPECTIVERSE_DAILY_SPEND_WARN"
 ENV_STOP = "PERSPECTIVERSE_DAILY_SPEND_STOP"
 ENV_FILL_RUN = "PERSPECTIVERSE_FILL_RUN"
-ENV_CORPUS_POSTS = "PERSPECTIVERSE_CORPUS_POST_COUNT"
 ENV_CORPUS_CLAIMS = "PERSPECTIVERSE_CORPUS_CLAIM_COUNT"
 ENV_LEDGER = "PERSPECTIVERSE_COST_LEDGER"
 ENV_COST_RUN = "PERSPECTIVERSE_COST_RUN"
@@ -151,17 +150,12 @@ def _env_count(name: str) -> int:
         return 0
 
 
-def corpus_post_count() -> int:
-    """Rows already in ``live_corpus.db`` ``posts``, set before the live step.
-
-    This is the fill done-target. It counts every retained post, not only claims.
-    The number it is compared with is ``TARGET_POSTS`` (the one corpus constant).
-    """
-    return _env_count(ENV_CORPUS_POSTS)
-
-
 def corpus_claim_count() -> int:
-    """Claims already in ``live_corpus.db``, set by the workflow before the live step."""
+    """Quality posts already in ``live_corpus.db``.
+
+    The workflow sets this from ``count_quality_posts`` before the live step.
+    The fill is done at ``TARGET_POSTS`` of these, the one corpus constant.
+    """
     return _env_count(ENV_CORPUS_CLAIMS)
 
 
@@ -202,12 +196,12 @@ def fill_campaign_spent() -> Decimal:
 
 
 def fill_campaign_complete() -> bool:
-    """True when retained posts hit ``TARGET_POSTS`` or fill-tagged spend hits $15.
+    """True when quality posts hit ``TARGET_POSTS`` or fill-tagged spend hits $15.
 
-    Claims do not finish the fill. A corpus can hold 100K claims only by also
-    holding 100K posts; the done check is the post count.
+    Quality posts are Jev claims kept in the database. Raw fetches and
+    non-claims do not finish the fill.
     """
-    if corpus_post_count() >= TARGET_POSTS:
+    if corpus_claim_count() >= TARGET_POSTS:
         return True
     return fill_campaign_spent() >= FILL_BUDGET_TOTAL_USD
 
@@ -245,14 +239,13 @@ def stop_usd() -> Decimal:
 
 
 def _log_fill_shortfall(total: Decimal) -> None:
-    posts = corpus_post_count()
     claims = corpus_claim_count()
-    if posts >= TARGET_POSTS:
+    if claims >= TARGET_POSTS:
         return
-    gap = TARGET_POSTS - posts
+    gap = TARGET_POSTS - claims
     message = (
         f"Fill budget exhausted: paid ${format_usd(total)} of ${format_usd(FILL_BUDGET_TOTAL_USD)} "
-        f"across fill-tagged runs; corpus at {posts:,} posts retained ({claims:,} claims), "
+        f"across fill-tagged runs; corpus at {claims:,} quality posts, "
         f"{gap:,} short of {TARGET_POSTS:,}. "
         f"Keeping paid posts from this run. Daily cap returns to warn ${format_usd(DAILY_WARN_AFTER_FILL_USD)} "
         f"/ stop ${format_usd(DAILY_STOP_AFTER_FILL_USD)} until the corpus is full."
@@ -646,19 +639,14 @@ def check_fill_dispatch() -> int:
         return 0
     if fill_dispatch_allowed():
         return 0
-    posts = corpus_post_count()
     claims = corpus_claim_count()
     spent = fill_campaign_spent()
-    if posts >= TARGET_POSTS:
-        reason = (
-            f"corpus already has {posts:,} retained posts "
-            f"({claims:,} claims; target {TARGET_POSTS:,})"
-        )
+    if claims >= TARGET_POSTS:
+        reason = f"corpus already has {claims:,} quality posts (target {TARGET_POSTS:,})"
     else:
         reason = (
             f"fill-tagged spend is ${format_usd(spent)} "
-            f"(cap ${format_usd(FILL_BUDGET_TOTAL_USD)}) "
-            f"with {posts:,} retained posts ({claims:,} claims)"
+            f"(cap ${format_usd(FILL_BUDGET_TOTAL_USD)}) with {claims:,} quality posts"
         )
     message = (
         f"Fill dispatch refused: {reason}. Use a normal run; daily cap is warn "

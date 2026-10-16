@@ -8,7 +8,9 @@ the git blob. topic_membership and perspectives are derived and rebuilt each run
 
 from __future__ import annotations
 
+import argparse
 import sqlite3
+import sys
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -76,6 +78,78 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     connection.execute("CREATE INDEX IF NOT EXISTS jev_verdicts_fp ON jev_verdicts(text_fp)")
     connection.commit()
     return connection
+
+
+def is_quality_post(post: dict) -> bool:
+    """A post the database keeps: Jev called it a claim and not spam.
+
+    The pre-filter never sets ``is_claim``. Spam at or above the Jev spam
+    threshold is not kept even when the claim score passed.
+    """
+    if post.get("is_claim") is not True:
+        return False
+    spam = post.get("spam_score")
+    if spam is None or spam == "":
+        return True
+    try:
+        from pipeline.jev import SPAM_THRESHOLD
+
+        return float(spam) < SPAM_THRESHOLD
+    except (TypeError, ValueError):
+        return True
+
+
+def count_quality_posts(connection: sqlite3.Connection) -> int:
+    """Quality posts already stored. This is the fill done-count."""
+    return sum(1 for post in load_posts(connection) if is_quality_post(post))
+
+
+def _verdict_uris(connection: sqlite3.Connection) -> set[str]:
+    return {str(row[0]) for row in connection.execute("SELECT uri FROM jev_verdicts")}
+
+
+def drop_non_quality_posts(connection: sqlite3.Connection) -> int:
+    """Remove stored spam and non-claims once their verdict is in the cache.
+
+    A row with no ``jev_verdicts`` entry stays, so a post is not discarded
+    before its URI is remembered. Quality claims stay.
+    """
+    verdicts = _verdict_uris(connection)
+    existing = load_posts(connection)
+    kept: list[dict] = []
+    dropped = 0
+    for post in existing:
+        uri = str(post.get("uri") or "")
+        if is_quality_post(post) or uri not in verdicts:
+            kept.append(post)
+        else:
+            dropped += 1
+    if dropped:
+        replace_posts(connection, kept)
+        print(
+            f"Dropped {dropped} stored posts that are spam or not claims; "
+            "their verdicts stay in the Jev cache."
+        )
+    return dropped
+
+
+def write_quality_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
+    """Replace the post table with quality claims.
+
+    Spam and non-claims in ``posts`` are not inserted. A stored non-claim
+    that still has no cached verdict is left in the table.
+    """
+    quality = [post for post in posts if is_quality_post(post)]
+    quality_uris = {str(post.get("uri") or "") for post in quality}
+    verdicts = _verdict_uris(connection)
+    held = []
+    for post in load_posts(connection):
+        uri = str(post.get("uri") or "")
+        if not uri or uri in quality_uris or is_quality_post(post):
+            continue
+        if uri not in verdicts:
+            held.append(post)
+    replace_posts(connection, quality + held)
 
 
 def replace_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
@@ -317,3 +391,34 @@ def write_clusters(
         faces,
     )
     connection.commit()
+
+
+def main(argv: list[str] | None = None) -> int:
+    """One-time cleanup and the quality-post count the fill done check reads."""
+    parser = argparse.ArgumentParser(description="Quality-post helpers for the retained corpus")
+    sub = parser.add_subparsers(dest="command", required=True)
+    drop = sub.add_parser("drop-non-quality", help="Remove spam and non-claims whose verdicts are cached")
+    drop.add_argument("db", type=Path)
+    count = sub.add_parser("count-quality", help="Print how many quality posts are stored")
+    count.add_argument("db", type=Path)
+    args = parser.parse_args(argv)
+    path = Path(args.db)
+    if not path.is_file():
+        if args.command == "count-quality":
+            print(0)
+        else:
+            print("No corpus database; nothing to drop.")
+        return 0
+    connection = connect(path)
+    try:
+        if args.command == "drop-non-quality":
+            print(drop_non_quality_posts(connection))
+        else:
+            print(count_quality_posts(connection))
+    finally:
+        connection.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

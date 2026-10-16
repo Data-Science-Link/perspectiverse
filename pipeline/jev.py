@@ -2,8 +2,8 @@
 
 Jev does not write planet names or steelmans. The default is one call per
 post: a spam noul, a section choice, and a claim noul. That section
-question stays until #90 picks a section once per planet. Answers are cached for 14 days, including non-claims and spam, so the
-same URI is not scored twice inside that window. The same normalized text
+question stays until #90 picks a section once per planet. Answers are cached for 14 days, including non-claims, spam, and pre-filter
+rejects, so the same URI is not fetched or scored twice inside that window. The same normalized text
 under a new URI reuses that verdict too (a cache hit, not a second call).
 A hit also requires the requested model and the question wording. Changing
 ``JEV_MODEL`` or the spam, section, or claim text misses the old row.
@@ -375,7 +375,12 @@ def _note_filters(cache_hits: int, dedup_skips: int, skips: Counter[str], lookup
 
 
 def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | None], now: datetime | None) -> None:
-    """Persist answers Jev actually returned. Failures and pre-filter skips are not stored."""
+    """Persist Jev answers and pre-filter rejects.
+
+    A rejected URI stays in the cache so a later fetch does not pull it back
+    and a later run does not pay to score it again. The post table does not
+    store these rows.
+    """
     try:
         from pipeline.store import save_jev_verdicts
 
@@ -386,6 +391,19 @@ def _store_verdicts(connection, posts: list[dict], decisions: dict[str, dict | N
             if not uri or not isinstance(decision, dict):
                 continue
             if decision.get("prefilter"):
+                reason = str(decision.get("prefilter") or "prefilter")
+                rows.append(
+                    (
+                        uri,
+                        None,
+                        0.0,
+                        None,
+                        f"prefilter:{reason}",
+                        today,
+                        text_fingerprint(post_text(by_uri.get(uri, {}))),
+                        jev_cache_version(),
+                    )
+                )
                 continue
             # A URI already stored is not written again. A new URI that reused
             # another post's text is stored so the next fetch can skip it.
