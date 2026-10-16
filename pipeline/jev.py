@@ -27,7 +27,7 @@ import sys
 import time
 from collections import Counter
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from pipeline.http_json import read_json, read_json_value
