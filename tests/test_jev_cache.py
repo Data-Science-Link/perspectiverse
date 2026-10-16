@@ -8,13 +8,18 @@ from pipeline.costs import (
     JEV_BATCH_SPAM_CLAIM_TOKENS_PER_POST,
     JEV_PLANET_SECTION_TOKENS,
     JEV_PLANETS_PER_DAY,
+    SERVICE_DEEPINFRA,
+    SERVICE_JEV,
     get_meter,
     jev_cost_usd,
     jev_filter_counts,
+    measured_window_projection_line,
     note_jev_cache_hits,
     note_jev_cache_lookups,
     note_jev_prefilter,
     project_jev_daily_usd,
+    project_measured_daily_usd,
+    record_attempt,
     reset_meter,
     write_cost_run,
 )
@@ -356,6 +361,86 @@ def test_projection_uses_the_issue_token_assumptions():
     assert batched_10k.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP) == Decimal("0.023831")
     assert batched_10k * 10 != batched_100k
     assert jev_cost_usd(1_000_000) == Decimal("0.042")
+
+
+def test_oct_16_steady_day_projects_100k_at_or_under_half_dollar():
+    """Run 38894377011. The new-post quota scales. The cache hit rate does not.
+
+    Ledger: 9,985 posts, 1,362 paid Jev calls, Jev $0.03808182, labeling $0.11712596.
+    Hits were 2/1,364. A 45% discount is not applied.
+    """
+    jev = Decimal("0.03808182")
+    label = Decimal("0.11712596")
+    projected = project_measured_daily_usd(
+        measured_posts=9985,
+        jev_usd=jev,
+        label_usd=label,
+        jev_calls=1362,
+    )
+    assert projected["topup"] is False
+    assert projected["total_usd"] == projected["jev_usd"] + label
+    assert projected["jev_usd"] == jev * projected["scale"]
+    assert projected["total_usd"] <= Decimal("0.50")
+    assert projected["total_usd"] > Decimal("0.49")
+    # The same dollars with the observed 0.1% hits, or with the rejected 45% assumption.
+    again = project_measured_daily_usd(
+        measured_posts=9985,
+        jev_usd=jev,
+        label_usd=label,
+        jev_calls=1362,
+    )
+    assert again["total_usd"] == projected["total_usd"]
+    assert projected["total_usd"] != (jev * projected["scale"] * Decimal("0.55")) + label
+
+
+def test_oct_15_shortfall_is_not_a_steady_100k_day():
+    """Run 38677894812 paid 10,230 Jev calls to refill a short corpus."""
+    projected = project_measured_daily_usd(
+        measured_posts=9688,
+        jev_usd=Decimal("0.28440674"),
+        label_usd=Decimal("0.11022006"),
+        jev_calls=10230,
+    )
+    assert projected["topup"] is True
+    assert projected["total_usd"] > Decimal("0.50")
+
+
+def test_projection_line_names_the_quota_and_skips_a_relabel(tmp_path, capsys):
+    reset_meter()
+    line = measured_window_projection_line(measured_posts=9985, attempts=())
+    assert line == "Jev 100K projection: not this run (no paid Jev calls on a scored window)."
+    note_jev_cache_hits(2)
+    note_jev_cache_lookups(1364)
+    record_attempt(
+        service=SERVICE_JEV,
+        model="jev-1.13.0",
+        input_tokens=906710,
+        output_tokens=0,
+        cost_usd=Decimal("0.03808182"),
+        cost_source="computed",
+        status="success",
+    )
+    record_attempt(
+        service=SERVICE_DEEPINFRA,
+        model="meta-llama/Llama-3.3-70B",
+        input_tokens=717730,
+        output_tokens=1000,
+        cost_usd=Decimal("0.11712596"),
+        cost_source="reported",
+        status="success",
+    )
+    path = write_cost_run(
+        posts_processed=9985,
+        planets_published=110,
+        started_at=datetime(2026, 10, 16, tzinfo=timezone.utc),
+        path=tmp_path / "cost_run.json",
+    )
+    assert path is not None
+    logged = capsys.readouterr().out
+    assert "steady new-post quota" in logged
+    assert "Jev 100K projection:" in logged
+    total_text = logged.split("Jev 100K projection: $", 1)[1].split("/day", 1)[0]
+    assert Decimal(total_text) <= Decimal("0.50")
 
 
 def test_corrupt_verdict_is_warned_and_rescored(monkeypatch, tmp_path, capsys):

@@ -556,6 +556,90 @@ def format_jev_filters(counts: dict[str, int] | None = None) -> str:
     )
 
 
+def project_measured_daily_usd(
+    *,
+    measured_posts: int,
+    jev_usd: Decimal,
+    label_usd: Decimal,
+    jev_calls: int,
+    target_posts: int = 100_000,
+) -> dict[str, Decimal | int | bool]:
+    """Project one measured run to a larger retained-claim window.
+
+    Jev scales with ``refresh_floor`` (one seventh of the window). That quota
+    is posts the fetch has not already scored, so a cache hit rate is not an
+    input and does not shrink the bill. Labeling is the measured dollars and
+    is not scaled: the published catalog does not grow with the window.
+
+    ``topup`` is true when this run paid for more Jev calls than that quota.
+    Those extra calls are still inside ``jev_usd``, so the scaled total is
+    this run's intensity, not a steady refresh.
+    """
+    from pipeline.corpus import refresh_floor
+
+    posts = int(measured_posts)
+    calls = int(jev_calls)
+    if posts < 0 or calls < 0 or int(target_posts) < 0:
+        raise ValueError("measured_posts, jev_calls, and target_posts must be >= 0")
+    jev = jev_usd if isinstance(jev_usd, Decimal) else Decimal(str(jev_usd))
+    label = label_usd if isinstance(label_usd, Decimal) else Decimal(str(label_usd))
+    if jev < 0 or label < 0:
+        raise ValueError("costs must be >= 0")
+    quota = refresh_floor(posts)
+    target_quota = refresh_floor(int(target_posts))
+    if quota <= 0 or calls <= 0:
+        raise ValueError("a projection needs a scored window and at least one paid Jev call")
+    scale = Decimal(target_quota) / Decimal(quota)
+    projected_jev = jev * scale
+    return {
+        "jev_usd": projected_jev,
+        "label_usd": label,
+        "total_usd": projected_jev + label,
+        "scale": scale,
+        "measured_quota": quota,
+        "target_quota": target_quota,
+        "topup": calls > quota,
+    }
+
+
+def measured_window_projection_line(
+    *,
+    measured_posts: int,
+    attempts: tuple[Attempt, ...] | None = None,
+    target_posts: int = 100_000,
+) -> str:
+    """One log line. Steady days scale the new-post quota. A shortfall says so."""
+    recorded = attempts if attempts is not None else get_meter().attempts()
+    calls, jev = jev_paid_calls(recorded)
+    label = sum(
+        (
+            attempt.cost_usd
+            for attempt in recorded
+            if attempt.service in LLM_SERVICES and attempt.cost_usd > 0
+        ),
+        start=Decimal("0"),
+    )
+    if calls <= 0 or int(measured_posts) <= 0:
+        return (
+            f"Jev {target_posts // 1000}K projection: not this run "
+            "(no paid Jev calls on a scored window)."
+        )
+    projected = project_measured_daily_usd(
+        measured_posts=measured_posts,
+        jev_usd=jev,
+        label_usd=label,
+        jev_calls=calls,
+        target_posts=target_posts,
+    )
+    kind = "shortfall top-up" if projected["topup"] else "steady new-post quota"
+    return (
+        f"Jev {target_posts // 1000}K projection: ${format_usd(projected['total_usd'])}/day "
+        f"({kind}; Jev ${format_usd(projected['jev_usd'])} = this run's ${format_usd(jev)} "
+        f"scaled with the new-post quota from {measured_posts} to {target_posts} posts; "
+        f"labeling ${format_usd(label)} stays the measured amount)."
+    )
+
+
 def project_jev_daily_usd(window_posts: int, *, batched: bool = False) -> Decimal:
     """Projected Jev dollars per day at a retained-claim window.
 
@@ -965,6 +1049,12 @@ def write_cost_run(
         if filters["cache_hits"] or filters["dedup_skips"] or jev_filter_skip_total(filters):
             print(format_jev_filters(filters))
         print(jev_cache_log_line(filters, recorded))
+        print(
+            measured_window_projection_line(
+                measured_posts=int(posts_processed),
+                attempts=recorded,
+            )
+        )
         return destination
     except Exception as exc:
         warn(f"Cost log skipped: {exc}")

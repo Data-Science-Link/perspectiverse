@@ -104,6 +104,61 @@ def test_warn_threshold_logs_and_annotation(capsys):
     assert len(get_meter().attempts()) == 3
 
 
+def test_one_cent_cap_stops_jev_before_the_next_call(monkeypatch, capsys):
+    """Free proof of the hard stop. No network. The second Jev call never starts.
+
+    Stop is $0.01. The first mocked call is metered at $0.0105 and raises.
+    A later post is refused by the guard, so its HTTP call count stays 1.
+    """
+    monkeypatch.setenv("PERSPECTIVERSE_DAILY_SPEND_WARN", "0.005")
+    monkeypatch.setenv("PERSPECTIVERSE_DAILY_SPEND_STOP", "0.01")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "unit-test-key")
+    from pipeline.jev import reset_jev_state
+
+    reset_jev_state()
+    calls = {"n": 0}
+
+    def fake(url, **kwargs):
+        del url, kwargs
+        calls["n"] += 1
+        return {
+            "model": "jev-cap-test",
+            "answers": {
+                "spam": {"type": "noul", "noul": 0.05},
+                "section": {"type": "choice", "choice": "Politics", "confidence": 0.8},
+                "claim": {"type": "noul", "noul": 0.91},
+            },
+            "usage": {"input_tokens": 250_000, "output_tokens": 12},
+        }
+
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    from pipeline.jev import apply_jev
+
+    first = {
+        "uri": "at://cap/one",
+        "author": "ada",
+        "text": "Congress should publish the mail ballot rules before November arrives.",
+        "clean_text": "Congress should publish the mail ballot rules before November arrives.",
+        "likes": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+    }
+    with pytest.raises(SpendCapExceeded) as caught:
+        apply_jev([first])
+    assert calls["n"] == 1
+    assert caught.value.spent_usd == Decimal("0.0105")
+    captured = capsys.readouterr()
+    assert "Daily spend cap stop:" in captured.err
+    assert "$0.0105" in captured.err
+    assert "hard stop" in captured.err
+    assert "::error::" in captured.out
+    assert "Not publishing" in captured.err
+    second = dict(first)
+    second["uri"] = "at://cap/two"
+    with pytest.raises(SpendCapExceeded):
+        apply_jev([second])
+    assert calls["n"] == 1
+
+
 def test_stop_threshold_raises_and_keeps_the_call_on_the_meter(capsys):
     _attempt(cost_usd=Decimal("0.99"))
     capsys.readouterr()
