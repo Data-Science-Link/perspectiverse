@@ -1,6 +1,6 @@
 # Data Engineering Pipeline
 
-Daily job: keep a rolling 7-day window of up to 10,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check. Non-claims stay in the SQLite file and do not count toward that 10,000. Cluster up to 10 planets and 1–6 faces, generate names and a short steelman per face, and write `public/data.json`. If search cannot fill 10,000 claims, the run keeps the shortfall and logs it.
+Daily job: keep a rolling 7-day window of up to 100,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check. Non-claims stay in the SQLite file and do not count toward that 100,000. Cluster up to 10 planets and 1–6 faces, generate names and a short steelman per face, and write `public/data.json`. If search cannot fill 100,000 claims, the run keeps the shortfall and logs it.
 
 The 2026-09-28 audit of the synthetic era is in [Pipeline Audit 2026-09-28](../project_documentation/Pipeline%20Audit%202026-09-28.md).
 
@@ -42,7 +42,7 @@ Copy the repo-root `.env.example` to `.env`. The CLI loads it on start without o
 
 | Path | Kind | Contents |
 | --- | --- | --- |
-| `live_corpus.db` → `posts` | retained window | Up to 10,000 filtered claims, plus non-claims that were fetched with them |
+| `live_corpus.db` → `posts` | retained window | Up to 100,000 filtered claims, plus non-claims that were fetched with them |
 | `live_corpus.db` → `fetched_days` | ledger | UTC dates already searched, so those days are not pulled again |
 | `live_corpus.db` → `topic_membership` | derived | planet id per kept post |
 | `live_corpus.db` → `perspectives` | derived | face index and centroid distance |
@@ -132,7 +132,7 @@ R2's free tier includes 10 GB. This file stays under a gigabyte.
 
 ## Layout
 
-- `config/pipeline.example.yaml` — window, 10,000-claim target, neutral search tokens
+- `config/pipeline.example.yaml` — window, 100,000-claim target, neutral search tokens
 - `settings.py` — loads the example, then `pipeline.yaml` if you created one
 - `data_sources/extract_bluesky.py` — Bluesky extract with host fallback
 - `cleaning.py`, `jev_prefilter.py`, `jev.py`, `corpus.py`, `store.py` — regex, free pre-filter, Jev decisions, 7-day window, SQLite (`jev_verdicts` cache, #92)

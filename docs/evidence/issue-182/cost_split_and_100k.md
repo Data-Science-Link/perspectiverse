@@ -1,10 +1,10 @@
 # Issue #182 — Measured cost split and 100K projection (flat ~110 planets)
 
-**Product gate (Michael, 2026-10-16 11:36 AM CT):** The only hard halt is **$1.00 paid per UTC day** (warn and stop at the same threshold; halts the run). **No planet count cap** — grouping may publish as many planets as pass existing quality floors.
+**Product gate (Michael, 2026-10-16 11:36 AM CT):** The only hard halt is **$1.00 paid per UTC day** (warn and stop at the same threshold; halts the run). No new planet-count halt; **`catalog_size: 10`** per solar system is unchanged.
 
 **Sources:** `costs/ledger.csv` on `data-snapshot` (no new paid calls). Runs [38894377011](https://github.com/Data-Science-Link/perspectiverse/actions/runs/38894377011) (2026-10-16 steady) and [38677894812](https://github.com/Data-Science-Link/perspectiverse/actions/runs/38677894812) (2026-10-15 shortfall top-up).
 
-**Projection assumption (not a pipeline cap):** DeepInfra labeling is projected as **flat** at roughly **110 published planets** (~10 global + ~100 section), matching the Oct 16 edition. The live job does **not** cap how many planets grouping may publish; this is only a **planning** line for 100K math.
+**Projection assumption (not a pipeline cap):** DeepInfra labeling is projected as **flat** at roughly **110 published planets** (~10 global + ~100 section), matching the Oct 16 edition under the usual **`catalog_size: 10`** ceilings. This is only a **planning** line for 100K math.
 
 **300-planet line in this PR:** `$0.70067962/day` at 100K is **not** “more planets because the window grew.” It is **steady scaled new-post Jev** plus labeling scaled as if **300** planets were labeled each day: `$0.38124519` Jev + `$0.11712596 × (300/110)` labeling ≈ `$0.70067962`. Grouping quality rules unchanged.
 
