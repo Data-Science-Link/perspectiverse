@@ -18,6 +18,7 @@ Read this with `factory-loop.md` on every change.
 10. Mark a UI/frontend/website/pages PR ready without **screenshots in the PR Evidence section** (thread-only comments do not count).
 11. Merge after a chat/issue product-gate approval **without first editing the PR description** to record that gate (step 7 + Human reviewed before merge).
 12. Squash-merge or rebase-merge. Use a merge commit. Squash and rebase merging stay off.
+13. Use **`Closes #N`** on a PR only when that PR fully finishes the issue. Standing ledgers and trackers use **`Refs #N`**. Flag wrong `Closes` on a standing issue in agent review.
 
 ## Always
 

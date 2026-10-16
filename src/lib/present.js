@@ -1,4 +1,9 @@
-import { PERSPECTIVES_PENDING, STANCE_CHECK_FAILED, STANCE_CHECK_INCOHERENT } from './copy.js'
+import {
+  PERSPECTIVES_PENDING,
+  STANCE_CHECK_FAILED,
+  STANCE_CHECK_INCOHERENT,
+  STANCE_CHECK_UNSHARED,
+} from './copy.js'
 
 const STOP = new Set(
   `a an the of to and or in on for with from that this is are was were be it its their they we you i not but as at by if so than then into over about just more most have has had will would can could should them there here what when where which who how your our out only some very much many also been being said says such other than ever even still back well make made want need going really right left something anything nothing everything people person think thought after before again around through under while whose don does did doing done now own same too way who new see two let put say she use its may day get him his her`.split(
@@ -277,7 +282,9 @@ function presentDigest(topics, previous) {
             .map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
             .join(' ')
       const pending =
-        topic.stance_check === STANCE_CHECK_FAILED || topic.stance_check === STANCE_CHECK_INCOHERENT
+        topic.stance_check === STANCE_CHECK_FAILED ||
+        topic.stance_check === STANCE_CHECK_INCOHERENT ||
+        topic.stance_check === STANCE_CHECK_UNSHARED
       const opposingNote = pending
         ? PERSPECTIVES_PENDING
         : oneView

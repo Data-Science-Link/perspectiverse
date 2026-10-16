@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { PERSPECTIVES_PENDING, STANCE_CHECK_FAILED, STANCE_CHECK_INCOHERENT, oneViewNote, showStanceFailure } from '../src/lib/copy.js'
+import {
+  PERSPECTIVES_PENDING,
+  STANCE_CHECK_FAILED,
+  STANCE_CHECK_INCOHERENT,
+  STANCE_CHECK_UNSHARED,
+  oneViewNote,
+  showStanceFailure,
+} from '../src/lib/copy.js'
 import { presentSnapshot, presentTopic, splitSentences } from '../src/lib/present.js'
 
 assert.equal(oneViewNote({ opposing_note: 'No clear opposing view found in this sample' }), 'No clear opposing view found in this sample')
@@ -12,6 +19,9 @@ assert.equal(
 assert.equal(PERSPECTIVES_PENDING, 'Perspectives still being analyzed')
 assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_FAILED }), STANCE_CHECK_FAILED)
 assert.equal(oneViewNote({ stance_check: STANCE_CHECK_INCOHERENT }), PERSPECTIVES_PENDING)
+assert.equal(oneViewNote({ stance_check: STANCE_CHECK_UNSHARED }), PERSPECTIVES_PENDING)
+assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_UNSHARED }), STANCE_CHECK_UNSHARED)
+assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_UNSHARED, perspectives: [{}] }), true)
 assert.equal(
   oneViewNote({ stance_check: STANCE_CHECK_INCOHERENT, opposing_note: 'No clear opposing view found in this sample' }),
   PERSPECTIVES_PENDING,
