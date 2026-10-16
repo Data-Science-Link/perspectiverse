@@ -511,13 +511,13 @@ def _classify_many(
                 uri = str(post.get("uri") or "")
                 try:
                     decision = future.result()
+                except CancelledError:
+                    continue
                 except Exception as exc:
                     from pipeline.spend_cap import SpendCapExceeded
 
                     if isinstance(exc, SpendCapExceeded):
                         halted = exc
-                        for pending in future_map:
-                            pending.cancel()
                         continue
                     raise
                 _record(uri, decision)
