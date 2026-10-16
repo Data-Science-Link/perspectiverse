@@ -402,7 +402,8 @@ def test_daily_workflow_uploads_only_after_a_successful_run():
     assert "steps.live.outcome == 'success'" in workflow[upload_step:upload_command]
     halt_step = workflow.index("name: Upload halted corpus to R2")
     halt_window = workflow[halt_step : halt_step + 800]
-    assert "perspectiverse-halt-corpus/halt_corpus.sha256" in halt_window
+    assert "PERSPECTIVERSE_HALT_STAGING" in halt_window
+    assert "halt_corpus.sha256" in halt_window
     assert "corpus_persist upload-staged" in halt_window
     stage_at = workflow.index("name: Stage halted corpus before ledger git checkout")
     hold_at = workflow.index("name: Keep yesterday's edition when the daily spend cap stops the run")
