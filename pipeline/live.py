@@ -586,14 +586,15 @@ def _fill_claims_by_day(
 
     Bluesky search caps a query at about 40 pages, so one latest search is
     about 11K posts. Each UTC day (``since`` / ``until``) gets its own pages.
-    Stops at the claim target, before a paid call once fill spend is at
-    ``FILL_BUDGET_TOTAL_USD``, when the job clock is inside the safe margin,
-    after ``FILL_MAX_LOOKBACK_DAYS``, or after ``FILL_EMPTY_WINDOWS_STOP``
-    searches in a row that returned zero posts. A window whose posts are all
-    already in the corpus does not count as empty. The current UTC day is not
-    searched again when the corpus already has a post from that day (the
-    latest search just ran). Does not change ``catalog_size`` (10 planets
-    per solar system).
+    Stops when retained posts reach ``target`` (the one corpus constant,
+    ``TARGET_POSTS``, when the caller passes the default), before a paid call
+    once fill spend is at ``FILL_BUDGET_TOTAL_USD``, when the job clock is
+    inside the safe margin, after ``FILL_MAX_LOOKBACK_DAYS``, or after
+    ``FILL_EMPTY_WINDOWS_STOP`` searches in a row that returned zero posts.
+    Claims do not finish the walk. A window whose posts are all already in
+    the corpus does not count as empty. The current UTC day is not searched
+    again when the corpus already has a post from that day (the latest search
+    just ran). Does not change ``catalog_size`` (10 planets per solar system).
 
     Returns claims, the corpus list (including non-claims), and the hour span
     to keep when retiring. The span is 0 when this walk added no posts.
@@ -626,7 +627,7 @@ def _fill_claims_by_day(
         extra = f" {note}" if note else ""
         print(
             f"Fill window {format_search_time(since)} .. {format_search_time(until)}: "
-            f"{posts} posts{extra}, {len(result)} claims so far, "
+            f"{posts} posts{extra}, {len(corpus_posts)} posts retained, {len(result)} claims so far, "
             f"spend ${format_usd(day_paid_usd())} of ${format_usd(FILL_BUDGET_TOTAL_USD)}."
         )
 
@@ -635,14 +636,18 @@ def _fill_claims_by_day(
         if oldest_since is not None and newest_until is not None:
             print(
                 f"Fill date range {format_search_time(oldest_since)} .. {format_search_time(newest_until)}: "
-                f"{windows} window(s), {len(result)} claims so far, {spent} (stop: {stop_reason})."
+                f"{windows} window(s), {len(corpus_posts)} posts retained, {len(result)} claims so far, "
+                f"{spent} (stop: {stop_reason})."
             )
         else:
-            print(f"Fill date range: none. {len(result)} claims so far, {spent} (stop: {stop_reason}).")
+            print(
+                f"Fill date range: none. {len(corpus_posts)} posts retained, "
+                f"{len(result)} claims so far, {spent} (stop: {stop_reason})."
+            )
 
     try:
-        if len(result) >= target:
-            stop_reason = "claim target"
+        if len(corpus_posts) >= target:
+            stop_reason = "retained posts"
         elif not fetch_queries:
             stop_reason = "no search queries"
             print("Fill walk skipped: no search queries.")
@@ -655,8 +660,8 @@ def _fill_claims_by_day(
                     f"Fill skipped {day.isoformat()}: the corpus already has posts from that UTC day."
                 )
             for offset in range(start_offset, FILL_MAX_LOOKBACK_DAYS):
-                if len(result) >= target:
-                    stop_reason = "claim target"
+                if len(corpus_posts) >= target:
+                    stop_reason = "retained posts"
                     break
                 if fill_past_safe_margin(tick()):
                     stop_reason = (
@@ -666,7 +671,7 @@ def _fill_claims_by_day(
                     print(
                         f"Fill stopped: the {PIPELINE_JOB_LIMIT_MINUTES}-minute job limit "
                         f"has {FILL_JOB_MARGIN_MINUTES} minutes or less left. "
-                        f"{len(result)} claims so far."
+                        f"{len(corpus_posts)} posts retained, {len(result)} claims so far."
                     )
                     break
                 since = datetime(day.year, day.month, day.day, tzinfo=timezone.utc) - timedelta(days=offset)

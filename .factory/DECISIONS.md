@@ -573,3 +573,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Bluesky search returns about 40 pages per query, so one latest-only search adds about 11K posts. Each UTC day gets its own pages.
 - **Alternatives:** Hour-sized slices (more requests than asked). More manual dispatches that repeat the same latest search (they cannot pass the page cap). Raising the planet cap (rejected; stays 10).
 - **Revisit when:** A fill log shows the day walk still cannot reach 100K claims inside the time margin, or the next scheduled fetch's 168-hour retirement drops a filled corpus below the target.
+
+### 2026-10-16 — Fill done-target is 100K retained posts, not 100K claims (#106, #187)
+- **Decision:** The fill is done when `live_corpus.db` has **100,000 retained posts** (`COUNT(*)` on `posts`), or fill-tagged spend reaches **$15**. That post count is compared with the existing corpus constant `TARGET_POSTS` (`CLAIM_TARGET`); there is no second 100K constant. Claims are logged beside posts and do not finish the fill or refuse the next dispatch. This supersedes the "100,000 claims" done-target in the fill-budget and date-walk decisions above. Scheduled runs are unchanged.
+- **Decided by:** Michael on #106: "get to 100K posts".
+- **Why:** The quality read is about the retained database, and a claim count stops short of that or keeps going after the table is already full.
+- **Alternatives:** Keep the claim target (rejected). Add a separate post-target constant (rejected; one constant).
+- **Revisit when:** A fill log shows retained posts and claims far enough apart that the $15 cap or the job margin stops the walk well under 100K posts.

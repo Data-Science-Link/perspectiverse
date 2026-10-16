@@ -49,6 +49,7 @@ def _isolated_cap(monkeypatch):
     monkeypatch.delenv("PERSPECTIVERSE_DAILY_SPEND_WARN", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_DAILY_SPEND_STOP", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    monkeypatch.delenv("PERSPECTIVERSE_CORPUS_POST_COUNT", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_LEDGER", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_RUN", raising=False)
@@ -1145,7 +1146,8 @@ def test_fill_exhausted_before_100k_halts_and_returns_normal_daily_cap(tmp_path,
     today = date(2026, 10, 16)
     monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
     monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
-    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "25000")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_POST_COUNT", "25000")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "8000")
     ledger = tmp_path / "ledger.csv"
     append_ledger(
         ledger,
@@ -1166,6 +1168,7 @@ def test_fill_exhausted_before_100k_halts_and_returns_normal_daily_cap(tmp_path,
         _attempt(cost_usd=Decimal("0.02"))
     captured = capsys.readouterr()
     assert "Fill budget exhausted" in captured.err
+    assert "25,000 posts retained (8,000 claims)" in captured.err
     assert "75,000 short of 100,000" in captured.err
     append_ledger(
         ledger,
@@ -1284,6 +1287,24 @@ def test_fill_run_logs_planet_count_and_labeling_calls(monkeypatch, capsys):
     assert "Fill run: 2 published planet(s), 1 labeling call(s)." in captured.out
 
 
+def test_fill_done_check_uses_retained_posts_not_claims(monkeypatch, capsys):
+    """100K claims do not finish the fill. 100K retained posts do."""
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_POST_COUNT", "40000")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "100000")
+    assert fill_campaign_complete() is False
+    assert check_fill_dispatch() == 0
+
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_POST_COUNT", "100000")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "30000")
+    assert fill_campaign_complete() is True
+    assert check_fill_dispatch() == 1
+    logged = capsys.readouterr().err
+    assert "100,000 retained posts" in logged
+    assert "30,000 claims" in logged
+    assert "target 100,000" in logged
+
+
 def test_fill_dispatch_check_runs_after_ledger_load():
     """Fill refusal must see fill-tagged spend on data-snapshot, not an empty ledger."""
     steps = _pipeline_workflow_steps()
@@ -1297,6 +1318,13 @@ def test_fill_dispatch_check_runs_after_ledger_load():
     assert "data-snapshot:costs/ledger.csv" in ledger_step["run"]
     workflow_text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
     assert "timeout-minutes: 360" in workflow_text
+    counts_at = names.index("Corpus counts for the fill done check")
+    assert counts_at < refuse_at
+    counts_step = steps[counts_at]["run"]
+    assert 'SELECT COUNT(*) FROM posts"' in counts_step
+    assert "WHERE is_claim=1" in counts_step
+    assert "PERSPECTIVERSE_CORPUS_POST_COUNT=$posts" in counts_step
+    assert "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$claims" in counts_step
 
 
 def test_check_fill_dispatch_refuses_when_ledger_shows_five_dollars_fill_spend(

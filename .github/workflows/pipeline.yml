@@ -141,15 +141,18 @@ jobs:
           restore-keys: |
             jev-verdict-cache-
 
-      - name: Corpus claim count for spend-cap baseline
+      - name: Corpus counts for the fill done check
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
+          posts=0
           claims=0
           if [ -f pipeline/data/live_corpus.db ]; then
+            posts=$(sqlite3 pipeline/data/live_corpus.db "SELECT COUNT(*) FROM posts" 2>/dev/null || echo 0)
             claims=$(sqlite3 pipeline/data/live_corpus.db "SELECT COUNT(*) FROM posts WHERE is_claim=1" 2>/dev/null || echo 0)
           fi
+          echo "PERSPECTIVERSE_CORPUS_POST_COUNT=$posts" >> "$GITHUB_ENV"
           echo "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$claims" >> "$GITHUB_ENV"
-          echo "Corpus claims for spend cap: $claims"
+          echo "Corpus for fill done check: $posts retained posts, $claims claims"
 
       - name: Load today's cost ledger for the spend cap
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
