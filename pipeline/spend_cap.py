@@ -3,6 +3,11 @@
 Michael, 2026-10-12 8:44 AM CT, Option A: hard stop at $1.00 and do not publish.
 Michael, 2026-10-16 11:35 AM CT: warn and stop both at $1.00 for the 100K ingest
 window. The site keeps yesterday's edition.
+Michael, 2026-10-16 1:29 PM CT / 2:46 PM CT: up to $15.00 paid across tagged fill
+runs to reach 100K posts (#187). Fill spend is summed from ``tags=fill`` ledger rows
+(per-call checkpoints in #186), not UTC-day boundaries. After the fill campaign
+ends, the normal UTC-day cap returns (warn then hard stop; see
+``DAILY_STOP_AFTER_FILL_USD``).
 
 The total is every paid call this UTC day: labeling, Jev, and top-ups (top-up
 rounds are more Jev calls). It includes every run that day — scheduled, push,
@@ -32,6 +37,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+from pipeline.corpus import CLAIM_TARGET
 from pipeline.costs import (
     LLM_SERVICES,
     SERVICE_JEV,
@@ -40,11 +46,19 @@ from pipeline.costs import (
     format_usd,
 )
 
-# Michael, 2026-10-16. Warn and stop both at $1.00 for the 100K window (#182).
+# Michael, 2026-10-16. Warn and stop both at $1.00 while the fill campaign is open (#182).
 DAILY_WARN_USD = Decimal("1.00")
 DAILY_STOP_USD = Decimal("1.00")
+# Normal daily cap after the fill campaign ends (100K claims or fill budget spent).
+# Michael may lower this to $0.50 once a measured 100K day is logged (#187).
+DAILY_WARN_AFTER_FILL_USD = Decimal("0.50")
+DAILY_STOP_AFTER_FILL_USD = Decimal("1.00")
+# Michael, 2026-10-16 1:29 PM CT: hard stop on total fill-tagged paid spend.
+FILL_BUDGET_TOTAL_USD = Decimal("15.00")
 ENV_WARN = "PERSPECTIVERSE_DAILY_SPEND_WARN"
 ENV_STOP = "PERSPECTIVERSE_DAILY_SPEND_STOP"
+ENV_FILL_RUN = "PERSPECTIVERSE_FILL_RUN"
+ENV_CORPUS_CLAIMS = "PERSPECTIVERSE_CORPUS_CLAIM_COUNT"
 ENV_LEDGER = "PERSPECTIVERSE_COST_LEDGER"
 ENV_COST_RUN = "PERSPECTIVERSE_COST_RUN"
 ENV_MARKER = "PERSPECTIVERSE_SPEND_CAP_MARKER"
@@ -126,12 +140,82 @@ def _money(raw: str, *, fallback: Decimal) -> Decimal:
     return value
 
 
+def corpus_claim_count() -> int:
+    """Claims already in ``live_corpus.db``, set by the workflow before the live step."""
+    raw = (os.getenv(ENV_CORPUS_CLAIMS) or "").strip()
+    if not raw:
+        return 0
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 0
+
+
+def _ledger_path() -> Path | None:
+    path = (os.getenv(ENV_LEDGER) or "").strip()
+    return Path(path) if path else None
+
+
+def is_fill_run() -> bool:
+    raw = (os.getenv(ENV_FILL_RUN) or "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def fill_paid_usd(ledger: Path) -> Decimal:
+    """Paid-call dollars on fill-tagged ledger rows, every UTC day."""
+    from pipeline.costs import read_ledger, row_has_fill_tag
+
+    if not ledger.is_file() or ledger.stat().st_size == 0:
+        return Decimal("0")
+    total = Decimal("0")
+    for row in read_ledger(ledger):
+        if not row_has_fill_tag(row):
+            continue
+        if row.get("service") == SERVICE_R2 or row.get("service") not in PAID_CALL_SERVICES:
+            continue
+        total += _row_usd(row)
+    return total
+
+
+def fill_campaign_spent() -> Decimal:
+    path = _ledger_path()
+    if path is None:
+        return Decimal("0")
+    try:
+        return fill_paid_usd(path)
+    except Exception:
+        return Decimal("0")
+
+
+def fill_campaign_complete() -> bool:
+    if corpus_claim_count() >= CLAIM_TARGET:
+        return True
+    return fill_campaign_spent() >= FILL_BUDGET_TOTAL_USD
+
+
+def fill_dispatch_allowed() -> bool:
+    return not fill_campaign_complete()
+
+
+def _baseline_stop_usd() -> Decimal:
+    if fill_campaign_complete():
+        return DAILY_STOP_AFTER_FILL_USD
+    return DAILY_STOP_USD
+
+
 def warn_usd() -> Decimal:
+    if is_fill_run():
+        return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_WARN_USD)
+    if fill_campaign_complete():
+        return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_WARN_AFTER_FILL_USD)
     return _money(os.getenv(ENV_WARN) or "", fallback=DAILY_WARN_USD)
 
 
 def stop_usd() -> Decimal:
-    limit = _money(os.getenv(ENV_STOP) or "", fallback=DAILY_STOP_USD)
+    if is_fill_run():
+        limit = FILL_BUDGET_TOTAL_USD
+    else:
+        limit = _money(os.getenv(ENV_STOP) or "", fallback=_baseline_stop_usd())
     if warn_usd() > limit:
         raise SpendCapExceeded(
             f"Daily spend warn ${format_usd(warn_usd())} is above the stop "
@@ -139,6 +223,21 @@ def stop_usd() -> Decimal:
             spent_usd=Decimal("0"),
         )
     return limit
+
+
+def _log_fill_shortfall(total: Decimal) -> None:
+    claims = corpus_claim_count()
+    if claims >= CLAIM_TARGET:
+        return
+    gap = CLAIM_TARGET - claims
+    message = (
+        f"Fill budget exhausted: paid ${format_usd(total)} of ${format_usd(FILL_BUDGET_TOTAL_USD)} "
+        f"across fill-tagged runs; corpus at {claims:,} claims, {gap:,} short of {CLAIM_TARGET:,}. "
+        f"Keeping paid posts from this run. Daily cap returns to warn ${format_usd(DAILY_WARN_AFTER_FILL_USD)} "
+        f"/ stop ${format_usd(DAILY_STOP_AFTER_FILL_USD)} until the corpus is full."
+    )
+    print(message, file=sys.stderr)
+    print(f"::warning::{message}")
 
 
 def _row_usd(row: dict[str, str]) -> Decimal:
@@ -182,7 +281,10 @@ def _load_prior_locked() -> None:
         return
     ledger = Path(path)
     try:
-        _prior = prior_paid_usd(ledger, today=utc_today())
+        if is_fill_run():
+            _prior = fill_paid_usd(ledger)
+        else:
+            _prior = prior_paid_usd(ledger, today=utc_today())
     except Exception as exc:
         _prior = Decimal("0")
         message = (
@@ -217,16 +319,24 @@ def _maybe_warn_locked(total: Decimal) -> None:
 
 
 def _raise_if_stopped(total: Decimal, *, where: str) -> None:
-    """Warn at $1.00. Raise once today's paid calls are at $1.00."""
+    """Warn at the active threshold. Raise once paid calls reach the hard stop."""
     _maybe_warn_locked(total)
     limit = stop_usd()
     if total < limit:
         return
-    message = (
-        f"Daily spend cap stop: today's paid calls are ${format_usd(total)} "
-        f"({where}), at the ${format_usd(limit)} hard stop. "
-        "Not publishing; yesterday's edition stays."
-    )
+    if is_fill_run():
+        _log_fill_shortfall(total)
+        message = (
+            f"Fill spend cap stop: fill-tagged paid calls are ${format_usd(total)} "
+            f"({where}), at the ${format_usd(limit)} hard stop. "
+            "Not publishing; yesterday's edition stays."
+        )
+    else:
+        message = (
+            f"Daily spend cap stop: today's paid calls are ${format_usd(total)} "
+            f"({where}), at the ${format_usd(limit)} hard stop. "
+            "Not publishing; yesterday's edition stays."
+        )
     print(message, file=sys.stderr)
     print(f"::error::{message}")
     raise SpendCapExceeded(message, spent_usd=total)
@@ -504,9 +614,37 @@ def hold_edition(repo: Path, *, push: bool = False, cost_run: Path | None = None
     return STOP_EXIT
 
 
+def check_fill_dispatch() -> int:
+    """Exit 1 when a fill dispatch was requested but the fill campaign is already done."""
+    if not is_fill_run():
+        return 0
+    if fill_dispatch_allowed():
+        return 0
+    claims = corpus_claim_count()
+    spent = fill_campaign_spent()
+    if claims >= CLAIM_TARGET:
+        reason = f"corpus already has {claims:,} claims (target {CLAIM_TARGET:,})"
+    else:
+        reason = (
+            f"fill-tagged spend is ${format_usd(spent)} "
+            f"(cap ${format_usd(FILL_BUDGET_TOTAL_USD)}) with {claims:,} claims"
+        )
+    message = (
+        f"Fill dispatch refused: {reason}. Use a normal run; daily cap is warn "
+        f"${format_usd(DAILY_WARN_AFTER_FILL_USD)} / stop ${format_usd(DAILY_STOP_AFTER_FILL_USD)}."
+    )
+    print(f"::error::{message}", file=sys.stderr)
+    print(message, file=sys.stderr)
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Keep yesterday's edition when the daily spend cap stops a run")
     sub = parser.add_subparsers(dest="command", required=True)
+    check = sub.add_parser(
+        "check-fill-dispatch",
+        help="Refuse workflow_dispatch fill when the corpus is full or fill spend is exhausted",
+    )
     hold = sub.add_parser("hold-edition", help="Append the cost ledger and do not replace public/data.json")
     hold.add_argument("--repo", type=Path, required=True)
     hold.add_argument("--push", action="store_true")
@@ -520,6 +658,8 @@ def main(argv: list[str] | None = None) -> int:
     partial.add_argument("--push", action="store_true")
     partial.add_argument("--cost-run", type=Path, default=None)
     args = parser.parse_args(argv)
+    if args.command == "check-fill-dispatch":
+        return check_fill_dispatch()
     if args.command == "hold-edition":
         return hold_edition(args.repo, push=args.push, cost_run=args.cost_run, marker=args.marker)
     if args.command == "record-partial-ledger":

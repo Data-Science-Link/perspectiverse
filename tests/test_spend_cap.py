@@ -24,21 +24,32 @@ from pipeline.costs import (
 from pipeline.live import _safe_draft, _topup_claims
 from pipeline.run_pipeline import main
 from pipeline.spend_cap import (
+    DAILY_STOP_AFTER_FILL_USD,
     DAILY_STOP_USD,
+    DAILY_WARN_AFTER_FILL_USD,
     DAILY_WARN_USD,
+    FILL_BUDGET_TOTAL_USD,
     STOP_EXIT,
     SpendCapExceeded,
+    check_fill_dispatch,
     enforce_before_paid_work,
+    fill_campaign_complete,
+    fill_paid_usd,
     guard_before_paid_call,
     hold_edition,
     record_partial_ledger,
+    stop_usd,
+    warn_usd,
 )
+from pipeline.costs import LEDGER_TAG_FILL
 
 
 @pytest.fixture(autouse=True)
 def _isolated_cap(monkeypatch):
     monkeypatch.delenv("PERSPECTIVERSE_DAILY_SPEND_WARN", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_DAILY_SPEND_STOP", raising=False)
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    monkeypatch.delenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_LEDGER", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_RUN", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_SPEND_CAP_MARKER", raising=False)
@@ -61,7 +72,16 @@ def _attempt(**overrides):
     record_attempt(**payload)
 
 
-def _ledger_row(*, run_id: str, trigger: str, service: str, cost: str, day: date, model: str = "unit") -> dict:
+def _ledger_row(
+    *,
+    run_id: str,
+    trigger: str,
+    service: str,
+    cost: str,
+    day: date,
+    model: str = "unit",
+    tags: str = "",
+) -> dict:
     return {
         "run_id": run_id,
         "run_started_utc": f"{day.isoformat()}T06:00:00Z",
@@ -77,6 +97,13 @@ def _ledger_row(*, run_id: str, trigger: str, service: str, cost: str, day: date
         "cost_source": "reported",
         "posts_processed": 0,
         "planets_published": 0,
+        "storage_bytes": 0,
+        "class_a_ops": 0,
+        "class_b_ops": 0,
+        "list_price_usd": Decimal(cost),
+        "retried_calls": 0,
+        "final_failures": 0,
+        "tags": tags,
     }
 
 
@@ -901,6 +928,278 @@ def test_hold_edition_git_reset_leaves_staged_halt_corpus(tmp_path, monkeypatch)
     assert verify_staged_corpus(staged)
     rows = sqlite3.connect(staged).execute("SELECT uri FROM posts").fetchall()
     assert rows == [("at://staged/only",)]
+
+
+def test_fill_cap_sums_tagged_ledger_across_utc_days(tmp_path, monkeypatch):
+    """Fill spend is the fill-tagged ledger total, not one UTC day."""
+    today = date(2026, 10, 16)
+    yesterday = date(2026, 10, 15)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-yesterday",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="12.00",
+                day=yesterday,
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="not-fill",
+                trigger="schedule",
+                service=SERVICE_JEV,
+                cost="0.90",
+                day=today,
+            ),
+        ],
+    )
+    assert fill_paid_usd(ledger) == Decimal("12.00")
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    with pytest.raises(SpendCapExceeded) as caught:
+        _attempt(cost_usd=Decimal("3.01"))
+    assert caught.value.spent_usd == Decimal("15.01")
+    assert FILL_BUDGET_TOTAL_USD == Decimal("15.00")
+
+
+def test_fill_dispatch_refused_when_corpus_full_or_fill_spent(monkeypatch, tmp_path):
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-done",
+                trigger="workflow_dispatch",
+                service=SERVICE_DEEPINFRA,
+                cost="15.00",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "12000")
+    assert check_fill_dispatch() == 1
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
+
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "100000")
+    assert check_fill_dispatch() == 1
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
+
+
+def test_fill_exhausted_before_100k_halts_and_returns_normal_daily_cap(tmp_path, monkeypatch, capsys):
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "25000")
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-partial",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="14.99",
+                day=today,
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    with pytest.raises(SpendCapExceeded):
+        _attempt(cost_usd=Decimal("0.02"))
+    captured = capsys.readouterr()
+    assert "Fill budget exhausted" in captured.err
+    assert "75,000 short of 100,000" in captured.err
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-final",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="0.02",
+                day=today,
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
+
+
+def test_after_fill_campaign_utc_day_warns_at_fifty_cents_stops_at_one_dollar(
+    tmp_path, monkeypatch, capsys
+):
+    """Post-fill daily cap: UTC-day ledger spend warns at $0.50 and hard-stops at $1.00."""
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-done",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="15.00",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="schedule-today",
+                trigger="schedule",
+                service=SERVICE_DEEPINFRA,
+                cost="0.50",
+                day=today,
+            ),
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "50000")
+    assert fill_campaign_complete()
+    assert stop_usd() == DAILY_STOP_AFTER_FILL_USD
+    assert warn_usd() == DAILY_WARN_AFTER_FILL_USD
+
+    reset_meter()
+    enforce_before_paid_work()
+    captured = capsys.readouterr()
+    assert "::warning::" in captured.out
+    assert "warn $0.50" in captured.out
+    assert "stop $1.00" in captured.out
+
+    _attempt(cost_usd=Decimal("0.49"))
+    capsys.readouterr()
+    with pytest.raises(SpendCapExceeded) as caught:
+        _attempt(cost_usd=Decimal("0.01"))
+    assert caught.value.spent_usd == Decimal("1.00")
+    assert len(get_meter().attempts()) == 2
+
+
+def test_non_fill_run_still_uses_daily_cap_not_fill_total(tmp_path, monkeypatch):
+    today = date(2026, 10, 16)
+    monkeypatch.setattr("pipeline.spend_cap.utc_today", lambda: today)
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-yesterday",
+                trigger="workflow_dispatch",
+                service=SERVICE_JEV,
+                cost="4.50",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            ),
+            _ledger_row(
+                run_id="schedule-today",
+                trigger="schedule",
+                service=SERVICE_JEV,
+                cost="0.50",
+                day=today,
+            ),
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    reset_meter()
+    enforce_before_paid_work()
+    with pytest.raises(SpendCapExceeded):
+        _attempt(cost_usd=Decimal("0.51"))
+    assert stop_usd() == DAILY_STOP_USD
+
+
+def test_fill_run_logs_planet_count_and_labeling_calls(monkeypatch, capsys):
+    from pipeline.live import _log_fill_run_summary
+
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    record_attempt(
+        service=SERVICE_DEEPINFRA,
+        model="unit",
+        input_tokens=1,
+        output_tokens=1,
+        cost_usd=Decimal("0.01"),
+        cost_source="reported",
+        status="success",
+    )
+    payload = {"topics": [{"id": 1}], "sections": {"Politics": [{"id": 2}]}}
+    _log_fill_run_summary(payload)
+    captured = capsys.readouterr()
+    assert "Fill run: 2 published planet(s), 1 labeling call(s)." in captured.out
+
+
+def test_fill_dispatch_check_runs_after_ledger_load():
+    """Fill refusal must see fill-tagged spend on data-snapshot, not an empty ledger."""
+    steps = _pipeline_workflow_steps()
+    names = [step.get("name") for step in steps]
+    ledger_at = names.index("Load today's cost ledger for the spend cap")
+    refuse_at = names.index("Refuse fill dispatch when the fill campaign is complete")
+    live_at = next(index for index, step in enumerate(steps) if step.get("id") == "live")
+    assert ledger_at < refuse_at < live_at
+    ledger_step = steps[ledger_at]
+    assert "PERSPECTIVERSE_COST_LEDGER" in ledger_step["run"]
+    assert "data-snapshot:costs/ledger.csv" in ledger_step["run"]
+    workflow_text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
+    assert "timeout-minutes: 360" in workflow_text
+
+
+def test_check_fill_dispatch_refuses_when_ledger_shows_five_dollars_fill_spend(
+    tmp_path, monkeypatch
+):
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-done",
+                trigger="workflow_dispatch",
+                service=SERVICE_DEEPINFRA,
+                cost="15.00",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "12000")
+    assert check_fill_dispatch() == 1
+
+
+def test_check_fill_dispatch_without_ledger_env_ignores_prior_fill_spend(monkeypatch, tmp_path):
+    """Documents why the workflow must set PERSPECTIVERSE_COST_LEDGER before the check step."""
+    ledger = tmp_path / "ledger.csv"
+    append_ledger(
+        ledger,
+        [
+            _ledger_row(
+                run_id="fill-done",
+                trigger="workflow_dispatch",
+                service=SERVICE_DEEPINFRA,
+                cost="15.00",
+                day=date(2026, 10, 15),
+                tags=LEDGER_TAG_FILL,
+            )
+        ],
+    )
+    monkeypatch.setenv("PERSPECTIVERSE_FILL_RUN", "1")
+    monkeypatch.setenv("PERSPECTIVERSE_CORPUS_CLAIM_COUNT", "12000")
+    monkeypatch.delenv("PERSPECTIVERSE_COST_LEDGER", raising=False)
+    assert check_fill_dispatch() == 0
+    monkeypatch.setenv("PERSPECTIVERSE_COST_LEDGER", str(ledger))
+    assert check_fill_dispatch() == 1
 
 
 def test_over_cap_e2e_halts_before_publish():

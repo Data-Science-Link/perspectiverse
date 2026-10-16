@@ -23,6 +23,15 @@ on:
       - "!pipeline/README.md"
       - "!pipeline/data/**"
   workflow_dispatch:
+    inputs:
+      fill_budget_usd:
+        description: >-
+          Set to any value (e.g. 15) to run a 100K fill dispatch. Uses the shared
+          $15.00 fill budget across tagged ledger rows, not UTC-day boundaries.
+          Refused once the corpus is full or fill spend reaches $15. Empty = normal run.
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: discourse-pipeline
@@ -37,6 +46,7 @@ permissions:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -126,6 +136,16 @@ jobs:
           restore-keys: |
             jev-verdict-cache-
 
+      - name: Corpus claim count for spend-cap baseline
+        if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
+        run: |
+          claims=0
+          if [ -f pipeline/data/live_corpus.db ]; then
+            claims=$(sqlite3 pipeline/data/live_corpus.db "SELECT COUNT(*) FROM posts WHERE is_claim=1" 2>/dev/null || echo 0)
+          fi
+          echo "PERSPECTIVERSE_CORPUS_CLAIM_COUNT=$claims" >> "$GITHUB_ENV"
+          echo "Corpus claims for spend cap: $claims"
+
       - name: Load today's cost ledger for the spend cap
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
@@ -136,6 +156,12 @@ jobs:
           else
             echo "::warning::No costs/ledger.csv on data-snapshot; the daily spend cap only sees this run."
           fi
+
+      - name: Refuse fill dispatch when the fill campaign is complete
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != ''
+        run: |
+          source .venv/bin/activate
+          PERSPECTIVERSE_FILL_RUN=1 python -m pipeline.spend_cap check-fill-dispatch
 
       - name: Run live pipeline
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
@@ -150,6 +176,7 @@ jobs:
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL }}
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           JEV_MODEL: ${{ secrets.JEV_MODEL }}
+          PERSPECTIVERSE_FILL_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != '' && '1' || '' }}
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
