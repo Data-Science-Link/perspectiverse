@@ -538,37 +538,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 
 **Approved by:** Michael, 2026-10-14 8:58 PM CT in the Perspectiverse Factory room ("Yes include those too"). These match the Builder's template entry.
 
-### 2026-10-16 — Keep #158 pending keeps (Refs #106)
-- **Decision:** Keep #158 pending keeps.
-- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 ~10:27 AM CT ("I am good with your recommendations. Please log and implement those.")
+### 2026-10-16 — Michael room approvals (Refs #106)
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 ~10:27 AM CT ("I am good with your recommendations. Please log and implement those."). Giver draft: https://github.com/Data-Science-Link/perspectiverse/issues/106#issuecomment-6218833679
+- **Decision:** (a) Keep #158 pending keeps. (b) Count pending keeps on their own line, separate from failed stance checks. (c) Skip the scheduled daily run when a merge already ran a full paid pass that UTC day. (d) PRs use "Refs #N" for ledger and tracking issues, never "Closes". (e) Park #145 Jetstream until 100K posts can be shown to cost $0.50 a day or less.
 - **Why:** On the Oct 15 run, #158 cut planets dropped with no reader note from 13 to 0, and no real side was lost. Counting pending keeps as failures made the failure count unreadable: all 7 "failed" planets were pending keeps. Two paid passes on Oct 15 brought spend to about $0.505. #176's "Closes #106" auto-closed the ledger. At a 0.1% cache hit rate, 100K posts would cost about $2 a day.
 - **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
-- **Revisit when:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit the scheduled skip if a merge ever needs a same-day fresh edition.
-
-### 2026-10-16 — Pending keeps separate from stance-check failures (Refs #106)
-- **Decision:** Count pending keeps on their own line, separate from failed stance checks.
-- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 ~10:27 AM CT ("I am good with your recommendations. Please log and implement those.")
-- **Why:** On the Oct 15 run, #158 cut planets dropped with no reader note from 13 to 0, and no real side was lost. Counting pending keeps as failures made the failure count unreadable: all 7 "failed" planets were pending keeps. Two paid passes on Oct 15 brought spend to about $0.505. #176's "Closes #106" auto-closed the ledger. At a 0.1% cache hit rate, 100K posts would cost about $2 a day.
-- **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
-- **Revisit when:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit the scheduled skip if a merge ever needs a same-day fresh edition.
-
-### 2026-10-16 — Skip scheduled run after same-UTC-day merge paid pass (Refs #106, #132, #175)
-- **Decision:** Skip the scheduled daily run when a merge already ran a full paid pass that UTC day.
-- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 ~10:27 AM CT ("I am good with your recommendations. Please log and implement those.")
-- **Why:** On the Oct 15 run, #158 cut planets dropped with no reader note from 13 to 0, and no real side was lost. Counting pending keeps as failures made the failure count unreadable: all 7 "failed" planets were pending keeps. Two paid passes on Oct 15 brought spend to about $0.505. #176's "Closes #106" auto-closed the ledger. At a 0.1% cache hit rate, 100K posts would cost about $2 a day.
-- **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
-- **Revisit when:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit the scheduled skip if a merge ever needs a same-day fresh edition.
-
-### 2026-10-16 — PRs use Refs for ledger and tracking issues (Refs #106)
-- **Decision:** PRs use "Refs #N" for ledger and tracking issues, never "Closes".
-- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 ~10:27 AM CT ("I am good with your recommendations. Please log and implement those.")
-- **Why:** On the Oct 15 run, #158 cut planets dropped with no reader note from 13 to 0, and no real side was lost. Counting pending keeps as failures made the failure count unreadable: all 7 "failed" planets were pending keeps. Two paid passes on Oct 15 brought spend to about $0.505. #176's "Closes #106" auto-closed the ledger. At a 0.1% cache hit rate, 100K posts would cost about $2 a day.
-- **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
-- **Revisit when:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit the scheduled skip if a merge ever needs a same-day fresh edition.
-
-### 2026-10-16 — Park #145 Jetstream until cache supports 100K at $0.50/day (Refs #106)
-- **Decision:** Park #145 Jetstream until 100K posts can be shown to cost $0.50 a day or less.
-- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 ~10:27 AM CT ("I am good with your recommendations. Please log and implement those.")
-- **Why:** On the Oct 15 run, #158 cut planets dropped with no reader note from 13 to 0, and no real side was lost. Counting pending keeps as failures made the failure count unreadable: all 7 "failed" planets were pending keeps. Two paid passes on Oct 15 brought spend to about $0.505. #176's "Closes #106" auto-closed the ledger. At a 0.1% cache hit rate, 100K posts would cost about $2 a day.
-- **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
-- **Revisit when:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit the scheduled skip if a merge ever needs a same-day fresh edition.
+- **Revisit:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit (c) if a merge ever needs a same-day fresh edition.
