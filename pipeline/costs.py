@@ -730,6 +730,39 @@ def projection_levers(
     ]
 
 
+def reuse_daily_usd(
+    steady_jev: Decimal,
+    grown_label: Decimal,
+    *,
+    changed: int,
+    planets: int,
+) -> dict[str, Decimal | int]:
+    """Option 1, and option 1 plus avoiding shortfalls, at a measured changed share.
+
+    Both totals are the steady day: new-post Jev plus the grown labeling bill
+    times ``changed / planets``. Avoiding a shortfall removes that separate
+    top-up day. It does not take anything else off this steady total, so the
+    two options are the same number here.
+    """
+    count = int(planets)
+    needs = int(changed)
+    if count <= 0 or needs < 0 or needs > count:
+        raise ValueError("changed must be between 0 and planets")
+    jev = steady_jev if isinstance(steady_jev, Decimal) else Decimal(str(steady_jev))
+    label = grown_label if isinstance(grown_label, Decimal) else Decimal(str(grown_label))
+    if jev < 0 or label < 0:
+        raise ValueError("costs must be >= 0")
+    share = Decimal(needs) / Decimal(count)
+    total = jev + (label * share)
+    return {
+        "changed": needs,
+        "planets": count,
+        "share": share,
+        "option_1_usd": total,
+        "option_1_plus_3_usd": total,
+    }
+
+
 def projection_levers_line(projected: dict) -> str:
     """One log line: each option's $/day and its effect on grouping quality."""
     if not any(item["id"] == "planets" for item in projected["assumptions"]):
@@ -738,7 +771,7 @@ def projection_levers_line(projected: dict) -> str:
     return (
         "Jev 100K levers: "
         f"{reuse['name']} ${format_usd(reuse['total_if_share_change_usd'])}/day "
-        f"if {reuse['change_share']} of planets change, "
+        f"if {reuse['change_share']} of planets change (illustration, not a measured share), "
         f"${format_usd(reuse['total_if_every_planet_changes_usd'])}/day if every planet changes "
         f"({reuse['grouping_quality']}); "
         f"{cheaper['name']} ${format_usd(cheaper['total_at_one_third_price_usd'])}/day "
