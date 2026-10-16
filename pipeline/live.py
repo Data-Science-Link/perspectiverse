@@ -114,7 +114,8 @@ PIPELINE_JOB_LIMIT_MINUTES = 360
 FILL_JOB_MARGIN_MINUTES = 45
 # Safety stop if every day still returns posts. Budget and the job clock stop sooner.
 FILL_MAX_LOOKBACK_DAYS = 120
-# Days in a row with no new posts. Older history is not worth the page budget.
+# Days in a row whose search returned zero posts. A window that only repeats
+# URIs already in the corpus does not count, and the walk keeps going.
 FILL_EMPTY_WINDOWS_STOP = 14
 ENV_JOB_STARTED_AT = "PERSPECTIVERSE_JOB_STARTED_AT"
 
@@ -586,8 +587,13 @@ def _fill_claims_by_day(
     Bluesky search caps a query at about 40 pages, so one latest search is
     about 11K posts. Each UTC day (``since`` / ``until``) gets its own pages.
     Stops at the claim target, before a paid call once fill spend is at
-    ``FILL_BUDGET_TOTAL_USD``, or when the job clock is inside the safe margin.
-    Does not change ``catalog_size`` (10 planets per solar system).
+    ``FILL_BUDGET_TOTAL_USD``, when the job clock is inside the safe margin,
+    after ``FILL_MAX_LOOKBACK_DAYS``, or after ``FILL_EMPTY_WINDOWS_STOP``
+    searches in a row that returned zero posts. A window whose posts are all
+    already in the corpus does not count as empty. The current UTC day is not
+    searched again when the corpus already has a post from that day (the
+    latest search just ran). Does not change ``catalog_size`` (10 planets
+    per solar system).
 
     Returns claims, the corpus list (including non-claims), and the hour span
     to keep when retiring. The span is 0 when this walk added no posts.
@@ -616,10 +622,11 @@ def _fill_claims_by_day(
     stop_reason = "lookback limit"
     day = moment.date()
 
-    def _log_window(since: datetime, until: datetime, posts: int) -> None:
+    def _log_window(since: datetime, until: datetime, posts: int, *, note: str = "") -> None:
+        extra = f" {note}" if note else ""
         print(
             f"Fill window {format_search_time(since)} .. {format_search_time(until)}: "
-            f"{posts} posts, {len(result)} claims so far, "
+            f"{posts} posts{extra}, {len(result)} claims so far, "
             f"spend ${format_usd(day_paid_usd())} of ${format_usd(FILL_BUDGET_TOTAL_USD)}."
         )
 
@@ -640,7 +647,14 @@ def _fill_claims_by_day(
             stop_reason = "no search queries"
             print("Fill walk skipped: no search queries.")
         else:
-            for offset in range(FILL_MAX_LOOKBACK_DAYS):
+            # The latest search already covered today when those posts are on
+            # the corpus. Skip that window instead of paying for it again.
+            start_offset = 1 if posts_on_utc_date(corpus_posts, day.isoformat()) else 0
+            if start_offset:
+                print(
+                    f"Fill skipped {day.isoformat()}: the corpus already has posts from that UTC day."
+                )
+            for offset in range(start_offset, FILL_MAX_LOOKBACK_DAYS):
                 if len(result) >= target:
                     stop_reason = "claim target"
                     break
@@ -689,16 +703,28 @@ def _fill_claims_by_day(
                     oldest_since = since
                 if newest_until is None or until > newest_until:
                     newest_until = until
-                if not fresh:
+                if not incoming:
                     empty_streak += 1
                     _log_window(since, until, 0)
                     if empty_streak >= FILL_EMPTY_WINDOWS_STOP:
                         stop_reason = f"{FILL_EMPTY_WINDOWS_STOP} empty days"
                         print(
                             f"Fill stopped: {FILL_EMPTY_WINDOWS_STOP} date windows in a row "
-                            "returned no new posts."
+                            "returned no posts."
                         )
                         break
+                    continue
+                if not fresh:
+                    # Search returned posts, but every URI was already seen.
+                    # Keep walking. The 120-day lookback, the $15 fill total,
+                    # and the job-time margin still bound the walk.
+                    empty_streak = 0
+                    _log_window(
+                        since,
+                        until,
+                        0,
+                        note=f"({len(incoming)} from search, none new)",
+                    )
                     continue
                 empty_streak = 0
                 # Paid scoring starts here. Refuse the batch once fill spend

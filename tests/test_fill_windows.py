@@ -256,7 +256,67 @@ def test_fill_stops_after_empty_days(monkeypatch, capsys):
     assert len(calls) == FILL_EMPTY_WINDOWS_STOP
     assert calls[0].date().isoformat() == "2026-10-16"
     assert calls[-1] == calls[0] - timedelta(days=FILL_EMPTY_WINDOWS_STOP - 1)
-    assert f"{FILL_EMPTY_WINDOWS_STOP} date windows" in capsys.readouterr().out
+    logged = capsys.readouterr().out
+    assert f"{FILL_EMPTY_WINDOWS_STOP} date windows" in logged
+    assert "returned no posts" in logged
+
+
+def test_resumed_fill_walks_past_already_seen_days(monkeypatch, capsys):
+    """A corpus covering 20 UTC days must not trip the 14-empty-day stop.
+
+    Those windows return posts that are already in the corpus. Only a search
+    that returns nothing counts as empty, so the walk reaches an older day.
+    Today is already on the corpus, so that redundant search is skipped.
+    """
+    span_days = 20
+    covered = [(NOW - timedelta(days=offset)).date() for offset in range(span_days)]
+    corpus = [
+        _post(datetime(day.year, day.month, day.day, 12, tzinfo=timezone.utc), f"at://seen/{day.isoformat()}")
+        for day in covered
+    ]
+    claims_in = [dict(post, is_claim=True, section="Politics") for post in corpus]
+    calls = []
+    scored = []
+
+    def fake_extract(**kwargs):
+        since = kwargs["since"]
+        calls.append(since.date())
+        day = since.date()
+        if day in set(covered):
+            return [_post(since + timedelta(hours=12), f"at://seen/{day.isoformat()}")]
+        return [_post(since + timedelta(hours=12), f"at://new/{day.isoformat()}")]
+
+    def jev(posts, **kwargs):
+        scored.extend(post["uri"] for post in posts)
+        return _mark_claims(posts, **kwargs)
+
+    monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
+    monkeypatch.setattr("pipeline.live.apply_jev", jev)
+    monkeypatch.setattr("pipeline.live.guard_before_paid_call", lambda _kind: None)
+    claims, updated, span = _fill_claims_by_day(
+        claims_in,
+        target=len(claims_in) + 1,
+        settings=_settings(),
+        connection=None,
+        corpus_posts=list(corpus),
+        now=NOW,
+        clock=lambda: NOW,
+    )
+    older = covered[-1] - timedelta(days=1)
+    assert NOW.date() not in calls
+    assert len(calls) > FILL_EMPTY_WINDOWS_STOP
+    assert older in calls
+    assert calls[-1] == older
+    assert scored == [f"at://new/{older.isoformat()}"]
+    assert f"at://new/{older.isoformat()}" in {post["uri"] for post in claims}
+    assert span > 0
+    assert updated is not None
+    assert f"at://new/{older.isoformat()}" in {post["uri"] for post in updated}
+    logged = capsys.readouterr().out
+    assert f"Fill skipped {NOW.date().isoformat()}" in logged
+    assert "none new" in logged
+    assert "empty days" not in logged
+    assert "stop: claim target" in logged
 
 
 def test_scheduled_collect_does_not_walk_date_windows(monkeypatch, tmp_path):
