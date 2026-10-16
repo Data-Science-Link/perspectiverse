@@ -1,5 +1,7 @@
 # Issue #182 — Measured cost split and 100K projection (flat ~110 planets)
 
+**Product gate (Michael, 2026-10-16 11:36 AM CT):** The only hard halt is **$1.00 paid per UTC day** (warn and stop at the same threshold; halts the run). **No planet count cap** — grouping may publish as many planets as pass existing quality floors.
+
 **Sources:** `costs/ledger.csv` on `data-snapshot` (no new paid calls). Runs [38894377011](https://github.com/Data-Science-Link/perspectiverse/actions/runs/38894377011) (2026-10-16 steady) and [38677894812](https://github.com/Data-Science-Link/perspectiverse/actions/runs/38677894812) (2026-10-15 shortfall top-up).
 
 **Projection assumption (not a pipeline cap):** DeepInfra labeling is projected as **flat** at roughly **110 published planets** (~10 global + ~100 section), matching the Oct 16 edition. The live job does **not** cap how many planets grouping may publish; this is only a **planning** line for 100K math.
@@ -27,18 +29,22 @@
 
 New-post Jev on the shortfall run uses the **same steady-quota dollars** as Oct 16 ($0.038082), not a re-measured slice of the 10,230 calls. Top-up is the remainder of that run’s Jev ($0.284407 − $0.038082).
 
-### Projected @ 100K window (flat ~110 planets labeling)
+### Projected @ 100K window (not measured bills)
+
+These rows are **100K projections** from the measured ~10K runs above (`project_measured_daily_usd` / PR #182). They are **not** ledger totals for a 100K day that has run.
 
 Scale for **new-post Jev only:** `100,000 / 9,985 = 10.01121233` (same as PR #182: `refresh_floor(100,000) / refresh_floor(9,985)`).
 
-**Labeling** stays at the **measured 10K-day** dollars (projection assumption: ~110 planets, not scaled with window size).
+**Labeling** in the projection stays at the **measured 10K-day** dollars (assumption: ~110 planets, not scaled with window size).
 
-| Day type | New-post Jev | Top-up Jev | Labeling (~110, assumption) | **Total** |
-|----------|-------------:|-----------:|----------------------------:|----------:|
-| **Steady** | $0.381245 | $0 | $0.117126 | **$0.498371** |
-| **Shortfall (Oct 15 pattern)** | $0.381245 | $2.554474 | $0.110220 | **$3.045939** |
+| Projection (100K window) | New-post Jev | Top-up Jev | Labeling (~110, assumption) | **Projected total** |
+|--------------------------|-------------:|-----------:|----------------------------:|--------------------:|
+| **Steady** (Oct 16 pattern) | $0.381245 | $0 | $0.117126 | **$0.498371** |
+| **Shortfall** (Oct 15 top-up pattern) | $0.381245 | $2.554474 | $0.110220 | **$3.045939** |
 
-Shortfall **total** matches the PR #182 shortfall line ($3.04593876/day). Top-up at 100K is the residual after steady scaled new-post Jev and **flat** Oct 15 labeling; it embeds the PR rule that top-up days are priced with **steady quota $/call** for extras rather than inflating labeling with window size.
+The shortfall row applies the **Oct 15 push run** top-up intensity scaled to 100K. It is a **what-if projection**, not something Oct 15 actually spent. **Oct 15 UTC** paid about **$0.505** across runs that day (two paid passes); the single shortfall run [38677894812](https://github.com/Data-Science-Link/perspectiverse/actions/runs/38677894812) was **$0.394627** at ~10K — do not describe **$3.05** as an Oct 15 or observed daily cost.
+
+Top-up at 100K is the residual after steady scaled new-post Jev and **flat** Oct 15 labeling; it embeds the PR rule that top-up days are priced with **steady quota $/call** for extras rather than inflating labeling with window size.
 
 ---
 

@@ -545,9 +545,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Revert #158. Keep one combined failure count. Allow two paid passes with a stricter cap. Close tracking issues by hand. Run Jetstream now on a higher budget.
 - **Revisit:** Bring back #145 once the cache fix shows a 100K cost projection at or under $0.50 a day. Revisit (c) if a merge ever needs a same-day fresh edition.
 
-### 2026-10-16 — 100K ingest window and $1 UTC-day spend halt (#182, #149, #87)
-- **Decision:** Move the retained public-claims window to **100,000** posts (`CLAIM_TARGET` / default `sample_size`). Raise the daily spend **warn and hard stop** to **$1.00** per UTC day (same threshold for both). The stop counts **every paid call that UTC day** — labeling, Jev, and top-ups — across **all** runs (scheduled, merge/push, reruns), not only the current process, and **halts** the run (exit 14, yesterday's edition stays). **No planet count cap** of any kind; grouping may publish however many planets pass the existing quality floors.
-- **Decided by:** Michael, 2026-10-16 11:35–11:36 AM CT (100K ingest, $1 halt; 11:36 AM: no planet cap).
-- **Why:** A 10K window understates steady Jev and shortfall top-up at production scale. The old $0.50 warn band blocked legitimate same-day merge plus schedule pairs while the $1.00 stop was the real backstop. Planet-count ceilings are a planning mistake, not a product rule — only the dollar cap may halt a run.
-- **Alternatives:** Keep 10K ingest. Keep warn at $0.50 and stop at $1.00. Cap published planets at 300 (rejected 11:36 AM).
-- **Revisit when:** The ledger shows sustained daily totals near $1.00 at 100K with healthy editions, or vendor prices move enough to change what $1.00 buys.
+### 2026-10-16: $1/day hard cost cap, no planet cap, scale to 100K posts
+- **Decision:** The daily cost cap is $1. It's a hard stop that adds up every run in the UTC day (scheduled, merge and rerun runs), and it supersedes the 2026-10-09 "under $0.50/day" bar. There's no cap on the number of planets. The factory should get daily runs to about 100K posts.
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-16 11:36 AM CT; Giver revised draft: https://github.com/Data-Science-Link/perspectiverse/issues/106#issuecomment-6220140069
+- **Why:** Michael wants a bigger sample for judging how good the planet and perspective groupings are.
+- **Alternatives:** A 300-planet cap (dropped by Michael). A $1 warning with a higher hard stop (not chosen). Keeping $0.50 (rejected, since it delays the quality read).
+- **Revisit when:** If 100K runs keep getting stopped at $1 (the short-day projection is about $1.55), or once the quality read is done.
+- **Done bar:** Real daily runs near 100K posts at $1 a day or less, plus Michael's read on grouping quality. Before any 100K run, two tests must show the stop halting a run: one that starts with the day already at $1, and one that crosses $1 partway through.
