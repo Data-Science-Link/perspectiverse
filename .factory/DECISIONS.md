@@ -594,3 +594,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Merging #193 on 2026-10-17 04:40 UTC started paid run 39003439496 from the `push` trigger on `pipeline/**`. The Manager cancelled it. It spent $0. The live step's `if` is already true for every non-schedule event, so leaving the trigger and gating steps was the easier way to miss one condition and still spend.
 - **Alternatives:** Keep `on.push` and add `github.event_name != 'push'` to every paid or publishing step (rejected: one missed `if` still calls Jev).
 - **Revisit when:** A merge to main needs a paid pipeline run the same day and the schedule or a dispatch cannot do it.
+
+### 2026-10-17 — A free-ingest dispatch is a preview, not a publish (#192)
+- **Decision:** `workflow_dispatch` with `free_ingest` true still runs the live step with `PERSPECTIVERSE_FREE_INGEST=1`, and it still records that run's spend on `costs/ledger.csv` so the UTC-day cap counts it. It does not upload the corpus to R2 (including the halt and cancel uploads), upload the `data-json` artifact, or publish `data-snapshot`. The trial `data.json` and a summary (posts per UTC day, planet count, Jev planet-label calls and dollars, wall time per stage) are the Actions artifact `free-ingest-preview`. The schedule and a dispatch with `free_ingest` left false are unchanged.
+- **Decided by:** Manager, after a read-only check on the #195 workflow: a successful free-ingest dispatch would have uploaded about 100K unscored posts. The next scheduled run, with the switch off, would send them through per-post Jev and hit the $1 cap (about $2.78 of need).
+- **Why:** The free path stores posts the spam guard kept, without a per-post Jev verdict. Publishing that corpus makes the following scheduled run pay to score all of them.
+- **Alternatives:** Let the preview publish and rely on the cap to stop the next run (rejected: it spends the day's cap and can skip the edition). Skip recording spend (rejected: the cap would not see the preview).
+- **Revisit when:** A free-ingest run is meant to become the live corpus, with a scored or accepted store that the next schedule will not re-bill.

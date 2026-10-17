@@ -21,6 +21,12 @@ FREE_INGEST_ENV = (
 FILL_RUN_ENV = (
     "${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != '' && '1' || '' }}"
 )
+# False on a schedule (the event check short-circuits) and on a normal dispatch.
+NOT_FREE = "(github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)"
+FREE_PREVIEW = (
+    "github.event_name == 'workflow_dispatch' && inputs.free_ingest == true "
+    "&& steps.live.outcome == 'success'"
+)
 
 # Step ``if`` values on main before this change. Schedule behavior is these
 # conditions plus the live command. A comment or the new env var may change;
@@ -49,10 +55,10 @@ EXPECTED_IF = {
     "Save Jev verdict cache": f"always() && ({WORK_GATE})",
     "Stage corpus after cancelled live": f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled'",
     "Upload corpus to R2 after cancelled live": (
-        f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled'"
+        f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled' && {NOT_FREE}"
     ),
     "Stage halted corpus before ledger git checkout": "failure() && steps.live.outcome == 'failure'",
-    "Upload halted corpus to R2": "failure() && steps.live.outcome == 'failure'",
+    "Upload halted corpus to R2": f"failure() && steps.live.outcome == 'failure' && {NOT_FREE}",
     "Record partial spend when the run ends early": (
         "always() && (" + WORK_GATE + ") && steps.live.outcome != 'success' "
         "&& steps.live.outcome != 'skipped' && (steps.live.outcome == 'failure' "
@@ -61,12 +67,24 @@ EXPECTED_IF = {
     "Keep yesterday's edition when the daily spend cap stops the run": (
         "failure() && steps.live.outcome == 'failure'"
     ),
-    "Upload corpus to R2": f"({WORK_GATE}) && steps.live.outcome == 'success'",
-    "Upload data.json": f"({WORK_GATE}) && steps.live.outcome == 'success'",
+    "Upload corpus to R2": f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_FREE}",
+    "Upload data.json": f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_FREE}",
+    "Write free-ingest preview": FREE_PREVIEW,
+    "Upload free-ingest preview": FREE_PREVIEW,
+    "Record free-ingest spend": f"always() && {FREE_PREVIEW}",
     "Publish data-snapshot branch": (
-        f"({WORK_GATE}) && steps.live.outcome == 'success' && steps.r2upload.outcome == 'success'"
+        f"({WORK_GATE}) && steps.live.outcome == 'success' && steps.r2upload.outcome == 'success' && {NOT_FREE}"
     ),
 }
+
+# A free-ingest dispatch must not reach these. Spend recording is separate.
+FREE_INGEST_BLOCKED = (
+    "Upload corpus to R2",
+    "Upload corpus to R2 after cancelled live",
+    "Upload halted corpus to R2",
+    "Upload data.json",
+    "Publish data-snapshot branch",
+)
 
 # Steps that spend money or publish. A push must not be able to start any of them.
 PAID_OR_PUBLISHING = (
@@ -117,10 +135,19 @@ class Ctx:
     r2: str
     fill: str
     failed: bool
+    free_ingest: bool = False
 
 
 def _work(ctx: Ctx) -> bool:
     return ctx.event != "schedule" or ctx.skip != "true"
+
+
+def _not_free_preview(ctx: Ctx) -> bool:
+    return ctx.event != "workflow_dispatch" or ctx.free_ingest is not True
+
+
+def _free_preview(ctx: Ctx) -> bool:
+    return ctx.event == "workflow_dispatch" and ctx.free_ingest is True and ctx.live == "success"
 
 
 def step_runs(expr: str | None, ctx: Ctx) -> bool:
@@ -139,8 +166,16 @@ def step_runs(expr: str | None, ctx: Ctx) -> bool:
         return _work(ctx)
     if expr == f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled'":
         return _work(ctx) and ctx.live == "cancelled"
+    if expr == f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled' && {NOT_FREE}":
+        return _work(ctx) and ctx.live == "cancelled" and _not_free_preview(ctx)
     if expr == "failure() && steps.live.outcome == 'failure'":
         return ctx.failed and ctx.live == "failure"
+    if expr == f"failure() && steps.live.outcome == 'failure' && {NOT_FREE}":
+        return ctx.failed and ctx.live == "failure" and _not_free_preview(ctx)
+    if expr == FREE_PREVIEW:
+        return _free_preview(ctx)
+    if expr == f"always() && {FREE_PREVIEW}":
+        return _free_preview(ctx)
     partial = (
         "always() && (" + WORK_GATE + ") && steps.live.outcome != 'success' "
         "&& steps.live.outcome != 'skipped' && (steps.live.outcome == 'failure' "
@@ -152,11 +187,14 @@ def step_runs(expr: str | None, ctx: Ctx) -> bool:
             and ctx.live not in {"success", "skipped"}
             and ctx.live in {"failure", "cancelled"}
         )
-    if expr == f"({WORK_GATE}) && steps.live.outcome == 'success'":
-        return _work(ctx) and ctx.live == "success"
-    publish = f"({WORK_GATE}) && steps.live.outcome == 'success' && steps.r2upload.outcome == 'success'"
+    if expr == f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_FREE}":
+        return _work(ctx) and ctx.live == "success" and _not_free_preview(ctx)
+    publish = (
+        f"({WORK_GATE}) && steps.live.outcome == 'success' && "
+        f"steps.r2upload.outcome == 'success' && {NOT_FREE}"
+    )
     if expr == publish:
-        return _work(ctx) and ctx.live == "success" and ctx.r2 == "success"
+        return _work(ctx) and ctx.live == "success" and ctx.r2 == "success" and _not_free_preview(ctx)
     raise AssertionError(f"unrecognized workflow if: {expr}")
 
 
@@ -256,8 +294,68 @@ def test_push_cannot_reach_paid_steps_and_dispatch_steps_match():
     ]
     assert not any(name in skipped_runs for name in PAID_OR_PUBLISHING)
 
-    # free_ingest is not in any step ``if``. It cannot add or drop a step.
-    assert all("free_ingest" not in (step.get("if") or "") for step in _steps())
-    assert dispatch_runs == [
-        name for name in schedule_runs if name != guard
-    ]
+    assert "Upload free-ingest preview" not in schedule_runs
+    assert "Record free-ingest spend" not in schedule_runs
+    assert "Upload free-ingest preview" not in dispatch_runs
+    preview = next(step for step in _steps() if step["name"] == "Upload free-ingest preview")
+    assert preview["with"]["name"] == "free-ingest-preview"
+    spend = next(step for step in _steps() if step["name"] == "Record free-ingest spend")
+    assert "record-preview-ledger" in spend["run"]
+    assert "--push" in spend["run"]
+    assert "data.json" not in spend["run"]
+    assert "pipeline.r2" not in spend["run"]
+
+
+def test_free_ingest_dispatch_cannot_upload_or_publish():
+    """A preview must not put unscored posts on R2 or replace the live edition."""
+    preview = Ctx(
+        event="workflow_dispatch",
+        skip="false",
+        live="success",
+        r2="success",
+        fill="",
+        failed=False,
+        free_ingest=True,
+    )
+    running = _running_names(preview)
+    for blocked in FREE_INGEST_BLOCKED:
+        assert blocked not in running
+    assert "Run live pipeline" in running
+    assert "Write free-ingest preview" in running
+    assert "Upload free-ingest preview" in running
+    assert "Record free-ingest spend" in running
+    order = [step["name"] for step in _steps()]
+    assert order.index("Write free-ingest preview") < order.index("Upload free-ingest preview")
+    assert order.index("Upload free-ingest preview") < order.index("Record free-ingest spend")
+    assert order.index("Record free-ingest spend") < order.index("Publish data-snapshot branch")
+    assert "Record partial spend when the run ends early" not in running
+
+    cancelled = Ctx(
+        event="workflow_dispatch",
+        skip="false",
+        live="cancelled",
+        r2="skipped",
+        fill="",
+        failed=False,
+        free_ingest=True,
+    )
+    cancelled_runs = _running_names(cancelled)
+    assert "Upload corpus to R2 after cancelled live" not in cancelled_runs
+    assert "Publish data-snapshot branch" not in cancelled_runs
+    assert "Upload free-ingest preview" not in cancelled_runs
+    assert "Record partial spend when the run ends early" in cancelled_runs
+
+    failed = Ctx(
+        event="workflow_dispatch",
+        skip="false",
+        live="failure",
+        r2="skipped",
+        fill="",
+        failed=True,
+        free_ingest=True,
+    )
+    failed_runs = _running_names(failed)
+    assert "Upload halted corpus to R2" not in failed_runs
+    assert "Publish data-snapshot branch" not in failed_runs
+    assert "Record partial spend when the run ends early" in failed_runs
+    assert "Keep yesterday's edition when the daily spend cap stops the run" in failed_runs

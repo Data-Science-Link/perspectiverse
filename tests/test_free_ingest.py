@@ -235,3 +235,85 @@ def test_run_live_free_ingest_does_not_call_per_post_jev(monkeypatch, tmp_path):
     assert "at://fixture/aside" in stored
     assert stored["at://fixture/aside"] is None
     assert any(topic.get("category") == "Politics" for topic in payload["topics"])
+    stages = json.loads((tmp_path / "free_ingest_stages.json").read_text(encoding="utf-8"))
+    assert stages["jev_planet_label_calls"] >= 1
+    assert "cluster" in stages["wall_seconds"]
+    assert "label" in stages["wall_seconds"]
+
+
+def test_preview_summary_counts_days_planets_and_jev_dollars(tmp_path):
+    import json
+    import sqlite3
+
+    from pipeline.free_ingest_preview import build_summary, write_preview
+
+    data = {
+        "topics": [{"category": "Politics"}, {"category": "Health"}],
+        "sections": {"Politics": [{"category": "Politics"}]},
+    }
+    (tmp_path / "data.json").write_text(json.dumps(data), encoding="utf-8")
+    db = tmp_path / "live.db"
+    connection = sqlite3.connect(db)
+    connection.execute("CREATE TABLE posts (created_at TEXT)")
+    connection.executemany(
+        "INSERT INTO posts (created_at) VALUES (?)",
+        [("2026-10-16T01:00:00Z",), ("2026-10-16T02:00:00Z",), ("2026-10-17T03:00:00Z",), ("",)],
+    )
+    connection.commit()
+    connection.close()
+    cost = {
+        "rows": [
+            {"service": "typesafe-jev", "calls": 4, "cost_usd": "0.0300"},
+            {"service": "deepinfra", "calls": 9, "cost_usd": "0.2000"},
+        ]
+    }
+    stages = {"wall_seconds": {"ingest": 1.25, "cluster": 3}, "jev_planet_label_calls": 4}
+    summary = build_summary(
+        data=data,
+        posts_by_day={"2026-10-16": 2, "2026-10-17": 1, "unknown": 1},
+        cost=cost,
+        stages=stages,
+    )
+    assert summary["posts_per_utc_day"]["2026-10-16"] == 2
+    assert summary["post_count"] == 4
+    assert summary["planet_count"] == 3
+    assert summary["jev_planet_label_calls"] == 4
+    assert summary["jev_planet_label_usd"] == "0.03"
+    assert summary["wall_seconds"] == {"ingest": 1.25, "cluster": 3.0}
+    assert "deepinfra" not in json.dumps(summary)
+
+    out = tmp_path / "preview"
+    (tmp_path / "cost.json").write_text(json.dumps(cost), encoding="utf-8")
+    (tmp_path / "stages.json").write_text(json.dumps(stages), encoding="utf-8")
+    write_preview(
+        out,
+        data_path=tmp_path / "data.json",
+        db_path=db,
+        cost_path=tmp_path / "cost.json",
+        stages_path=tmp_path / "stages.json",
+    )
+    written = json.loads((out / "summary.json").read_text(encoding="utf-8"))
+    assert written["posts_per_utc_day"] == {"2026-10-16": 2, "2026-10-17": 1, "unknown": 1}
+    assert json.loads((out / "data.json").read_text(encoding="utf-8"))["topics"]
+
+
+def test_preview_ledger_records_spend_without_publishing_the_edition(monkeypatch, tmp_path):
+    from pipeline import spend_cap
+
+    seen = {}
+
+    def fake(repo, run_file, *, push, commit_message, log_prefix, attempts=4):
+        seen["repo"] = repo
+        seen["run_file"] = run_file
+        seen["push"] = push
+        seen["message"] = commit_message
+        seen["prefix"] = log_prefix
+        return 0
+
+    monkeypatch.setattr(spend_cap, "_commit_ledger_with_push_retry", fake)
+    cost = tmp_path / "cost_run.json"
+    assert spend_cap.record_preview_ledger(tmp_path, push=True, cost_run=cost) == 0
+    assert seen["push"] is True
+    assert seen["run_file"] == cost
+    assert "edition not published" in seen["message"]
+    assert "data.json" not in seen["message"]
