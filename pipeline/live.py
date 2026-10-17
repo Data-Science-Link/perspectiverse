@@ -55,6 +55,7 @@ from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
     catchall_reasons,
     content_tokens,
+    chitchat_flag,
     label_perspective,
     label_topic,
     name_from_perspectives,
@@ -2036,12 +2037,14 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     )
     context["story_calls"]["names"] += 1
     name = str(planet.get("name") or topic_name(terms))
+    # Yes from either existing naming response. No, or a missing field, does not override a high share.
+    model_chitchat = chitchat_flag(planet)
     if (
         planet.get("label_source") == "heuristic"
         or topic_name_is_weak(name, members, terms)
         or _name_misses_faces(name, perspectives)
     ):
-        renamed = name_from_perspectives(
+        renamed, rename_flag = name_from_perspectives(
             planet_prompt_posts,
             perspectives,
             terms,
@@ -2053,12 +2056,14 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         # spends the call even when the answer is unusable.
         if context.get("chosen") != "heuristic":
             context["story_calls"]["names"] += 1
+        if rename_flag is True:
+            model_chitchat = True
         fallback = str(perspectives[0].get("title") or "") if perspectives else ""
         if renamed and not _name_misses_faces(renamed, perspectives):
             name = renamed
         elif fallback and not _title_needs_repair(fallback) and not _is_camp_title(fallback):
             name = fallback
-    chit = planet_chitchat_reason(members, terms, name=name)
+    chit = planet_chitchat_reason(members, terms, name=name, model_chitchat=model_chitchat)
     if chit:
         log.append(
             f"INFO {context.get('section') or 'All topics'}: not publishing chit-chat planet "

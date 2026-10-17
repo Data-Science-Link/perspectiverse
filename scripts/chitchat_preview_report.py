@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Offline report: chit-chat removed at ingest and planets dropped by label guard.
+"""Offline report: chit-chat removed at ingest and planets dropped by content.
 
 Reads a free-ingest-preview artifact (data.json + optional chitchat_removed.json).
+The planet decision uses representative posts. The planet title is not an input.
 No network and no paid calls.
 """
 
@@ -11,8 +12,16 @@ import argparse
 import json
 from pathlib import Path
 
-from pipeline.assemble import topic_name
-from pipeline.chitchat_guard import planet_chitchat_reason
+from pipeline.chitchat_guard import planet_chitchat_reason, pleasantry_share
+
+
+def _members(topic: dict) -> list[dict]:
+    return [
+        {"text": str(post.get("text") or "")}
+        for face in topic.get("perspectives") or []
+        for post in face.get("representative_posts") or []
+        if str(post.get("text") or "").strip()
+    ]
 
 
 def main() -> int:
@@ -22,22 +31,29 @@ def main() -> int:
     args = parser.parse_args()
     data = json.loads(args.data.read_text(encoding="utf-8"))
     print(f"Edition total_posts in data.json: {data.get('total_posts')}")
+    print("Representative posts only. Full post texts are not in the preview artifact.")
     if args.chitchat and args.chitchat.is_file():
         report = json.loads(args.chitchat.read_text(encoding="utf-8"))
         print(json.dumps(report, indent=2))
     else:
         print("No chitchat_removed.json (artifact from before #208).")
     flagged = []
-    for topic in data.get("topics") or []:
-        name = str(topic.get("name") or "")
-        if planet_chitchat_reason(
-            [{"text": name}],
-            [w.lower() for w in name.split()],
-            name=name,
-        ):
-            flagged.append(name)
+    for scope, topics in (("global", data.get("topics") or []),):
+        del scope
+        for topic in topics:
+            name = str(topic.get("name") or "")
+            members = _members(topic)
+            if not members:
+                continue
+            reason = planet_chitchat_reason(members, [], name=None)
+            if reason:
+                flagged.append(f"{name} ({pleasantry_share(members):.0%} of representatives): {reason}")
     if flagged:
-        print("Published planets that still match chit-chat label heuristics:", flagged)
+        print("Global planets whose representatives are chit-chat:")
+        for line in flagged:
+            print(f"  {line}")
+    else:
+        print("No global planet is dropped from its representative posts.")
     return 0
 
 
