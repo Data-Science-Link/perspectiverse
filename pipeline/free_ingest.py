@@ -1,4 +1,9 @@
-"""Wider fetch and planet-only Jev. Off unless ``free_ingest`` is set.
+"""Wider fetch and planet-only Jev.
+
+On for a scheduled run and a normal dispatch. The workflow sets
+``PERSPECTIVERSE_FREE_INGEST=1``, and ``pipeline.example.yaml`` says
+``free_ingest: true``. ``legacy_jev`` and a fill dispatch set the variable
+to ``0``. A config that omits the key stays off (``DEFAULTS``).
 
 When the setting is on, three things change:
 
@@ -11,8 +16,8 @@ When the setting is on, three things change:
   search page cap, and stops a day at 14,300 non-spam posts. It backs off
   on HTTP 429 and 403. It does not walk the fill lookback past 7 days.
 
-The default pipeline does not import this module's fetch. ``run_live``
-calls it only when the setting is on.
+``run_live`` calls this fetch only when the setting is on. The old path
+does not.
 """
 
 from __future__ import annotations
@@ -86,7 +91,10 @@ WIDE_QUERIES = (
 
 
 def free_ingest_enabled(settings: dict) -> bool:
-    """True only when the operator turned the switch on. Default is off."""
+    """True when this run should skip per-post Jev.
+
+    Production turns that on. A config that omits the key does not.
+    """
     return bool(settings.get("free_ingest"))
 
 

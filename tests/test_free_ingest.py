@@ -1,6 +1,6 @@
-"""Free ingest stays off unless the setting is on. No paid calls."""
+"""Free ingest is the production path. No paid calls in these tests."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -19,12 +19,29 @@ from pipeline.settings import load_settings
 
 
 def test_free_ingest_defaults_off(tmp_path, monkeypatch):
+    """A config that omits the key stays on the old path.
+
+    Production does not omit it: ``pipeline.example.yaml`` sets it true, and
+    the workflow sets ``PERSPECTIVERSE_FREE_INGEST`` to ``1`` or ``0``.
+    """
     monkeypatch.delenv("PERSPECTIVERSE_FREE_INGEST", raising=False)
     path = tmp_path / "pipeline.yaml"
     path.write_text("sample_size: 20\n", encoding="utf-8")
     settings = load_settings(path)
     assert settings["free_ingest"] is False
     assert free_ingest_enabled(settings) is False
+
+
+def test_example_config_is_on_and_zero_forces_the_old_path(monkeypatch):
+    from pipeline.settings import EXAMPLE_PATH
+
+    monkeypatch.delenv("PERSPECTIVERSE_FREE_INGEST", raising=False)
+    assert load_settings(EXAMPLE_PATH)["free_ingest"] is True
+    assert free_ingest_enabled(load_settings(EXAMPLE_PATH)) is True
+    monkeypatch.setenv("PERSPECTIVERSE_FREE_INGEST", "0")
+    assert load_settings(EXAMPLE_PATH)["free_ingest"] is False
+    monkeypatch.setenv("PERSPECTIVERSE_FREE_INGEST", "false")
+    assert load_settings(EXAMPLE_PATH)["free_ingest"] is False
 
 
 def test_free_ingest_env_turns_it_on(tmp_path, monkeypatch):
@@ -317,3 +334,243 @@ def test_preview_ledger_records_spend_without_publishing_the_edition(monkeypatch
     assert seen["run_file"] == cost
     assert "edition not published" in seen["message"]
     assert "data.json" not in seen["message"]
+
+
+_KEPT_TEXT = "The city should build public housing near the train station this year."
+
+
+def _planet():
+    return {
+        "id": 1,
+        "name": "Public housing",
+        "category": "Politics",
+        "total_volume_percent": 100.0,
+        "brief": "The city should build public housing near the station.",
+        "detail": "Posts argue the city should build public housing near the train station this year.",
+        "perspectives": [
+            {
+                "id": "1a",
+                "title": "Build the housing",
+                "summary": "The city should build public housing near the train station.",
+                "volume_percent": 100.0,
+                "representative_posts": [
+                    {"author": "ada", "text": _KEPT_TEXT, "likes": 1},
+                ],
+            }
+        ],
+    }
+
+
+def _seed_posts(db, count, *, scored: bool, old_uri: str):
+    from pipeline.store import connect, replace_posts
+
+    moment = datetime.now(timezone.utc)
+    recent = (moment - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    old = (moment - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    posts = [
+        {
+            "uri": f"at://seed/{index}",
+            "author": f"user{index % 40}",
+            "text": _KEPT_TEXT,
+            "clean_text": _KEPT_TEXT,
+            "likes": 1,
+            "created_at": recent,
+            "section": "Politics" if scored else "",
+            "section_confidence": 0.9 if scored else None,
+            "spam_score": 0.1 if scored else None,
+            "is_claim": True if scored else None,
+        }
+        for index in range(count)
+    ]
+    posts.append(
+        {
+            "uri": old_uri,
+            "author": "old",
+            "text": _KEPT_TEXT,
+            "clean_text": _KEPT_TEXT,
+            "likes": 1,
+            "created_at": old,
+            "section": "Politics" if scored else "",
+            "section_confidence": 0.9 if scored else None,
+            "spam_score": 0.1 if scored else None,
+            "is_claim": True if scored else None,
+        }
+    )
+    connection = connect(db)
+    replace_posts(connection, posts)
+    connection.close()
+
+
+def _run_schedule_like(monkeypatch, tmp_path, *, env):
+    """Run ``run_live`` the way the workflow's live step loads settings."""
+    from pipeline.live import run_live
+    from pipeline.spend_cap import reset_day_state
+
+    reset_day_state()
+    monkeypatch.setenv("PERSPECTIVERSE_FREE_INGEST", env)
+    monkeypatch.delenv("PERSPECTIVERSE_FILL_RUN", raising=False)
+    monkeypatch.delenv("PERSPECTIVERSE_COST_LEDGER", raising=False)
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    handed = []
+    planet_calls = []
+    topups = []
+
+    def apply_jev(posts, **_kwargs):
+        handed.append(list(posts))
+        return list(posts)
+
+    def topup(*_args, **_kwargs):
+        topups.append(1)
+        raise AssertionError("old-path top-up ran")
+
+    def classify(_summary, _arguments):
+        planet_calls.append(1)
+        return "Politics"
+
+    def per_post(*_args, **_kwargs):
+        raise AssertionError("per-post Jev request")
+
+    monkeypatch.setattr("pipeline.live.apply_jev", apply_jev)
+    monkeypatch.setattr("pipeline.live._topup_claims", topup)
+    monkeypatch.setattr("pipeline.live.classify_planet_section", classify)
+    monkeypatch.setattr("pipeline.jev._classify_post", per_post)
+    monkeypatch.setattr("pipeline.jev._classify_batched", per_post)
+    monkeypatch.setattr("pipeline.jev._post_systemone", per_post)
+    monkeypatch.setattr(
+        "pipeline.live.cluster_texts",
+        lambda texts, **_kwargs: {
+            "topics": [{"terms": ["city"], "member_indices": [0], "size": 1}],
+            "noise_count": 0,
+            "matrix": None,
+        },
+    )
+
+    def build(*_args, **_kwargs):
+        return [_planet()], [], []
+
+    monkeypatch.setattr("pipeline.live._build_topics", build)
+    config = tmp_path / "pipeline.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                "free_ingest: false",
+                "window_hours: 168",
+                "seed: 0",
+                "catalog_size: 10",
+                "min_cluster_size: 5",
+                "cluster_backend: lexical",
+                "label_backend: heuristic",
+                "representative_posts: 12",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    run_live(output=tmp_path / "data.json", config=config, db_path=tmp_path / "live.db")
+    return handed, planet_calls, topups
+
+
+@pytest.mark.parametrize(
+    ("count", "scored", "expect_fetch"),
+    [
+        (8_500, True, True),
+        (100_000, False, False),
+    ],
+)
+def test_default_schedule_path_makes_zero_per_post_jev_calls(
+    monkeypatch, tmp_path, count, scored, expect_fetch
+):
+    """The schedule env must not reach ``apply_jev`` on stored or fetched posts.
+
+    8,500 scored rows are the Oct 17 corpus shape: the old path would still
+    fetch the gap to 100K and score that morning batch before any top-up.
+    100,000 unscored rows are a free-ingest publish: the old path would score
+    them in that same ``apply_jev`` and hit the $1 stop.
+    """
+    import sqlite3
+
+    old_uri = "at://seed/too-old"
+    _seed_posts(tmp_path / "live.db", count, scored=scored, old_uri=old_uri)
+    fetched = {"n": 0}
+
+    def fake_extract(**_kwargs):
+        fetched["n"] += 1
+        if fetched["n"] == 1:
+            return [
+                {
+                    "uri": "at://fetched/new",
+                    "author": "new",
+                    "text": _KEPT_TEXT,
+                    "likes": 1,
+                    "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+            ]
+        return []
+
+    monkeypatch.setattr("pipeline.free_ingest.extract_posts", fake_extract)
+    handed, planet_calls, topups = _run_schedule_like(monkeypatch, tmp_path, env="1")
+    assert handed == []
+    assert topups == []
+    assert planet_calls == [1]
+    assert (fetched["n"] > 0) is expect_fetch
+    connection = sqlite3.connect(tmp_path / "live.db")
+    rows = {
+        uri: claim
+        for uri, claim in connection.execute("SELECT uri, is_claim FROM posts")
+    }
+    connection.close()
+    assert old_uri not in rows
+    assert "at://seed/0" in rows
+    assert rows["at://seed/0"] is None
+    if expect_fetch:
+        assert "at://fetched/new" in rows
+        assert rows["at://fetched/new"] is None
+        assert len(rows) == count + 1
+    else:
+        assert "at://fetched/new" not in rows
+        assert len(rows) == count
+
+
+def test_legacy_env_still_reaches_apply_jev_on_stored_posts(monkeypatch, tmp_path):
+    """``PERSPECTIVERSE_FREE_INGEST=0`` is the explicit old path, not the default."""
+    from pipeline.store import connect, record_fetched_days
+
+    _seed_posts(tmp_path / "live.db", 3, scored=True, old_uri="at://seed/too-old")
+    moment = datetime.now(timezone.utc)
+    connection = connect(tmp_path / "live.db")
+    record_fetched_days(
+        connection,
+        [moment.date().isoformat()],
+        fetched_at=moment.isoformat(),
+        kept=3,
+    )
+    connection.close()
+    handed, planet_calls, topups = _run_schedule_like(monkeypatch, tmp_path, env="0")
+    assert len(handed) == 1
+    assert len(handed[0]) >= 3
+    assert all(post.get("is_claim") is True for post in handed[0])
+    assert planet_calls == []
+    assert topups == []
+
+
+def test_free_path_day_cost_is_planet_labels_not_stored_posts():
+    """755 planet calls stay under $1. Scoring 100K stored posts does not."""
+    import json
+    from decimal import Decimal
+    from pathlib import Path
+
+    from pipeline.costs import JEV_USD_PER_MILLION_INPUT_TOKENS
+
+    evidence = json.loads(Path("docs/evidence/issue-192/speed_test.json").read_text(encoding="utf-8"))
+    planets = int(evidence["planet_build"]["candidate_planets"])
+    per_call = Decimal(str(evidence["planet_build"]["usd_per_call"]))
+    measured = Decimal(planets) * per_call
+    # 490 input tokens is the logged planet-section projection (DECISIONS 2026-10-08).
+    token_usd = Decimal(planets * 490) * JEV_USD_PER_MILLION_INPUT_TOKENS / Decimal(1_000_000)
+    labels = Decimal("0.13")
+    assert planets == 755
+    assert measured == Decimal("0.020989")
+    assert token_usd < Decimal("0.02")
+    assert measured + labels < Decimal("1")
+    assert Decimal(100_000) * per_call > Decimal("2.70")
+    assert evidence["search"]["elapsed_seconds"] < 3600
+    assert evidence["planet_build"]["seconds"] < 3600

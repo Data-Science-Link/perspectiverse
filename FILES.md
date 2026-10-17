@@ -45,8 +45,8 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade a run; a quiet day with fewer planets still publishes |
 | `pipeline/pipeline_overlap.py` | GitHub API check for a queued or in-progress Daily Discourse Pipeline run |
 | `pipeline/jev_prefilter.py` | Free pre-filter before Jev: short posts, non-English, link-only, near-duplicates |
-| `pipeline/spam_guard.py` | Free deterministic spam guard. Live pipeline uses it only when `free_ingest` is on |
-| `pipeline/free_ingest.py` | Off-by-default path: spam guard, store every non-spam post, one Jev category call per planet, 7-day widened search |
+| `pipeline/spam_guard.py` | Free deterministic spam guard. The scheduled run uses it instead of per-post Jev |
+| `pipeline/free_ingest.py` | Default production path: spam guard, store every non-spam post, one Jev category call per planet, 7-day widened search |
 | `pipeline/story_attach.py` | Same-story attach, planet fold, and post-relabel title merge (#114) |
 | `pipeline/schedule_guard.py` | Skip redundant scheduled Daily Discourse Pipeline runs after today's job already succeeded (#97) |
 | `pipeline/assemble.py` | Writes `public/data.json` |

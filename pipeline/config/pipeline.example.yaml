@@ -34,9 +34,12 @@ openai_model: gpt-4o-mini
 # flight across every section. Any other value is the cap for both.
 label_workers: 8
 # Minutes the per-section solar systems may spend after the global system is
-# built. 0 skips sections. Omitting the key uses the default (20). Sections
-# past the ceiling are skipped (logged) so the snapshot publishes.
-section_budget_minutes: 20
+# built. 0 skips sections. Omitting the key uses the default (30). A free
+# slot goes to the section with the fewest planets in flight, so a large
+# section cannot spend the window before the others start. The last 6
+# minutes are kept for the wide face relabel. Sections past the ceiling are
+# skipped (logged) so the snapshot publishes.
+section_budget_minutes: 30
 
 representative_posts: 36
 # MMR cap for face labeling prompts (title, summary, arguments).
@@ -54,10 +57,10 @@ catalog_size: 10
 # fill a catalog slot. 0 disables the floor.
 min_planet_posts: 5
 # Share of the stance sample that a second coherent pole must reach before a
-# one-face planet is split. Planets under 100 posts are sampled at most 40
-# posts. Planets of 100 or more are sampled at most 100. The whole planet is
-# used when it is smaller than that cap. One value. Michael set this at 10%
-# on 2026-10-11 (DECISIONS.md). The check does not use the whole-planet count.
+# one-face planet is split. Every planet is sampled at most 40 posts. The
+# whole planet is used when it is smaller than that cap. One value. Michael
+# set this at 10% on 2026-10-11 (DECISIONS.md). The check does not use the
+# whole-planet count.
 stance_second_face_share: 0.10
 
 # Content-neutral search tokens. Bluesky search has no random-post endpoint.
@@ -75,10 +78,10 @@ neutral_queries:
 # The shadow test failed batched claims, so this stays false.
 jev_batch: false
 
-# Off by default, so a normal run still asks Jev about each post.
-# On: the free spam guard replaces per-post Jev spam and claim checks and
-# every non-spam post is stored; Jev is one newspaper-category call per
-# candidate planet; search uses more queries and pages across the last 7
-# UTC days, toward 14,300 non-spam posts a day, and backs off on rate limits.
-# PERSPECTIVERSE_FREE_INGEST=1 is the same switch.
-free_ingest: false
+# Production default. The spam guard replaces per-post Jev. Every non-spam
+# post is stored. Jev is one newspaper-category call per candidate planet.
+# Search uses the wide query list across the last 7 UTC days, toward 14,300
+# non-spam posts a day, and backs off on rate limits. The daily workflow also
+# sets PERSPECTIVERSE_FREE_INGEST=1, except legacy_jev=true or a fill dispatch,
+# which set it to 0 and take the old per-post path.
+free_ingest: true

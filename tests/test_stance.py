@@ -27,6 +27,7 @@ from pipeline.stance import (
     cohen_kappa,
     explain_stance_failure,
     parse_merge_groups,
+    build_stance_prompt,
     parse_stance_response,
     report_stance_check_failures,
     report_stance_check_incoherent,
@@ -855,11 +856,12 @@ def test_locked_face_is_not_dropped_or_relabeled_or_folded_back():
     assert len(kept[0]["perspectives"]) == 2
 
 
-def test_sample_grows_to_100_once_the_planet_reaches_100_posts():
+def test_sample_stays_at_40_once_the_planet_reaches_100_posts():
     assert sample_limit(14) == 40
     assert sample_limit(99) == 40
-    assert sample_limit(100) == 100
-    assert sample_limit(210) == 100
+    assert sample_limit(100) == 40
+    assert sample_limit(210) == 40
+    assert sample_limit(100_000) == 40
     small = sample_rows([(f"s{index}", 0, index) for index in range(34)])
     assert len(small) == 34
     mid = sample_rows([(f"m{index}", 0, index) for index in range(83)])
@@ -867,7 +869,7 @@ def test_sample_grows_to_100_once_the_planet_reaches_100_posts():
     assert mid[0][0] == "m0"
     assert mid[-1][0] == "m82"
     large = sample_rows([(f"g{index}", 0, index) for index in range(210)])
-    assert len(large) == 100
+    assert len(large) == 40
     assert large[0][0] == "g0"
     assert large[-1][0] == "g209"
     shifted = sample_rows([(f"m{index}", 0, index) for index in range(83)], seed=1)
@@ -877,6 +879,28 @@ def test_sample_grows_to_100_once_the_planet_reaches_100_posts():
     assert len(shifted) == 40
     whole = [(f"t{index}", 0, index) for index in range(9)]
     assert [row[0] for row in sample_rows(whole, seed=1)] == [row[0] for row in sample_rows(whole, seed=3)]
+
+
+def test_stance_prompt_is_bounded_on_a_100k_planet():
+    """A planet the size of the free-ingest corpus still sends 40 posts."""
+    count = 100_000
+    rows = [(f"at://planet/{index}", 0, float(index)) for index in range(count)]
+    members = [
+        {"uri": f"at://planet/{index}", "text": f"policy claim number {index} " + ("detail " * 30)}
+        for index in range(count)
+    ]
+    sampled = sample_rows(rows)
+    assert len(sampled) == 40
+    prompt = build_stance_prompt(sampled, members, "policy")
+    body = prompt.split("Posts:", 1)[1]
+    post_lines = [line for line in body.splitlines() if line[:1].isdigit()]
+    assert len(post_lines) == 40
+    # Even a caller that hands over the whole planet cannot grow the prompt.
+    unbounded = build_stance_prompt(rows, members, "policy")
+    whole = unbounded.split("Posts:", 1)[1]
+    assert len([line for line in whole.splitlines() if line[:1].isdigit()]) == 40
+    assert "policy claim number 0 " in unbounded
+    assert "policy claim number 99999 " in unbounded
 
 
 def test_share_config_rejects_a_value_outside_zero_to_one():

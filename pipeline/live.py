@@ -110,7 +110,12 @@ DEFAULT_LABEL_WORKERS = 8
 DEFAULT_SECTION_LABEL_IN_FLIGHT = 12
 # Section solar systems get this many minutes after the global system is built.
 # 0 is a real budget and skips sections. None means this default.
-DEFAULT_SECTION_BUDGET_MINUTES = 20
+DEFAULT_SECTION_BUDGET_MINUTES = 30
+# Wide face relabel keeps this much of the section window. Drafts stop
+# submitting before it, so a full draft wave cannot leave relabel at 0 calls.
+# A shorter remaining window reserves only half, so drafts still start.
+SECTION_RELABEL_RESERVE_MINUTES = 6
+SECTION_RELABEL_RESERVE_SECONDS = SECTION_RELABEL_RESERVE_MINUTES * 60
 # GitHub Actions kills the pipeline job at this many minutes (pipeline.yml).
 PIPELINE_JOB_LIMIT_MINUTES = 360
 # Stop the fill search this long before the job limit so clustering, labeling,
@@ -193,6 +198,12 @@ def run_live(
                 connection,
                 relabel=relabel,
             )
+        # Legacy per-post Jev. The schedule and a normal dispatch set
+        # PERSPECTIVERSE_FREE_INGEST=1, so they never reach this call. It
+        # scores the full cleaned list (stored rows plus the morning fetch)
+        # before any top-up. A free-ingest corpus has no per-post verdicts;
+        # sending about 100K of those rows here is the ~$2.78 path that hits
+        # the $1 stop and publishes nothing.
         if source == "bluesky" and not relabel and not free_ingest:
             corpus_posts = list(cleaned)
             scored = apply_jev(
@@ -2547,6 +2558,23 @@ def _section_budget_minutes(raw: object) -> float:
     return float(raw)
 
 
+def _section_draft_deadline(deadline: float | None) -> float | None:
+    """When drafts must stop so wide relabel still has a slice of the window.
+
+    ``None`` stays ``None`` (no ceiling). A deadline that is already due is
+    unchanged. A long window reserves ``SECTION_RELABEL_RESERVE_SECONDS``.
+    A short one reserves half of what is left, so drafts are not squeezed
+    out of a test ceiling or a budget that is already almost gone.
+    """
+    if deadline is None:
+        return None
+    remaining = float(deadline) - time.monotonic()
+    if remaining <= 0:
+        return deadline
+    reserve = min(float(SECTION_RELABEL_RESERVE_SECONDS), remaining / 2.0)
+    return float(deadline) - reserve
+
+
 def _section_pool_size(context: dict) -> int:
     """In-flight section label calls, shared by every section.
 
@@ -2812,7 +2840,14 @@ class _SectionLabelJob:
 
 
 def _submit_section_drafts(jobs: list[_SectionLabelJob], inflight: dict, executor, workers: int, deadline) -> None:
-    """Fill free slots from the largest section that still needs a planet."""
+    """Fill free slots from the section with the fewest planets in flight.
+
+    Post volume breaks a tie, so a larger section still goes first when
+    every section is even. One section cannot take every free slot before
+    the others have started. A section that has not started by ``deadline``
+    is skipped. One that has started stops submitting and lets in-flight
+    drafts finish.
+    """
     for job in jobs:
         if job.done:
             continue
@@ -2820,22 +2855,32 @@ def _submit_section_drafts(jobs: list[_SectionLabelJob], inflight: dict, executo
             print(f"Section {job.name}: skipped, the section time budget is spent.")
             job.skipped_budget = True
             job.done = True
-            continue
-        while job.can_submit() and len(inflight) < workers:
-            if deadline is not None and time.monotonic() >= deadline:
-                job.mark_budget()
-                break
-            index, topic = job.take()
-            future = executor.submit(_safe_draft, job.posts, job.clustered, topic, job.context)
-            inflight[future] = (job, index)
+
+    while len(inflight) < workers:
+        if deadline is not None and time.monotonic() >= deadline:
+            for job in jobs:
+                if not job.done:
+                    job.mark_budget()
+            break
+        ready = [job for job in jobs if job.can_submit()]
+        if not ready:
+            break
+        ready.sort(key=lambda job: (job.inflight, -job.post_count, job.name))
+        job = ready[0]
+        index, topic = job.take()
+        future = executor.submit(_safe_draft, job.posts, job.clustered, topic, job.context)
+        inflight[future] = (job, index)
 
 
 def _label_section_jobs(jobs: list[_SectionLabelJob], workers: int, deadline) -> None:
-    """Label every section through one pool. Biggest sections take free slots first."""
+    """Label every section through one pool. Fewest-in-flight sections take the next slot."""
     if not jobs:
         return
     workers = max(1, int(workers))
-    print(f"Section labels: {workers} call(s) in flight, shared by {len(jobs)} section(s).")
+    print(
+        f"Section labels: {workers} call(s) in flight, shared by {len(jobs)} section(s). "
+        "Slots go to the section with the fewest planets in flight."
+    )
     executor = ThreadPoolExecutor(max_workers=workers)
     inflight: dict = {}
     # A catalog is a handful of planets. This only fires if the state machine loops.
@@ -2889,11 +2934,14 @@ def _cluster_sections(
 
     Posts are not re-embedded; the sub-rows of *global_matrix* (already
     L2-normalised) are sliced out and passed back into cluster_texts via the
-    *embed* hook, which short-circuits the fastembed call. Sections are
-    ordered by post volume so the biggest ones take pool slots first. Past
-    ``deadline`` (time.monotonic) no new planet is labeled; a section that
-    never started is skipped, and one that raises is logged and skipped, so
-    the global snapshot still publishes.
+    *embed* hook, which short-circuits the fastembed call. Sections stay
+    ordered by post volume, and that order only breaks a tie: a free slot
+    goes to the section with the fewest planets already in flight, so one
+    large section cannot use the whole pool before the others have started.
+    Drafts stop ``SECTION_RELABEL_RESERVE_SECONDS`` before ``deadline`` so
+    the wide face relabel still has time. Past the draft deadline no new
+    planet is labeled; a section that never started is skipped, and one that
+    raises is logged and skipped, so the global snapshot still publishes.
     """
     import numpy as np
 
@@ -2961,13 +3009,22 @@ def _cluster_sections(
             )
         )
 
-    set_label_deadline(deadline)
+    draft_deadline = _section_draft_deadline(deadline)
+    if deadline is not None and draft_deadline is not None and draft_deadline < deadline:
+        reserve = deadline - draft_deadline
+        print(
+            f"Section drafts stop {reserve:.0f}s before the section ceiling "
+            "so wide relabel can run."
+        )
+    set_label_deadline(draft_deadline)
     try:
-        _label_section_jobs(jobs, _section_pool_size(context), deadline)
+        _label_section_jobs(jobs, _section_pool_size(context), draft_deadline)
         active_jobs = [job for job in jobs if not job.skipped_budget]
         for job in active_jobs:
             job.built = _drop_unshared_planets(job.built)
             job.built = _publishable_planets(job.built)
+        # Relabel may use the rest of the section window, including the reserve.
+        set_label_deadline(deadline)
         if active_jobs:
             _finalize_section_planets_batch(active_jobs, deadline)
     finally:

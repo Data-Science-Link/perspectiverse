@@ -66,7 +66,7 @@ Pointers only — do not duplicate long docs here. Open the linked files; do not
 | E2E tests | `tests/e2e/views.spec.js` | Playwright end-to-end spec. Config: `playwright.config.js`. |
 | Python CI | `.github/workflows/pytest.yml` | Runs on push/PR to main. Installs lightweight deps via `uv`. |
 | Frontend CI | `.github/workflows/frontend.yml` | Lint (`npm run lint`) + category helper on push/PR to main. |
-| Daily pipeline | `.github/workflows/pipeline.yml` | Staggered UTC crons (`06:17`, `07:47`, `09:17`, `10:47`, `12:17`; #97) + `schedule_guard` + `workflow_dispatch`. `free_ingest` defaults off and, when set, is a preview: ledger spend only, artifact `free-ingest-preview`, no R2 upload and no edition publish. No `push` trigger. |
+| Daily pipeline | `.github/workflows/pipeline.yml` | Staggered UTC crons (`06:17`, `07:47`, `09:17`, `10:47`, `12:17`; #97) + `schedule_guard` + `workflow_dispatch`. Free ingest is the default for the schedule and a normal dispatch, and it publishes (R2, `data.json`, `data-snapshot`, ledger). `preview_only=true` is the old preview (artifact `free-ingest-preview`, no publish). `legacy_jev=true` and a fill dispatch use per-post Jev. `spend_stop_usd` overrides the $1 stop on a dispatch only. No `push` trigger. |
 | Pages deploy | `.github/workflows/pages.yml` | Deploys on push to main, `workflow_dispatch`, and a successful Daily Discourse Pipeline (`workflow_run`). Build checks out main and overlays `public/data.json` from `data-snapshot`. |
 | Security audit | `.github/workflows/security-audit.yml` | Required check on all pushes; runs `bandit` + `pip-audit`. Do not add path filters. |
 | CODEOWNERS | `.github/CODEOWNERS` | `@Data-Science-Link` must approve PRs to `main`. |

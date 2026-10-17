@@ -5,7 +5,10 @@ import pytest
 
 from pipeline.label import (
     FALLBACK_TITLE,
+    build_perspective_prompt,
+    build_planet_name_prompt,
     build_prompt,
+    build_topic_prompt,
     classify_label_error,
     label_perspective,
     label_topic,
@@ -15,6 +18,26 @@ from pipeline.label import (
     set_label_deadline,
     _openai_generate,
 )
+from pipeline.settings import MAX_PROMPT_POSTS
+
+
+def _prompt_post_count(prompt: str) -> int:
+    body = prompt.split("Posts:\n", 1)[1]
+    return len([line for line in body.splitlines() if line.startswith("- ")])
+
+
+def test_label_prompts_are_bounded_on_a_100k_planet():
+    """Face, name, and topic prompts stay at the 40-post ceiling on a huge planet."""
+    posts = [
+        {"text": f"claim {index} about the bill " + ("word " * 20), "likes": index % 7, "author": "a"}
+        for index in range(100_000)
+    ]
+    assert _prompt_post_count(build_perspective_prompt(posts, post_limit=100_000)) == MAX_PROMPT_POSTS
+    assert _prompt_post_count(build_perspective_prompt(posts, post_limit=12)) == 12
+    assert _prompt_post_count(build_perspective_prompt(posts)) == MAX_PROMPT_POSTS
+    assert _prompt_post_count(build_planet_name_prompt(posts, [{"title": "Bill", "summary": "A bill."}], post_limit=100_000)) == MAX_PROMPT_POSTS
+    assert _prompt_post_count(build_topic_prompt(posts, ["bill"], post_limit=100_000)) == MAX_PROMPT_POSTS
+    assert "claim 99999" not in build_perspective_prompt(posts, post_limit=100_000)
 
 
 def test_prompt_demands_json_only():
@@ -518,7 +541,7 @@ def test_openai_generate_stops_after_bounded_retries(monkeypatch):
 
 
 def test_openai_generate_retries_timeouts_with_bounded_backoff(monkeypatch):
-    """A timeout is retried. The sleeps stay 2s then 6s, and then it stops."""
+    """A timeout is retried once. A second full read of the same prompt is not started."""
     calls = []
     slept = []
 
@@ -532,8 +555,8 @@ def test_openai_generate_retries_timeouts_with_bounded_backoff(monkeypatch):
     set_label_deadline(None)
     with pytest.raises(RuntimeError, match="timed out"):
         _openai_generate("hello", "model")
-    assert calls == [120.0, 120.0, 120.0]
-    assert slept == [2.0, 6.0]
+    assert calls == [90.0, 90.0]
+    assert slept == [2.0]
 
 
 def test_openai_generate_skips_timeout_retry_that_would_pass_the_deadline(monkeypatch):

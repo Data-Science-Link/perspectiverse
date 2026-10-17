@@ -624,8 +624,8 @@ def spam_claim_batch_body(texts: list[str]) -> dict:
 def planet_section_body(summary: str, arguments: str) -> dict:
     """One section question for a planet's summary and arguments.
 
-    The live pipeline does not call this. #90 will, after #85. The shadow
-    test is the only caller, and only when ``--planets`` is passed.
+    The free-ingest path calls this once per candidate planet. It does not
+    ask spam or claim, and it is not a per-post call.
     """
     pointers = {name: f"See `sections.{name}`" for name in SECTION_CRITERIA}
     return {

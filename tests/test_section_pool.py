@@ -2,8 +2,10 @@
 
 Run 37696485020 labeled sections one after another and skipped 6 of 10 once
 the 15-minute ceiling was spent (1,052s for Politics, World, Business, and
-Other). These tests pin the replacement: one pool, biggest sections first,
-a 20-minute ceiling, and no extra label calls.
+Other). These tests pin the replacement: one pool, a fair slot share so a
+large section cannot take every worker, a 30-minute default ceiling, and no
+extra label calls. Run 39038944044 still skipped six sections because the
+pool filled from the largest section until the ceiling was gone.
 
 The latency tests stub the LLM. Each planet pays for 16 sequential calls,
 which is the wave time from that run (1,052s / 6 waves ≈ 175s) divided across
@@ -251,12 +253,26 @@ def _old_serial(latency: float, *, workers: int = 8, ceiling: float = 15 * 60):
     return done, now
 
 
-def test_section_budget_zero_skips_and_none_is_twenty_minutes():
-    assert live.DEFAULT_SECTION_BUDGET_MINUTES == 20
-    assert live._section_budget_minutes(None) == 20
+def test_section_budget_zero_skips_and_none_is_thirty_minutes():
+    assert live.DEFAULT_SECTION_BUDGET_MINUTES == 30
+    assert live.SECTION_RELABEL_RESERVE_SECONDS == 6 * 60
+    assert live._section_budget_minutes(None) == 30
     assert live._section_budget_minutes(0) == 0
     assert live._section_budget_minutes(0.0) == 0
     assert live._section_budget_minutes(15) == 15
+
+
+def test_section_draft_deadline_reserves_relabel_time(monkeypatch):
+    """Drafts stop early enough that wide relabel is not handed an empty window."""
+    monkeypatch.setattr(time, "monotonic", lambda: 5_000.0)
+    deadline = 5_000.0 + 30 * 60
+    draft = live._section_draft_deadline(deadline)
+    assert draft == deadline - live.SECTION_RELABEL_RESERVE_SECONDS
+    # A short ceiling keeps half for drafts instead of reserving the whole window.
+    short = live._section_draft_deadline(5_000.0 + 30)
+    assert short == 5_000.0 + 15
+    assert live._section_draft_deadline(None) is None
+    assert live._section_draft_deadline(0.0) == 0.0
 
 
 def test_section_pool_is_twelve_at_the_default_and_honors_other_caps():
@@ -306,8 +322,15 @@ def test_all_ten_sections_finish_within_twenty_minutes(monkeypatch, latency):
         assert old_elapsed > 15 * 60
 
 
-def test_section_ceiling_cuts_off_after_the_biggest_sections(monkeypatch, capsys):
-    """A ceiling shorter than one planet keeps the largest section and stops cleanly."""
+def test_section_budget_is_shared_across_sections(monkeypatch, capsys):
+    """A ceiling shorter than one planet still starts every section.
+
+    Run 39038944044 filled 12 slots from the largest sections and skipped
+    Technology, Sports, Health, Business, Environment, and Education. The
+    pool is still 12. The first wave is one planet from each of the 10
+    sections, plus a second planet for the two largest. Nothing else starts
+    once that wave has spent the ceiling.
+    """
     clock = VirtualClock()
     _install_slot_pool(monkeypatch, clock)
     drafted = []
@@ -330,16 +353,21 @@ def test_section_ceiling_cuts_off_after_the_biggest_sections(monkeypatch, capsys
         context=_network_context(8),
         deadline=30.0,
     )
-    # Pool is 12. The first wave is Politics (10) plus the first 2 World planets.
-    # They started before the ceiling and finish; nothing else is submitted.
-    assert set(sections) == {"Politics", "World"}
-    assert len(sections["Politics"]) == 10
+    assert set(sections) == {name for name, _posts, _planets in ROSTER}
+    for name, _posts, _planets in ROSTER:
+        assert len(sections[name]) >= 1
+        assert len(sections[name]) <= 2
+    assert len(sections["Politics"]) == 2
     assert len(sections["World"]) == 2
+    assert len(sections["Education"]) == 1
     assert len(drafted) == 12
+    counts = {}
+    for name in drafted:
+        counts[name] = counts.get(name, 0) + 1
+    assert max(counts.values()) - min(counts.values()) <= 1
     log = capsys.readouterr().out
-    for name in ("Technology", "Culture", "Environment", "Health", "Sports", "Education"):
-        assert f"Section {name}: skipped, the section time budget is spent." in log
-    assert "Business" in log and "skipped, the section time budget is spent." in log
+    assert "skipped, the section time budget is spent." not in log
+    assert "fewest planets in flight" in log
 
 
 def test_shared_pool_does_not_label_past_keep(monkeypatch):
