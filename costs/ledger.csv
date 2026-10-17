@@ -80,3 +80,6 @@ run_id,run_started_utc,date_utc,trigger,service,model,calls,failed_calls,input_t
 38958532699,2026-10-16T19:56:17Z,2026-10-16,workflow_dispatch,cloudflare-r2,r2-standard,3,0,0,0,0,computed,8584,103,39337984,1,2,0.00002489,0,0,
 38975119341,2026-10-16T22:20:26Z,2026-10-16,workflow_dispatch,typesafe-jev,jev-1.13.0,122085,0,80798329,14650200,3.39352982,computed,0,0,0,0,0,3.39352982,0,0,fill
 38975119341,2026-10-16T22:20:26Z,2026-10-16,workflow_dispatch,typesafe-jev,jev-latest,5,5,0,0,0,computed,0,0,0,0,0,0,2,3,fill
+39026494458,2026-10-17T10:51:49Z,2026-10-17,schedule,deepinfra,meta-llama/Llama-3.3-70B-Instruct-Turbo,1217,0,820129,156069,0.13195498,reported,17775,110,0,0,0,0.13195498,0,0,
+39026494458,2026-10-17T10:51:49Z,2026-10-17,schedule,typesafe-jev,jev-1.13.0,30304,0,20143267,3636480,0.84601721,computed,17775,110,0,0,0,0.84601721,0,0,
+39026494458,2026-10-17T10:51:49Z,2026-10-17,schedule,cloudflare-r2,r2-standard,3,0,0,0,0,computed,17775,110,79323136,1,2,0.00004488,0,0,

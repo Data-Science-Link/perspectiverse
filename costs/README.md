@@ -16,13 +16,13 @@ One bar per UTC day. The main label is production billed spend for that day (tar
 
 | ISO week | runs | LLM $ | Jev $ | R2 $ | total $ | posts processed | planets published | $ per 1,000 posts | $ per planet |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2026-W42 | 16 | 1.59281064 | 4.96334258 | 0.00 | 6.55615322 | 137353 | 1511 | 0.04773214 | 0.00433895 |
+| 2026-W42 | 17 | 1.72476562 | 5.80935979 | 0.00 | 7.53412541 | 155128 | 1621 | 0.04856715 | 0.00464783 |
 | 2026-W41 | 19 | 1.9501684 | 0.27965221 | 0.00 | 2.22982061 | 188086 | 2014 | 0.01185532 | 0.00110716 |
 
 ## Last 30 days
 
-Runs whose `date_utc` is on or after 2026-09-16 (through 2026-10-16).
+Runs whose `date_utc` is on or after 2026-09-17 (through 2026-10-17).
 
 | runs | LLM $ | Jev $ | R2 $ | total $ | posts processed | planets published | $ per 1,000 posts | $ per planet |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 35 | 3.54297904 | 5.24299479 | 0.00 | 8.78597383 | 325439 | 3525 | 0.0269973 | 0.00249247 |
+| 36 | 3.67493402 | 6.089012 | 0.00 | 9.76394602 | 343214 | 3635 | 0.02844857 | 0.00268609 |
