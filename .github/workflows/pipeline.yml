@@ -297,6 +297,8 @@ jobs:
 
       - name: Keep yesterday's edition when the daily spend cap stops the run
         if: failure() && steps.live.outcome == 'failure'
+        env:
+          PYTHONPATH: ${{ env.PERSPECTIVERSE_LEDGER_PYTHONPATH }}
         run: |
           source .venv/bin/activate
           if [ ! -f pipeline/data/spend_cap_stop.json ]; then
