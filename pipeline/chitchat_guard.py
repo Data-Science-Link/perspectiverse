@@ -1,7 +1,9 @@
 """Free local filter for greeting and chit-chat posts (#208).
 
-No network and no model calls. Used at free ingest (before the daily non-spam
-cap) and as a planet-level guard when a chit-chat cluster slips through.
+No network and no model calls. A post is chit-chat only when it is short and
+its whole content is a pleasantry (greeting, thanks, praise, agreement, a
+social wish, or a stream announcement) with no topic noun or claim. Used at
+free ingest before the daily cap and as a planet guard after labeling.
 """
 
 from __future__ import annotations
@@ -11,99 +13,175 @@ import re
 from pathlib import Path
 
 from pipeline.cleaning import HASHTAG_RE, URL_RE
+from pipeline.label import content_tokens
 from pipeline.language import is_link_only, looks_english
 from pipeline.spam_guard import guard_reason, post_body
 
-_GREETING_RE = re.compile(
-    r"^(?:gm|gn|good\s+(?:morning|afternoon|evening|night)|hello|hi|hey|howdy|sup)[\s!.?]*$",
-    re.IGNORECASE,
-)
-_THANKS_ONLY_RE = re.compile(
-    r"^(?:thank\s+you(?:\s+so\s+much)?|thanks(?:\s+you)?(?:\s+so\s+much)?|ty|thx|"
-    r"much\s+appreciated|appreciate\s+(?:it|you|this))[\s!.?]*$",
-    re.IGNORECASE,
-)
-_AGREEMENT_RE = re.compile(
-    r"^(?:of\s+course|count\s+me\s+in|absolutely|exactly|agreed|yes|yep|yeah|this|same|"
-    r"so\s+true|well\s+said|couldn'?t\s+agree\s+more)[\s!.?]*$",
-    re.IGNORECASE,
-)
-_WISH_RE = re.compile(
-    r"\bhappy\s+(?:birthday|bday|anniversary)\b",
-    re.IGNORECASE,
-)
-_LUCK_RE = re.compile(
-    r"\b(?:good\s+luck|best\s+of\s+luck)\b",
-    re.IGNORECASE,
-)
-_WEEKEND_RE = re.compile(
-    r"^(?:have\s+a\s+)?(?:great|good|nice|happy)\s+weekend[\s!.?]*$",
-    re.IGNORECASE,
-)
-_STREAM_ANNOUNCE_RE = re.compile(
-    r"\b(?:"
-    r"live\s+now|going\s+live|we(?:'re| are)\s+live|streaming\s+now|stream\s+now|"
-    r"tune\s+in\s+now|watch\s+live|twitch\.tv/"
-    r")\b",
-    re.IGNORECASE,
-)
-_COMPLIMENT_RE = re.compile(
-    r"\b(?:beautiful|gorgeous|stunning|amazing|wonderful|well\s+done|great\s+work|"
-    r"love\s+this|so\s+pretty|thank\s+you\s+for\s+sharing)\b",
-    re.IGNORECASE,
-)
-
-# When these appear with enough words, the post is discourse not chit-chat.
-_DISCOURSE_HINTS = frozenset(
+# Words that may appear in a pleasantry-only post. Anything else (len >= 4) is substance.
+_PLEASANTRY_WORDS = frozenset(
     {
-        "veteran",
-        "veterans",
-        "policy",
-        "policies",
-        "regulation",
-        "congress",
-        "senate",
-        "election",
-        "war",
-        "ukraine",
-        "gaza",
-        "court",
-        "bill",
-        "law",
-        "laws",
-        "platform",
-        "streaming",
-        "twitch",
-        "youtube",
-        "news",
-        "report",
-        "government",
-        "president",
-        "minister",
-    }
-)
-
-_PLANET_LABEL_PHRASES = (
-    "happy birthday",
-    "happy anniversary",
-    "good luck",
-    "full agreement",
-    "art appreciation",
-    "twitch stream",
-    "the weekend",
-)
-
-_PLANET_LABEL_WORDS = frozenset(
-    {
+        "thank",
+        "thanks",
+        "thankyou",
+        "much",
+        "love",
+        "hello",
+        "good",
+        "morning",
+        "night",
+        "evening",
+        "afternoon",
+        "happy",
         "birthday",
+        "bday",
         "anniversary",
         "weekend",
         "luck",
-        "agreement",
-        "appreciation",
+        "late",
+        "wishing",
+        "everyone",
+        "fun",
+        "great",
+        "nice",
+        "course",
+        "sure",
+        "count",
+        "absolutely",
+        "exactly",
+        "agreed",
+        "yeah",
+        "yep",
+        "same",
+        "true",
+        "said",
+        "well",
+        "couldnt",
+        "live",
+        "stream",
+        "streaming",
         "twitch",
+        "starting",
+        "soon",
+        "come",
+        "hang",
+        "hop",
+        "tune",
+        "watch",
+        "now",
+        "going",
+        "here",
+        "please",
+        "pretty",
+        "gorgeous",
+        "beautiful",
+        "stunning",
+        "amazing",
+        "wonderful",
+        "awesome",
+        "congrats",
+        "congratulations",
+        "appreciate",
+        "appreciated",
+        "sharing",
+        "song",
+        "songs",
+        "this",
+        "that",
+        "your",
+        "you",
+        "yours",
+        "best",
+        "have",
+        "hope",
+        "enjoy",
+        "wonderful",
+        "late",
+        "aww",
+        "omg",
+        "lol",
+        "haha",
+        "yes",
+        "for",
+        "but",
+        "and",
+        "the",
+        "a",
+        "an",
+        "to",
+        "in",
+        "on",
+        "at",
+        "it",
+        "is",
+        "are",
+        "be",
+        "my",
+        "so",
+        "very",
+        "really",
+        "just",
+        "all",
+        "day",
+        "today",
+        "tonight",
+    }
+)
+
+_MAX_PLEASANTRY_WORDS = 22
+
+_STREAM_HOST_RE = re.compile(
+    r"(?:twitch\.tv|kick\.com|youtube\.com/live|youtu\.be/)",
+    re.IGNORECASE,
+)
+
+_CHITCHAT_TITLES = frozenset(
+    {
+        "art appreciation",
+        "twitch stream",
+        "happy birthday",
+        "the weekend",
+        "happy anniversary",
+        "good luck",
+        "full agreement",
         "count",
         "course",
+    }
+)
+
+_WEAK_SOCIAL_TITLES = frozenset(
+    {
+        "count",
+        "course",
+        "good luck",
+        "full agreement",
+        "happy anniversary",
+    }
+)
+
+_BIRTHDAY_FILLERS = frozenset(
+    {
+        "birthday",
+        "happy",
+        "late",
+        "hope",
+        "great",
+        "day",
+        "days",
+        "lovely",
+        "you",
+        "your",
+        "both",
+        "rest",
+        "better",
+        "tomorrow",
+        "treat",
+        "wonderful",
+        "love",
+        "existence",
+        "celebration",
+        "cause",
+        "wonderful",
+        "birthdays",
     }
 )
 
@@ -111,7 +189,7 @@ _SAMPLE_CAP = 100
 
 
 class ChitchatRemovalLog:
-    """Counts ingest blocks and keeps a sample for review."""
+    """Counts ingest blocks and keeps a chit-chat-only sample for review."""
 
     def __init__(self) -> None:
         self.fetched = 0
@@ -119,7 +197,7 @@ class ChitchatRemovalLog:
         self.chitchat_blocked = 0
         self.language_blocked = 0
         self.link_blocked = 0
-        self._samples: list[dict] = []
+        self._chitchat_samples: list[dict] = []
 
     def reset(self) -> None:
         self.fetched = 0
@@ -127,7 +205,7 @@ class ChitchatRemovalLog:
         self.chitchat_blocked = 0
         self.language_blocked = 0
         self.link_blocked = 0
-        self._samples.clear()
+        self._chitchat_samples.clear()
 
     def record_fetch(self, count: int = 1) -> None:
         self.fetched += max(0, int(count))
@@ -139,24 +217,20 @@ class ChitchatRemovalLog:
         if reason.startswith("chitchat:"):
             self.chitchat_blocked += 1
             kind = reason.split(":", 1)[1]
-        elif reason == "language":
+            if len(self._chitchat_samples) < _SAMPLE_CAP:
+                text = " ".join(str(post_body(post)).split())
+                self._chitchat_samples.append(
+                    {
+                        "reason": kind,
+                        "uri": str(post.get("uri") or ""),
+                        "text": text[:280],
+                    }
+                )
+            return
+        if reason == "language":
             self.language_blocked += 1
-            kind = reason
         elif reason == "link_only":
             self.link_blocked += 1
-            kind = reason
-        else:
-            return
-        if len(self._samples) >= _SAMPLE_CAP:
-            return
-        text = " ".join(str(post_body(post)).split())
-        self._samples.append(
-            {
-                "reason": kind,
-                "uri": str(post.get("uri") or ""),
-                "text": text[:280],
-            }
-        )
 
     def chitchat_share_of_fetched(self) -> float:
         if self.fetched <= 0:
@@ -171,7 +245,7 @@ class ChitchatRemovalLog:
             "language_blocked": self.language_blocked,
             "link_blocked": self.link_blocked,
             "chitchat_share_of_fetched": round(self.chitchat_share_of_fetched(), 6),
-            "removed_sample": list(self._samples),
+            "removed_sample": list(self._chitchat_samples),
         }
 
 
@@ -196,60 +270,134 @@ def _word_count(text: str) -> int:
     return len([part for part in stripped.split() if part])
 
 
-def _has_discourse_anchor(lowered: str, word_count: int) -> bool:
-    if word_count >= 24:
-        return True
-    hits = sum(1 for hint in _DISCOURSE_HINTS if hint in lowered)
-    if hits >= 2:
-        return True
-    if "veteran" in lowered and word_count >= 9:
-        return True
-    if ("policy" in lowered or "regulation" in lowered) and word_count >= 10:
-        return True
-    if "platform" in lowered and word_count >= 12:
-        return True
-    if "streaming" in lowered and word_count >= 14 and "live now" not in lowered:
-        return True
-    return False
-
-
 def _social_text(text: str) -> str:
-    """Drop URLs, hashtags, and emoji so short thanks still match."""
     stripped = HASHTAG_RE.sub(" ", URL_RE.sub(" ", text or ""))
     stripped = re.sub(r"[^\w\s'!?.,]", " ", stripped, flags=re.UNICODE)
     return " ".join(stripped.split())
 
 
-def chitchat_reason(post: dict) -> str | None:
-    """Why this post is chit-chat, or None when it should stay."""
-    text = post_body(post)
-    if not text.strip():
+def _strip_leading_fillers(lowered: str) -> str:
+    return re.sub(
+        r"^(?:(?:aww+|omg+|lol+|haha+|yes+|but|and|so|well)\s+)+",
+        "",
+        lowered,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
+def substantive_tokens(text: str) -> set[str]:
+    """Topic or claim words; empty means the post may be pleasantry-only."""
+    raw = text or ""
+    social = _social_text(raw)
+    tokens = content_tokens(social)
+    tokens -= _stream_username_tokens(raw)
+    return {token for token in tokens if token not in _PLEASANTRY_WORDS and not token.isdigit()}
+
+
+def _has_capitalized_name(raw: str) -> bool:
+    """Mid-sentence proper name (Title Case), not shouty stream titles."""
+    skip = {
+        "I",
+        "The",
+        "A",
+        "An",
+        "But",
+        "And",
+        "So",
+        "Yes",
+        "No",
+        "Live",
+        "Happy",
+        "Good",
+        "Come",
+        "Stream",
+        "Twitch",
+        "Kick",
+        "Youtube",
+        "Aww",
+        "Omg",
+        "Wishing",
+        "Thanks",
+        "Thank",
+        "Congrats",
+        "Congratulations",
+    }
+    without_tags = HASHTAG_RE.sub(" ", raw or "")
+    for match in re.finditer(r"\b[A-Z][a-z]{2,}\b", without_tags):
+        word = match.group(0)
+        if word in skip:
+            continue
+        return True
+    return False
+
+
+def _stream_username_tokens(raw: str) -> set[str]:
+    """Usernames in stream URLs are not topic nouns."""
+    lowered = (raw or "").lower()
+    tokens: set[str] = set()
+    for match in re.finditer(r"(?:twitch\.tv|kick\.com)/([a-z0-9_]+)", lowered):
+        handle = match.group(1)
+        if len(handle) >= 4:
+            tokens.add(handle)
+    return tokens
+
+
+def pleasantry_reason(post: dict) -> str | None:
+    """Why this post is pleasantry-only chit-chat, or None to keep it."""
+    raw = post_body(post)
+    if not raw.strip():
         return None
-    social = _social_text(text)
-    lowered = social.lower()
-    wc = _word_count(social)
-    if _has_discourse_anchor(lowered, wc):
+    if _word_count(raw) > _MAX_PLEASANTRY_WORDS:
         return None
-    stripped = " ".join(lowered.split())
-    if _GREETING_RE.match(stripped):
+    if _has_capitalized_name(raw):
+        return None
+    subs = substantive_tokens(raw)
+    lower = _strip_leading_fillers(_social_text(raw).lower())
+    if re.search(r"\bhappy\s+(?:\w+\s+){0,3}birthday\b", lower):
+        subs -= _BIRTHDAY_FILLERS
+    if subs:
+        return None
+    if not lower:
+        return None
+    raw_lower = raw.lower()
+
+    if re.fullmatch(r"(?:gm|gn|hello|hi|hey|howdy|sup)[\s!.?]*", lower, flags=re.IGNORECASE):
         return "greeting"
-    if _THANKS_ONLY_RE.match(stripped):
+    if re.search(r"\bthank(s| you)\b", lower) or lower in {"ty", "thx"}:
         return "thanks"
-    if _AGREEMENT_RE.match(stripped):
-        return "agreement"
-    if _WEEKEND_RE.match(stripped):
-        return "weekend"
-    if _WISH_RE.search(lowered) and wc <= 22:
+    if re.search(r"\bhappy\s+(?:\w+\s+){0,2}birthday\b", lower) or re.search(r"\bhappy\s+bday\b", lower):
         return "wish"
-    if _LUCK_RE.search(lowered) and wc <= 16:
+    if re.search(r"\b(?:good\s+luck|best\s+of\s+luck)\b", lower) and "charm" not in lower:
         return "luck"
-    if _STREAM_ANNOUNCE_RE.search(lowered) and wc <= 20:
+    if re.search(r"\bhappy\s+anniversary\b", lower):
+        return "wish"
+    if re.search(r"\b(?:have\s+a\s+)?(?:great|good|nice|fun|happy)\s+weekend\b", lower) or re.search(
+        r"\bwishing\s+everyone\s+a\s+fun\s+weekend\b", lower
+    ):
+        return "weekend"
+    if (
+        re.search(r"\b(?:live\s+now|going\s+live|we(?:'re| are)\s+live|stream(?:ing)?\s+now|stream\s+is\s+starting)\b", lower)
+        or _STREAM_HOST_RE.search(raw_lower)
+    ):
         return "stream_announce"
-    if wc <= 14 and _COMPLIMENT_RE.search(lowered):
-        return "compliment"
-    if wc <= 6 and stripped in {"of course", "count me in", "this", "same", "yes", "yep", "agreed"}:
+    if re.fullmatch(
+        r"(?:of\s+course|for\s+sure|count\s+me\s+in|absolutely|exactly|agreed|yes|yep|yeah|same|this|so\s+true|well\s+said)(?:\s+lol)?[\s!.?]*",
+        lower,
+    ):
         return "agreement"
+    if re.search(r"\bcount\s+me\s+in\b", lower) and _word_count(raw) <= 10:
+        return "agreement"
+    if re.search(r"\b(?:i'?m\s+in|get\s+in)\b", lower) and _word_count(raw) <= 12:
+        return "agreement"
+    if re.fullmatch(r"(?:beautiful|gorgeous|stunning|amazing|wonderful|awesome|love\s+this|so\s+pretty)[\s!.?]*", lower):
+        return "compliment"
+    if re.fullmatch(r"(?:congrats|congratulations)[\s!.?]*", lower):
+        return "compliment"
     return None
+
+
+# Public alias used across the pipeline.
+chitchat_reason = pleasantry_reason
 
 
 def ingest_block_reason(post: dict) -> str | None:
@@ -257,7 +405,7 @@ def ingest_block_reason(post: dict) -> str | None:
     spam = guard_reason(post)
     if spam:
         return f"spam:{spam}"
-    chit = chitchat_reason(post)
+    chit = pleasantry_reason(post)
     if chit:
         return f"chitchat:{chit}"
     text = str(post.get("clean_text") or post.get("text") or "")
@@ -273,7 +421,7 @@ def filter_chitchat_posts(posts: list[dict]) -> tuple[list[dict], int]:
     kept: list[dict] = []
     dropped = 0
     for post in posts:
-        if chitchat_reason(post) is None:
+        if pleasantry_reason(post) is None:
             kept.append(post)
             continue
         dropped += 1
@@ -281,23 +429,21 @@ def filter_chitchat_posts(posts: list[dict]) -> tuple[list[dict], int]:
     return kept, dropped
 
 
-def _planet_label_chitchat(label: str, terms: list[str]) -> tuple[str, str] | None:
-    """Return (kind, detail) where kind is ``phrase`` or ``weak_stem``."""
-    lowered = label.lower()
-    for phrase in _PLANET_LABEL_PHRASES:
-        if phrase in lowered:
-            return ("phrase", phrase)
-    term_keys = {str(term).lower() for term in terms}
-    if len(term_keys) == 1 and next(iter(term_keys)) in _PLANET_LABEL_WORDS:
-        return ("weak_stem", next(iter(term_keys)))
-    if lowered in {"full agreement", "good luck", "happy birthday", "happy anniversary", "the weekend"}:
-        return ("phrase", lowered)
-    return None
+def _title_is_chitchat(name: str) -> bool:
+    lowered = " ".join(str(name or "").lower().split())
+    if lowered in _CHITCHAT_TITLES:
+        return True
+    for title in _CHITCHAT_TITLES:
+        if title in lowered and len(lowered.split()) <= 4:
+            return True
+    return False
 
 
-def _member_has_discourse(post: dict) -> bool:
-    text = _social_text(post_body(post))
-    return _has_discourse_anchor(text.lower(), _word_count(text))
+def pleasantry_share(members: list[dict]) -> float:
+    if not members:
+        return 0.0
+    hits = sum(1 for member in members if pleasantry_reason(member))
+    return hits / len(members)
 
 
 def planet_chitchat_reason(
@@ -306,27 +452,22 @@ def planet_chitchat_reason(
     *,
     name: str | None = None,
 ) -> str | None:
-    """True when a cluster is mostly chit-chat and the label agrees."""
+    """After labeling: drop when most member posts are pleasantries."""
     if not members:
         return None
-    reasons = [chitchat_reason(member) for member in members]
-    share = sum(1 for item in reasons if item) / len(members)
-    discourse = sum(1 for member in members if _member_has_discourse(member))
-    if discourse >= max(2, int(len(members) * 0.12)):
-        return None
+    share = pleasantry_share(members)
     label = str(name or "").strip()
-    label_signal = _planet_label_chitchat(label, terms) if label else None
-    if label_signal:
-        kind, detail = label_signal
-        floor = 0.25 if kind == "phrase" else 0.65
-        if share >= floor:
-            return f"{share:.0%} chitchat posts; label {kind} {detail!r}"
-    weak = _planet_label_chitchat(" ".join(terms), terms)
-    if weak:
-        kind, detail = weak
-        floor = 0.25 if kind == "phrase" else 0.65
-        if share >= floor:
-            return f"{share:.0%} chitchat posts; terms {kind} {detail!r}"
-    if share >= 0.88:
-        return f"{share:.0%} chitchat posts; no discourse topic"
+    avg_words = sum(_word_count(post_body(member)) for member in members) / len(members)
+    lowered_title = " ".join(label.lower().split())
+    if share >= 0.55:
+        detail = f"label {label!r}" if label else "no label"
+        return f"{share:.0%} pleasantry posts; {detail}"
+    if lowered_title in _CHITCHAT_TITLES and len(members) >= 50:
+        return f"chit-chat title {label!r} ({len(members)} posts, {share:.0%} pleasantry in sample)"
+    if lowered_title in _WEAK_SOCIAL_TITLES and len(members) >= 8:
+        return f"chit-chat title {label!r} ({len(members)} posts)"
+    if _title_is_chitchat(label) and share >= 0.30 and avg_words <= 14:
+        return f"{share:.0%} pleasantry posts; chit-chat title {label!r}"
+    if _title_is_chitchat(label) and share >= 0.20 and avg_words <= 8:
+        return f"{share:.0%} pleasantry posts; short chit-chat title {label!r}"
     return None

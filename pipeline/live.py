@@ -1913,13 +1913,6 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     log: list[str] = []
     members = [posts[index] for index in topic["member_indices"]]
     label = topic_name(list(topic.get("terms") or []))
-    chit = planet_chitchat_reason(members, list(topic.get("terms") or []), name=label)
-    if chit:
-        log.append(
-            f"INFO {context.get('section') or 'All topics'}: not publishing chit-chat planet "
-            f"{label} ({len(members)} posts). {chit}"
-        )
-        return _exclude_for_floor(context, log, label, len(members), _post_samples(members))
     if _below_planet_floor(len(members), context):
         return _exclude_for_floor(context, log, label, len(members), _post_samples(members))
     backend = context["backend"]
@@ -2065,6 +2058,13 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
             name = renamed
         elif fallback and not _title_needs_repair(fallback) and not _is_camp_title(fallback):
             name = fallback
+    chit = planet_chitchat_reason(members, terms, name=name)
+    if chit:
+        log.append(
+            f"INFO {context.get('section') or 'All topics'}: not publishing chit-chat planet "
+            f"{name} ({len(members)} posts). {chit}"
+        )
+        return _exclude_for_floor(context, log, name, len(members), _post_samples(members))
     face_volumes = to_percents([item[2] for item in drafted])
     perspectives = []
     face_rows: list[tuple[str, int, float]] = []

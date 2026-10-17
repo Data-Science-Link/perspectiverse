@@ -1,45 +1,56 @@
-"""Chit-chat guard: ingest filter and planet guard (#208)."""
+"""Chit-chat guard: ingest filter and post-label planet guard (#208)."""
+
+import json
+from pathlib import Path
 
 from pipeline.chitchat_guard import (
-    chitchat_reason,
-    filter_chitchat_posts,
     ingest_block_reason,
     planet_chitchat_reason,
-    reset_chitchat_log,
+    pleasantry_reason,
+    substantive_tokens,
 )
 from pipeline.free_ingest import keep_edition_quality
 
-
-def test_thanks_birthday_stream_and_agreement_are_chitchat():
-    assert chitchat_reason({"text": "Thank you so much!"}) == "thanks"
-    assert chitchat_reason({"text": "Happy birthday!! Hope you have a great day"}) == "wish"
-    assert chitchat_reason({"text": "We are live now on twitch.tv/example"}) == "stream_announce"
-    assert chitchat_reason({"text": "Of course"}) == "agreement"
-    assert chitchat_reason({"text": "Count me in"}) == "agreement"
-    assert chitchat_reason({"text": "Have a great weekend!"}) == "weekend"
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "chitchat_preview_posts.json"
 
 
-def test_veterans_thanks_and_streaming_policy_are_not_chitchat():
-    veterans = {
-        "text": (
-            "Thank you to every veteran who served. Congress should fund the VA "
-            "and fix the backlog before the next election."
-        )
-    }
-    policy = {
-        "text": (
-            "Twitch's new moderation policy will change how streamers handle politics "
-            "on the platform and what counts as acceptable speech during live broadcasts."
-        )
-    }
-    assert chitchat_reason(veterans) is None
-    assert chitchat_reason(policy) is None
-    assert ingest_block_reason(veterans) is None
-    assert ingest_block_reason(policy) is None
+def _load_fixture() -> dict:
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 
-def test_ingest_filter_drops_chitchat_before_spam_count_only_quality():
-    reset_chitchat_log()
+def test_preview_representatives_that_should_be_pleasantries():
+    fixture = _load_fixture()
+    must_drop = [
+        "thank you!! 💕💕💕",
+        "happy late birthday !! 🎂🎉💖✨",
+        "for sure",
+        "Of course lol",
+        "Wishing everyone a fun weekend!",
+        "Stream is starting soon! twitch.tv/DoPeY5007",
+        "LIVE NOW! Come hop in and hang out!! #Twitch #Stream #Live",
+    ]
+    for text in must_drop:
+        assert pleasantry_reason({"text": text}) is not None, text
+
+
+def test_preview_discourse_negatives_from_artifact_and_review():
+    kept = [
+        "The anniversary of the invasion is not a happy anniversary for Ukraine.",
+        "Happy anniversary of the Voting Rights Act, which Congress still has to defend.",
+        "Residents can watch live as the council votes on the housing bill tonight.",
+        "The jobs report was amazing and wages finally rose.",
+        "This court ruling is wonderful for renters.",
+        "Good luck charms were seized after the new gambling law.",
+        "Thank you, veterans.",
+        "Beautiful Cross from #26 Samuel Fomin",
+        "I love this song",
+        "Anyone wanna join in?",
+    ]
+    for text in kept:
+        assert pleasantry_reason({"text": text}) is None, text
+
+
+def test_ingest_filter_drops_spam_and_pleasantry():
     posts = [
         {"uri": "at://ok", "text": "City council should vote on rent control this month."},
         {"uri": "at://thanks", "text": "Thanks!!"},
@@ -55,31 +66,44 @@ def test_ingest_filter_drops_chitchat_before_spam_count_only_quality():
     assert blocked_other == 1
 
 
-def test_planet_guard_drops_high_share_chitchat_clusters():
-    members = [{"text": "Thank you!"} for _ in range(8)] + [{"text": "Beautiful work!"} for _ in range(2)]
-    reason = planet_chitchat_reason(members, ["appreciation"], name="Art Appreciation")
-    assert reason is not None
-    assert "chitchat" in reason.lower() or "%" in reason
-
-
-def test_planet_guard_keeps_discourse_news_planet():
-    members = [
+def test_planet_guard_after_label_uses_title_and_pleasantry_share():
+    members = [{"text": "Thank you!"} for _ in range(8)] + [{"text": "Beautiful!"} for _ in range(2)]
+    assert planet_chitchat_reason(members, [], name="Art Appreciation")
+    assert planet_chitchat_reason([{"text": "x"}] * 23, [], name="Count")
+    policy_members = [
         {
             "text": (
-                "The Senate bill would require streaming platforms to report child safety "
-                "violations within 24 hours or face federal fines."
+                "Twitch's new moderation policy will change how streamers handle politics "
+                "on the platform during live broadcasts."
             )
         }
         for _ in range(6)
     ]
-    assert planet_chitchat_reason(members, ["streaming", "policy"], name="Streaming Policy") is None
+    assert planet_chitchat_reason(policy_members, [], name="Streaming Policy") is None
 
 
-def test_filter_chitchat_posts_returns_kept_and_dropped():
-    posts = [
-        {"text": "School boards need a clear policy on library books."},
-        {"text": "Yes!"},
-    ]
-    kept, dropped = filter_chitchat_posts(posts)
-    assert len(kept) == 1
-    assert dropped == 1
+def test_fixture_target_planets_would_be_guarded_at_preview_sizes():
+    fixture = _load_fixture()
+    post_counts = {
+        "global:Art Appreciation": 689,
+        "global:Twitch Stream": 459,
+        "Business:Count": 23,
+        "Sports:Good Luck": 16,
+        "Sports:Happy Anniversary": 21,
+        "Education:Course": 19,
+        "Education:Full Agreement": 8,
+        "Other:Art Appreciation": 645,
+        "Other:the weekend": 85,
+        "Other:Happy Birthday": 143,
+    }
+    for key, texts in fixture["target_planets"].items():
+        name = key.split(":", 1)[1]
+        members = [{"text": text} for text in texts]
+        post_count = post_counts[key]
+        expanded = members * max(1, post_count // max(len(members), 1))
+        assert planet_chitchat_reason(expanded[:post_count], [], name=name), key
+
+
+def test_ingest_block_reason_keeps_quality_claim():
+    post = {"text": "The Senate should publish the mail ballot rules before November."}
+    assert ingest_block_reason(post) is None
