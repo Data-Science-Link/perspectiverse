@@ -2,8 +2,10 @@
 
 A push to main must not start this workflow. The live step's ``if`` is already
 true for every non-schedule event, so the safe fix is to delete ``on.push``
-rather than gate each paid step. ``free_ingest`` defaults to off and is set
-only on a deliberate workflow_dispatch.
+rather than gate each paid step. Free ingest is on for the schedule and a
+normal dispatch. ``preview_only`` (and the ``free_ingest`` alias) is the
+preview that does not publish. ``legacy_jev`` and a fill dispatch take the
+old per-post path.
 """
 
 from __future__ import annotations
@@ -16,7 +18,9 @@ import yaml
 WORKFLOW = Path(".github/workflows/pipeline.yml")
 WORK_GATE = "github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'"
 FREE_INGEST_ENV = (
-    "${{ github.event_name == 'workflow_dispatch' && inputs.free_ingest == true && '1' || '' }}"
+    "${{ (inputs.preview_only == true || inputs.free_ingest == true || "
+    "github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && "
+    "inputs.legacy_jev != true && inputs.fill_budget_usd == '')) && '1' || '0' }}"
 )
 FILL_RUN_ENV = (
     "${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != '' && '1' || '' }}"
@@ -25,15 +29,20 @@ SPEND_CAP_OVERRIDE_ENV = (
     "${{ github.event_name == 'workflow_dispatch' && inputs.spend_stop_usd || '' }}"
 )
 # False on a schedule (the event check short-circuits) and on a normal dispatch.
-NOT_FREE = "(github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)"
+# True only for a preview dispatch (preview_only, or the free_ingest alias).
+NOT_PREVIEW = (
+    "(github.event_name != 'workflow_dispatch' || "
+    "(inputs.preview_only != true && inputs.free_ingest != true))"
+)
 FREE_PREVIEW = (
-    "github.event_name == 'workflow_dispatch' && inputs.free_ingest == true "
+    "github.event_name == 'workflow_dispatch' && "
+    "(inputs.preview_only == true || inputs.free_ingest == true) "
     "&& steps.live.outcome == 'success'"
 )
 
-# Step ``if`` values on main before this change. Schedule behavior is these
-# conditions plus the live command. A comment or the new env var may change;
-# these strings may not.
+# Step ``if`` values. A comment may change. These strings may not.
+# Preview gates replaced the old free_ingest publish block. The schedule
+# still publishes.
 EXPECTED_IF = {
     "Record job start for the fill time margin": None,
     "Checkout repository": None,
@@ -58,10 +67,10 @@ EXPECTED_IF = {
     "Save Jev verdict cache": f"always() && ({WORK_GATE})",
     "Stage corpus after cancelled live": f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled'",
     "Upload corpus to R2 after cancelled live": (
-        f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled' && {NOT_FREE}"
+        f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled' && {NOT_PREVIEW}"
     ),
     "Stage halted corpus before ledger git checkout": "failure() && steps.live.outcome == 'failure'",
-    "Upload halted corpus to R2": f"failure() && steps.live.outcome == 'failure' && {NOT_FREE}",
+    "Upload halted corpus to R2": f"failure() && steps.live.outcome == 'failure' && {NOT_PREVIEW}",
     "Record partial spend when the run ends early": (
         "always() && (" + WORK_GATE + ") && steps.live.outcome != 'success' "
         "&& steps.live.outcome != 'skipped' && (steps.live.outcome == 'failure' "
@@ -70,18 +79,18 @@ EXPECTED_IF = {
     "Keep yesterday's edition when the daily spend cap stops the run": (
         "failure() && steps.live.outcome == 'failure'"
     ),
-    "Upload corpus to R2": f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_FREE}",
-    "Upload data.json": f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_FREE}",
+    "Upload corpus to R2": f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_PREVIEW}",
+    "Upload data.json": f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_PREVIEW}",
     "Write free-ingest preview": FREE_PREVIEW,
     "Upload free-ingest preview": FREE_PREVIEW,
     "Record free-ingest spend": f"always() && {FREE_PREVIEW}",
     "Publish data-snapshot branch": (
-        f"({WORK_GATE}) && steps.live.outcome == 'success' && steps.r2upload.outcome == 'success' && {NOT_FREE}"
+        f"({WORK_GATE}) && steps.live.outcome == 'success' && steps.r2upload.outcome == 'success' && {NOT_PREVIEW}"
     ),
 }
 
-# A free-ingest dispatch must not reach these. Spend recording is separate.
-FREE_INGEST_BLOCKED = (
+# A preview dispatch must not reach these. Spend recording is separate.
+PREVIEW_BLOCKED = (
     "Upload corpus to R2",
     "Upload corpus to R2 after cancelled live",
     "Upload halted corpus to R2",
@@ -138,6 +147,7 @@ class Ctx:
     r2: str
     fill: str
     failed: bool
+    preview_only: bool = False
     free_ingest: bool = False
 
 
@@ -145,12 +155,17 @@ def _work(ctx: Ctx) -> bool:
     return ctx.event != "schedule" or ctx.skip != "true"
 
 
-def _not_free_preview(ctx: Ctx) -> bool:
-    return ctx.event != "workflow_dispatch" or ctx.free_ingest is not True
+def _is_preview(ctx: Ctx) -> bool:
+    """Preview-only dispatch: ``preview_only`` or the deprecated ``free_ingest`` alias."""
+    return ctx.event == "workflow_dispatch" and (ctx.preview_only is True or ctx.free_ingest is True)
+
+
+def _not_preview(ctx: Ctx) -> bool:
+    return not _is_preview(ctx)
 
 
 def _free_preview(ctx: Ctx) -> bool:
-    return ctx.event == "workflow_dispatch" and ctx.free_ingest is True and ctx.live == "success"
+    return _is_preview(ctx) and ctx.live == "success"
 
 
 def step_runs(expr: str | None, ctx: Ctx) -> bool:
@@ -169,12 +184,12 @@ def step_runs(expr: str | None, ctx: Ctx) -> bool:
         return _work(ctx)
     if expr == f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled'":
         return _work(ctx) and ctx.live == "cancelled"
-    if expr == f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled' && {NOT_FREE}":
-        return _work(ctx) and ctx.live == "cancelled" and _not_free_preview(ctx)
+    if expr == f"always() && ({WORK_GATE}) && steps.live.outcome == 'cancelled' && {NOT_PREVIEW}":
+        return _work(ctx) and ctx.live == "cancelled" and _not_preview(ctx)
     if expr == "failure() && steps.live.outcome == 'failure'":
         return ctx.failed and ctx.live == "failure"
-    if expr == f"failure() && steps.live.outcome == 'failure' && {NOT_FREE}":
-        return ctx.failed and ctx.live == "failure" and _not_free_preview(ctx)
+    if expr == f"failure() && steps.live.outcome == 'failure' && {NOT_PREVIEW}":
+        return ctx.failed and ctx.live == "failure" and _not_preview(ctx)
     if expr == FREE_PREVIEW:
         return _free_preview(ctx)
     if expr == f"always() && {FREE_PREVIEW}":
@@ -190,21 +205,31 @@ def step_runs(expr: str | None, ctx: Ctx) -> bool:
             and ctx.live not in {"success", "skipped"}
             and ctx.live in {"failure", "cancelled"}
         )
-    if expr == f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_FREE}":
-        return _work(ctx) and ctx.live == "success" and _not_free_preview(ctx)
+    if expr == f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_PREVIEW}":
+        return _work(ctx) and ctx.live == "success" and _not_preview(ctx)
     publish = (
         f"({WORK_GATE}) && steps.live.outcome == 'success' && "
-        f"steps.r2upload.outcome == 'success' && {NOT_FREE}"
+        f"steps.r2upload.outcome == 'success' && {NOT_PREVIEW}"
     )
     if expr == publish:
-        return _work(ctx) and ctx.live == "success" and ctx.r2 == "success" and _not_free_preview(ctx)
+        return _work(ctx) and ctx.live == "success" and ctx.r2 == "success" and _not_preview(ctx)
     raise AssertionError(f"unrecognized workflow if: {expr}")
 
 
-def free_ingest_value(event: str, enabled: bool) -> str:
-    """Mirror the live-step env expression. Only boolean true on a dispatch yields 1."""
-    chosen = event == "workflow_dispatch" and enabled is True and "1"
-    return chosen or ""
+def free_ingest_value(
+    event: str,
+    *,
+    legacy_jev: bool = False,
+    preview_only: bool = False,
+    free_ingest: bool = False,
+    fill: str = "",
+) -> str:
+    """Mirror the live-step env expression. Schedule and a normal dispatch are ``1``."""
+    preview = event == "workflow_dispatch" and (preview_only is True or free_ingest is True)
+    normal = event == "workflow_dispatch" and legacy_jev is not True and fill == ""
+    if preview or event == "schedule" or normal:
+        return "1"
+    return "0"
 
 
 def spend_stop_override_value(event: str, amount: str) -> str:
@@ -240,25 +265,36 @@ def test_push_does_not_start_the_pipeline_and_tests_still_cover_main():
     assert "main" in pages["push"]["branches"]
 
 
-def test_free_ingest_defaults_off_and_only_a_dispatch_sets_it():
+def test_free_ingest_is_on_for_schedule_and_normal_dispatch():
     inputs = _on_block(_document(WORKFLOW))["workflow_dispatch"]["inputs"]
+    legacy = inputs["legacy_jev"]
+    preview = inputs["preview_only"]
     free = inputs["free_ingest"]
-    assert free["type"] == "boolean"
-    assert free["default"] is False
-    assert free["required"] is False
+    for switch in (legacy, preview, free):
+        assert switch["type"] == "boolean"
+        assert switch["default"] is False
+        assert switch["required"] is False
     assert inputs["fill_budget_usd"]["default"] == ""
+    assert inputs["spend_stop_usd"]["default"] == ""
 
     live = next(step for step in _steps() if step.get("id") == "live")
     assert live["env"]["PERSPECTIVERSE_FREE_INGEST"] == FREE_INGEST_ENV
     assert live["env"]["PERSPECTIVERSE_FILL_RUN"] == FILL_RUN_ENV
+    assert live["env"]["PERSPECTIVERSE_DAILY_SPEND_STOP"] == SPEND_CAP_OVERRIDE_ENV
     assert "PERSPECTIVERSE_FREE_INGEST" not in live["run"]
     assert "python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db" in live["run"]
 
-    assert free_ingest_value("schedule", False) == ""
-    assert free_ingest_value("schedule", True) == ""
-    assert free_ingest_value("push", True) == ""
-    assert free_ingest_value("workflow_dispatch", False) == ""
-    assert free_ingest_value("workflow_dispatch", True) == "1"
+    assert free_ingest_value("schedule") == "1"
+    assert free_ingest_value("schedule", legacy_jev=True) == "1"
+    assert free_ingest_value("push") == "0"
+    assert free_ingest_value("workflow_dispatch") == "1"
+    assert free_ingest_value("workflow_dispatch", legacy_jev=True) == "0"
+    assert free_ingest_value("workflow_dispatch", fill="15") == "0"
+    assert free_ingest_value("workflow_dispatch", preview_only=True) == "1"
+    assert free_ingest_value("workflow_dispatch", free_ingest=True) == "1"
+    assert free_ingest_value("workflow_dispatch", legacy_jev=True, preview_only=True) == "1"
+    assert free_ingest_value("workflow_dispatch", preview_only=True, fill="15") == "1"
+    assert free_ingest_value("workflow_dispatch", legacy_jev=True, fill="15") == "0"
 
 
 def test_spend_stop_usd_defaults_empty_and_only_dispatch_sets_cap_override():
@@ -334,8 +370,28 @@ def test_push_cannot_reach_paid_steps_and_dispatch_steps_match():
     assert "pipeline.r2" not in spend["run"]
 
 
-def test_free_ingest_dispatch_cannot_upload_or_publish():
-    """A preview must not put unscored posts on R2 or replace the live edition."""
+def test_preview_only_dispatch_cannot_upload_or_publish():
+    """A preview must not put the corpus on R2 or replace the live edition.
+
+    ``preview_only`` and the deprecated ``free_ingest`` input are the same gate.
+    A scheduled run and a normal dispatch are not previews, so they publish.
+    """
+    for kwargs in ({"preview_only": True}, {"free_ingest": True}):
+        preview = Ctx(
+            event="workflow_dispatch",
+            skip="false",
+            live="success",
+            r2="success",
+            fill="",
+            failed=False,
+            **kwargs,
+        )
+        running = _running_names(preview)
+        for blocked in PREVIEW_BLOCKED:
+            assert blocked not in running
+        assert "Write free-ingest preview" in running
+        assert "Upload free-ingest preview" in running
+        assert "Record free-ingest spend" in running
     preview = Ctx(
         event="workflow_dispatch",
         skip="false",
@@ -343,10 +399,10 @@ def test_free_ingest_dispatch_cannot_upload_or_publish():
         r2="success",
         fill="",
         failed=False,
-        free_ingest=True,
+        preview_only=True,
     )
     running = _running_names(preview)
-    for blocked in FREE_INGEST_BLOCKED:
+    for blocked in PREVIEW_BLOCKED:
         assert blocked not in running
     assert "Run live pipeline" in running
     assert "Write free-ingest preview" in running

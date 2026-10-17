@@ -70,10 +70,13 @@ DEFAULTS: dict[str, Any] = {
     # ask for a section. The shadow test failed batched claims, so this stays
     # false. See scripts/jev_shadow_test.py. The planet-level section call is #90.
     "jev_batch": False,
-    # Off: per-post Jev spam, claim, and section, and the six neutral queries.
+    # Omitted key: off, so a test config that does not mention the switch
+    # keeps the old per-post path. The checked-in example sets it true, and
+    # the daily workflow sets PERSPECTIVERSE_FREE_INGEST=1 for the schedule
+    # and a normal dispatch. "0" forces the old path (legacy_jev or a fill).
     # On: free spam guard, store every non-spam post, one Jev category call
-    # per candidate planet, and a 7-day search widened toward 14,300 non-spam
-    # posts a day. PERSPECTIVERSE_FREE_INGEST=1 turns it on.
+    # per candidate planet, and a 7-day search toward 14,300 non-spam posts
+    # a day. That path does not call per-post Jev.
     "free_ingest": False,
 }
 
@@ -109,6 +112,8 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
     batch_flag = (os.getenv("PERSPECTIVERSE_JEV_BATCH") or "").strip().lower()
     if batch_flag:
         settings["jev_batch"] = batch_flag in {"1", "true", "yes", "on"}
+    # "1" turns the free path on. "0" / "false" turns it off, including when
+    # the example file says true. An empty value leaves the file alone.
     free_flag = (os.getenv("PERSPECTIVERSE_FREE_INGEST") or "").strip().lower()
     if free_flag:
         settings["free_ingest"] = free_flag in {"1", "true", "yes", "on"}

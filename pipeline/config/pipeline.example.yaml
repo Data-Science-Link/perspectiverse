@@ -75,10 +75,10 @@ neutral_queries:
 # The shadow test failed batched claims, so this stays false.
 jev_batch: false
 
-# Off by default, so a normal run still asks Jev about each post.
-# On: the free spam guard replaces per-post Jev spam and claim checks and
-# every non-spam post is stored; Jev is one newspaper-category call per
-# candidate planet; search uses more queries and pages across the last 7
-# UTC days, toward 14,300 non-spam posts a day, and backs off on rate limits.
-# PERSPECTIVERSE_FREE_INGEST=1 is the same switch.
-free_ingest: false
+# Production default. The spam guard replaces per-post Jev. Every non-spam
+# post is stored. Jev is one newspaper-category call per candidate planet.
+# Search uses the wide query list across the last 7 UTC days, toward 14,300
+# non-spam posts a day, and backs off on rate limits. The daily workflow also
+# sets PERSPECTIVERSE_FREE_INGEST=1, except legacy_jev=true or a fill dispatch,
+# which set it to 0 and take the old per-post path.
+free_ingest: true

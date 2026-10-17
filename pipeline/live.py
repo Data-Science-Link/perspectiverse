@@ -193,6 +193,12 @@ def run_live(
                 connection,
                 relabel=relabel,
             )
+        # Legacy per-post Jev. The schedule and a normal dispatch set
+        # PERSPECTIVERSE_FREE_INGEST=1, so they never reach this call. It
+        # scores the full cleaned list (stored rows plus the morning fetch)
+        # before any top-up. A free-ingest corpus has no per-post verdicts;
+        # sending about 100K of those rows here is the ~$2.78 path that hits
+        # the $1 stop and publishes nothing.
         if source == "bluesky" and not relabel and not free_ingest:
             corpus_posts = list(cleaned)
             scored = apply_jev(
