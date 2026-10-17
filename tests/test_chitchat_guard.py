@@ -10,11 +10,13 @@ from pathlib import Path
 from pipeline.chitchat_guard import (
     PLEASANTRY_SHARE_DROP,
     ingest_block_reason,
+    is_bare_link_post,
     MODEL_CHITCHAT_SHARE_FLOOR,
     planet_chitchat_reason,
     pleasantry_reason,
     pleasantry_share,
 )
+from scripts.replay_planet_guard import classify_planet
 from pipeline.free_ingest import keep_edition_quality
 from pipeline.label import (
     build_planet_name_prompt,
@@ -27,6 +29,7 @@ from pipeline.label import (
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "chitchat_preview_posts.json"
 LEAKED = Path(__file__).resolve().parent / "fixtures" / "chitchat_leaked_planets.json"
+REPLAY = Path(__file__).resolve().parent / "fixtures" / "chitchat_replay_39072480258.json"
 
 POST_COUNTS = {
     "global:Art Appreciation": 689,
@@ -350,3 +353,142 @@ def test_chitchat_drop_frees_the_catalog_slot_for_the_next_candidate():
     assert len(built) == 1
     assert "uber" not in built[0]["name"].lower()
     assert "bill" in built[0]["name"].lower() or "housing" in built[0]["name"].lower() or "council" in built[0]["name"].lower()
+
+
+def test_get_well_wishes_drop_and_illness_journals_stay():
+    drops = [
+        "Oh I am sorry to hear this. Wishing you a speedy and full recovery.",
+        "Hoping for a speedy recovery!",
+        "Despite it, I'm wishing you a speedy recovery.",
+        "so glad it went okay!! i hope she has a speedy recovery!!",
+        "For a quick recovery, rest in bed to restore your strength.",
+        "Hope you feel better soon",
+        "i genuinely do hope that you feel better in the morning",
+        "Sending healing purrs to you as well.",
+        "prayers for you",
+        "Get well soon",
+    ]
+    stays = [
+        "I'm feeling so much better today! Still wiped and tired, but the migraine has passed.",
+        "It is a lie to tell myself that I will ever be fully recovered from chemo, but some things will return in time.",
+        "The senator was admitted to the hospital after the illness was reported.",
+        "Hospital policy now covers recovery time after surgery for the nurses.",
+        "I feel so sick and ill right now. Why is this happening to me?",
+        "I am medicated up at this point and feeling better.",
+        "got a haircut y'all",
+        "new haircut with limited edition color",
+    ]
+    for text in drops:
+        assert pleasantry_reason({"text": text}) == "wish", text
+    for text in stays:
+        assert pleasantry_reason({"text": text}) is None, text
+    wishes = [{"text": "Hope you feel better soon"}] * 6
+    assert planet_chitchat_reason(wishes, [], name="Health Issues")
+    assert planet_chitchat_reason(wishes, [], name="Kind Words")
+    journals = [
+        {"text": "I'm feeling so much better today! Still wiped, but the migraine has passed."}
+    ] * 6
+    assert planet_chitchat_reason(journals, [], name="Health Issues") is None
+    chemo = [
+        {
+            "text": (
+                "It is a lie to tell myself that I will ever be fully recovered from chemo, "
+                "but some things will return in time."
+            )
+        }
+    ] * 6
+    assert planet_chitchat_reason(chemo, [], name="Recovering Health") is None
+
+
+def test_hashtags_sports_jabs_and_stream_mentions_stay():
+    stays = [
+        "#NoKings❌👑",
+        "Well, congratulations, Auburn. Looks like after today y'all will have still been us exactly as many times as Georgia Tech has over the last 10 games.",
+        "Forgive me for my dumb complaint, but with 500 streaming channels it should be easier to find full holiday cartoon eps like Yogi Bear.",
+        "I'm so pissed that it is not scheduled here, so I probably have to wait until it goes to streaming.",
+        "My camera is mainly setup for streaming, which adds steps before I can use it.",
+        "NYC Bar is still the theme of the stream.",
+        "We didn't finish the RP, but I worked on it during my art stream the other day.",
+        "I'm losing enthusiasm to stream tonight but I really need to.",
+        "the war never ends until those dicks are gone so neither can I rest in the fields of fictional combat Why? Because why I can't act independently, I can share that this era isn't unique. www.twitch.tv/mayonaka_mid",
+    ]
+    drops = [
+        "I'm live on joystick.tv today",
+        "It's time to stream",
+        "Come through for the Saturday game twitch.tv/awingedshield",
+        "www.twitch.tv/gamecobra Time to start some deadlock!",
+        "HE'S MARIOING IT OH MY GOD www.twitch.tv/yeah_sure82",
+        "I’m streaming youtu.be/DUBlSZQzSlc",
+        "1UpWar is LIVE on Twitch! Watch now: https://www.twitch.tv/1upwar",
+    ]
+    for text in stays:
+        assert pleasantry_reason({"text": text}) is None, text
+    for text in drops:
+        assert pleasantry_reason({"text": text}) == "stream_announce", text
+
+
+def test_bare_youtube_link_counts_in_the_planet_share_only():
+    bare = {"text": "youtu.be/VAWjsVoDpm0 #musicsky"}
+    assert pleasantry_reason(bare) is None
+    assert is_bare_link_post(bare)
+    assert ingest_block_reason(bare) is None
+    assert planet_chitchat_reason([bare] * 8, [], name="Music Videos")
+    sentence = {"text": "You might find this video heartening. youtu.be/SOSOyr1yPao"}
+    assert not is_bare_link_post(sentence)
+    assert planet_chitchat_reason([sentence] * 8, [], name="Music Videos") is None
+
+
+def test_link_and_language_ingest_switch_defaults_on(monkeypatch):
+    dutch = {"text": "Het is niet een goed plan want de regering heeft geen meerderheid."}
+    link = {"text": "https://example.com/only"}
+    monkeypatch.delenv("DROP_LINK_AND_LANGUAGE_AT_INGEST", raising=False)
+    assert ingest_block_reason(link) == "link_only"
+    assert ingest_block_reason(dutch) == "language"
+    monkeypatch.setenv("DROP_LINK_AND_LANGUAGE_AT_INGEST", "0")
+    assert ingest_block_reason(link) is None
+    assert ingest_block_reason(dutch) is None
+    assert ingest_block_reason({"text": "Thanks!!"}).startswith("chitchat:")
+
+
+def test_replay_39072480258_representatives():
+    """Saved planets from the run where the guard published zero chit-chat planets.
+
+    Speedy Recovery's five representatives are all recovery wishes, so the
+    guard drops it. Health Issues is 90/127 on a face labeled Get Well, but
+    only a minority of those representatives are directed wishes, so the
+    representative share stays under 55% and the title does not drop it.
+    """
+    payload = json.loads(REPLAY.read_text(encoding="utf-8"))
+    rows = [
+        classify_planet(planet["section"], planet["name"], planet["texts"], planet["post_count"])
+        for planet in payload["planets"]
+    ]
+    dropped = [(row["section"], row["name"]) for row in rows if row["decision"] == "DROP"]
+    assert dropped == [("Health", "Speedy Recovery")]
+    by_name = {(row["section"], row["name"]): row for row in rows}
+    speedy = by_name[("Health", "Speedy Recovery")]
+    assert speedy["share"] == 1
+    assert planet_chitchat_reason(
+        [{"text": text} for text in _planet_texts(payload, "Health", "Speedy Recovery")],
+        [],
+        name="Kind Words",
+    )
+    issues = by_name[("Health", "Health Issues")]
+    assert issues["decision"] == "KEEP"
+    assert 0.20 < issues["share"] < PLEASANTRY_SHARE_DROP
+    for section, name in (
+        ("Health", "Recovering Health"),
+        ("Other", "New Haircuts"),
+        ("global", "Music Videos"),
+        ("Culture", "Music Videos"),
+        ("Health", "US Healthcare"),
+    ):
+        assert by_name[(section, name)]["decision"] == "KEEP"
+        assert by_name[(section, name)]["share"] < PLEASANTRY_SHARE_DROP
+
+
+def _planet_texts(payload: dict, section: str, name: str) -> list[str]:
+    for planet in payload["planets"]:
+        if planet["section"] == section and planet["name"] == name:
+            return list(planet["texts"])
+    raise AssertionError(f"missing {section}:{name}")

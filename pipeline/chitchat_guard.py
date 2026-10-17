@@ -1,8 +1,8 @@
 """Free local filter for greeting and chit-chat posts (#208).
 
 No network and no model calls. A post is chit-chat when its text is a social
-gesture — a thank-you or compliment reply, a birthday or holiday wish, a
-live-now self-promotion, or a one-word agreement — and it does not carry a
+gesture — a thank-you or compliment reply, a birthday, holiday, or get-well
+wish, a live-now self-promotion, or a one-word agreement — and it does not carry a
 public topic. Planet titles are not an input. Used at free ingest before the
 daily cap, and as a planet guard after labeling.
 """
@@ -10,6 +10,7 @@ daily cap, and as a planet guard after labeling.
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -24,6 +25,14 @@ PLEASANTRY_SHARE_DROP = 0.55
 # The only planets under 55% that contain any pleasantry are at 50%
 # (one of two representatives). 30% is the empty gap between those.
 MODEL_CHITCHAT_SHARE_FLOOR = 0.30
+
+# d721778 removed link-only and non-English posts at ingest in the same change
+# as the #208 chit-chat filter. #208 requires chit-chat out of the 100K. It
+# does not require these two to miss the count. ``partition_posts`` still
+# drops both before clustering, so turning this off only lets them count
+# toward the stored edition. Set the constant, or the environment variable
+# ``DROP_LINK_AND_LANGUAGE_AT_INGEST=0``, to switch that ingest step off.
+DROP_LINK_AND_LANGUAGE_AT_INGEST = True
 
 # Social and function words. A token here is not a public topic.
 _FILLER = frozenset(
@@ -108,8 +117,41 @@ _STREAM_URL_RE = re.compile(
 )
 _STREAM_PHRASE_RE = re.compile(
     r"\b(?:live now|going live|go live|im live|i am live|were live|we are live|"
-    r"stream is starting|stream starting|streams starting|stream starts|streams start|stream time|streaming now|"
+    r"stream is starting|stream starting|streams starting|stream starts|streams start|stream time|"
+    r"time to stream|its time to stream|streaming now|"
+    r"im streaming|i am streaming|ill be streaming|live on twitch|"
+    r"come watch|come join|come hang out|starting now|surprise stream|"
+    r"we are streaming|were streaming|ready to stream|impromptu stream|"
+    r"gonna start stream|start stream|final stream|"
     r"now live(?!\s+in\b)|bonus stream|come hop in|hop in|live right now)\b",
+    re.IGNORECASE,
+)
+# Cues that count only next to a Twitch or Kick URL. "I live with my parents"
+# has no channel URL and stays.
+_STREAM_WITH_URL_RE = re.compile(
+    r"\b(?:time to|watch now|come through|come hang|hop in|swing on by|be back|live with)\b",
+    re.IGNORECASE,
+)
+_GET_WELL_RE = re.compile(
+    r"\b(?:speedy recovery|quick recovery|full recovery|get well(?: soon)?|"
+    r"feel better soon|feeling better soon|"
+    r"hope(?: \w+){0,3} you(?:re|r)?(?: \w+){0,5} (?:feel better|heal|recover)|"
+    r"you heal up|hope your(?: \w+){0,6} recovery|"
+    r"prayers? for you|praying for you|wishing you|"
+    r"sending (?:healing|prayers)|healing purrs|"
+    r"my condolences|sorry for your loss)\b",
+    re.IGNORECASE,
+)
+_FIRST_PERSON_RECOVERY_RE = re.compile(
+    r"\b(?:i am|im|ive|i have|i feel|i felt|ive been|i will)\b.{0,40}\b(?:better|recovered|recovery)\b",
+    re.IGNORECASE,
+)
+_SPORTS_RESULT_RE = re.compile(
+    r"\b(?:games?|seasons?|innings?|quarters?|overtime|playoffs?|touchdowns?|goals?|scored|defeated)\b",
+    re.IGNORECASE,
+)
+_BARE_LINK_RE = re.compile(
+    r"https?://\S+|www\.\S+|(?:https?://)?(?:www\.)?(?:youtu\.be|youtube\.com)/\S+",
     re.IGNORECASE,
 )
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -310,17 +352,15 @@ def _agreement(plain: str) -> bool:
 
 
 def _stream_promo(raw: str, plain: str) -> bool:
+    """A go-live announcement, not a sentence that merely says streaming.
+
+    A strong phrase ("I'm live", "time to stream", "come hop in") is enough.
+    A Twitch or Kick URL counts when the post is a short plug or has a go-live
+    cue. Mentioning streaming services, a release window, or a channel URL at
+    the end of a longer post does not.
+    """
     url = bool(_STREAM_URL_RE.search(raw or ""))
     phrase = bool(_STREAM_PHRASE_RE.search(plain or ""))
-    mentions = bool(re.search(r"\b(?:stream|streams|streaming|twitch)\b", plain or ""))
-    invite = bool(
-        re.search(
-            r"\b(?:im|ive|we|my|our|come|join|hop|hang|tonight|today|tomorrow|live|ill|lets)\b",
-            plain or "",
-        )
-    )
-    if not (url or phrase or (mentions and invite)):
-        return False
     # "streaming" in a film-revenue sentence is not a channel announcement.
     if (
         not url
@@ -332,10 +372,16 @@ def _stream_promo(raw: str, plain: str) -> bool:
         return False
     # A hearing, a vote, or a bill signing that says "live now" is coverage.
     # Once a civic or government topic is present, the live phrase does not
-    # count. A Twitch or Kick URL is still a self-promotion.
-    if _news(plain) and not url:
+    # count. A Twitch or Kick URL with an announcement phrase still is.
+    if _news(plain) and not (url and phrase):
         return False
-    return True
+    if phrase:
+        return True
+    if not url or _news(plain):
+        return False
+    if _word_count(plain) <= 30:
+        return True
+    return bool(_STREAM_WITH_URL_RE.search(plain or ""))
 
 
 def _person_directed(plain: str) -> bool:
@@ -411,7 +457,8 @@ def _wish(plain: str) -> str | None:
         if len(_substance(plain)) <= 4:
             return "wish"
     if re.search(r"\b(?:congrats|congratulations|best wishes)\b", plain or "") and len(_substance(plain)) <= 4:
-        if _word_count(plain) <= 30:
+        # A result ("last 10 games") is a sports jab, not a greeting card.
+        if _word_count(plain) <= 30 and not _SPORTS_RESULT_RE.search(plain or ""):
             return "wish"
     return None
 
@@ -420,8 +467,11 @@ def _reaction_only(raw: str) -> bool:
     """Emoji or punctuation left after links, tags, and handles are removed.
 
     A bare URL is left for the link-only check. A gift emoji on a news link
-    is a reaction, not the article.
+    is a reaction, not the article. A hashtag is a topic marker: ``#NoKings``
+    with an emoji is not a reaction-only post.
     """
+    if HASHTAG_RE.search(raw or ""):
+        return False
     text = URL_RE.sub(" ", raw or "")
     text = HASHTAG_RE.sub(" ", text)
     text = HANDLE_RE.sub(" ", text)
@@ -466,6 +516,25 @@ def _birthday(raw: str, plain: str) -> bool:
     return True
 
 
+def _get_well(plain: str) -> bool:
+    """A directed get-well, condolence, or recovery wish.
+
+    A first-person illness journal ("I'm feeling better", "fully recovered
+    from chemo") stays. So does a news report of an illness.
+    """
+    if _news(plain) or _work_topic(plain):
+        return False
+    if not _GET_WELL_RE.search(plain or ""):
+        return False
+    if _FIRST_PERSON_RECOVERY_RE.search(plain or "") and not re.search(
+        r"\b(?:hope you|wishing you|prayers for you|praying for you|get well|"
+        r"speedy recovery|quick recovery|sending healing|healing purrs)\b",
+        plain or "",
+    ):
+        return False
+    return True
+
+
 def _greeting(plain: str) -> bool:
     return plain in {
         "gm",
@@ -505,6 +574,8 @@ def pleasantry_reason(post: dict) -> str | None:
         return "stream_announce"
     if _birthday(raw, plain):
         return "wish"
+    if _get_well(plain):
+        return "wish"
     kind = _wish(plain)
     if kind:
         return kind
@@ -521,14 +592,32 @@ def pleasantry_reason(post: dict) -> str | None:
 chitchat_reason = pleasantry_reason
 
 
+def drop_link_and_language_at_ingest() -> bool:
+    """Whether ingest refuses link-only and non-English posts.
+
+    The environment variable wins when it is set, so a rerun can switch the
+    step off without editing this file. The default is on.
+    """
+    raw = os.environ.get("DROP_LINK_AND_LANGUAGE_AT_INGEST")
+    if raw is None or not str(raw).strip():
+        return DROP_LINK_AND_LANGUAGE_AT_INGEST
+    return str(raw).strip().lower() not in {"0", "false", "no", "off"}
+
+
 def ingest_block_reason(post: dict) -> str | None:
-    """Spam, chit-chat, link-only, or non-English. None means edition-quality."""
+    """Spam, chit-chat, and optionally link-only or non-English.
+
+    None means edition-quality. Link-only and language are the d721778 ingest
+    step and follow ``drop_link_and_language_at_ingest``.
+    """
     spam = guard_reason(post)
     if spam:
         return f"spam:{spam}"
     chit = pleasantry_reason(post)
     if chit:
         return f"chitchat:{chit}"
+    if not drop_link_and_language_at_ingest():
+        return None
     text = str(post.get("clean_text") or post.get("text") or "")
     if is_link_only(text):
         return "link_only"
@@ -557,6 +646,35 @@ def pleasantry_share(members: list[dict]) -> float:
     return hits / len(members)
 
 
+def is_bare_link_post(post: dict) -> bool:
+    """A URL, including youtu.be, with fewer than four words left.
+
+    Planet share counts these. Ingest does not treat them as chit-chat:
+    ``is_link_only`` still misses youtu.be, and #208 does not require a bare
+    video link to miss the 100K.
+    """
+    raw = post_body(post)
+    if not _BARE_LINK_RE.search(raw or ""):
+        return False
+    text = HASHTAG_RE.sub(" ", raw)
+    text = HANDLE_RE.sub(" ", text)
+    text = _BARE_LINK_RE.sub(" ", text)
+    words = re.findall(r"[A-Za-z]{3,}", text)
+    return len(words) < 4
+
+
+def planet_content_share(members: list[dict]) -> float:
+    """Pleasantry posts plus bare-link posts, over the members given."""
+    if not members:
+        return 0.0
+    hits = sum(
+        1
+        for member in members
+        if pleasantry_reason(member) or is_bare_link_post(member)
+    )
+    return hits / len(members)
+
+
 def planet_chitchat_reason(
     members: list[dict],
     terms: list[str],
@@ -570,12 +688,13 @@ def planet_chitchat_reason(
     can name the planet; a rename cannot keep or drop it. ``model_chitchat``
     is the yes/no field on the existing planet-naming response. Yes alone
     does not drop a planet. The posts have to be at least 55% chit-chat, or
-    the model has to say yes and at least 30% of the posts agree.
+    the model has to say yes and at least 30% of the posts agree. Bare video
+    links count toward that share. The planet title does not.
     """
     del terms, name
     if not members:
         return None
-    share = pleasantry_share(members)
+    share = planet_content_share(members)
     if share >= PLEASANTRY_SHARE_DROP:
         return f"{share:.0%} of the posts are chit-chat"
     if model_chitchat is True and share >= MODEL_CHITCHAT_SHARE_FLOOR:
