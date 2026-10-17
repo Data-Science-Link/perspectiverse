@@ -608,8 +608,118 @@ def test_partial_ledger_step_runs_before_hold_edition():
     hold_at = names.index("Keep yesterday's edition when the daily spend cap stops the run")
     assert partial_at < hold_at
     partial = steps[partial_at]
-    assert partial["env"]["PYTHONPATH"] == "${{ env.PERSPECTIVERSE_LEDGER_PYTHONPATH }}"
+    hold = steps[hold_at]
+    ledger_pythonpath = "${{ env.PERSPECTIVERSE_LEDGER_PYTHONPATH }}"
+    assert partial["env"]["PYTHONPATH"] == ledger_pythonpath
+    assert hold["env"]["PYTHONPATH"] == ledger_pythonpath
+    assert "pipeline.spend_cap hold-edition" in hold["run"]
     assert "--cost-run" in partial["run"]
+
+
+def test_hold_edition_cli_importable_after_partial_ledger_checkout(tmp_path):
+    """Workflow hold-edition runs after record-partial-ledger leaves the worktree on data-snapshot."""
+    import shutil
+
+    remote = tmp_path / "remote.git"
+    repo = tmp_path / "repo"
+    staged = tmp_path / "workflow-pipeline"
+    shutil.copytree(Path("pipeline"), staged / "pipeline")
+    subprocess.run(["git", "init", "--bare", "-b", "main", str(remote)], check=True, capture_output=True)
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "dev@example.com")
+    _git(repo, "config", "user.name", "Spend Cap Test")
+    _git(repo, "remote", "add", "origin", str(remote))
+    (repo / "README").write_text("main\n", encoding="utf-8")
+    _git(repo, "add", "README")
+    _git(repo, "commit", "-m", "main")
+    _git(repo, "checkout", "-b", "data-snapshot")
+    edition = b'{"edition":"yesterday"}\n'
+    public = repo / "public"
+    public.mkdir()
+    (public / "data.json").write_bytes(edition)
+    _git(repo, "add", "public/data.json")
+    _git(repo, "commit", "-m", "snapshot")
+    _git(repo, "push", "-u", "origin", "data-snapshot")
+    _git(repo, "checkout", "main")
+
+    data = repo / "pipeline" / "data"
+    data.mkdir(parents=True)
+    (data / "spend_cap_stop.json").write_text('{"stopped": true}\n', encoding="utf-8")
+    cost_run = data / "cost_run.json"
+    today = date(2026, 10, 17)
+    cost_run.write_text(
+        json.dumps(
+            {
+                "rows": [
+                    _ledger_row(
+                        run_id="capped-preview",
+                        trigger="workflow_dispatch",
+                        service=SERVICE_DEEPINFRA,
+                        cost="0.50",
+                        day=today,
+                    )
+                ],
+                "run_id": "capped-preview",
+                "run_started_utc": "2026-10-17T13:56:00Z",
+                "date_utc": today.isoformat(),
+                "trigger": "workflow_dispatch",
+            },
+            default=str,
+        ),
+        encoding="utf-8",
+    )
+    env = {**os.environ, "PYTHONPATH": str(staged)}
+    partial = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pipeline.spend_cap",
+            "record-partial-ledger",
+            "--repo",
+            str(repo),
+            "--push",
+            "--cost-run",
+            str(cost_run),
+        ],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert partial.returncode == 0, partial.stderr + partial.stdout
+    assert not (repo / "pipeline" / "spend_cap.py").is_file()
+
+    help_run = subprocess.run(
+        [sys.executable, "-m", "pipeline.spend_cap", "hold-edition", "--help"],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert help_run.returncode == 0, help_run.stderr + help_run.stdout
+    assert "hold-edition" in help_run.stdout
+
+    hold = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pipeline.spend_cap",
+            "hold-edition",
+            "--repo",
+            str(repo),
+            "--push",
+            "--cost-run",
+            str(cost_run),
+            "--marker",
+            str(data / "spend_cap_stop.json"),
+        ],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert hold.returncode == STOP_EXIT, hold.stderr + hold.stdout
 
 
 def test_workflow_stops_publish_unless_the_live_step_succeeds():
