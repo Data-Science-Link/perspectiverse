@@ -42,6 +42,15 @@ on:
         required: false
         type: boolean
         default: false
+      spend_stop_usd:
+        description: >-
+          One-run override of the UTC-day hard stop (default $1.00), for a
+          dispatch Michael approved in the Factory room. Empty = normal $1.00
+          stop. Sets PERSPECTIVERSE_DAILY_SPEND_STOP and _WARN for this run
+          only. Scheduled runs never use it. Fill runs keep the $15 budget.
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: discourse-pipeline
@@ -197,6 +206,10 @@ jobs:
           # Empty unless this dispatch set free_ingest. Schedule and a normal
           # dispatch stay off (settings.py treats "" as free_ingest false).
           PERSPECTIVERSE_FREE_INGEST: ${{ github.event_name == 'workflow_dispatch' && inputs.free_ingest == true && '1' || '' }}
+          # Empty unless a dispatch set spend_stop_usd (Michael-approved one-run
+          # override). Empty falls back to the $1.00 stop in spend_cap.py.
+          PERSPECTIVERSE_DAILY_SPEND_STOP: ${{ github.event_name == 'workflow_dispatch' && inputs.spend_stop_usd || '' }}
+          PERSPECTIVERSE_DAILY_SPEND_WARN: ${{ github.event_name == 'workflow_dispatch' && inputs.spend_stop_usd || '' }}
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
