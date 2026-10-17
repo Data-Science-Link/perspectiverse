@@ -702,6 +702,34 @@ def parse_spam_claim_batch(payload: dict, count: int) -> tuple[str, list[tuple[f
     return model, scores
 
 
+def classify_planet_section(summary: str, arguments: str) -> str | None:
+    """One newspaper category for a planet. None when Jev is off or the call fails.
+
+    The live pipeline calls this only when ``free_ingest`` is on, once per
+    candidate planet. A missing key does not touch the network.
+    """
+    if not _api_key() or _disabled_reason:
+        return None
+    text = (summary or "").strip()
+    if not text and not (arguments or "").strip():
+        return None
+    try:
+        payload = _post_systemone(planet_section_body(summary, arguments))
+    except Exception as exc:
+        from pipeline.spend_cap import SpendCapExceeded
+
+        if isinstance(exc, SpendCapExceeded):
+            raise
+        return None
+    parsed = parse_planet_section(payload)
+    if parsed is None:
+        return None
+    _model_name, choice, _confidence = parsed
+    if choice not in CATEGORIES:
+        return "Other"
+    return choice
+
+
 def parse_planet_section(payload: dict) -> tuple[str, str, float] | None:
     """``(model, section, confidence)`` from one planet-level section call."""
     answers = payload.get("answers") if isinstance(payload, dict) else None

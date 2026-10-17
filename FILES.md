@@ -45,6 +45,8 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/publish_guard.py` | Keeps the live `data.json` when labeling failures degrade a run; a quiet day with fewer planets still publishes |
 | `pipeline/pipeline_overlap.py` | GitHub API check for a queued or in-progress Daily Discourse Pipeline run |
 | `pipeline/jev_prefilter.py` | Free pre-filter before Jev: short posts, non-English, link-only, near-duplicates |
+| `pipeline/spam_guard.py` | Free deterministic spam guard. Live pipeline uses it only when `free_ingest` is on |
+| `pipeline/free_ingest.py` | Off-by-default path: spam guard, store every non-spam post, one Jev category call per planet, 7-day widened search |
 | `pipeline/story_attach.py` | Same-story attach, planet fold, and post-relabel title merge (#114) |
 | `pipeline/schedule_guard.py` | Skip redundant scheduled Daily Discourse Pipeline runs after today's job already succeeded (#97) |
 | `pipeline/assemble.py` | Writes `public/data.json` |
@@ -116,6 +118,8 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | --- | --- |
 | `scripts/security_check.sh` | Local Bandit and pip-audit |
 | `scripts/jev_shadow_test.py` | Paid shadow test of batched spam+claim versus one call per post, plus optional planet-section mode; hard cap $0.03; not run in CI |
+| `scripts/spam_guard_compare.py` | Free comparison of the spam guard to stored Jev spam verdicts, plus a fresh search sample. Makes no paid calls |
+| `scripts/speed_test_no_jev.py` | Search, Jetstream, and planet-build timing with paid API keys removed |
 | `scripts/check_pipeline_overlap.py` | Exit 0 when no Daily Discourse Pipeline run is queued or in progress; paid labeling tests call this first |
 | `scripts/check_categories.mjs` | Category filter helper check |
 | `scripts/check_planets.mjs` | Solar-system order, selection URLs, and face shades |
