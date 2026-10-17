@@ -217,15 +217,20 @@ def run_live(
                     queries=queries,
                 )
             elif refreshed and len(cleaned) < target:
-                # Top up: keep fetching until claim count reaches target so the
-                # rolling window stays at the threshold, not below it.
-                cleaned, corpus_posts = _topup_claims(
-                    cleaned,
-                    target=target,
-                    settings=settings,
-                    connection=connection,
-                    corpus_posts=corpus_posts,
-                )
+                if settings.get("hold_topups"):
+                    print(
+                        f"Top-up held: {len(cleaned)} of {target} claims (scheduled run)."
+                    )
+                else:
+                    # Top up: keep fetching until claim count reaches target so the
+                    # rolling window stays at the threshold, not below it.
+                    cleaned, corpus_posts = _topup_claims(
+                        cleaned,
+                        target=target,
+                        settings=settings,
+                        connection=connection,
+                        corpus_posts=corpus_posts,
+                    )
             if refreshed or fill_span_hours:
                 before = len(cleaned)
                 hours = int(settings["window_hours"])

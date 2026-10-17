@@ -21,6 +21,7 @@ FREE_INGEST_ENV = (
 FILL_RUN_ENV = (
     "${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != '' && '1' || '' }}"
 )
+HOLD_TOPUPS_ENV = "${{ github.event_name == 'schedule' && '1' || '' }}"
 # False on a schedule (the event check short-circuits) and on a normal dispatch.
 NOT_FREE = "(github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)"
 FREE_PREVIEW = (
@@ -204,6 +205,11 @@ def free_ingest_value(event: str, enabled: bool) -> str:
     return chosen or ""
 
 
+def hold_topups_value(event: str) -> str:
+    """Mirror the live-step hold-topups env. Only schedule events set 1."""
+    return "1" if event == "schedule" else ""
+
+
 def _running_names(ctx: Ctx) -> list[str]:
     names = []
     for step in _steps():
@@ -241,6 +247,7 @@ def test_free_ingest_defaults_off_and_only_a_dispatch_sets_it():
     live = next(step for step in _steps() if step.get("id") == "live")
     assert live["env"]["PERSPECTIVERSE_FREE_INGEST"] == FREE_INGEST_ENV
     assert live["env"]["PERSPECTIVERSE_FILL_RUN"] == FILL_RUN_ENV
+    assert live["env"]["PERSPECTIVERSE_HOLD_TOPUPS"] == HOLD_TOPUPS_ENV
     assert "PERSPECTIVERSE_FREE_INGEST" not in live["run"]
     assert "python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db" in live["run"]
 
@@ -249,6 +256,10 @@ def test_free_ingest_defaults_off_and_only_a_dispatch_sets_it():
     assert free_ingest_value("push", True) == ""
     assert free_ingest_value("workflow_dispatch", False) == ""
     assert free_ingest_value("workflow_dispatch", True) == "1"
+
+    assert hold_topups_value("schedule") == "1"
+    assert hold_topups_value("workflow_dispatch") == ""
+    assert hold_topups_value("push") == ""
 
 
 def test_schedule_step_conditions_and_crons_are_unchanged():
