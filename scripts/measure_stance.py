@@ -444,7 +444,7 @@ def score_reference(global_results: list[dict], reference: dict, share: float) -
     one_face = [planet["name"] for planet in reference["planets"] if planet.get("one_face_in_pipeline")]
     return {
         "threshold": share,
-        "denominator": "stance sample (at most 40 posts under 100 on the planet, at most 100 at 100 or more), not the whole planet",
+        "denominator": "stance sample (at most 40 posts, including planets of 100 or more), not the whole planet",
         "planets": planets,
         "duplicate_planets": duplicate_planets,
         "missed_second_stance": missed,

@@ -4,9 +4,8 @@ The calls use whatever label model the pipeline is already using (DeepInfra
 Llama when that is the configured backend). The heuristic backend makes none
 of them. A second face is kept only when the other pole is at least
 ``stance_second_face_share`` of the stance sample, at least two posts, and
-one coherent claim. A planet under 100 posts is sampled at most 40 posts.
-A planet of 100 or more is sampled at most 100. The whole planet is used
-when it is smaller than that cap. The whole-planet count is not what this
+one coherent claim. Every planet is sampled at most 40 posts. The whole
+planet is used when it is smaller than that cap. The whole-planet count is not what this
 pass compares. The first call uses the pipeline seed. A retry uses that seed
 plus one. Seed 0 draws an even spread. Any other seed draws a different
 sample of the same size. A pole that clears the share but is not one claim
@@ -42,6 +41,7 @@ from pipeline.label import _SHORT_SUBJECTS, content_tokens, shares_claim_word, s
 from pipeline.perspectives import MIN_FACE_POSTS
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import (
+    MAX_PROMPT_POSTS,
     STANCE_SAMPLE_LARGE_PLANET,
     STANCE_SAMPLE_LIMIT,
     STANCE_SAMPLE_LIMIT_LARGE,
@@ -168,14 +168,17 @@ def ordered_rows(rows: list[tuple]) -> list[tuple]:
 
 
 def sample_limit(planet_posts: int) -> int:
-    """40 posts when the planet has fewer than 100. 100 once it reaches 100.
+    """At most 40 posts, including a planet of 100 or of 100,000.
 
     A smaller planet is labeled in full. The share is divided by this sample,
-    not by every post on the planet.
+    not by every post on the planet. The old 100-post cap on large planets
+    timed out under concurrency (run 39038944044).
     """
     if int(planet_posts) >= STANCE_SAMPLE_LARGE_PLANET:
-        return STANCE_SAMPLE_LIMIT_LARGE
-    return STANCE_SAMPLE_LIMIT
+        cap = STANCE_SAMPLE_LIMIT_LARGE
+    else:
+        cap = STANCE_SAMPLE_LIMIT
+    return min(int(cap), MAX_PROMPT_POSTS)
 
 
 def sample_rows(rows: list[tuple], limit: int | None = None, seed: int = 0) -> list[tuple]:
@@ -323,6 +326,12 @@ def parse_merge_groups(text: str, count: int) -> list[list[int]] | None:
 
 
 def build_stance_prompt(rows: list[tuple], members: list[dict], subject: str) -> str:
+    chosen = list(rows)
+    if len(chosen) > MAX_PROMPT_POSTS:
+        # Even spread, including both ends. A prefix would hide the rest of a
+        # 100K-post planet. The pipeline samples before this; the slice is the
+        # backstop when a caller passes the whole membership.
+        chosen = sample_rows(chosen, limit=MAX_PROMPT_POSTS)
     by_uri = {str(post.get("uri") or ""): post for post in members}
     lines = [
         "These posts are one planet that would otherwise show a single face.",
@@ -345,7 +354,7 @@ def build_stance_prompt(rows: list[tuple], members: list[dict], subject: str) ->
         "",
         "Posts:",
     ]
-    for number, (uri, _position, _distance) in enumerate(rows, start=1):
+    for number, (uri, _position, _distance) in enumerate(chosen, start=1):
         post = by_uri.get(str(uri)) or {}
         lines.append(f"{number}. {_snippet(post, limit=320)}")
     return "\n".join(lines)

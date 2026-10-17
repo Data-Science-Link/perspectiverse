@@ -1083,10 +1083,11 @@ def test_cost_run_records_deepinfra_errors_by_type(tmp_path, monkeypatch):
     from pipeline.costs import deepinfra_error_summary
 
     summary = deepinfra_error_summary(get_meter().attempts())
-    assert summary["calls"] == 3
-    assert summary["retried"] == {"429": 1, "5xx": 0, "timeout": 1, "other": 0}
+    # 429 retried, timeout retried once on its own budget, 5xx retried, 5xx final.
+    assert summary["calls"] == 4
+    assert summary["retried"] == {"429": 1, "5xx": 1, "timeout": 1, "other": 0}
     assert summary["final_failures_by_type"]["5xx"] == 1
-    assert summary["retried_calls"] == 2
+    assert summary["retried_calls"] == 3
     assert summary["final_failures"] == 1
     path = tmp_path / "cost_run.json"
     write_cost_run(
@@ -1112,9 +1113,9 @@ def test_cost_run_records_deepinfra_errors_by_type(tmp_path, monkeypatch):
     counted_payload = json.loads(counted.read_text(encoding="utf-8"))
     assert counted_payload["stance_check_failed"] == 1
     assert counted_payload["stance_check_incoherent"] == 2
-    assert payload["rows"][0]["retried_calls"] == "2"
+    assert payload["rows"][0]["retried_calls"] == "3"
     assert payload["rows"][0]["final_failures"] == "1"
-    assert payload["rows"][0]["failed_calls"] == "3"
+    assert payload["rows"][0]["failed_calls"] == "4"
 
 
 def test_daily_spend_check_flags_production_not_merge():
