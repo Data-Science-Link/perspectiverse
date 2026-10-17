@@ -86,3 +86,5 @@ run_id,run_started_utc,date_utc,trigger,service,model,calls,failed_calls,input_t
 39036389173,2026-10-17T13:24:14Z,2026-10-17,workflow_dispatch,typesafe-jev,jev-1.13.0,527,0,525101,45849,0.02205424,computed,0,0,0,0,0,0.02205424,0,0,
 39038944044,2026-10-17T14:01:14Z,2026-10-17,workflow_dispatch,deepinfra,meta-llama/Llama-3.3-70B-Instruct-Turbo,647,102,354519,68888,0.05749606,reported,97852,48,0,0,0,0.05749606,63,39,
 39038944044,2026-10-17T14:01:14Z,2026-10-17,workflow_dispatch,typesafe-jev,jev-1.13.0,737,0,719025,64119,0.03019905,computed,97852,48,0,0,0,0.03019905,0,0,
+39048896196,2026-10-17T16:19:38Z,2026-10-17,workflow_dispatch,deepinfra,meta-llama/Llama-3.3-70B-Instruct-Turbo,1138,0,857851,146522,0.13267214,reported,97845,110,0,0,0,0.13267214,0,0,
+39048896196,2026-10-17T16:19:38Z,2026-10-17,workflow_dispatch,typesafe-jev,jev-1.13.0,700,0,683304,60900,0.02869877,computed,97845,110,0,0,0,0.02869877,0,0,
