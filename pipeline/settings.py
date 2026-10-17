@@ -75,6 +75,9 @@ DEFAULTS: dict[str, Any] = {
     # per candidate planet, and a 7-day search widened toward 14,300 non-spam
     # posts a day. PERSPECTIVERSE_FREE_INGEST=1 turns it on.
     "free_ingest": False,
+    # On: skip paid _topup_claims on the old Bluesky path (scheduled runs set
+    # PERSPECTIVERSE_HOLD_TOPUPS=1). Fill dispatch and free ingest are unchanged.
+    "hold_topups": False,
 }
 
 
@@ -112,6 +115,9 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
     free_flag = (os.getenv("PERSPECTIVERSE_FREE_INGEST") or "").strip().lower()
     if free_flag:
         settings["free_ingest"] = free_flag in {"1", "true", "yes", "on"}
+    hold_flag = (os.getenv("PERSPECTIVERSE_HOLD_TOPUPS") or "").strip().lower()
+    if hold_flag:
+        settings["hold_topups"] = hold_flag in {"1", "true", "yes", "on"}
     ollama_model = (os.getenv("OLLAMA_MODEL") or "").strip()
     if ollama_model:
         settings["ollama_model"] = ollama_model

@@ -197,6 +197,7 @@ jobs:
           # Empty unless this dispatch set free_ingest. Schedule and a normal
           # dispatch stay off (settings.py treats "" as free_ingest false).
           PERSPECTIVERSE_FREE_INGEST: ${{ github.event_name == 'workflow_dispatch' && inputs.free_ingest == true && '1' || '' }}
+          PERSPECTIVERSE_HOLD_TOPUPS: ${{ github.event_name == 'schedule' && '1' || '' }}
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db

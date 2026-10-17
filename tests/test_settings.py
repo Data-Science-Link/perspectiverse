@@ -43,6 +43,15 @@ def test_min_planet_posts_defaults_to_five_and_env_overrides(monkeypatch, tmp_pa
     assert load_settings(config)["min_planet_posts"] == 8
 
 
+def test_hold_topups_defaults_off_and_env_turns_it_on(monkeypatch, tmp_path):
+    config = tmp_path / "pipeline.yaml"
+    config.write_text("seed: 0\n", encoding="utf-8")
+    monkeypatch.delenv("PERSPECTIVERSE_HOLD_TOPUPS", raising=False)
+    assert load_settings(config)["hold_topups"] is False
+    monkeypatch.setenv("PERSPECTIVERSE_HOLD_TOPUPS", "1")
+    assert load_settings(config)["hold_topups"] is True
+
+
 def test_deepinfra_base_url_selects_llama_in_settings(monkeypatch, tmp_path):
     config = tmp_path / "pipeline.yaml"
     config.write_text("label_backend: auto\nopenai_model: gpt-4o-mini\n", encoding="utf-8")

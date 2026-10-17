@@ -741,6 +741,68 @@ def test_morning_fetch_and_topup_skip_already_scored_uris(monkeypatch, tmp_path)
     connection.close()
 
 
+def _posts_below_target_run(monkeypatch, tmp_path, *, hold_topups: bool):
+    from datetime import datetime, timezone
+
+    from pipeline.live import run_live
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT12:00:00Z")
+    posts = [{**post, "created_at": now} for post in build_tiny_posts()]
+    database = tmp_path / "live.db"
+    output = tmp_path / "data.json"
+    jev_calls = {"n": 0}
+    topup_calls = {"n": 0}
+
+    def collect(_existing, _settings, _fixture, _queries, _target, _connection, **_kwargs):
+        return list(posts), "bluesky", True
+
+    def mark_claims(scored, **_kwargs):
+        jev_calls["n"] += 1
+        return [
+            {
+                **post,
+                "clean_text": post.get("clean_text") or post.get("text") or "",
+                "is_claim": True,
+                "section": "Politics",
+            }
+            for post in scored
+        ]
+
+    def track_topup(claims, **kwargs):
+        topup_calls["n"] += 1
+        corpus = kwargs.get("corpus_posts")
+        return list(claims), list(corpus) if corpus is not None else None
+
+    monkeypatch.setattr("pipeline.live._collect_posts", collect)
+    monkeypatch.setattr("pipeline.live.apply_jev", mark_claims)
+    monkeypatch.setattr("pipeline.live._topup_claims", track_topup)
+    if hold_topups:
+        monkeypatch.setenv("PERSPECTIVERSE_HOLD_TOPUPS", "1")
+    else:
+        monkeypatch.delenv("PERSPECTIVERSE_HOLD_TOPUPS", raising=False)
+    run_live(
+        output=output,
+        config=_heuristic_config(tmp_path / "pipeline.yaml"),
+        db_path=database,
+    )
+    return jev_calls["n"], topup_calls["n"]
+
+
+def test_hold_topups_skips_paid_topup(monkeypatch, tmp_path, capsys):
+    jev_calls, topup_calls = _posts_below_target_run(monkeypatch, tmp_path, hold_topups=True)
+    assert topup_calls == 0
+    assert jev_calls == 1
+    out = capsys.readouterr().out
+    assert "Top-up held:" in out
+    assert "claims (scheduled run)." in out
+
+
+def test_hold_topups_off_still_runs_topup(monkeypatch, tmp_path):
+    jev_calls, topup_calls = _posts_below_target_run(monkeypatch, tmp_path, hold_topups=False)
+    assert topup_calls == 1
+    assert jev_calls == 1
+
+
 def test_planet_volume_follows_the_posts_still_on_it():
     topics = [
         {"name": "Small", "post_count": 4, "total_volume_percent": 14.1},
