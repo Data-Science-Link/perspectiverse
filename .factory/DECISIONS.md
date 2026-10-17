@@ -587,3 +587,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Planets are built from claims. Storing spam and non-claims fills the table with posts that never become planets, and fetching them again would pay twice.
 - **Alternatives:** Count every stored row (rejected the same day). Delete non-claims even when the cache has no verdict (rejected; the URI would be lost).
 - **Revisit when:** A fill log shows the cache evicting rejected URIs inside the 14-day window and the same posts are scored again.
+
+### 2026-10-17 — Merges to main run free checks only (#175, #192)
+- **Decision:** A push to `main`, including a merge, does not start Daily Discourse Pipeline. Free checks that already run on push stay: Tests (`pytest.yml`), Frontend, Security Audit, and the Pages deploy. Paid live work, Jev and other paid calls, R2 upload, `data.json` and `data-snapshot` publish, and ledger writes run only on the schedule or a deliberate `workflow_dispatch`. `workflow_dispatch` gains `free_ingest` (boolean, default false). True sets `PERSPECTIVERSE_FREE_INGEST=1` on the live step only, so a deliberate run can use the #193 free spam-guard path. The schedule does not set it. An empty value stays off in `pipeline/settings.py`, so the schedule path's behavior is unchanged. This supersedes the 2026-10-14 lesson that a labeling or grouping merge still runs the pipeline in full.
+- **Decided by:** Michael, 2026-10-16: merges to main run free checks only, and paid work runs only on the schedule or on a deliberate workflow_dispatch.
+- **Why:** Merging #193 on 2026-10-17 04:40 UTC started paid run 39003439496 from the `push` trigger on `pipeline/**`. The Manager cancelled it. It spent $0. The live step's `if` is already true for every non-schedule event, so leaving the trigger and gating steps was the easier way to miss one condition and still spend.
+- **Alternatives:** Keep `on.push` and add `github.event_name != 'push'` to every paid or publishing step (rejected: one missed `if` still calls Jev).
+- **Revisit when:** A merge to main needs a paid pipeline run the same day and the schedule or a dispatch cannot do it.

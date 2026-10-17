@@ -13,15 +13,12 @@ on:
     - cron: "17 9 * * *"
     - cron: "47 10 * * *"
     - cron: "17 12 * * *"
-  push:
-    branches: [main]
-    paths:
-      - "pipeline/**"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/pipeline.yml"
-      - "!pipeline/README.md"
-      - "!pipeline/data/**"
+  # No push trigger. A merge to main runs free checks only (Tests, Frontend,
+  # Security Audit, Pages). Paid live work stays on the schedule or a
+  # deliberate workflow_dispatch. Gating each step with
+  # `github.event_name != 'push'` was the worse option: the live step's `if`
+  # is already true for every non-schedule event, so one missed condition
+  # would still call Jev. The #193 merge started paid run 39003439496 this way.
   workflow_dispatch:
     inputs:
       fill_budget_usd:
@@ -34,6 +31,15 @@ on:
         required: false
         type: string
         default: ""
+      free_ingest:
+        description: >-
+          Set true to run the off-by-default free spam-guard path (#192).
+          Sets PERSPECTIVERSE_FREE_INGEST=1 on the live step only. Default
+          false, including every scheduled run and a normal dispatch. This
+          does not change which steps run.
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: discourse-pipeline
@@ -186,6 +192,9 @@ jobs:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           JEV_MODEL: ${{ secrets.JEV_MODEL }}
           PERSPECTIVERSE_FILL_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != '' && '1' || '' }}
+          # Empty unless this dispatch set free_ingest. Schedule and a normal
+          # dispatch stay off (settings.py treats "" as free_ingest false).
+          PERSPECTIVERSE_FREE_INGEST: ${{ github.event_name == 'workflow_dispatch' && inputs.free_ingest == true && '1' || '' }}
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
