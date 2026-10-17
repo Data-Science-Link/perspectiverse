@@ -13,7 +13,7 @@ import json
 import re
 from pathlib import Path
 
-from pipeline.cleaning import HASHTAG_RE, URL_RE
+from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, URL_RE
 from pipeline.language import is_link_only, looks_english
 from pipeline.spam_guard import guard_reason, post_body
 
@@ -76,7 +76,8 @@ _FILLER = frozenset(
 
 # A public topic keeps the post even when a social word is in it.
 _NEWS_RE = re.compile(
-    r"\b(?:veterans?|congress|senate|senators?|court|rulings?|laws?|bills?|council|"
+    r"\b(?:veterans?|congress|senate|senators?|court|rulings?|(?<!\bin )laws?|bills?|council|"
+    r"impeach(?:ed|ment|ments)?|"
     r"votes?|voting|voters?|polic(?:y|ies)|wages?|reports?|invasion|ukrain\w*|housing|"
     r"gambling|elections?|presidents?|tax(?:es)?|tariffs?|military|police|hospitals?|"
     r"vaccines?|climate|schools?|students?|universit\w*|inflation|strikes?|unions?|"
@@ -100,14 +101,15 @@ _WORK_RE = re.compile(
     re.IGNORECASE,
 )
 
+# A YouTube live URL is a news or podcast link unless the words are a promo.
 _STREAM_URL_RE = re.compile(
-    r"(?:https?://)?(?:www\.)?(?:twitch\.tv/|kick\.com/|youtube\.com/live/)",
+    r"(?:https?://)?(?:www\.)?(?:twitch\.tv/|kick\.com/)",
     re.IGNORECASE,
 )
 _STREAM_PHRASE_RE = re.compile(
     r"\b(?:live now|going live|go live|im live|i am live|were live|we are live|"
     r"stream is starting|stream starting|streams starting|stream starts|streams start|stream time|streaming now|"
-    r"now live|bonus stream|come hop in|hop in|live right now)\b",
+    r"now live(?!\s+in\b)|bonus stream|come hop in|hop in|live right now)\b",
     re.IGNORECASE,
 )
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -243,6 +245,7 @@ def _plain(raw: str) -> str:
         .replace("\u201d", " ")
     )
     text = HASHTAG_RE.sub(" ", text)
+    text = HANDLE_RE.sub(" ", text)
     text = URL_RE.sub(" ", text)
     text = re.sub(r"(?:https?://)?(?:www\.)?(?:twitch\.tv|kick\.com)/\S+", " ", text, flags=re.I)
     text = re.sub(r"[^A-Za-z0-9'\s]", " ", text)
@@ -318,9 +321,18 @@ def _stream_promo(raw: str, plain: str) -> bool:
     )
     if not (url or phrase or (mentions and invite)):
         return False
+    # "streaming" in a film-revenue sentence is not a channel announcement.
+    if (
+        not url
+        and not phrase
+        and re.search(r"\bstreaming\b", plain or "")
+        and not re.search(r"\b(?:stream|streams|twitch)\b", plain or "")
+        and re.search(r"\b(?:films?|movies?|revenue|merch|box office)\b", plain or "")
+    ):
+        return False
     # A hearing, a vote, or a bill signing that says "live now" is coverage.
     # Once a civic or government topic is present, the live phrase does not
-    # count. A channel URL is still a self-promotion.
+    # count. A Twitch or Kick URL is still a self-promotion.
     if _news(plain) and not url:
         return False
     return True
@@ -404,6 +416,56 @@ def _wish(plain: str) -> str | None:
     return None
 
 
+def _reaction_only(raw: str) -> bool:
+    """Emoji or punctuation left after links, tags, and handles are removed.
+
+    A bare URL is left for the link-only check. A gift emoji on a news link
+    is a reaction, not the article.
+    """
+    text = URL_RE.sub(" ", raw or "")
+    text = HASHTAG_RE.sub(" ", text)
+    text = HANDLE_RE.sub(" ", text)
+    if re.search(r"[A-Za-z0-9]", text):
+        return False
+    return bool(re.search(r"\S", text))
+
+
+def _short_reply(plain: str) -> bool:
+    """One or two words with no public topic. "Senate votes" stays."""
+    words = (plain or "").split()
+    if not 1 <= len(words) <= 2:
+        return False
+    if _news(plain) or _work_topic(plain):
+        return False
+    subs = _substance(plain)
+    if not subs:
+        return True
+    return len(subs) == 1 and len(subs[0]) <= 4
+
+
+def _personal_status(plain: str) -> bool:
+    """A ride arriving, with no public topic. An Uber strike stays."""
+    if _news(plain) or _work_topic(plain):
+        return False
+    return bool(
+        re.search(r"\b(?:my|our) (?:uber|lyft|cab|taxi|ride) is here\b", plain or "")
+    )
+
+
+def _birthday(raw: str, plain: str) -> bool:
+    """A first-person birthday or a birthday party, not a news mention.
+
+    A question that argues about a birthday ("why ... child's birthday?") stays.
+    """
+    if not re.search(r"\bbirthdays?\b", plain or ""):
+        return False
+    if _news(plain) or _work_topic(plain):
+        return False
+    if "?" in (raw or "") and re.search(r"\bwhy\b", plain or ""):
+        return False
+    return True
+
+
 def _greeting(plain: str) -> bool:
     return plain in {
         "gm",
@@ -428,13 +490,21 @@ def pleasantry_reason(post: dict) -> str | None:
     raw = post_body(post)
     if not raw.strip():
         return None
+    if _reaction_only(raw):
+        return "reaction"
     plain = _plain(raw)
     if not plain:
         return None
+    if _short_reply(plain):
+        return "reply"
+    if _personal_status(plain):
+        return "status"
     if _agreement(plain):
         return "agreement"
     if _stream_promo(raw, plain):
         return "stream_announce"
+    if _birthday(raw, plain):
+        return "wish"
     kind = _wish(plain)
     if kind:
         return kind

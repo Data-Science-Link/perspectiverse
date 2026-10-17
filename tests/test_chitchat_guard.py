@@ -26,6 +26,7 @@ from pipeline.label import (
 )
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "chitchat_preview_posts.json"
+LEAKED = Path(__file__).resolve().parent / "fixtures" / "chitchat_leaked_planets.json"
 
 POST_COUNTS = {
     "global:Art Appreciation": 689,
@@ -61,6 +62,11 @@ def test_preview_representatives_that_should_be_pleasantries():
         "LIVE NOW! Come hop in and hang out!! #Twitch #Stream #Live",
         "Anyone wanna join in?",
         "I LOVE that you LOVE and BELONG in diapers!!",
+        "👀",
+        "!!!",
+        "Toof",
+        "My Uber is here",
+        "It's officially my 30th birthday party today",
     ]
     for text in must_drop:
         assert pleasantry_reason({"text": text}) is not None, text
@@ -109,6 +115,15 @@ def test_preview_discourse_negatives_from_artifact_and_review():
         "The cup-final injury will keep the striker out of the championship.",
         "The county recount of the mail ballots is still in court.",
         "Love these~ The way you're dealing with the height difference here is fun too!",
+        "Yeah I would honestly be hyped if a friend of mine threw one of these and I’d bring a gift. But why are you, as a grown man, feeling competitive about a child’s birthday??",
+        "Uber drivers went on strike over wages.",
+        "Impeach Hegseth.",
+        "We, of course, are leaving out numerous other revenue sources from this. Toys/merch, streaming, etc. Also excluding multiple superhero films.",
+        "Keep out of prison even if most Israelis die. Netanyahu has port-a-potty bomb shelters. www.youtube.com/live/0IVuVK6",
+        "Hegseth does need to be impeached. The live stream execution idea.",
+        "little vent but with all the anti trans stuff happening i hate that i now live in constant fear",
+        "Coleman Owen will factor into punt returns for the Packers this week. www.youtube.com/live/EEZnyBF",
+        "https://example.com/story",
     ]
     for text in kept:
         assert pleasantry_reason({"text": text}) is None, text
@@ -138,7 +153,7 @@ def test_planet_guard_uses_post_share_not_the_title():
         assert reason, name
         assert "Art Appreciation" not in (reason or "")
         assert "Kind Words" not in (reason or "")
-    # A real planet that only shares the name stays, including a pile of "x".
+    # A real planet that only shares the name stays. A pile of "x" is a one-word reply.
     algebra = [
         {"text": "The algebra course still requires the calculus prerequisite and a statistics exam."}
     ] * 19
@@ -146,15 +161,17 @@ def test_planet_guard_uses_post_share_not_the_title():
         {"text": "The cup-final injury will keep the striker out of the championship after the tackle."}
     ] * 16
     recount = [{"text": "The county recount of the mail ballots is still in court after the election."}] * 23
-    filler = [{"text": "x"}] * 23
     for members, stolen in (
         (algebra, "Course"),
         (injury, "Good Luck"),
         (recount, "Count"),
-        (filler, "Count"),
     ):
         assert planet_chitchat_reason(members, [], name=stolen) is None, stolen
         assert planet_chitchat_reason(members, [], name="Kind Words") is None
+    # One-word replies are pleasantries. The name Count is not what drops them.
+    filler = [{"text": "x"}] * 23
+    assert planet_chitchat_reason(filler, [], name="Count")
+    assert planet_chitchat_reason(filler, [], name="Kind Words")
     # A model yes does not drop a real topic planet. These posts are 0% pleasantry.
     assert pleasantry_share(algebra) == 0
     assert planet_chitchat_reason(algebra, [], name="Course", model_chitchat=True) is None
@@ -266,3 +283,70 @@ def test_rename_call_returns_name_and_flag(monkeypatch):
         ["housing"],
         backend="heuristic",
     ) == (None, None)
+
+
+def test_preview_39065623599_leaked_planets_drop_from_content():
+    """Representatives from the run where the guard published these three.
+
+    Full member texts are not in the artifact. Uber stores one representative
+    for ten posts. The guard uses every member it is given, and these
+    representative mixes are each at least 55% chit-chat under any name.
+    """
+    leaked = json.loads(LEAKED.read_text(encoding="utf-8"))
+    for key, planet in leaked["planets"].items():
+        members = _members(planet["texts"])
+        share = pleasantry_share(members)
+        assert share >= PLEASANTRY_SHARE_DROP, (key, share)
+        assert planet_chitchat_reason(members, [], name="Kind Words"), key
+        assert planet_chitchat_reason(members, [], name=None), key
+
+
+def test_chitchat_drop_frees_the_catalog_slot_for_the_next_candidate():
+    """The free-ingest catalog keeps drafting until ``keep`` planets survive."""
+    import numpy as np
+
+    from pipeline import live
+    from tests.test_faces_53 import _blobs
+
+    def group(text: str, prefix: str, seed: int, count: int = 12):
+        matrix = _blobs([count], seed=seed)
+        posts = [
+            {
+                "uri": f"at://{prefix}/{index}",
+                "author": f"{prefix}.{index}",
+                "clean_text": text,
+                "text": text,
+                "likes": 1,
+            }
+            for index in range(count)
+        ]
+        return posts, matrix
+
+    groups = [
+        group("My Uber is here", "uber", 1),
+        group("The city council should vote on the housing bill and rent control this month.", "house", 2),
+    ]
+    posts, blocks, topics = [], [], []
+    for index, (group_posts, matrix) in enumerate(groups):
+        start = len(posts)
+        posts.extend(group_posts)
+        blocks.append(matrix)
+        topics.append(
+            {
+                "id": index,
+                "size": len(group_posts),
+                "member_indices": list(range(start, len(posts))),
+                "terms": [group_posts[0]["text"].split()[0]],
+            }
+        )
+    clustered = {
+        "topics": topics,
+        "matrix": np.vstack(blocks),
+        "assignments": [],
+        "noise_count": 0,
+    }
+    settings = {"label_backend": "heuristic", "representative_posts": 6, "seed": 0, "min_cluster_size": 5}
+    built, _membership, _faces = live._build_topics(posts, clustered, settings, keep=1)
+    assert len(built) == 1
+    assert "uber" not in built[0]["name"].lower()
+    assert "bill" in built[0]["name"].lower() or "housing" in built[0]["name"].lower() or "council" in built[0]["name"].lower()
