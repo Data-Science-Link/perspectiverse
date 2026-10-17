@@ -613,6 +613,22 @@ def record_partial_ledger(repo: Path, *, push: bool = False, cost_run: Path | No
     )
 
 
+def record_preview_ledger(repo: Path, *, push: bool = False, cost_run: Path | None = None) -> int:
+    """Append a free-ingest preview's paid calls. Do not replace ``public/data.json``.
+
+    The preview must count toward the UTC-day cap. The corpus and the edition stay unpublished.
+    """
+    repo = Path(repo).resolve()
+    run_file = Path(cost_run) if cost_run is not None else repo / "pipeline" / "data" / "cost_run.json"
+    return _commit_ledger_with_push_retry(
+        repo,
+        run_file,
+        push=push,
+        commit_message="Record spend from a free-ingest preview; edition not published",
+        log_prefix="Free-ingest preview ledger",
+    )
+
+
 def hold_edition(repo: Path, *, push: bool = False, cost_run: Path | None = None, marker: Path | None = None) -> int:
     """Record this run's paid calls on data-snapshot. Do not replace ``public/data.json``.
 
@@ -683,6 +699,13 @@ def main(argv: list[str] | None = None) -> int:
     partial.add_argument("--repo", type=Path, required=True)
     partial.add_argument("--push", action="store_true")
     partial.add_argument("--cost-run", type=Path, default=None)
+    preview = sub.add_parser(
+        "record-preview-ledger",
+        help="Append free-ingest preview spend without publishing the edition",
+    )
+    preview.add_argument("--repo", type=Path, required=True)
+    preview.add_argument("--push", action="store_true")
+    preview.add_argument("--cost-run", type=Path, default=None)
     args = parser.parse_args(argv)
     if args.command == "check-fill-dispatch":
         return check_fill_dispatch()
@@ -690,6 +713,8 @@ def main(argv: list[str] | None = None) -> int:
         return hold_edition(args.repo, push=args.push, cost_run=args.cost_run, marker=args.marker)
     if args.command == "record-partial-ledger":
         return record_partial_ledger(args.repo, push=args.push, cost_run=args.cost_run)
+    if args.command == "record-preview-ledger":
+        return record_preview_ledger(args.repo, push=args.push, cost_run=args.cost_run)
     return 1
 
 

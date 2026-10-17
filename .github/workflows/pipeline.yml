@@ -13,15 +13,12 @@ on:
     - cron: "17 9 * * *"
     - cron: "47 10 * * *"
     - cron: "17 12 * * *"
-  push:
-    branches: [main]
-    paths:
-      - "pipeline/**"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/pipeline.yml"
-      - "!pipeline/README.md"
-      - "!pipeline/data/**"
+  # No push trigger. A merge to main runs free checks only (Tests, Frontend,
+  # Security Audit, Pages). Paid live work stays on the schedule or a
+  # deliberate workflow_dispatch. Gating each step with
+  # `github.event_name != 'push'` was the worse option: the live step's `if`
+  # is already true for every non-schedule event, so one missed condition
+  # would still call Jev. The #193 merge started paid run 39003439496 this way.
   workflow_dispatch:
     inputs:
       fill_budget_usd:
@@ -34,6 +31,17 @@ on:
         required: false
         type: string
         default: ""
+      free_ingest:
+        description: >-
+          Set true for a preview of the off-by-default free spam-guard path
+          (#192). Sets PERSPECTIVERSE_FREE_INGEST=1 on the live step only.
+          Does not upload the corpus to R2, publish data.json, or push the
+          edition. Spend is still recorded on the cost ledger. The trial
+          edition is the free-ingest-preview artifact. Default false, including
+          every scheduled run and a normal dispatch.
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: discourse-pipeline
@@ -186,6 +194,9 @@ jobs:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           JEV_MODEL: ${{ secrets.JEV_MODEL }}
           PERSPECTIVERSE_FILL_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != '' && '1' || '' }}
+          # Empty unless this dispatch set free_ingest. Schedule and a normal
+          # dispatch stay off (settings.py treats "" as free_ingest false).
+          PERSPECTIVERSE_FREE_INGEST: ${{ github.event_name == 'workflow_dispatch' && inputs.free_ingest == true && '1' || '' }}
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db
@@ -212,7 +223,7 @@ jobs:
           python -m pipeline.corpus_persist stage-for-halt --db pipeline/data/live_corpus.db
 
       - name: Upload corpus to R2 after cancelled live
-        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'cancelled'
+        if: always() && (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'cancelled' && (github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)
         env:
           PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -240,7 +251,7 @@ jobs:
           python -m pipeline.corpus_persist stage-for-halt --db pipeline/data/live_corpus.db
 
       - name: Upload halted corpus to R2
-        if: failure() && steps.live.outcome == 'failure'
+        if: failure() && steps.live.outcome == 'failure' && (github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)
         env:
           PERSPECTIVERSE_HALT_STAGING: ${{ runner.temp }}/perspectiverse-halt-corpus
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -289,7 +300,7 @@ jobs:
 
       - name: Upload corpus to R2
         id: r2upload
-        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success'
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -302,7 +313,7 @@ jobs:
           python -m pipeline.r2 upload pipeline/data/live_corpus.db
 
       - name: Upload data.json
-        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success'
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)
         uses: actions/upload-artifact@v4
         with:
           name: data-json
@@ -311,8 +322,46 @@ jobs:
             pipeline/data/live_corpus.db
           retention-days: 14
 
+      - name: Write free-ingest preview
+        if: github.event_name == 'workflow_dispatch' && inputs.free_ingest == true && steps.live.outcome == 'success'
+        run: |
+          source .venv/bin/activate
+          python -m pipeline.free_ingest_preview \
+            --data public/data.json \
+            --db pipeline/data/live_corpus.db \
+            --cost pipeline/data/cost_run.json \
+            --stages pipeline/data/free_ingest_stages.json \
+            --out "${{ runner.temp }}/free-ingest-preview"
+
+      - name: Upload free-ingest preview
+        if: github.event_name == 'workflow_dispatch' && inputs.free_ingest == true && steps.live.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-ingest-preview
+          path: ${{ runner.temp }}/free-ingest-preview
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Record free-ingest spend
+        # always() so a preview-artifact failure still records the dollars.
+        # This pushes costs/ only. It does not replace public/data.json.
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.free_ingest == true && steps.live.outcome == 'success'
+        env:
+          PYTHONPATH: ${{ env.PERSPECTIVERSE_LEDGER_PYTHONPATH }}
+        run: |
+          source .venv/bin/activate
+          COST="${{ runner.temp }}/perspectiverse-free-ingest-cost-run.json"
+          if [ -f pipeline/data/cost_run.json ]; then
+            cp pipeline/data/cost_run.json "$COST"
+          fi
+          if [ ! -f "$COST" ]; then
+            echo "::error::Free-ingest preview has no cost_run.json. Spend was not recorded."
+            exit 1
+          fi
+          python -m pipeline.spend_cap record-preview-ledger --repo . --push --cost-run "$COST"
+
       - name: Publish data-snapshot branch
-        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success' && steps.r2upload.outcome == 'success'
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success' && steps.r2upload.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)
         run: |
           mkdir -p /tmp/perspectiverse-snapshot
           cp public/data.json /tmp/perspectiverse-snapshot/data.json

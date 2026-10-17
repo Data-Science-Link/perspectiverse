@@ -130,5 +130,5 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `.github/workflows/security-audit.yml` | Bandit + pip-audit on every push/PR, plus `workflow_dispatch` |
 | `.github/workflows/pytest.yml` | Pytest without a model download |
 | `.github/workflows/frontend.yml` | Lint, category check, build, data contract |
-| `.github/workflows/pipeline.yml` | Daily live run, R2 corpus sync, artifact, `data-snapshot` `data.json` and `costs/` |
+| `.github/workflows/pipeline.yml` | Daily live run on schedule or `workflow_dispatch` only (no push), R2 corpus sync, artifact, `data-snapshot` `data.json` and `costs/` |
 | `.github/workflows/pages.yml` | GitHub Pages, overlaying `data-snapshot` when present |

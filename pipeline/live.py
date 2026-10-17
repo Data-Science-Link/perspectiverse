@@ -163,21 +163,25 @@ def run_live(
     cleaned: list[dict] | None = None
     corpus_posts: list[dict] | None = None
     source = "bluesky"
+    free_ingest = free_ingest_enabled(settings)
+    stage_seconds: dict[str, float] = {}
+    jev_planet_calls = 0
     try:
         enforce_before_paid_work()
         existing = load_posts(connection)
-        free_ingest = free_ingest_enabled(settings)
         if free_ingest and fixture is None and not relabel:
             print(
                 "Free ingest is on: spam guard instead of per-post Jev, "
                 "every non-spam post is stored, Jev runs once per planet."
             )
+            ingest_started = time.monotonic()
             cleaned = ingest_free(
                 existing,
                 settings,
                 queries,
                 target=target,
             )
+            stage_seconds["ingest"] = round(time.monotonic() - ingest_started, 3)
             source, refreshed = "bluesky", True
         else:
             cleaned, source, refreshed = _collect_posts(
@@ -278,19 +282,26 @@ def run_live(
             catalog_size=pool,
             authors=[str(post.get("author") or "unknown") for post in planet_posts],
         )
+        cluster_seconds = time.monotonic() - started
         print(
             f"Timing: embedded and clustered {len(planet_posts)} claims into "
-            f"{len(clustered['topics'])} candidate planets in {time.monotonic() - started:.1f}s."
+            f"{len(clustered['topics'])} candidate planets in {cluster_seconds:.1f}s."
         )
         if free_ingest:
-            stamp_candidate_sections(planet_posts, clustered, classify_planet_section)
+            stage_seconds["cluster"] = round(cluster_seconds, 3)
+            jev_planet_calls = stamp_candidate_sections(
+                planet_posts, clustered, classify_planet_section
+            )
         context = _label_context(settings)
         print(f"Labels: {context['chosen']} backend, {context['workers']} planet(s) at a time.")
         started = time.monotonic()
         topics, membership, face_rows = _build_topics(
             planet_posts, clustered, settings, keep=catalog_size, context=context
         )
-        print(f"Timing: {len(topics)} global planet(s) labeled in {time.monotonic() - started:.1f}s.")
+        label_seconds = time.monotonic() - started
+        print(f"Timing: {len(topics)} global planet(s) labeled in {label_seconds:.1f}s.")
+        if free_ingest:
+            stage_seconds["label"] = round(label_seconds, 3)
         # Section clustering reuses the precomputed embedding matrix so posts
         # are not re-embedded ten times. Only sections that produce at least one
         # planet appear in the output; a section that fails is skipped.
@@ -309,10 +320,15 @@ def run_live(
                 context=context,
                 deadline=started + budget * 60.0,
             )
+            section_seconds = time.monotonic() - started
             print(
                 f"Timing: {len(sections)} section solar system(s), "
-                f"{sum(len(items) for items in sections.values())} planet(s) in {time.monotonic() - started:.1f}s."
+                f"{sum(len(items) for items in sections.values())} planet(s) in {section_seconds:.1f}s."
             )
+            if free_ingest:
+                stage_seconds["sections"] = round(section_seconds, 3)
+        elif free_ingest:
+            stage_seconds["sections"] = 0.0
         write_clusters(connection, membership, face_rows)
     except SpendCapExceeded as exc:
         from pipeline.corpus_persist import persist_paid_corpus
@@ -348,6 +364,14 @@ def run_live(
     )
     _log_fill_run_summary(payload)
     _write_cost_run(payload, started_at)
+    if free_ingest:
+        from pipeline.free_ingest_preview import write_stage_timings
+
+        write_stage_timings(
+            database.parent / "free_ingest_stages.json",
+            wall_seconds=stage_seconds,
+            jev_planet_label_calls=jev_planet_calls,
+        )
     return destination
 
 

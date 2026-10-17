@@ -5,7 +5,8 @@ on:
     branches: [main, data-snapshot]
   workflow_dispatch:
   # Pushes to data-snapshot use GITHUB_TOKEN, which does not start push workflows.
-  # workflow_run still runs after Daily Discourse Pipeline (schedule, push, or workflow_dispatch).
+  # workflow_run still runs after Daily Discourse Pipeline (schedule or workflow_dispatch).
+  # A push to main does not start that pipeline.
   workflow_run:
     workflows: ["Daily Discourse Pipeline"]
     types: [completed]
