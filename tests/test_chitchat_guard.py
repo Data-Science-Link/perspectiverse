@@ -10,6 +10,7 @@ from pathlib import Path
 from pipeline.chitchat_guard import (
     PLEASANTRY_SHARE_DROP,
     ingest_block_reason,
+    MODEL_CHITCHAT_SHARE_FLOOR,
     planet_chitchat_reason,
     pleasantry_reason,
     pleasantry_share,
@@ -93,6 +94,9 @@ def test_preview_discourse_negatives_from_artifact_and_review():
         "The anniversary of the invasion is not a happy anniversary for Ukraine.",
         "Happy anniversary of the Voting Rights Act, which Congress still has to defend.",
         "Residents can watch live as the council votes on the housing bill tonight.",
+        "The Senate Judiciary Committee is live now for the confirmation hearing on the nominee.",
+        "C-SPAN is live now covering the House vote on the spending bill.",
+        "We go live at noon when the governor signs the bill.",
         "The jobs report was amazing and wages finally rose.",
         "This court ruling is wonderful for renters.",
         "Good luck charms were seized after the new gambling law.",
@@ -151,10 +155,24 @@ def test_planet_guard_uses_post_share_not_the_title():
     ):
         assert planet_chitchat_reason(members, [], name=stolen) is None, stolen
         assert planet_chitchat_reason(members, [], name="Kind Words") is None
-    # The naming-prompt flag drops a low-share cluster. "no" and a missing field do not.
-    assert planet_chitchat_reason(algebra, [], name="Course", model_chitchat=True)
+    # A model yes does not drop a real topic planet. These posts are 0% pleasantry.
+    assert pleasantry_share(algebra) == 0
+    assert planet_chitchat_reason(algebra, [], name="Course", model_chitchat=True) is None
     assert planet_chitchat_reason(algebra, [], name="Course", model_chitchat=False) is None
     assert planet_chitchat_reason(algebra, [], name="Course", model_chitchat=None) is None
+    # Fixture gap: real planets are 0%, and the only sub-55% pleasantry planets
+    # are at 50%. 30% is that gap, so yes can drop the 50% mix and cannot drop 0%.
+    mixed = [
+        {"text": post["text"]}
+        for post in fixture["other_posts"]
+        if post["planet"] == "Character Appearance"
+    ]
+    mixed_share = pleasantry_share(mixed)
+    assert MODEL_CHITCHAT_SHARE_FLOOR == 0.30
+    assert MODEL_CHITCHAT_SHARE_FLOOR < mixed_share < PLEASANTRY_SHARE_DROP
+    assert planet_chitchat_reason(mixed, [], model_chitchat=True)
+    assert planet_chitchat_reason(mixed, [], model_chitchat=False) is None
+    assert planet_chitchat_reason(mixed, [], model_chitchat=None) is None
     policy = [
         {
             "text": (

@@ -19,6 +19,11 @@ from pipeline.spam_guard import guard_reason, post_body
 
 # Majority of member posts. Titles are not consulted.
 PLEASANTRY_SHARE_DROP = 0.55
+# A model "yes" needs the posts to agree. In the preview fixture every
+# real-topic planet is 0% pleasantry (97 of the 100 non-target planets).
+# The only planets under 55% that contain any pleasantry are at 50%
+# (one of two representatives). 30% is the empty gap between those.
+MODEL_CHITCHAT_SHARE_FLOOR = 0.30
 
 # Social and function words. A token here is not a public topic.
 _FILLER = frozenset(
@@ -313,9 +318,10 @@ def _stream_promo(raw: str, plain: str) -> bool:
     )
     if not (url or phrase or (mentions and invite)):
         return False
-    # A policy or news sentence that merely says "live" or "twitch" stays.
-    # A live-now line or a channel URL is still a self-promotion.
-    if _news(plain) and not url and not phrase:
+    # A hearing, a vote, or a bill signing that says "live now" is coverage.
+    # Once a civic or government topic is present, the live phrase does not
+    # count. A channel URL is still a self-promotion.
+    if _news(plain) and not url:
         return False
     return True
 
@@ -492,13 +498,16 @@ def planet_chitchat_reason(
 
     ``name`` and ``terms`` are ignored. Callers still pass the label so logs
     can name the planet; a rename cannot keep or drop it. ``model_chitchat``
-    is the yes/no field on the existing planet-naming response.
+    is the yes/no field on the existing planet-naming response. Yes alone
+    does not drop a planet. The posts have to be at least 55% chit-chat, or
+    the model has to say yes and at least 30% of the posts agree.
     """
     del terms, name
-    if members:
-        share = pleasantry_share(members)
-        if share >= PLEASANTRY_SHARE_DROP:
-            return f"{share:.0%} of the posts are chit-chat"
-    if model_chitchat is True:
-        return "naming prompt marked the posts as chit-chat"
+    if not members:
+        return None
+    share = pleasantry_share(members)
+    if share >= PLEASANTRY_SHARE_DROP:
+        return f"{share:.0%} of the posts are chit-chat"
+    if model_chitchat is True and share >= MODEL_CHITCHAT_SHARE_FLOOR:
+        return f"naming prompt marked the posts as chit-chat and {share:.0%} of the posts agree"
     return None
