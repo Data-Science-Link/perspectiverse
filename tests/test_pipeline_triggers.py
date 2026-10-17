@@ -21,6 +21,9 @@ FREE_INGEST_ENV = (
 FILL_RUN_ENV = (
     "${{ github.event_name == 'workflow_dispatch' && inputs.fill_budget_usd != '' && '1' || '' }}"
 )
+SPEND_CAP_OVERRIDE_ENV = (
+    "${{ github.event_name == 'workflow_dispatch' && inputs.spend_stop_usd || '' }}"
+)
 # False on a schedule (the event check short-circuits) and on a normal dispatch.
 NOT_FREE = "(github.event_name != 'workflow_dispatch' || inputs.free_ingest != true)"
 FREE_PREVIEW = (
@@ -204,6 +207,13 @@ def free_ingest_value(event: str, enabled: bool) -> str:
     return chosen or ""
 
 
+def spend_stop_override_value(event: str, amount: str) -> str:
+    """Mirror the live-step spend cap override. Scheduled runs never set it."""
+    if event != "workflow_dispatch":
+        return ""
+    return amount or ""
+
+
 def _running_names(ctx: Ctx) -> list[str]:
     names = []
     for step in _steps():
@@ -249,6 +259,24 @@ def test_free_ingest_defaults_off_and_only_a_dispatch_sets_it():
     assert free_ingest_value("push", True) == ""
     assert free_ingest_value("workflow_dispatch", False) == ""
     assert free_ingest_value("workflow_dispatch", True) == "1"
+
+
+def test_spend_stop_usd_defaults_empty_and_only_dispatch_sets_cap_override():
+    inputs = _on_block(_document(WORKFLOW))["workflow_dispatch"]["inputs"]
+    spend = inputs["spend_stop_usd"]
+    assert spend["type"] == "string"
+    assert spend["default"] == ""
+    assert spend["required"] is False
+
+    live = next(step for step in _steps() if step.get("id") == "live")
+    assert live["env"]["PERSPECTIVERSE_DAILY_SPEND_STOP"] == SPEND_CAP_OVERRIDE_ENV
+    assert live["env"]["PERSPECTIVERSE_DAILY_SPEND_WARN"] == SPEND_CAP_OVERRIDE_ENV
+
+    assert spend_stop_override_value("schedule", "2.00") == ""
+    assert spend_stop_override_value("schedule", "") == ""
+    assert spend_stop_override_value("push", "2.00") == ""
+    assert spend_stop_override_value("workflow_dispatch", "") == ""
+    assert spend_stop_override_value("workflow_dispatch", "2.00") == "2.00"
 
 
 def test_schedule_step_conditions_and_crons_are_unchanged():
