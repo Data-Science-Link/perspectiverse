@@ -17,6 +17,7 @@ from collections.abc import Callable
 
 from pipeline.cluster_math import salient_terms
 from pipeline.http_json import read_json
+from pipeline.settings import MAX_PROMPT_POSTS
 
 FALLBACK_TITLE = "Untitled cluster"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
@@ -134,8 +135,13 @@ def build_topic_prompt(posts: list[dict], terms: list[str], *, post_limit: int |
 
 
 def _post_lines(posts: list[dict], limit: int | None = 12) -> str:
+    """At most ``MAX_PROMPT_POSTS`` lines, even when ``limit`` is the whole planet."""
+    if limit is None:
+        cap = MAX_PROMPT_POSTS
+    else:
+        cap = max(0, min(int(limit), MAX_PROMPT_POSTS))
     lines = []
-    shown = posts if limit is None else posts[:limit]
+    shown = posts[:cap]
     for post in shown:
         likes = int(post.get("likes") or 0)
         text = str(post.get("text") or post.get("clean_text") or "")[:280]
@@ -1724,13 +1730,18 @@ def resolve_openai_model(explicit: str | None = None) -> str:
 
 # Planets are labeled concurrently (pipeline.live), so a rate limit, a
 # gateway blip, or a timeout is retried with a short bounded backoff instead
-# of becoming a fallback label (which drops the face). Two retries, 2s then
-# 6s. A retry that would run past the section deadline is not started: a
-# timeout retry needs another full request timeout still inside the ceiling.
-# 120s: a 100-post stance sample took 83s and the old 60s timeout failed it.
-OPENAI_REQUEST_TIMEOUT = 120.0
+# of becoming a fallback label (which drops the face). 429 and 5xx get two
+# retries, 2s then 6s. A timeout gets one retry: run 39038944044's second
+# timeout retry of the same read never succeeded, and each one held a worker
+# for the full request timeout. A retry that would run past the section
+# deadline is not started. A timeout retry needs another full request timeout
+# still inside the ceiling. 90s: prompts are capped at 40 posts. The old 120s
+# timeout was for a 100-post stance sample that took 83s and, under 12-way
+# concurrency, still read-timed out.
+OPENAI_REQUEST_TIMEOUT = 90.0
 _RETRY_CLASSES = frozenset({"429", "5xx", "timeout"})
 _RETRY_DELAYS = (2.0, 6.0)
+_TIMEOUT_RETRY_DELAYS = (2.0,)
 
 _label_deadline_lock = threading.Lock()
 _label_deadline_monotonic: float | None = None
@@ -1831,7 +1842,9 @@ def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str
         "Authorization": f"Bearer {api_key}",
     }
     payload: dict | None = None
-    for attempt in range(len(_RETRY_DELAYS) + 1):
+    timeout_retries = 0
+    other_retries = 0
+    while True:
         try:
             payload = read_json(
                 f"{base}/chat/completions",
@@ -1841,12 +1854,21 @@ def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str
             )
         except RuntimeError as exc:
             error_class = classify_label_error(exc)
-            delay = _RETRY_DELAYS[attempt] if attempt < len(_RETRY_DELAYS) else None
+            if error_class == "timeout":
+                delays = _TIMEOUT_RETRY_DELAYS
+                used = timeout_retries
+            elif error_class in _RETRY_CLASSES:
+                delays = _RETRY_DELAYS
+                used = other_retries
+            else:
+                delays = ()
+                used = 0
+            delay = delays[used] if used < len(delays) else None
             fits = False
             skip_reason = ""
-            if delay is not None and error_class in _RETRY_CLASSES:
+            if delay is not None:
                 fits, skip_reason = _retry_fits_budget(delay, error_class)
-            will_retry = delay is not None and error_class in _RETRY_CLASSES and fits
+            will_retry = delay is not None and fits
             _remember_label_cost(
                 model,
                 getattr(exc, "payload", None),
@@ -1856,6 +1878,10 @@ def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str
             _log_label_error(exc, error_class, retried=will_retry, skip_reason="" if will_retry else skip_reason)
             if not will_retry:
                 raise
+            if error_class == "timeout":
+                timeout_retries += 1
+            else:
+                other_retries += 1
             time.sleep(float(delay))
             continue
         _remember_label_cost(model, payload, "success")

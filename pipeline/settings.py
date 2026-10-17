@@ -26,13 +26,18 @@ DEFAULT_PROMPT_SAMPLE_SIZE = 40
 DEFAULT_DRAFT_PROMPT_SAMPLE_SIZE = 12
 # Planet / topic naming prompts use a smaller diverse slice.
 DEFAULT_PLANET_PROMPT_SAMPLE_SIZE = 20
-# Posts shown to the one-face stance check. Planets with fewer than
-# STANCE_SAMPLE_LARGE_PLANET posts use STANCE_SAMPLE_LIMIT. Planets at or
-# above that size use STANCE_SAMPLE_LIMIT_LARGE. The whole planet is used
-# when it is smaller than the cap. This count, not every post on the planet,
-# is what the share below is divided by.
-STANCE_SAMPLE_LIMIT = 40
-STANCE_SAMPLE_LIMIT_LARGE = 100
+# Hard ceiling on posts in one DeepInfra prompt. Run 39038944044 sent 100-post
+# stance samples; the model returned labels for 46 of 100 and the read timed
+# out at 120s, then the retry timed out too. 40 is the wide-face cap, and the
+# 40-post stance calls in that same run finished.
+MAX_PROMPT_POSTS = 40
+# Posts shown to the one-face stance check. The share below is divided by
+# this sample, not by every post on the planet. The whole planet is used
+# when it is smaller than the cap. Planets at or above
+# STANCE_SAMPLE_LARGE_PLANET used to send 100 posts; that cap is now the
+# same 40, so a 100K-scale planet cannot grow the prompt.
+STANCE_SAMPLE_LIMIT = MAX_PROMPT_POSTS
+STANCE_SAMPLE_LIMIT_LARGE = MAX_PROMPT_POSTS
 STANCE_SAMPLE_LARGE_PLANET = 100
 # One config value. Michael set this at 10% on 2026-10-11 (DECISIONS.md).
 # Change this number, not the call sites.
@@ -63,8 +68,10 @@ DEFAULTS: dict[str, Any] = {
     # Section labeling shares one pool and widens this default of 8 to 12.
     "label_workers": 8,
     # Minutes the section solar systems may spend after the global system.
-    # 0 skips sections. None (omit the key) uses this default.
-    "section_budget_minutes": 20,
+    # 0 skips sections. None (omit the key) uses this default. The last
+    # SECTION_RELABEL_RESERVE_MINUTES of this window are kept for the wide
+    # face relabel. Slots are shared across sections, not filled largest-first.
+    "section_budget_minutes": 30,
     "neutral_queries": ["the", "and", "to", "of", "in", "for"],
     # Phase 3 packs about 25 posts into one spam+claim request. It does not
     # ask for a section. The shadow test failed batched claims, so this stays
