@@ -31,7 +31,8 @@ from pipeline.corpus import (
 )
 from pipeline.costs import format_usd
 from pipeline.data_sources.extract_bluesky import MAX_SEARCH_PAGES, extract_posts, format_search_time
-from pipeline.jev import apply_jev, describe_jev, known_scored_uris
+from pipeline.free_ingest import free_ingest_enabled, ingest_free, stamp_candidate_sections
+from pipeline.jev import apply_jev, classify_planet_section, describe_jev, known_scored_uris
 from pipeline.spend_cap import (
     FILL_BUDGET_TOTAL_USD,
     SpendCapExceeded,
@@ -165,16 +166,30 @@ def run_live(
     try:
         enforce_before_paid_work()
         existing = load_posts(connection)
-        cleaned, source, refreshed = _collect_posts(
-            existing,
-            settings,
-            fixture,
-            queries,
-            target,
-            connection,
-            relabel=relabel,
-        )
-        if source == "bluesky" and not relabel:
+        free_ingest = free_ingest_enabled(settings)
+        if free_ingest and fixture is None and not relabel:
+            print(
+                "Free ingest is on: spam guard instead of per-post Jev, "
+                "every non-spam post is stored, Jev runs once per planet."
+            )
+            cleaned = ingest_free(
+                existing,
+                settings,
+                queries,
+                target=target,
+            )
+            source, refreshed = "bluesky", True
+        else:
+            cleaned, source, refreshed = _collect_posts(
+                existing,
+                settings,
+                fixture,
+                queries,
+                target,
+                connection,
+                relabel=relabel,
+            )
+        if source == "bluesky" and not relabel and not free_ingest:
             corpus_posts = list(cleaned)
             scored = apply_jev(
                 corpus_posts,
@@ -226,13 +241,13 @@ def run_live(
         if not cleaned:
             raise RuntimeError("No quality posts in the retained corpus or the extract.")
 
-        if source == "bluesky" and not relabel:
+        if source == "bluesky" and not relabel and not free_ingest:
             write_quality_posts(connection, cleaned)
         else:
             replace_posts(connection, cleaned)
         planet_posts = posts_for_planets(
             cleaned,
-            require_claims=source == "bluesky" and not relabel,
+            require_claims=source == "bluesky" and not relabel and not free_ingest,
         )
         # Full set, from scratch. Yesterday's membership is deleted in write_clusters.
         before_filter = len(planet_posts)
@@ -267,6 +282,8 @@ def run_live(
             f"Timing: embedded and clustered {len(planet_posts)} claims into "
             f"{len(clustered['topics'])} candidate planets in {time.monotonic() - started:.1f}s."
         )
+        if free_ingest:
+            stamp_candidate_sections(planet_posts, clustered, classify_planet_section)
         context = _label_context(settings)
         print(f"Labels: {context['chosen']} backend, {context['workers']} planet(s) at a time.")
         started = time.monotonic()

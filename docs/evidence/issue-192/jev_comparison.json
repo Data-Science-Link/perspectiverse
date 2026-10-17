@@ -1,0 +1,75 @@
+{
+  "mix": {
+    "rows": 202042,
+    "by_model": [
+      {
+        "model": "jev-1.13.0",
+        "rows": 187666,
+        "spam_score_missing": 0,
+        "spam": 7134,
+        "not_spam": 180532
+      },
+      {
+        "model": "retained",
+        "rows": 10000,
+        "spam_score_missing": 0,
+        "spam": 0,
+        "not_spam": 10000
+      },
+      {
+        "model": "prefilter:short",
+        "rows": 4011,
+        "spam_score_missing": 4011,
+        "spam": 0,
+        "not_spam": 0
+      },
+      {
+        "model": "prefilter:duplicate",
+        "rows": 194,
+        "spam_score_missing": 194,
+        "spam": 0,
+        "not_spam": 0
+      },
+      {
+        "model": "prefilter:language",
+        "rows": 164,
+        "spam_score_missing": 164,
+        "spam": 0,
+        "not_spam": 0
+      },
+      {
+        "model": "prefilter:link",
+        "rows": 7,
+        "spam_score_missing": 7,
+        "spam": 0,
+        "not_spam": 0
+      }
+    ],
+    "jev_spam": 7134,
+    "jev_not_spam": 180532,
+    "jev_spam_share": 0.038,
+    "posts_table_rows": 8482,
+    "posts_table_spam": 0,
+    "jev_spam_rows_still_in_posts_table": 0,
+    "bias": "The posts table keeps claims Jev did not call spam, so it cannot measure spam leaks. Spam texts are hydrated from Bluesky by the stored URI. Posts Bluesky no longer returns are missing from the confusion matrix."
+  },
+  "confusion": {
+    "true_positive_blocked_spam": 1671,
+    "false_negative_spam_leaked": 5375,
+    "false_positive_non_spam_blocked": 15,
+    "true_negative_non_spam_passed": 7928,
+    "jev_spam_evaluated": 7046,
+    "jev_not_spam_evaluated": 7943,
+    "spam_leak_rate_among_jev_spam": 0.7628,
+    "wrongly_blocked_rate_among_jev_not_spam": 0.0019,
+    "blocked": 1686,
+    "spam_uris": 7134,
+    "not_spam_uris_sampled": 8000,
+    "not_spam_uris_in_cache": 180532,
+    "spam_texts_missing": 88,
+    "not_spam_texts_missing": 57,
+    "not_spam_sample_is_full_cache": false
+  },
+  "fresh_passed_sample": 200,
+  "sample_file": "/workspace/docs/evidence/issue-192/agent_check_sample.json"
+}

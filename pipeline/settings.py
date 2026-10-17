@@ -70,6 +70,11 @@ DEFAULTS: dict[str, Any] = {
     # ask for a section. The shadow test failed batched claims, so this stays
     # false. See scripts/jev_shadow_test.py. The planet-level section call is #90.
     "jev_batch": False,
+    # Off: per-post Jev spam, claim, and section, and the six neutral queries.
+    # On: free spam guard, store every non-spam post, one Jev category call
+    # per candidate planet, and a 7-day search widened toward 14,300 non-spam
+    # posts a day. PERSPECTIVERSE_FREE_INGEST=1 turns it on.
+    "free_ingest": False,
 }
 
 
@@ -104,6 +109,9 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
     batch_flag = (os.getenv("PERSPECTIVERSE_JEV_BATCH") or "").strip().lower()
     if batch_flag:
         settings["jev_batch"] = batch_flag in {"1", "true", "yes", "on"}
+    free_flag = (os.getenv("PERSPECTIVERSE_FREE_INGEST") or "").strip().lower()
+    if free_flag:
+        settings["free_ingest"] = free_flag in {"1", "true", "yes", "on"}
     ollama_model = (os.getenv("OLLAMA_MODEL") or "").strip()
     if ollama_model:
         settings["ollama_model"] = ollama_model
