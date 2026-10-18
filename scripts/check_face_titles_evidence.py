@@ -28,7 +28,7 @@ def _load_snapshot() -> dict:
     return json.loads(raw)
 
 
-def _report(label: str, data: dict) -> None:
+def _report(label: str, data: dict) -> dict:
     before_dup = count_duplicate_title_faces(data)
     before_unsup = posts_unsupported_title(data)
     payload = copy.deepcopy(data)
@@ -41,6 +41,13 @@ def _report(label: str, data: dict) -> None:
         f"(posts {before_unsup[0]} -> {after_unsup[0]})"
     )
     print(f"{label} repair_stats: {stats}")
+    print(f"{label} renames ({len(stats['renames'])}):")
+    for row in stats["renames"]:
+        print(f"  {row['planet']}: {row['old']} -> {row['new']} ({row['reason']})")
+    print(f"{label} still_unsupported ({len(stats['still_unsupported'])}):")
+    for row in stats["still_unsupported"]:
+        print(f"  {row['planet']}: {row['title']}")
+    return stats
 
 
 def main() -> int:
