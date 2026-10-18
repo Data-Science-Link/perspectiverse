@@ -55,16 +55,17 @@ def drop_counts(posts: list[dict], *, use_main: bool) -> tuple[dict[str, int], d
         lang_mod = _load_main_language_module()
         _kept, language, links = lang_mod.partition_posts(posts)
         return {"link_only": links, "language": language}, {}
-    counts: dict[str, int] = {}
-    samples: dict[str, list[str]] = {}
+    by_reason: dict[str, list[str]] = {"link_only": [], "language": []}
     for post in posts:
         reason = ingest_block_reason(post)
-        if reason in {"link_only", "language"}:
-            counts[reason] = counts.get(reason, 0) + 1
-            bucket = samples.setdefault(reason, [])
-            if len(bucket) < 10:
-                text = str(post.get("text") or post.get("clean_text") or "")[:200]
-                bucket.append(text)
+        if reason in by_reason:
+            text = str(post.get("text") or post.get("clean_text") or "")[:220]
+            by_reason[reason].append(text)
+    counts = {key: len(values) for key, values in by_reason.items()}
+    samples = {
+        key: random.sample(values, min(50, len(values))) if values else []
+        for key, values in by_reason.items()
+    }
     return counts, samples
 
 

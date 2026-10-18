@@ -1,7 +1,13 @@
 """Local language and link-only filters. No model and no network."""
 
-from pipeline.cleaning import clean_text
-from pipeline.language import is_link_only, looks_english, partition_posts
+from pipeline.cleaning import clean_text, has_link_host
+from pipeline.language import (
+    edition_filter_reason,
+    is_link_only,
+    looks_english,
+    partition_posts,
+    post_raw_text,
+)
 
 
 def test_dutch_cyrillic_and_link_only_drop_and_english_stays():
@@ -46,6 +52,12 @@ def test_portuguese_posts_are_not_english():
     assert not looks_english(
         "Veja o resultado da Quina concurso 7141 desta terça-feira (13)"
     )
+    assert not looks_english(
+        "Fetiches mais populares no brasil ... acho que não"
+    )
+    assert not looks_english(
+        "O governo do Brasil anunciou novas medidas econômicas hoje"
+    )
 
 
 def test_english_with_names_and_loanwords_stays():
@@ -55,6 +67,60 @@ def test_english_with_names_and_loanwords_stays():
     assert looks_english(
         "Read the senate bill at https://example.com/story before Friday."
     )
+
+
+def test_english_with_links_not_link_only():
+    assert not is_link_only(
+        "No, it's literally not true. https://www.bls.gov/news.release/pdf/empsit.pdf"
+    )
+    assert not is_link_only(
+        "This is really fucked up. https://www.theatlantic.com/politics/archive/2026/01/example/678901/"
+    )
+    assert not is_link_only(
+        "I voted blue in Florida. https://www.tiktok.com/t/ZPLSfPvt7/"
+    )
+    assert not is_link_only(
+        "wow it keeps happening bsky.app/profile/example.bsky.social/post/abc"
+    )
+    assert not is_link_only(
+        "Block them all. https://pluralistic.net/2026/01/01/example/"
+    )
+
+
+def test_handles_and_filenames_are_not_links():
+    assert not has_link_host("Menacing Avery for @avery2006.bsky.social")
+    assert not has_link_host("@rosszb.bsky.social is your guy.")
+    assert not has_link_host("Attached sicko.jpg for the thread")
+    assert not has_link_host("We use Node.js in production")
+    assert not has_link_host("See README.md for details")
+    assert not has_link_host("t2.micro instance pricing")
+    assert not has_link_host("Mr.Beast donated again")
+
+
+def test_english_posts_with_domains_in_review_false_positives():
+    assert looks_english(
+        "Jev meets the Trolley Problem https://zachlandes.com/trolley-problem/ and more"
+    )
+    assert looks_english(
+        "Actor Jesse Plemons says he'll be voting for Gina Hinojosa in the primary."
+    )
+    assert looks_english(
+        "Hegseth Accused of Exposing Troops' Locations newrepublic.com/article/example-path"
+    )
+    assert looks_english("Netanyahu's been a liar his whole life.")
+    assert looks_english("Give now to help Dan Osborn win this Senate seat in Nebraska.")
+
+
+def test_edition_filter_uses_raw_text_over_stale_clean_text():
+    post = {
+        "text": "No, it's literally not true. https://www.bls.gov/news.release/pdf/empsit.pdf",
+        "clean_text": "No, it's literally not true.",
+    }
+    assert edition_filter_reason(post_raw_text(post)) is None
+
+
+def test_tambem_counts_as_portuguese():
+    assert not looks_english("Isso também é um problema para o governo e para nós")
 
 
 def test_clean_text_strips_bare_domains_for_clustering():

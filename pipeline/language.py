@@ -10,10 +10,11 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, has_link_host, strip_link_hosts
+from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, _find_link_spans, _without_handles, has_link_host, strip_link_hosts
 
 _TOKEN = re.compile(r"[\w']{2,}", re.UNICODE)
-_WORD_3 = re.compile(r"[^\W\d_]{3,}", re.UNICODE)
+_ALPHA_WORD = re.compile(r"[A-Za-zÀ-ÿ']+")
+_PT_ACCENT_RE = re.compile(r"[ãõçáéíóúâêôà]", re.IGNORECASE)
 
 # Function words that are ordinary English. A hit here is evidence for English.
 _ENGLISH = frozenset(
@@ -121,9 +122,7 @@ _ENGLISH = frozenset(
     }
 )
 
-# Function words that are not English. Two of these, and more of them than
-# English function words, is enough to skip the post.
-_FOREIGN = frozenset(
+_FOREIGN_RAW = frozenset(
     {
         # Dutch
         "niet",
@@ -187,7 +186,6 @@ _FOREIGN = frozenset(
         "aux",
         "cette",
         "mais",
-        "dans",
         "qui",
         # Spanish / Portuguese (shared and PT-specific)
         "los",
@@ -224,14 +222,11 @@ _FOREIGN = frozenset(
         "um",
         "uma",
         "os",
-        "as",
-        "com",
         "seu",
         "sua",
         "seus",
         "suas",
         "está",
-        "esta",
         "estao",
         "estão",
         "ser",
@@ -242,6 +237,56 @@ _FOREIGN = frozenset(
         "terça",
         "terca",
         "feira",
+        "brasil",
+        "governo",
+        "anunciou",
+        "medidas",
+        "economicas",
+        "econômicas",
+        "fetiches",
+        "populares",
+        "acho",
+    }
+)
+
+_PORTUGUESE_FUNCTION = frozenset(
+    {
+        "de",
+        "da",
+        "do",
+        "dos",
+        "das",
+        "em",
+        "um",
+        "uma",
+        "os",
+        "no",
+        "na",
+        "nos",
+        "nas",
+        "que",
+        "nao",
+        "não",
+        "mais",
+        "para",
+        "com",
+        "seu",
+        "sua",
+        "por",
+        "foi",
+        "sao",
+        "são",
+        "esta",
+        "este",
+        "ter",
+        "ser",
+        "veja",
+        "desta",
+        "brasil",
+        "governo",
+        "acho",
+        "populares",
+        "fetiches",
     }
 )
 
@@ -250,6 +295,33 @@ def _fold_token(token: str) -> str:
     lowered = token.lower()
     normalized = unicodedata.normalize("NFD", lowered)
     return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+
+
+_FOREIGN = frozenset(_fold_token(word) for word in _FOREIGN_RAW)
+_PORTUGUESE = frozenset(_fold_token(word) for word in _PORTUGUESE_FUNCTION)
+
+
+def post_raw_text(post: dict) -> str:
+    """Prefer stored raw text so filters match ingest and clustering (#219)."""
+    return str(post.get("text") or post.get("clean_text") or "")
+
+
+def _strip_for_language(text: str) -> str:
+    body = HANDLE_RE.sub(" ", text or "")
+    body = strip_link_hosts(body)
+    body = HASHTAG_RE.sub(" ", body)
+    return body
+
+
+def _strip_for_link_check(text: str) -> str:
+    body = HANDLE_RE.sub(" ", text or "")
+    body = strip_link_hosts(body)
+    body = HASHTAG_RE.sub(" ", body)
+    return body
+
+
+def _alphabetic_word_count(text: str) -> int:
+    return len(_ALPHA_WORD.findall(text))
 
 
 def _non_latin_ratio(text: str) -> float:
@@ -264,20 +336,36 @@ def _non_latin_ratio(text: str) -> float:
     return foreign / len(letters)
 
 
-def _strip_for_link_check(text: str) -> str:
-    body = HANDLE_RE.sub(" ", text or "")
-    body = strip_link_hosts(body)
-    body = HASHTAG_RE.sub(" ", body)
-    return body
+def _commentary_before_link(body: str) -> bool:
+    """A short sentence ending in .!? before the URL is commentary, not a bare link."""
+    handle_stripped = _without_handles(body)
+    spans = _find_link_spans(handle_stripped)
+    if not spans:
+        return False
+    before = handle_stripped[: spans[0][0]]
+    before = HASHTAG_RE.sub(" ", before).strip()
+    if _alphabetic_word_count(before) < 3:
+        return False
+    return before.rstrip().endswith(".")
 
 
 def is_link_only(text: str) -> bool:
-    """True when removing URLs and hashtags leaves fewer than four real words."""
+    """True when removing links leaves fewer than four alphabetic words (any length)."""
     body = str(text or "")
     if not has_link_host(body):
         return False
+    if _commentary_before_link(body):
+        return False
     stripped = _strip_for_link_check(body)
-    return len(_WORD_3.findall(stripped)) < 4
+    return _alphabetic_word_count(stripped) < 4
+
+
+def _portuguese_signal(body: str, tokens: list[str]) -> bool:
+    folded = [_fold_token(token) for token in tokens]
+    pt_hits = sum(1 for token in folded if token in _PORTUGUESE)
+    if _PT_ACCENT_RE.search(body) and pt_hits >= 2:
+        return True
+    return False
 
 
 def looks_english(text: str) -> bool:
@@ -285,14 +373,27 @@ def looks_english(text: str) -> bool:
     body = str(text or "")
     if _non_latin_ratio(body) >= 0.2:
         return False
-    tokens = [_fold_token(token) for token in _TOKEN.findall(body)]
+    stripped = _strip_for_language(body)
+    tokens = [_fold_token(token) for token in _TOKEN.findall(stripped)]
     if len(tokens) < 4:
         return True
+    if _portuguese_signal(body, tokens):
+        return False
     english = sum(1 for token in tokens if token in _ENGLISH)
     foreign = sum(1 for token in tokens if token in _FOREIGN and token not in _ENGLISH)
-    if foreign >= 2 and foreign > english:
+    if foreign >= 2 and foreign >= english:
         return False
     return True
+
+
+def edition_filter_reason(text: str) -> str | None:
+    """Shared link-only / language verdict on raw post text."""
+    body = str(text or "")
+    if is_link_only(body):
+        return "link_only"
+    if not looks_english(body):
+        return "language"
+    return None
 
 
 def partition_posts(posts: list[dict]) -> tuple[list[dict], int, int]:
@@ -301,11 +402,11 @@ def partition_posts(posts: list[dict]) -> tuple[list[dict], int, int]:
     language = 0
     links = 0
     for post in posts:
-        text = str(post.get("text") or post.get("clean_text") or "")
-        if is_link_only(text):
+        reason = edition_filter_reason(post_raw_text(post))
+        if reason == "link_only":
             links += 1
             continue
-        if not looks_english(text):
+        if reason == "language":
             language += 1
             continue
         kept.append(post)
