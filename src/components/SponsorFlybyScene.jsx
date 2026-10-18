@@ -2,63 +2,72 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Billboard, Html } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Vector3 } from 'three'
-import { useSponsorFlybyAnchor } from '../lib/sponsorFlybyContext.js'
+import { sponsorFlybyAnchorRef } from '../lib/sponsorFlybyAnchorRef.js'
 import {
   SPONSOR_FLIGHT_SECONDS,
   SPONSOR_IDLE_MAX_SECONDS,
   SPONSOR_IDLE_MIN_SECONDS,
   SPONSOR_TEST_FLIGHT_PROGRESS,
   sponsorFlightPath,
-  sponsorFlybyTestLoop,
+  sponsorFlybyQueryMode,
 } from '../lib/sponsorFlybyPath'
 
 const _ndc = new Vector3()
+const _world = new Vector3()
 
 export default function SponsorFlybyScene({ paused = false }) {
   const groupRef = useRef()
-  const { setAnchor } = useSponsorFlybyAnchor()
   const { camera, gl } = useThree()
-  const testLoop = useMemo(() => sponsorFlybyTestLoop(), [])
-  const progress = useRef(testLoop ? SPONSOR_TEST_FLIGHT_PROGRESS : 0)
+  const flybyMode = useMemo(() => sponsorFlybyQueryMode(), [])
+  const progress = useRef(flybyMode.pin ? SPONSOR_TEST_FLIGHT_PROGRESS : 0)
   const reduceMotion = useMemo(
     () => (typeof window !== 'undefined'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
       : false),
     [],
   )
-  const [phase, setPhase] = useState(() => (testLoop ? 'flying' : 'idle'))
+  const [phase, setPhase] = useState(() => (flybyMode.enabled ? 'flying' : 'idle'))
   const idleUntil = useRef(0)
 
   useEffect(() => {
-    if (reduceMotion || testLoop) return undefined
+    if (reduceMotion || flybyMode.enabled) return undefined
     idleUntil.current = performance.now()
       + (SPONSOR_IDLE_MIN_SECONDS + Math.random() * (SPONSOR_IDLE_MAX_SECONDS - SPONSOR_IDLE_MIN_SECONDS)) * 1000
     return () => {
-      setAnchor({ active: false, screenX: 0, screenY: 0, inCanvas: false })
+      sponsorFlybyAnchorRef.current = {
+        active: false, screenX: 0, screenY: 0, inCanvas: false, progress: 0,
+      }
     }
-  }, [reduceMotion, testLoop, setAnchor])
+  }, [reduceMotion, flybyMode.enabled])
 
   useEffect(() => {
     if (paused || reduceMotion) {
-      setAnchor({ active: false, screenX: 0, screenY: 0, inCanvas: false })
+      sponsorFlybyAnchorRef.current = {
+        active: false, screenX: 0, screenY: 0, inCanvas: false, progress: 0,
+      }
     }
-  }, [paused, reduceMotion, setAnchor])
+  }, [paused, reduceMotion])
 
   useFrame((_, delta) => {
     if (reduceMotion || paused) return
 
     if (phase === 'idle') {
-      if (!testLoop && performance.now() >= idleUntil.current) {
+      if (!flybyMode.enabled && performance.now() >= idleUntil.current) {
         setPhase('flying')
         progress.current = 0
       } else {
-        setAnchor({ active: false, screenX: 0, screenY: 0, inCanvas: false })
+        sponsorFlybyAnchorRef.current = {
+          active: false, screenX: 0, screenY: 0, inCanvas: false, progress: 0,
+        }
         return
       }
     }
 
-    if (testLoop) {
-      progress.current = SPONSOR_TEST_FLIGHT_PROGRESS
+    if (flybyMode.animate) {
+      progress.current += delta / SPONSOR_FLIGHT_SECONDS
+      if (progress.current >= 1) progress.current = 0
+    } else if (flybyMode.pin) {
+      progress.current = flybyMode.pinProgress
     } else {
       progress.current += delta / SPONSOR_FLIGHT_SECONDS
       if (progress.current >= 1) {
@@ -66,7 +75,9 @@ export default function SponsorFlybyScene({ paused = false }) {
         progress.current = 0
         idleUntil.current = performance.now()
           + (SPONSOR_IDLE_MIN_SECONDS + Math.random() * (SPONSOR_IDLE_MAX_SECONDS - SPONSOR_IDLE_MIN_SECONDS)) * 1000
-        setAnchor({ active: false, screenX: 0, screenY: 0, inCanvas: false })
+        sponsorFlybyAnchorRef.current = {
+          active: false, screenX: 0, screenY: 0, inCanvas: false, progress: 0,
+        }
         return
       }
     }
@@ -75,8 +86,10 @@ export default function SponsorFlybyScene({ paused = false }) {
 
     const pathPoint = sponsorFlightPath(progress.current)
     groupRef.current.position.copy(pathPoint)
+    groupRef.current.updateWorldMatrix(true, false)
     camera.updateMatrixWorld()
-    _ndc.copy(pathPoint).project(camera)
+    groupRef.current.getWorldPosition(_world)
+    _ndc.copy(_world).project(camera)
 
     const inFront = _ndc.z >= -1 && _ndc.z <= 1
     const inFrustum = inFront
@@ -86,18 +99,18 @@ export default function SponsorFlybyScene({ paused = false }) {
     const screenX = canvasRect.left + (_ndc.x * 0.5 + 0.5) * canvasRect.width
     const screenY = canvasRect.top + (-_ndc.y * 0.5 + 0.5) * canvasRect.height
 
-    setAnchor({
+    sponsorFlybyAnchorRef.current = {
       active: inFrustum,
       screenX,
       screenY,
       inCanvas: inFrustum,
       progress: progress.current,
-    })
+    }
   })
 
   if (reduceMotion || paused) return null
 
-  const visible = phase === 'flying' || testLoop
+  const visible = phase === 'flying' || flybyMode.enabled
   if (!visible) return null
 
   return (

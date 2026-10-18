@@ -13,7 +13,28 @@ export const SPONSOR_IDLE_MIN_SECONDS = 50
 export const SPONSOR_IDLE_MAX_SECONDS = 95
 export const SPONSOR_TEST_FLIGHT_PROGRESS = 0.5
 
+export function sponsorFlybyQueryMode() {
+  if (typeof window === 'undefined') {
+    return { enabled: false, animate: false, pin: false, pinProgress: SPONSOR_TEST_FLIGHT_PROGRESS }
+  }
+  const params = new URLSearchParams(window.location.search)
+  const value = params.get('sponsorFlyby')
+  if (!value) {
+    return { enabled: false, animate: false, pin: false, pinProgress: SPONSOR_TEST_FLIGHT_PROGRESS }
+  }
+  const progressParam = params.get('sponsorProgress')
+  const pinProgress = progressParam != null && progressParam !== ''
+    ? Math.min(1, Math.max(0, Number.parseFloat(progressParam)))
+    : SPONSOR_TEST_FLIGHT_PROGRESS
+  return {
+    enabled: true,
+    animate: value === 'animate',
+    pin: value !== 'animate',
+    pinProgress: Number.isFinite(pinProgress) ? pinProgress : SPONSOR_TEST_FLIGHT_PROGRESS,
+  }
+}
+
+/** @deprecated use sponsorFlybyQueryMode */
 export function sponsorFlybyTestLoop() {
-  if (typeof window === 'undefined') return false
-  return new URLSearchParams(window.location.search).has('sponsorFlyby')
+  return sponsorFlybyQueryMode().enabled
 }

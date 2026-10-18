@@ -1,21 +1,15 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useSponsorFlybyAnchor } from '../lib/sponsorFlybyContext.js'
+import { useEffect, useMemo, useRef } from 'react'
+import { sponsorFlybyAnchorRef } from '../lib/sponsorFlybyAnchorRef.js'
+import { pillOpacityForLabels, towSideForShip } from '../lib/sponsorFlybyPlacement.js'
 
 export const SPONSOR_BANNER_TEXT = 'Does Advertising Work? Just Did!'
 export const SPONSOR_BANNER_MIN_SCREEN_PX = 14
 
-function rectsOverlap(a, b) {
-  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value))
-}
-
 export default function SponsorFlybyBanner({ paused = false }) {
-  const { anchor } = useSponsorFlybyAnchor()
-  const wrapRef = useRef(null)
-  const [placement, setPlacement] = useState({ left: 0, top: 0, opacity: 1, visible: false })
+  const screenRef = useRef(null)
+  const rowRef = useRef(null)
+  const pillRef = useRef(null)
+  const towSideRef = useRef('right')
 
   const reduceMotion = useMemo(
     () => (typeof window !== 'undefined'
@@ -24,81 +18,99 @@ export default function SponsorFlybyBanner({ paused = false }) {
     [],
   )
 
-  useLayoutEffect(() => {
-    if (reduceMotion || paused || !anchor.active || !anchor.inCanvas) {
-      setPlacement((prev) => (prev.visible ? { ...prev, visible: false, opacity: 0 } : prev))
-      return
-    }
+  useEffect(() => {
+    if (reduceMotion || paused) return undefined
 
-    const observatory = document.querySelector('.observatory')
-    const canvas = observatory?.querySelector('canvas')
-    const chrome = document.querySelector('.site-chrome')
-    const wrap = wrapRef.current
-    if (!observatory || !canvas || !wrap) return
+    let frame = 0
+    const positionBanner = () => {
+      const screen = screenRef.current
+      const row = rowRef.current
+      const pill = pillRef.current
+      const anchor = sponsorFlybyAnchorRef.current
+      if (!screen || !row || !pill) return
 
-    const canvasRect = canvas.getBoundingClientRect()
-    const headerBottom = chrome?.getBoundingClientRect().bottom ?? 0
-    const chromeRow = observatory.querySelector('.observatory-chrome')
-    const chromeTop = chromeRow?.getBoundingClientRect().top ?? canvasRect.bottom
-
-    const pad = 10
-    const topLimit = Math.max(canvasRect.top + pad, headerBottom + pad)
-    const bottomLimit = Math.min(canvasRect.bottom - pad, chromeTop - pad)
-    const leftLimit = canvasRect.left + pad
-    const rightLimit = canvasRect.right - pad
-
-    const shipX = anchor.screenX
-    const shipY = anchor.screenY
-    const bannerWidth = wrap.offsetWidth || 280
-    const bannerHeight = wrap.offsetHeight || 22
-    const towGap = 12
-    let left = shipX + towGap + bannerWidth / 2
-    let top = shipY
-
-    if (left + bannerWidth / 2 > rightLimit) {
-      left = shipX - towGap - bannerWidth / 2
-    }
-
-    left = clamp(left, leftLimit + bannerWidth / 2, rightLimit - bannerWidth / 2)
-    top = clamp(top, topLimit + bannerHeight / 2, bottomLimit - bannerHeight / 2)
-
-    const bannerRect = {
-      left: left - bannerWidth / 2,
-      right: left + bannerWidth / 2,
-      top: top - bannerHeight / 2,
-      bottom: top + bannerHeight / 2,
-    }
-
-    let opacity = 1
-    observatory.querySelectorAll('.planet-label').forEach((label) => {
-      if (rectsOverlap(bannerRect, label.getBoundingClientRect())) {
-        opacity = 0.22
+      if (!anchor.active || !anchor.inCanvas) {
+        screen.style.visibility = 'hidden'
+        screen.removeAttribute('data-sponsor-flyby')
+        return
       }
-    })
 
-    setPlacement({ left, top, opacity, visible: true })
-  }, [anchor, paused, reduceMotion])
+      const observatory = document.querySelector('.observatory')
+      const canvas = observatory?.querySelector('canvas')
+      const chrome = document.querySelector('.site-chrome')
+      if (!observatory || !canvas) return
 
-  if (reduceMotion || paused || !anchor.active) return null
+      const canvasRect = canvas.getBoundingClientRect()
+      const headerBottom = chrome?.getBoundingClientRect().bottom ?? 0
+      const chromeRow = observatory.querySelector('.observatory-chrome')
+      const chromeTop = chromeRow?.getBoundingClientRect().top ?? canvasRect.bottom
+      const pad = 10
+      const bounds = {
+        left: canvasRect.left + pad,
+        right: canvasRect.right - pad,
+        top: Math.max(canvasRect.top + pad, headerBottom + pad),
+        bottom: Math.min(canvasRect.bottom - pad, chromeTop - pad),
+      }
+
+      const shipEl = document.querySelector('[data-sponsor-ship]')
+      let shipX = anchor.screenX
+      let shipY = anchor.screenY
+      let shipHalfW = 7
+      if (shipEl) {
+        const shipRect = shipEl.getBoundingClientRect()
+        if (shipRect.width > 0 && shipRect.height > 0) {
+          shipX = shipRect.left + shipRect.width / 2
+          shipY = shipRect.top + shipRect.height / 2
+          shipHalfW = shipRect.width / 2
+        }
+      }
+
+      const rowWidth = row.offsetWidth || 240
+      const side = towSideForShip(shipX, rowWidth + shipHalfW, bounds, towSideRef.current)
+      towSideRef.current = side
+      row.classList.toggle('is-left', side === 'left')
+
+      const attachX = side === 'right' ? shipX + shipHalfW : shipX - shipHalfW
+      screen.style.left = `${attachX}px`
+      screen.style.top = `${shipY}px`
+      screen.style.visibility = 'visible'
+      screen.dataset.sponsorFlyby = 'visible'
+      screen.dataset.sponsorShipX = String(shipX)
+      screen.dataset.sponsorShipY = String(shipY)
+
+      const pillRect = pill.getBoundingClientRect()
+      const labelRects = [...observatory.querySelectorAll('.planet-label')].map(
+        (label) => label.getBoundingClientRect(),
+      )
+      pill.style.opacity = String(pillOpacityForLabels(pillRect, labelRects))
+    }
+
+    const tick = () => {
+      frame = requestAnimationFrame(() => {
+        positionBanner()
+        tick()
+      })
+    }
+
+    tick()
+    return () => cancelAnimationFrame(frame)
+  }, [paused, reduceMotion])
+
+  if (reduceMotion || paused) return null
 
   return (
     <div
-      ref={wrapRef}
+      ref={screenRef}
       className="sponsor-flyby-screen"
-      style={{
-        left: placement.visible ? placement.left : anchor.screenX,
-        top: placement.visible ? placement.top : anchor.screenY,
-        opacity: placement.visible ? placement.opacity : 0,
-        visibility: placement.visible ? 'visible' : 'hidden',
-        transform: 'translate(-50%, -50%)',
-      }}
+      style={{ transform: 'translate(0, -50%)', visibility: 'hidden' }}
       aria-hidden="true"
-      data-sponsor-flyby={placement.visible ? 'visible' : 'measuring'}
     >
-      <span className="sponsor-flyby-towline sponsor-flyby-towline--screen" />
-      <p className="sponsor-flyby-banner">
-        <span className="sponsor-flyby-banner-text">{SPONSOR_BANNER_TEXT}</span>
-      </p>
+      <div ref={rowRef} className="sponsor-flyby-tow-row">
+        <span className="sponsor-flyby-towline sponsor-flyby-towline--screen" />
+        <p ref={pillRef} className="sponsor-flyby-banner">
+          <span className="sponsor-flyby-banner-text">{SPONSOR_BANNER_TEXT}</span>
+        </p>
+      </div>
     </div>
   )
 }

@@ -2,13 +2,8 @@ import { useMemo, useState } from 'react'
 import { SponsorFlybyContext } from '../lib/sponsorFlybyContext.js'
 
 export default function SponsorFlybyProvider({ children }) {
-  const [anchor, setAnchor] = useState({
-    active: false,
-    screenX: 0,
-    screenY: 0,
-    inCanvas: false,
-  })
-  const value = useMemo(() => ({ anchor, setAnchor }), [anchor])
+  const [tick, setTick] = useState(0)
+  const value = useMemo(() => ({ tick, bump: () => setTick((n) => n + 1) }), [tick])
   return (
     <SponsorFlybyContext.Provider value={value}>
       {children}

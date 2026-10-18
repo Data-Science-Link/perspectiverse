@@ -1593,12 +1593,26 @@ h3 {
 .sponsor-flyby-screen {
   position: fixed;
   z-index: 6;
+  width: auto !important;
+  height: auto !important;
   pointer-events: none;
+  overflow: visible;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55));
+}
+
+.sponsor-flyby-tow-row {
+  position: absolute;
+  left: 0;
+  top: 0;
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55));
-  transition: opacity 0.2s ease;
+}
+
+.sponsor-flyby-tow-row.is-left {
+  left: auto;
+  right: 0;
+  flex-direction: row-reverse;
 }
 
 .sponsor-flyby-ship {
@@ -1810,7 +1824,7 @@ h3 {
     min-height: 0;
   }
 
-  .app-shell.is-orbits .observatory > div:not(.observatory-chrome),
+  .app-shell.is-orbits .observatory > div:not(.observatory-chrome):not(.sponsor-flyby-screen),
   .app-shell.is-orbits .observatory canvas {
     width: 100% !important;
     height: 100% !important;
