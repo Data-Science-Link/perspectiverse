@@ -52,12 +52,12 @@ export default function SponsorFlybyBanner({ paused = false }) {
         bottom: Math.min(canvasRect.bottom - pad, chromeTop - pad),
       }
 
-      const shipEl = document.querySelector('[data-sponsor-ship]')
+      const sceneShip = document.querySelector('[data-sponsor-ship-scene]')
       let shipX = anchor.screenX
       let shipY = anchor.screenY
       let shipHalfW = 7
-      if (shipEl) {
-        const shipRect = shipEl.getBoundingClientRect()
+      if (sceneShip) {
+        const shipRect = sceneShip.getBoundingClientRect()
         if (shipRect.width > 0 && shipRect.height > 0) {
           shipX = shipRect.left + shipRect.width / 2
           shipY = shipRect.top + shipRect.height / 2
@@ -66,12 +66,12 @@ export default function SponsorFlybyBanner({ paused = false }) {
       }
 
       const rowWidth = row.offsetWidth || 240
-      const side = towSideForShip(shipX, rowWidth + shipHalfW, bounds, towSideRef.current)
+      const side = towSideForShip(shipX, rowWidth, bounds, towSideRef.current)
       towSideRef.current = side
       row.classList.toggle('is-left', side === 'left')
 
-      const attachX = side === 'right' ? shipX + shipHalfW : shipX - shipHalfW
-      screen.style.left = `${attachX}px`
+      const originX = side === 'right' ? shipX - shipHalfW : shipX + shipHalfW
+      screen.style.left = `${originX}px`
       screen.style.top = `${shipY}px`
       screen.style.visibility = 'visible'
       screen.dataset.sponsorFlyby = 'visible'
@@ -102,10 +102,11 @@ export default function SponsorFlybyBanner({ paused = false }) {
     <div
       ref={screenRef}
       className="sponsor-flyby-screen"
-      style={{ transform: 'translate(0, -50%)', visibility: 'hidden' }}
+      style={{ visibility: 'hidden' }}
       aria-hidden="true"
     >
       <div ref={rowRef} className="sponsor-flyby-tow-row">
+        <span className="sponsor-flyby-ship" data-sponsor-ship="" aria-hidden="true" />
         <span className="sponsor-flyby-towline sponsor-flyby-towline--screen" />
         <p ref={pillRef} className="sponsor-flyby-banner">
           <span className="sponsor-flyby-banner-text">{SPONSOR_BANNER_TEXT}</span>

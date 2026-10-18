@@ -1603,10 +1603,11 @@ h3 {
 .sponsor-flyby-tow-row {
   position: absolute;
   left: 0;
-  top: 0;
+  top: 50%;
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  transform: translateY(-50%);
 }
 
 .sponsor-flyby-tow-row.is-left {

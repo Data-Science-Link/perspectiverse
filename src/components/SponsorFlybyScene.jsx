@@ -122,7 +122,7 @@ export default function SponsorFlybyScene({ paused = false }) {
           zIndexRange={[3, 0]}
           style={{ pointerEvents: 'none' }}
         >
-          <div className="sponsor-flyby-ship" aria-hidden="true" data-sponsor-ship="" />
+          <div className="sponsor-flyby-ship sponsor-flyby-ship--scene" aria-hidden="true" data-sponsor-ship-scene="" />
         </Html>
       </Billboard>
     </group>
