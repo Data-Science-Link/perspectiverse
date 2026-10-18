@@ -531,9 +531,21 @@ def test_default_schedule_path_makes_zero_per_post_jev_calls(
 
 
 def test_legacy_env_still_reaches_apply_jev_on_stored_posts(monkeypatch, tmp_path):
-    """``PERSPECTIVERSE_FREE_INGEST=0`` is the explicit old path, not the default."""
+    """``PERSPECTIVERSE_FREE_INGEST=0`` is the explicit old path, not the default.
+
+    The morning fetch is mocked. ``_collect_posts`` skips that fetch only when
+    a stored post is dated today and today is already in the ledger. The seed
+    is two hours old, so after UTC midnight the skip misses, a real Bluesky
+    response sets ``refreshed``, and the legacy ``_topup_claims`` runs because
+    the corpus is under the target. That gate is the same code as on
+    ``74e24c5``. An empty mock keeps the fetch from deciding the result.
+    """
     from pipeline.store import connect, record_fetched_days
 
+    def fake_extract(**_kwargs):
+        return []
+
+    monkeypatch.setattr("pipeline.live.extract_posts", fake_extract)
     _seed_posts(tmp_path / "live.db", 3, scored=True, old_uri="at://seed/too-old")
     moment = datetime.now(timezone.utc)
     connection = connect(tmp_path / "live.db")
