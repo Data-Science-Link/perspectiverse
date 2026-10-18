@@ -6,6 +6,7 @@ import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutLinear, layout
 import TopicFilter from './TopicFilter'
 import { solarSettings } from '../lib/solarSettings'
 import { OrbitRing, default as Planet } from './Planet'
+import SponsorFlyby from './SponsorFlyby'
 import TwinklingStars from './TwinklingStars'
 
 function homeView(isMobile, planetCount = 10, layoutExtent = null, linear = false) {
@@ -115,6 +116,7 @@ function Universe({
         />
       )}
       <TwinklingStars count={settings.twinkleStars} radius={110} />
+      <SponsorFlyby />
       {showOrbits && !linear && topics.slice(1).map((topic, index) => {
         const orbit = orbitElements(index + 1, false, topic.id, layout.radii[index + 1])
         return (

@@ -1590,6 +1590,74 @@ h3 {
   cursor: pointer;
 }
 
+.sponsor-flyby {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transform: translate(-50%, -50%);
+  opacity: 0.88;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+}
+
+.sponsor-flyby-ship {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 8px;
+  border-radius: 50% 12% 12% 50%;
+  background: linear-gradient(135deg, #c8d4f5 0%, #7f93c8 55%, #4a5f94 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  position: relative;
+}
+
+.sponsor-flyby-ship::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 5px;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 2px 0 0 2px;
+  background: linear-gradient(90deg, #ffb86a, transparent);
+  opacity: 0.75;
+}
+
+.sponsor-flyby-towline {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(214, 220, 240, 0.5), rgba(214, 220, 240, 0.9));
+}
+
+.sponsor-flyby-banner {
+  margin: 0;
+  padding: 0.22rem 0.55rem;
+  max-width: min(52vw, 14rem);
+  border-radius: 0.35rem;
+  border: 1px solid rgba(244, 226, 176, 0.55);
+  background: rgba(8, 10, 18, 0.82);
+  color: #f4e2b0;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+}
+
+@media (max-width: 900px) {
+  .sponsor-flyby-banner {
+    max-width: min(70vw, 11.5rem);
+    font-size: 0.58rem;
+    padding: 0.2rem 0.45rem;
+  }
+
+  .sponsor-flyby-towline {
+    width: 12px;
+  }
+}
+
 .observatory-empty {
   position: absolute;
   inset: 0;
