@@ -93,8 +93,24 @@ def test_english_false_positives_from_portuguese_shortcut_stay():
         "there should be a post-credits scene with no music in Poké Prison, no elaboration needed"
     )
     assert looks_english("Hey DG — Río Rancho. No signs no billboards anywhere.")
+
+
+def test_stored_english_posts_with_place_particles_not_language_drops():
+    """Exact production texts that wrongly dropped at d49a217 (da/de foreign hits)."""
     assert looks_english(
-        "Jon Ossoff is the stone cold lock o' da century and o' da week for Georgia."
+        "Jon Ossoff is the stone cold lock o' da century ... o' da week."
+    )
+    assert looks_english(
+        "RIO HANA Villa Da Nang — Rooftop Sunset & Private Pool Villa 🏡🌅\n"
+        "Twilight rooftop lounge overlooking the Marble Mountains, private billiards room, "
+        "courtyard lap pool & cane-detailed suites in Da Nang ✨\n"
+        "📸 Photography: Đặng Phong — Hà Phong Visuals\n"
+        "🌐 haphong.co"
+    )
+    assert looks_english(
+        "🇪🇸 Spain Official alert: Extreme rain warning Area: Litoral sur de Valencia "
+        "Severity: Red Red Rain Warning issued for Spain - Litoral sur de Valencia\n"
+        "Source: MeteoAlarm\nWeather Now: App Store / Google Play\n#WeatherNow\n#Spain"
     )
 
 

@@ -309,6 +309,10 @@ _PORTUGUESE_ONLY_RAW = frozenset(
         "foi",
         "porque",
         "tambien",
+        "vira",
+        "aluguel",
+        "estrangeiros",
+        "barrigas",
     }
 )
 
@@ -320,6 +324,11 @@ def _fold_token(token: str) -> str:
 
 
 _FOREIGN = frozenset(_fold_token(word) for word in _FOREIGN_RAW)
+# Shared with place names, titles, and English slang; not foreign evidence alone.
+_FOREIGN_EVIDENCE_EXCLUDE = frozenset(
+    _fold_token(word)
+    for word in ("da", "de", "la", "el", "del", "di", "van", "von")
+)
 _PORTUGUESE_ONLY = frozenset(
     _fold_token(word) for word in _PORTUGUESE_ONLY_RAW if _fold_token(word) not in _ENGLISH
 )
@@ -421,7 +430,13 @@ def looks_english(text: str) -> bool:
     if _portuguese_signal(body, tokens):
         return False
     english = sum(1 for token in tokens if token in _ENGLISH)
-    foreign = sum(1 for token in tokens if token in _FOREIGN and token not in _ENGLISH)
+    foreign = sum(
+        1
+        for token in tokens
+        if token in _FOREIGN
+        and token not in _ENGLISH
+        and token not in _FOREIGN_EVIDENCE_EXCLUDE
+    )
     if foreign >= 2 and foreign >= english:
         return False
     return True
