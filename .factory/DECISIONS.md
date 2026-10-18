@@ -664,3 +664,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Alternatives:** keep them stored but out of the edition and the 100K count, which can be undone (not chosen).
 **Revisit:** if more real posts show up among deletions, or under the filter revisit (#214).
 **Safety net:** the 2026-10-18 deletions are backed up in R2.
+
+### 2026-10-18: Simple quality fixes ship right away, not after 100K
+**Decision:** Discrete, low-complexity quality fixes (for example from the #220 site audit) get built and merged as soon as they're found. They no longer wait for the 100K work or for wait-and-see periods. A high volume of PRs is fine at this early stage. The outsider review stays at 3 findings a day.
+**Why:** Michael (Factory room, 2:09 PM CT): "Anything discrete and low complexity should be fixed asap … we keep getting stuck in wait and see moments that are pushing the quality improvement of the site further in the future than necessary … I am ok to hit the repo with a lot of changes as we are still early on."
+**Alternatives:** Keep the audit fixes queued behind the 100K work (his 2026-10-17 instruction, now replaced). Cap the outsider review at the number of issues closed the day before (declined).
+**Revisit:** When the site is past early stage, or if the volume of merges starts causing regressions.
+**Replaces:** The 2026-10-17 "after the 100K stuff" ordering, for simple fixes only. Normal and high-risk PRs still go through the product gate, and deleting stored posts still needs Michael's explicit yes.
