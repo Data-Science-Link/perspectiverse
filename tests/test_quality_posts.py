@@ -85,6 +85,63 @@ def test_cleanup_keeps_cached_non_claims_drops_spam_and_filters(tmp_path):
     connection.close()
 
 
+def test_cleanup_drops_cached_spam_when_row_has_no_scores(tmp_path):
+    connection = connect(tmp_path / "corpus.db")
+    replace_posts(
+        connection,
+        [
+            {
+                "uri": "at://cached-spam",
+                "author": "ada",
+                "text": "The city should fund public housing because rents jumped again this week.",
+                "clean_text": "The city should fund public housing because rents jumped again this week.",
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            }
+        ]
+    )
+    save_jev_verdicts(
+        connection,
+        [
+            ("at://cached-spam", 0.9, 0.8, "Politics", "jev-latest", "2026-10-16", "bb", "jev-latest:test"),
+        ],
+    )
+    dropped = drop_non_quality_posts(connection)
+    assert dropped == 1
+    assert _uris(connection) == set()
+    connection.close()
+
+
+def test_kept_non_claim_counts_cached_verdict_without_row_label(tmp_path, capsys):
+    connection = connect(tmp_path / "corpus.db")
+    replace_posts(
+        connection,
+        [
+            {
+                "uri": "at://cached-aside",
+                "author": "ada",
+                "text": "The city should fund public housing because rents jumped again this week.",
+                "clean_text": "The city should fund public housing because rents jumped again this week.",
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            _post("at://thanks", claim=None, text="Thanks!!"),
+        ],
+    )
+    save_jev_verdicts(
+        connection,
+        [
+            ("at://cached-aside", 0.2, 0.1, "Other", "jev-latest", "2026-10-16", "aa", "jev-latest:test"),
+        ],
+    )
+    dropped = drop_non_quality_posts(connection)
+    assert dropped == 1
+    assert _uris(connection) == {"at://cached-aside"}
+    logged = capsys.readouterr().out
+    assert "kept_non_claim=1" in logged
+    connection.close()
+
+
 def test_rejected_jev_uris_are_cached_and_not_inserted(monkeypatch, tmp_path):
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
     reset_jev_state()
@@ -162,6 +219,87 @@ def test_carried_rows_predating_filters_use_clean_text_and_drop_chitchat():
     assert stats["carried_kept"] == 0
     prepared = prepare_post(legacy)
     assert prepared["text"] == "Thanks!!"
+
+
+def test_workflow_drop_non_quality_end_to_end(tmp_path, capsys):
+    """Same path as ``python -m pipeline.store drop-non-quality <db>`` in the workflow."""
+    from pipeline.store import main
+
+    db = tmp_path / "live_corpus.db"
+    connection = connect(db)
+    policy = (
+        "The city council should vote on the housing bond before the winter budget deadline."
+    )
+    dutch = "Het is niet een goed plan want de regering heeft geen meerderheid in het parlement."
+    replace_posts(
+        connection,
+        [
+            {
+                "uri": "at://thanks",
+                "author": "ada",
+                "text": "Thank you so much!",
+                "clean_text": "Thank you so much!",
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            {
+                "uri": "at://link-only",
+                "author": "ada",
+                "text": "https://example.com/only",
+                "clean_text": "https://example.com/only",
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            {
+                "uri": "at://non-english",
+                "author": "ada",
+                "text": dutch,
+                "clean_text": dutch,
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            {
+                "uri": "at://cached-spam",
+                "author": "ada",
+                "text": policy,
+                "clean_text": policy,
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            {
+                "uri": "at://cached-aside",
+                "author": "ada",
+                "text": policy,
+                "clean_text": policy,
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            _post("at://claim", claim=True, spam=0.1, text=policy),
+        ],
+    )
+    save_jev_verdicts(
+        connection,
+        [
+            ("at://cached-spam", 0.9, 0.8, "Politics", "jev-latest", "2026-10-16", "bb", "jev-latest:test"),
+            ("at://cached-aside", 0.2, 0.1, "Other", "jev-latest", "2026-10-16", "aa", "jev-latest:test"),
+        ],
+    )
+    connection.close()
+
+    assert main(["drop-non-quality", str(db)]) == 0
+    captured = capsys.readouterr().out
+    assert (
+        "Stored corpus cleanup: spam=1, filtered=3 "
+        "(chit-chat, link-only, language, or free spam guard), "
+        "kept_non_claim=1; 2 row(s) remain."
+    ) in captured
+    assert captured.strip().splitlines()[-1] == "4"
+
+    connection = connect(db)
+    assert _uris(connection) == {"at://claim", "at://cached-aside"}
+    verdicts = {row[0] for row in connection.execute("SELECT uri FROM jev_verdicts")}
+    assert verdicts == {"at://cached-spam", "at://cached-aside"}
+    connection.close()
 
 
 def test_carried_rows_predating_filters_drop_even_with_legacy_claim_bit():

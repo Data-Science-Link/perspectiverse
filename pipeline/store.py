@@ -99,6 +99,30 @@ def is_quality_post(post: dict) -> bool:
         return True
 
 
+def _jev_verdict_is_spam(verdict_row: tuple) -> bool:
+    spam = verdict_row[1]
+    if spam is None or spam == "":
+        return False
+    try:
+        from pipeline.jev import SPAM_THRESHOLD
+
+        return float(spam) >= SPAM_THRESHOLD
+    except (TypeError, ValueError):
+        return False
+
+
+def _jev_verdict_is_non_claim(verdict_row: tuple) -> bool:
+    claim = verdict_row[2]
+    if claim is None or claim == "":
+        return False
+    try:
+        from pipeline.jev import CLAIM_THRESHOLD
+
+        return float(claim) < CLAIM_THRESHOLD
+    except (TypeError, ValueError):
+        return False
+
+
 def _stored_spam_or_guard(post: dict) -> bool:
     spam = post.get("spam_score")
     if spam is not None and spam != "":
@@ -114,12 +138,28 @@ def _stored_spam_or_guard(post: dict) -> bool:
     return guard_reason(post) is not None
 
 
-def should_drop_stored_post(post: dict) -> bool:
+def _stored_spam(post: dict, verdict_row: tuple | None) -> bool:
+    if verdict_row is not None and _jev_verdict_is_spam(verdict_row):
+        return True
+    return _stored_spam_or_guard(post)
+
+
+def _kept_stored_non_claim(post: dict, verdict_row: tuple | None) -> bool:
+    if verdict_row is not None:
+        if _jev_verdict_is_spam(verdict_row):
+            return False
+        if _jev_verdict_is_non_claim(verdict_row):
+            return True
+    return post.get("is_claim") is False
+
+
+def should_drop_stored_post(post: dict, verdict_row: tuple | None = None) -> bool:
     """Whether ``drop_non_quality_posts`` removes a row already in the corpus.
 
     Non-spam non-claims stay (#217). Spam and free ingest blocks leave.
+    Cached Jev spam counts even when the row has no ``spam_score``.
     """
-    if _stored_spam_or_guard(post):
+    if _stored_spam(post, verdict_row):
         return True
     from pipeline.chitchat_guard import ingest_block_reason
 
@@ -141,17 +181,23 @@ def drop_non_quality_posts(connection: sqlite3.Connection) -> int:
     Non-claims stay even when a cached Jev verdict says they are not claims.
     """
     existing = load_posts(connection)
+    verdicts = load_jev_verdicts(
+        connection,
+        [str(post.get("uri") or "") for post in existing],
+    )
     kept: list[dict] = []
     dropped_spam = 0
     dropped_filtered = 0
     kept_non_claim = 0
     for post in existing:
-        if not should_drop_stored_post(post):
+        uri = str(post.get("uri") or "")
+        verdict_row = verdicts.get(uri)
+        if not should_drop_stored_post(post, verdict_row):
             kept.append(post)
-            if post.get("is_claim") is False:
+            if _kept_stored_non_claim(post, verdict_row):
                 kept_non_claim += 1
             continue
-        if _stored_spam_or_guard(post):
+        if _stored_spam(post, verdict_row):
             dropped_spam += 1
             continue
         dropped_filtered += 1
