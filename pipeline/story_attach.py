@@ -34,6 +34,7 @@ from pipeline.label import (
     subject_stem,
     titles_alike,
 )
+from pipeline.face_titles import face_titles_equal
 from pipeline.assemble import face_id
 from pipeline.schema import apply_opposing_note, to_percents
 
@@ -495,7 +496,8 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
                 (
                     item
                     for item in kept
-                    if not item.get("stance_locked") and titles_alike(item.get("title"), face.get("title"))
+                    if not item.get("stance_locked")
+                    and face_titles_equal(item.get("title"), face.get("title"))
                 ),
                 None,
             )

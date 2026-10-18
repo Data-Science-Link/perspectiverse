@@ -193,11 +193,17 @@ function planetCopy(topic, faces) {
       return `@${clean(post.author || 'someone')} writes, “${line}”`
     })
     .filter(Boolean)
-  const split = faces.map((face) => {
+  const seenTitles = new Set()
+  const split = []
+  for (const face of faces) {
+    const label = String(face.title || '').trim()
+    const key = label.toLowerCase()
+    if (!label || seenTitles.has(key)) continue
+    seenTitles.add(key)
     const claim = clean(face.summary).replace(/\.$/, '')
     const share = face.volume_percent == null ? '' : ` (${Number(face.volume_percent).toFixed(1).replace(/\.0$/, '')}%)`
-    return `${face.title}${share} says ${claim}.`
-  })
+    split.push(`${label}${share} says ${claim}.`)
+  }
   const detail = threeParagraphs([
     defenses.join(' '),
     spoken.join(' ') || brief,

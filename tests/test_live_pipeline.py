@@ -94,11 +94,11 @@ def test_a_title_has_to_cover_most_of_its_posts():
     ]
     artists = [
         {"text": "Stop spreading AI-generated slop. Small artists cannot thrive."},
-        {"text": "Artists do get it. Artists love new tools that are not generative slop."},
+        {"text": "Small artists do get it when the tools are not generative slop."},
         {"text": "AI ripped the passion out of my writing."},
     ]
     assert not _title_covers_posts("Outrage Over Issues", outrage)
-    assert _title_covers_posts("Artists Reject AI", artists)
+    assert _title_covers_posts("Small Artists", artists)
 
 
 def test_planet_name_must_appear_on_a_published_face():

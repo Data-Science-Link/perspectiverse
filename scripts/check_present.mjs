@@ -298,4 +298,27 @@ assert.equal(incoherentPlanet.stancePending, true)
 assert.equal(incoherentPlanet.opposingNote, PERSPECTIVES_PENDING)
 assert.equal(/opposing view/i.test(incoherentPlanet.opposingNote), false)
 
+const duplicateTitlePlanet = presentTopic({
+  id: 4,
+  name: 'Trans Rights Debate',
+  perspectives: [
+    {
+      id: '4A',
+      title: 'Trans Rights',
+      summary: 'Trans people face discrimination.',
+      volume_percent: 98,
+      representative_posts: [{ author: 'ada', text: 'Trans rights matter.', likes: 2 }],
+    },
+    {
+      id: '4B',
+      title: 'Trans Rights',
+      summary: 'Democrats abandoned trans people.',
+      volume_percent: 2,
+      representative_posts: [{ author: 'bea', text: 'Democrats walked away from trans people.', likes: 1 }],
+    },
+  ],
+})
+assert.match(duplicateTitlePlanet.detail, /Trans Rights \(98%\) says/)
+assert.doesNotMatch(duplicateTitlePlanet.detail, /\(2%\) says/)
+
 console.log('presented planets keep real perspectives and skip stock filler')

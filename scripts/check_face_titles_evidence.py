@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print duplicate/unsupported face-title counts before and after offline repair."""
+"""Print duplicate-title and unsupported-face counts before/after offline repair."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from pipeline.face_titles import count_duplicate_title_faces, repair_payload_fac
 from scripts.baseline_metrics import posts_unsupported_title
 
 LIVE_URL = "https://data-science-link.github.io/perspectiverse/data.json"
+FIXTURE = ROOT / "tests" / "fixtures" / "face_titles_snapshot.json"
 
 
 def _load_snapshot() -> dict:
@@ -28,7 +29,7 @@ def _load_snapshot() -> dict:
     return json.loads(raw)
 
 
-def _report(label: str, data: dict) -> dict:
+def _report(label: str, data: dict) -> None:
     before_dup = count_duplicate_title_faces(data)
     before_unsup = posts_unsupported_title(data)
     payload = copy.deepcopy(data)
@@ -37,20 +38,16 @@ def _report(label: str, data: dict) -> dict:
     after_unsup = posts_unsupported_title(payload)
     print(f"{label} duplicate_title_faces: {before_dup} -> {after_dup}")
     print(
-        f"{label} unsupported_title_faces: {before_unsup[1]} -> {after_unsup[1]} "
-        f"(posts {before_unsup[0]} -> {after_unsup[0]})"
+        f"{label} unsupported_title_faces (baseline_metrics): "
+        f"{before_unsup[1]} -> {after_unsup[1]} (posts {before_unsup[0]} -> {after_unsup[0]})"
     )
-    print(f"{label} repair_stats: {stats}")
-    print(f"{label} renames ({len(stats['renames'])}):")
-    for row in stats["renames"]:
-        print(f"  {row['planet']}: {row['old']} -> {row['new']} ({row['reason']})")
-    print(f"{label} still_unsupported ({len(stats['still_unsupported'])}):")
-    for row in stats["still_unsupported"]:
-        print(f"  {row['planet']}: {row['title']}")
-    return stats
+    print(f"{label} unsupported_faces_reported: {len(stats.get('unsupported_faces') or [])}")
+    print(f"{label} merged_exact_duplicates: {stats.get('merged')}")
 
 
 def main() -> int:
+    if FIXTURE.is_file():
+        _report("fixture", json.loads(FIXTURE.read_text(encoding="utf-8")))
     with urllib.request.urlopen(LIVE_URL) as response:
         live = json.loads(response.read().decode())
     _report("live", live)

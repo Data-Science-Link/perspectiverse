@@ -1,0 +1,211 @@
+{
+  "topics": [
+    {
+      "id": "World-7",
+      "name": "WWII Veterans",
+      "post_count": 10,
+      "category": "World",
+      "perspectives": [
+        {
+          "id": "World-7A",
+          "title": "WWII Veterans",
+          "summary": "Most people did not live through WWII",
+          "volume_percent": 50.0,
+          "representative_posts": [
+            {
+              "author": "taupress.com",
+              "text": "I'm 68 - I did not live through WWII. It had been over for 13 years by the time I was born. Even the final bits of rationing had been gone for at least 5 years.",
+              "likes": 0,
+              "match": 0.799
+            },
+            {
+              "author": "simonziegler.bsky.social",
+              "text": "My parents were 9 and 20 when the war ended. Dad was in the RAF. To be clear, they both firmly held open welcoming views and were pro EU, and part of this was a specific reaction of WWII. I think their generation were more pro EU in 2016 than those who didn\u2019t experience the war.",
+              "likes": 1,
+              "match": 0.751
+            }
+          ],
+          "top_terms": [
+            "war",
+            "through",
+            "lived",
+            "wwii",
+            "age",
+            "born",
+            "least",
+            "years"
+          ],
+          "post_count": 5,
+          "brief": "Most people did not live through WWII.",
+          "detail": "WWII Veterans argues that Most people did not live through WWII.\n\nThe posts defend it in their own words. @simonziegler.bsky.social writes, \u201cMy parents were 9 and 20 when the war ended. Dad was in the RAF. To be clear, they both firmly held open welcoming views and were pro EU, and part of this was a specific reaction of WWII. I think their generation were more pro EU in 2016 than those who didn\u2019t experience the war.\u201d @taupress.com writes, \u201cI'm 68 - I did not live through WWII. It had been over for 13 years by the time I was born. Even the final bits of rationing had been gone for at least 5 years.\u201d\n\nInside WWII Veterans, the posts are arguing one position rather than a stack of unrelated claims."
+        },
+        {
+          "title": "WWII Veterans",
+          "summary": "Most people who lived through WWII are no longer alive",
+          "representative_posts": [
+            {
+              "author": "teaforpterosaur.bsky.social",
+              "text": "My nan was 14 when she worked in the parachute factory in WWII and she would now be 101 if she hadn't died in 2010 so I'm just wondering how many people who \"lived through the war\" are still about ringing the Daily Mail to complain about black people",
+              "likes": 6
+            },
+            {
+              "author": "robod99.bsky.social",
+              "text": "There are roughly 3100 men over the age of 100 in the UK. Anyone younger is too young to be a WWII veteran. Can we stop pretending there is this vast cohort of WWII heroes who are disappointed we are not following the Nazi example. It is wrong on all levels.",
+              "likes": 2
+            },
+            {
+              "author": "redcirclefp.bsky.social",
+              "text": "Anyone who fought in WW2 is at least 98/9",
+              "likes": 0
+            },
+            {
+              "author": "athenepallas.bsky.social",
+              "text": "Were he still alive, my late father would be 96, born in 1930: he was therefore of an age to remember the war (he was an evacuee). However, a great many people who *think* of themselves as having 'lived through war' are actually much younger than that.",
+              "likes": 0
+            },
+            {
+              "author": "mjpm69.bsky.social",
+              "text": "The generation that \u201clived through war\u201d would have to be at least 81 years old (older to have any memory of the war). That\u2019s less than 2% of the population. These people aren\u2019t the bulk of those supporting Farage.",
+              "likes": 0
+            }
+          ],
+          "top_terms": [
+            "lived",
+            "through",
+            "war",
+            "age",
+            "anyone",
+            "least",
+            "many",
+            "wwii"
+          ],
+          "volume_percent": 50.0,
+          "post_count": 5,
+          "id": "World-7B",
+          "brief": "Most people who lived through WWII are no longer alive.",
+          "detail": "WWII Veterans argues that Most people who lived through WWII are no longer alive.\n\nThe posts defend it in their own words. @teaforpterosaur.bsky.social writes, \u201cMy nan was 14 when she worked in the parachute factory in WWII and she would now be 101 if she hadn't died in 2010 so I'm just wondering how many people who \"lived through the war\" are still about ringing the Daily Mail to complain about black people\u201d @robod99.bsky.social writes, \u201cThere are roughly 3100 men over the age of 100 in the UK. Anyone younger is too young to be a WWII veteran. Can we stop pretending there is this vast cohort of WWII heroes who are disappointed we are not following the Nazi example. It is wrong on all levels.\u201d @redcirclefp.bsky.social writes, \u201cAnyone who fought in WW2 is at least 98/9\u201d\n\nInside WWII Veterans, the posts are arguing one position rather than a stack of unrelated claims."
+        }
+      ]
+    },
+    {
+      "id": "Environment-8",
+      "name": "Frost Advisory",
+      "post_count": 14,
+      "category": "Environment",
+      "perspectives": [
+        {
+          "id": "Environment-8A",
+          "title": "Frost Advisory",
+          "summary": "Frost advisory is in effect",
+          "volume_percent": 64.3,
+          "representative_posts": [
+            {
+              "author": "lsx.nws-bot.us",
+              "text": "Frost Advisory issued October 17 at 1:50PM CDT until October 18 at 9:00AM CDT by NWS St Louis MO Additional Details Here.",
+              "likes": 0,
+              "match": 0.867
+            },
+            {
+              "author": "mkx.weather.im",
+              "text": "MKX continues Frost Advisory valid at Oct 17, 1:00 AM CDT for Kenosha, Milwaukee, Ozaukee, Racine [WI] till Oct 17, 9:00 AM CDT Link",
+              "likes": 0,
+              "match": 0.828
+            },
+            {
+              "author": "sgf.weather.im",
+              "text": "SGF continues Frost Advisory valid at Oct 18, 1:00 AM CDT for Dent, Howell, Oregon, Phelps, Shannon, Texas [MO] till Oct 18, 9:00 AM CDT Link",
+              "likes": 0,
+              "match": 0.826
+            },
+            {
+              "author": "lmk.weather.im",
+              "text": "LMK continues Frost Advisory valid at Oct 18, 1:00 AM EDT for 10 forecast zones in [IN] and 43 forecast zones in [KY] till Oct 18, 9:00 AM EDT Link",
+              "likes": 0,
+              "match": 0.804
+            },
+            {
+              "author": "onwxalerts.bsky.social",
+              "text": "12:57 Oct 17 2026 YELLOW ADVISORY - FROST - IN EFFECT for Southern Ontario Expires: 04:57 Oct 18 2026 Patchy frost is expected tonight. Temperatures are expected to fall to near the freezing mark for areas inland from the Great Lakes. Light to moderate ... Visit for details",
+              "likes": 0,
+              "match": 0.769
+            },
+            {
+              "author": "chicago.skyvibewx.com",
+              "text": "A frost advisory runs until 8 AM for parts of the area, so anything tender outside may need a cover. After that, highs reach the low to mid 60s. Southwest winds pick up this afternoon with gusts near 23 mph, and the lake breeze helps you less than the gusts hurt.",
+              "likes": 0,
+              "match": 0.766
+            }
+          ],
+          "top_terms": [
+            "frost",
+            "advisory",
+            "area",
+            "near",
+            "edt",
+            "yellow",
+            "adverse",
+            "cdnweather"
+          ],
+          "arguments": [
+            "Frost advisory issued for tonight",
+            "Patchy frost expected tonight",
+            "Frost advisory valid until morning",
+            "Frost advisory in effect for parts of the area",
+            "Frost advisory issued for multiple regions",
+            "Frost advisory requires covering tender plants"
+          ],
+          "post_count": 9,
+          "brief": "Frost is expected in the area. Frost is expected tonight. A frost advisory is in effect. A frost warning is issued. Patchy frost is expected.",
+          "detail": "Frost Warning argues that Frost is expected in the area. Frost is expected tonight. A frost advisory is in effect. A frost warning is issued. Patchy frost is expected. Frost may damage tender plants.\n\nThe posts defend it in their own words. @meat-worm.bsky.social writes, \u201cthere's a frost warning in my area \ud83e\udd72\u201d @onwxalerts.bsky.social writes, \u201c12:57 Oct 17 2026 YELLOW ADVISORY - FROST - IN EFFECT for Southern Ontario Expires: 04:57 Oct 18 2026 Patchy frost is expected tonight. Temperatures are expected to fall to near the freezing mark for areas inland from the Great Lakes. Light to moderate ... Visit for details\u201d @chicago.skyvibewx.com writes, \u201cA frost advisory runs until 8 AM for parts of the area, so anything tender outside may need a cover. After that, highs reach the low to mid 60s. Southwest winds pick up this afternoon with gusts near 23 mph, and the lake breeze helps you less than the gusts hurt.\u201d\n\nOther views in this conversation are Frost Advisory Ended. They are arguing a different claim from Frost Warning."
+        },
+        {
+          "title": "Frost Advisory Ended",
+          "summary": "Some areas have ended their Frost Advisory",
+          "representative_posts": [
+            {
+              "author": "grr.nws-bot.us",
+              "text": "GRR cancels Frost Advisory for Allegan, Barry, Calhoun, Eaton, Ingham, Jackson, Kalamazoo, Van Buren [MI] at Sun, 18 Oct 2026 10:58:44 +0000 via IEMbot Additional Details Here.",
+              "likes": 0
+            },
+            {
+              "author": "pointforecaster.com",
+              "text": "YELLOW ADVISORY - FROST ENDED, Pintendre Persons in or near this area should be on the lookout for adverse weather conditions and take necessary safety precautions. Issued: 6:54 AM EDT Sunday 18 October 2026... #Frost #QCwx #CdnWeather #wx",
+              "likes": 0
+            },
+            {
+              "author": "pointforecaster.com",
+              "text": "YELLOW ADVISORY - FROST ENDED, Granby Persons in or near this area should be on the lookout for adverse weather conditions and take necessary safety precautions. Issued: 6:54 AM EDT Sunday 18 October 2026... #Frost #QCwx #CdnWeather #wx",
+              "likes": 0
+            },
+            {
+              "author": "pointforecaster.com",
+              "text": "YELLOW ADVISORY - FROST ENDED, Saint-Hyacinthe Persons in or near this area should be on the lookout for adverse weather conditions and take necessary safety precautions. Issued: 6:54 AM EDT Sunday 18 October 2026... #Frost #QCwx #CdnWeather #wx",
+              "likes": 0
+            },
+            {
+              "author": "grr.weather.im",
+              "text": "GRR cancels Frost Advisory for Allegan, Barry, Calhoun, Eaton, Ingham, Jackson, Kalamazoo, Van Buren [MI] Link",
+              "likes": 0
+            }
+          ],
+          "top_terms": [
+            "advisory",
+            "frost",
+            "adverse",
+            "area",
+            "cdnweather",
+            "conditions",
+            "edt",
+            "ended"
+          ],
+          "volume_percent": 35.7,
+          "post_count": 5,
+          "id": "Environment-8B",
+          "brief": "Some areas have ended their Frost Advisory.",
+          "detail": "Frost Advisory Ended argues that Some areas have ended their Frost Advisory.\n\nThe posts defend it in their own words. @grr.nws-bot.us writes, \u201cGRR cancels Frost Advisory for Allegan, Barry, Calhoun, Eaton, Ingham, Jackson, Kalamazoo, Van Buren [MI] at Sun, 18 Oct 2026 10:58:44 +0000 via IEMbot Additional Details Here.\u201d @pointforecaster.com writes, \u201cYELLOW ADVISORY - FROST ENDED, Pintendre Persons in or near this area should be on the lookout for adverse weather conditions and take necessary safety precautions. Issued: 6:54 AM EDT Sunday 18 October 2026... #Frost #QCwx #CdnWeather #wx\u201d @pointforecaster.com writes, \u201cYELLOW ADVISORY - FROST ENDED, Granby Persons in or near this area should be on the lookout for adverse weather conditions and take necessary safety precautions. Issued: 6:54 AM EDT Sunday 18 October 2026... #Frost #QCwx #CdnWeather #wx\u201d\n\nOther views in this conversation are Frost Warning. They are arguing a different claim from Frost Advisory Ended."
+        }
+      ]
+    }
+  ],
+  "sections": {}
+}
