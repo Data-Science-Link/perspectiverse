@@ -226,6 +226,19 @@ def test_reviewer_english_frame_and_normalization_fixtures():
     )
 
 
+def test_foreign_posts_drop_when_full_text_langid_confident():
+    """e733fda keep-path bug: name-stripped uncertainty must not override full-text drop."""
+    assert not looks_english("Confeiteira morre com câncer raro em Goiás")
+    assert not looks_english(
+        "Oq tá achando, fifi? Confesso que a capa me chamou mt atenção kkk"
+    )
+    assert not looks_english("Lea el Semanario en español 👉 bit.ly/octubre19InfEduc")
+    assert not looks_english(
+        "#Erdbeben M3.5 | Taiwan | vor 6m | 16. Oct. 2026 07:40 (China Standard Time)\n"
+        "Haben Sie es gespürt? Beben melden!\n#weak #M2+ #M3+ #Taiwan #Taiwan"
+    )
+
+
 def test_clean_text_strips_bare_domains_for_clustering():
     raw = "There it is!! bsky.app/profile/mari… still a real story about the bill."
     stripped = clean_text(raw)

@@ -24,8 +24,6 @@ from pipeline.cleaning import (
 
 # langid log-probability gap (top language vs English) required to drop a post.
 _LANGID_MARGIN = 25.0
-# Fewer letters than this after stripping → keep (too short to ID reliably).
-_MIN_LANGID_LETTERS = 24
 # Fewer distinct words → keep (repetitive / synthetic blurbs).
 _MIN_LANGID_UNIQUE_WORDS = 4
 # Min share of English frame words among non-name tokens to keep.
@@ -352,7 +350,7 @@ def looks_english(text: str) -> bool:
     stripped = _strip_for_language(body)
     lang_input = _latin_letters_for_langid(stripped)
     letters = sum(1 for char in lang_input if char.isalpha())
-    if letters < _MIN_LANGID_LETTERS:
+    if letters < 12:
         return True
     if len(set(_ALPHA_WORD.findall(lang_input))) < _MIN_LANGID_UNIQUE_WORDS:
         return True
@@ -360,12 +358,12 @@ def looks_english(text: str) -> bool:
         return True
     if _english_frame_keeps(lang_input):
         return True
+    if _langid_confidently_not_english(lang_input):
+        return False
     name_stripped = _without_name_tokens(lang_input)
-    if name_stripped and not _langid_confidently_not_english(name_stripped):
-        return True
-    if not _langid_confidently_not_english(lang_input):
-        return True
-    return False
+    if name_stripped and _langid_confidently_not_english(name_stripped):
+        return False
+    return True
 
 
 def edition_filter_reason(post: dict) -> str | None:
