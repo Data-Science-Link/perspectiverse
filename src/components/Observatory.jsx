@@ -305,8 +305,11 @@ export default function Observatory({
     if (isMobile) {
       const homeDistance = Math.hypot(home[0], home[1], home[2])
       const portrait = canvasAspect < 0.9
-      const factor = portrait ? 1.38 : 2.28
-      return Math.min(44, Math.max(24, homeDistance * factor))
+      if (canvasAspect > 1.15) {
+        return Math.max(18, homeDistance * 0.73)
+      }
+      const factor = portrait ? 1.34 : 1.08
+      return Math.min(42, Math.max(20, homeDistance * factor))
     }
     return 18
   }, [linear, isMobile, home, canvasAspect])
@@ -321,6 +324,7 @@ export default function Observatory({
   useEffect(() => {
     if (!linear || typeof window === 'undefined') {
       delete window.__perspectiverseLinearLayout
+      delete window.__perspectiverseSphereRects
       return undefined
     }
     window.__perspectiverseLinearLayout = {
@@ -330,6 +334,7 @@ export default function Observatory({
     }
     return () => {
       delete window.__perspectiverseLinearLayout
+      delete window.__perspectiverseSphereRects
     }
   }, [linear, layout, topics.length])
 

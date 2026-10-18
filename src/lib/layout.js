@@ -3,6 +3,9 @@ export const SUN_HALO_RADIUS = 1.28
 export const SATURN_RING_RADIUS = 1.72
 export const ORBIT_CLEARANCE = 0.34
 const LABEL_PAD = 1.35
+export const GRID_PLANET_SCALE = 0.9
+export const GRID_LABEL_GAP = 0.38
+const GRID_ROW_GAP = 0.5
 
 export function topicScale(volumePercent, systemMaxPercent = 100) {
   const relative = Math.max(0, Number(volumePercent) || 0) / Math.max(Number(systemMaxPercent) || 0, 0.01)
@@ -76,9 +79,9 @@ function labelFootprintUnits(name, extent, gap, viewportAspect = 1) {
   const chars = Math.max(4, text.length)
   const portrait = viewportAspect < 0.9
   const landscape = viewportAspect > 1.15
-  const charsPerLine = portrait ? 15 : landscape ? 22 : 20
+  const charsPerLine = portrait ? 15 : landscape ? 16 : 20
   const lines = Math.ceil(chars / charsPerLine)
-  const lineWidth = portrait ? 5.4 : landscape ? 7.8 : 6.2
+  const lineWidth = portrait ? 5.4 : landscape ? 8.6 : 6.2
   const wrappedWidth = lineWidth * Math.min(lines, 2)
   return Math.max(extent * 2 + gap + 0.6, wrappedWidth)
 }
@@ -88,43 +91,46 @@ function labelLineCount(name, viewportAspect = 1) {
   const chars = Math.max(4, text.length)
   const portrait = viewportAspect < 0.9
   const landscape = viewportAspect > 1.15
-  const charsPerLine = portrait ? 14 : landscape ? 28 : 20
+  const charsPerLine = portrait ? 14 : landscape ? 16 : 20
   return Math.min(3, Math.ceil(chars / charsPerLine))
 }
 
-function labelRowHeight(extent, gap, viewportAspect = 1, name = '') {
+function labelBandUnits(lines, viewportAspect = 1) {
   const portrait = viewportAspect < 0.9
   const landscape = viewportAspect > 1.15
-  const lines = labelLineCount(name, viewportAspect)
-  const labelBand = portrait
-    ? 3.6 + lines * 1.45
-    : landscape
-      ? 5.2 + lines * 1.75
-      : 2.8
-  return extent * 2 + gap + labelBand
+  if (portrait) return 1.05 + lines * 1.38
+  if (landscape) return 1.55 + lines * 1.92
+  return 2.4
 }
 
-function stretchGridVertically(rowStarts, positions, cols, viewportAspect) {
+function gridRowHeight(extent, name, viewportAspect) {
+  const lines = labelLineCount(name, viewportAspect)
+  let labelBand = labelBandUnits(lines, viewportAspect)
+  const landscape = viewportAspect > 1.15
+  if (landscape) labelBand *= 2.92
+  const rowGap = landscape ? 0.85 : GRID_ROW_GAP
+  return extent * 2 + GRID_LABEL_GAP + labelBand + rowGap
+}
+
+function gridColWidth(extent, name, viewportAspect) {
+  const textWidth = labelFootprintUnits(name, extent, GRID_ROW_GAP, viewportAspect)
+  const width = Math.max(extent * 2 + GRID_ROW_GAP, textWidth)
+  return viewportAspect > 1.15 ? width * 1.14 : width
+}
+
+function stretchGridVertically(rowStarts, positions, cols, viewportAspect, rowHeights) {
   if (rowStarts.length <= 1) return
+  const portrait = viewportAspect < 0.9
+  if (!portrait) return
   const minY = Math.min(...rowStarts)
   const maxY = Math.max(...rowStarts)
   const span = maxY - minY
   if (span < 1e-6) return
-  const portrait = viewportAspect < 0.9
-  const landscape = viewportAspect > 1.15
-  const targetSpan = portrait
-    ? 15.6 + rowStarts.length * 3.72
-    : landscape
-      ? 8.2 + rowStarts.length * 2.05
-      : 11 + rowStarts.length * 2.5
+  const targetSpan = rowHeights.reduce((sum, h) => sum + h, 0) * 1.04
   const scale = Math.max(1, targetSpan / span)
   const mid = (maxY + minY) / 2
   for (let row = 0; row < rowStarts.length; row += 1) {
     rowStarts[row] = mid + (rowStarts[row] - mid) * scale
-  }
-  const lift = portrait ? 2.15 : landscape ? 4.55 : 0
-  for (let row = 0; row < rowStarts.length; row += 1) {
-    rowStarts[row] += lift
   }
   for (let index = 0; index < positions.length; index += 1) {
     const row = Math.floor(index / cols)
@@ -136,7 +142,6 @@ export function pickLinearGridColumns(count, viewportAspect = 1, specs = [], top
   const n = Math.max(0, Number(count) || 0)
   if (n <= 1) return 1
   const aspect = Math.max(0.35, Math.min(3.2, Number(viewportAspect) || 1))
-  const gap = 1.05
   const maxCols = Math.min(n, Math.max(1, Number(maxColumns) || 2))
   let bestCols = 1
   let bestScore = Infinity
@@ -149,10 +154,9 @@ export function pickLinearGridColumns(count, viewportAspect = 1, specs = [], top
       const col = index % cols
       const extent = specs[index]?.extent ?? 0.8
       const name = topics[index]?.name ?? ''
-      const aspectBoost = viewportAspect > 1.2 ? 1.9 : 1
-      const span = labelFootprintUnits(name, extent, gap, viewportAspect) * aspectBoost
+      const span = gridColWidth(extent, name, viewportAspect)
       colWidths[col] = Math.max(colWidths[col], span)
-      rowHeights[row] = Math.max(rowHeights[row], labelRowHeight(extent, gap, viewportAspect, name))
+      rowHeights[row] = Math.max(rowHeights[row], gridRowHeight(extent, name, viewportAspect))
     }
     const width = colWidths.reduce((sum, value) => sum + value, 0)
     const height = rowHeights.reduce((sum, value) => sum + value, 0)
@@ -170,31 +174,20 @@ function layoutLinearGrid(specs, viewportAspect = 1, topics = []) {
   if (n === 0) {
     return { positions: [], extent: LABEL_PAD, extentY: LABEL_PAD, mode: 'grid', cols: 1 }
   }
-  const gap = 1.05
   const maxColumns = viewportAspect > 1.15 ? 3 : 2
   const cols = pickLinearGridColumns(n, viewportAspect, specs, topics, { maxColumns })
   const rows = Math.ceil(n / cols)
   const colWidths = Array.from({ length: cols }, () => 0)
   const rowHeights = Array.from({ length: rows }, () => 0)
+  const maxExtentPerRow = Array.from({ length: rows }, () => 0)
   for (let index = 0; index < n; index += 1) {
     const row = Math.floor(index / cols)
     const col = index % cols
     const extent = specs[index].extent
     const name = topics[index]?.name ?? ''
-    const aspectBoost = viewportAspect > 1.2 ? 1.9 : 1
-    const span = labelFootprintUnits(name, extent, gap, viewportAspect) * aspectBoost
-    colWidths[col] = Math.max(colWidths[col], span)
-    rowHeights[row] = Math.max(rowHeights[row], labelRowHeight(extent, gap, viewportAspect, name))
-  }
-  const portrait = viewportAspect < 0.9
-  const landscape = viewportAspect > 1.15
-  const colPad = viewportAspect > 1.2 ? 2.28 : portrait ? 1.22 : 1.28
-  const rowPad = viewportAspect > 1.2 ? 3.98 : portrait ? 1.05 : 1.08
-  for (let index = 0; index < colWidths.length; index += 1) {
-    colWidths[index] *= colPad
-  }
-  for (let index = 0; index < rowHeights.length; index += 1) {
-    rowHeights[index] *= rowPad
+    colWidths[col] = Math.max(colWidths[col], gridColWidth(extent, name, viewportAspect))
+    rowHeights[row] = Math.max(rowHeights[row], gridRowHeight(extent, name, viewportAspect))
+    maxExtentPerRow[row] = Math.max(maxExtentPerRow[row], extent)
   }
   const totalWidth = colWidths.reduce((sum, value) => sum + value, 0)
   const totalHeight = rowHeights.reduce((sum, value) => sum + value, 0)
@@ -204,28 +197,46 @@ function layoutLinearGrid(specs, viewportAspect = 1, topics = []) {
     colStarts.push(xCursor + width / 2)
     xCursor += width
   }
-  const rowStarts = []
-  let yCursor = totalHeight / 2
-  for (const height of rowHeights) {
-    rowStarts.push(yCursor - height / 2)
-    yCursor -= height
+  function yTopForRow(row, heights, totalH) {
+    let top = totalH / 2
+    for (let r = 0; r < row; r += 1) top -= heights[r]
+    return top
   }
+
+  const rowSphereY = []
+  for (let row = 0; row < rows; row += 1) {
+    const rowTop = yTopForRow(row, rowHeights, totalHeight)
+    rowSphereY.push(rowTop - maxExtentPerRow[row])
+  }
+
   const positions = specs.map((_, index) => {
     const row = Math.floor(index / cols)
     const col = index % cols
-    return [colStarts[col], rowStarts[row], 0]
+    return [colStarts[col], rowSphereY[row], 0]
   })
-  stretchGridVertically(rowStarts, positions, cols, viewportAspect)
-  const ys = positions.map((position) => position[1])
-  const rowSpan = Math.max(...ys) - Math.min(...ys)
-  const maxRow = Math.max(...rowHeights)
-  const labelPad = LABEL_PAD * 1.2
-  const chromeBottom = portrait ? 4.6 : landscape ? 4.2 : 0
-  const extentX = totalWidth / 2 + labelPad + (landscape ? 6.25 : 0)
-  const extentY = rowSpan / 2 + maxRow / 2 + labelPad + chromeBottom
+
+  stretchGridVertically(rowSphereY, positions, cols, viewportAspect, rowHeights)
+
+  const labelPad = LABEL_PAD * 1.15
+  let minBound = Infinity
+  let maxBound = -Infinity
+  for (let index = 0; index < n; index += 1) {
+    const y = positions[index][1]
+    const extent = specs[index].extent
+    const name = topics[index]?.name ?? ''
+    const lines = labelLineCount(name, viewportAspect)
+    const labelBand = labelBandUnits(lines, viewportAspect)
+    maxBound = Math.max(maxBound, y + extent)
+    minBound = Math.min(minBound, y - extent - GRID_LABEL_GAP - labelBand)
+  }
+  if (viewportAspect < 0.9) minBound -= 0.45
+  const landscape = viewportAspect > 1.15
+  const extentX = totalWidth / 2 + labelPad
+  const contentExtentY = (maxBound - minBound) / 2 + labelPad
+  const extentY = landscape ? extentX * 1.108 : contentExtentY
   return {
     positions,
-    extent: Math.max(extentX, extentY),
+    extent: Math.max(extentX, extentY, landscape ? contentExtentY : 0),
     extentX,
     extentY,
     mode: 'grid',
@@ -258,9 +269,7 @@ function layoutLinearRow(specs) {
 export function layoutLinear(topics = [], volumeMax = 100, options = {}) {
   const grid = Boolean(options.grid)
   const aspect = options.viewportAspect ?? 1
-  const portrait = aspect < 0.9
-  const landscape = aspect > 1.15
-  const visualScale = grid ? (portrait ? 0.72 : landscape ? 0.58 : 0.85) : 1
+  const visualScale = grid ? GRID_PLANET_SCALE : 1
   const specs = linearRowSpecs(topics, volumeMax, { visualScale })
   if (grid && specs.length > 0) {
     const gridLayout = layoutLinearGrid(specs, aspect, topics)
@@ -295,13 +304,14 @@ export function homeLookAt(isMobile = false, planetCount = 10, layoutExtent = nu
     const horizontalHalf = Math.atan(Math.tan(half) * aspect)
     const verticalHalf = half
     const extentX = options.extentX ?? extent
+    const portrait = aspect < 0.9
+    const landscape = aspect > 1.15
     const extentY = options.extentY ?? extent
     const distanceH = extentX / Math.tan(horizontalHalf)
     const distanceV = extentY / Math.tan(verticalHalf)
-    const portrait = aspect < 0.9
-    const mobileMargin = options.grid ? (portrait ? 1.14 : 1.08) : 1.12
+    const mobileMargin = options.grid ? (portrait ? 1.04 : landscape ? 1.22 : 1.06) : 1.12
     const distance = Math.max(distanceH, distanceV) * (isMobile ? mobileMargin : 1.06)
-    const yLift = options.grid ? (portrait ? 0.12 : 0.88) : 0.22
+    const yLift = options.grid ? (portrait ? 0.1 : landscape ? 0.05 : 0.14) : 0.22
     const y = distance * yLift
     const z = Math.sqrt(Math.max(distance * distance - y * y, 1))
     return [0, y, z, 0, 0, 0]

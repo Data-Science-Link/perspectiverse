@@ -93,8 +93,9 @@ async function expectLayoutBookOrder(page, mode = 'grid') {
   }
 }
 
-function entriesReady(entries) {
+function entriesReady(entries, spheres = []) {
   if (entries.length < 10) return false
+  if (spheres.length < 10) return false
   for (const entry of entries) {
     if (!entry.box || entry.lineGlyph < 14) return false
     if (entry.name.includes('…') || entry.name.includes('...')) return false
@@ -104,7 +105,29 @@ function entriesReady(entries) {
       if (rectanglesOverlap(entries[i].box, entries[j].box)) return false
     }
   }
+  for (const entry of entries) {
+    const sphere = spheres.find((item) => item.topicIndex === entry.topicIndex)
+    if (!sphere?.width || !sphere?.height) return false
+    if (rectanglesOverlap(entry.box, sphere)) return false
+  }
   return true
+}
+
+async function layoutSnapshot(page) {
+  const entries = await labelLayout(page)
+  const spheres = await page.evaluate(() =>
+    Object.values(window.__perspectiverseSphereRects ?? {}).sort((a, b) => a.topicIndex - b.topicIndex),
+  )
+  return { entries, spheres }
+}
+
+async function expectLabelsClearOfSpheres(entries, spheres) {
+  expect(spheres.length).toBeGreaterThanOrEqual(10)
+  for (const entry of entries) {
+    const sphere = spheres.find((item) => item.topicIndex === entry.topicIndex)
+    expect(sphere).toBeTruthy()
+    expect(rectanglesOverlap(entry.box, sphere)).toBe(false)
+  }
 }
 
 async function expectGridFillsCanvas(page, minFill = 0.65) {
@@ -142,13 +165,17 @@ async function expectAboveTopicFilter(page, entries, clearance = 10) {
 }
 
 async function expectAllPlanetsVisible(page) {
-  await expect.poll(async () => entriesReady(await labelLayout(page)), { timeout: 25_000 }).toBe(true)
-  const entries = await labelLayout(page)
+  await expect.poll(async () => {
+    const { entries, spheres } = await layoutSnapshot(page)
+    return entriesReady(entries, spheres)
+  }, { timeout: 25_000 }).toBe(true)
+  const { entries, spheres } = await layoutSnapshot(page)
   expect(entries.length).toBeGreaterThanOrEqual(10)
   for (const entry of entries) {
     expect(entry.lineGlyph).toBeGreaterThanOrEqual(14)
   }
   expectNoLabelOverlaps(entries)
+  await expectLabelsClearOfSpheres(entries, spheres)
   await expectFullLabelTitles(entries)
   await expectAboveTopicFilter(page, entries)
   const canvas = await page.locator('.observatory canvas').boundingBox()
@@ -196,8 +223,13 @@ test.describe('Linear grid on phones', () => {
   test('landscape shows every planet in reading order', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'phone landscape layout')
     await page.setViewportSize({ width: 844, height: 390 })
+    if (await page.getByRole('button', { name: 'Universe' }).isVisible().catch(() => false)) {
+      await page.getByRole('button', { name: 'Universe' }).click()
+    }
     await openLinearGrid(page)
     await expectAllPlanetsVisible(page)
+    const layout = await page.evaluate(() => window.__perspectiverseLinearLayout)
+    expect(layout?.cols).toBe(3)
     await expectGridFillsCanvas(page, 0.48)
     await expectLayoutBookOrder(page, 'grid')
     await page.screenshot({ path: path.join(screenshotDir, 'phone-landscape.png'), fullPage: false })

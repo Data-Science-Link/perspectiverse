@@ -8,6 +8,7 @@ import {
   bodySpin,
   formatPercent,
   orbitElements,
+  GRID_LABEL_GAP,
   PLANET_MESH_RADIUS,
   resumeOrbitAngle,
   saveOrbitAngle,
@@ -65,7 +66,8 @@ export default function Planet({
   const scale = topicScale(topic.total_volume_percent, volumeMax) * Math.max(0.55, planetVisualScale)
   const htmlDistanceFactor = labelDistanceFactor ?? (isMobile ? 16 : 18)
   const portrait = useMediaQuery('(orientation: portrait)')
-  const labelScale = linearGrid && isMobile ? (portrait ? 1.29 : 3.74) : 1
+  const labelScale = linearGrid && isMobile ? (portrait ? 1.08 : 1) : 1
+  const linearLabelAnchor = Boolean(anchor && isMobile)
   const color = topicColor(topic.id, body)
   const ranked = useMemo(
     () => rankPerspectives(topic.perspectives),
@@ -103,6 +105,38 @@ export default function Planet({
       }
       if (anchors?.current) {
         anchors.current[topic.id] = group.current.position.clone()
+      }
+
+      if (linearGrid && isMobile && group.current && typeof window !== 'undefined') {
+        const canvas = state.gl.domElement
+        const rect = canvas.getBoundingClientRect()
+        group.current.getWorldPosition(_world)
+        const bodyRadius = isSun ? scale * 1.28 : scale * PLANET_MESH_RADIUS
+        _desired.copy(_world)
+        _desired.y += bodyRadius
+        _desired.project(state.camera)
+        const top = (1 - _desired.y) * 0.5 * rect.height + rect.top
+        _desired.copy(_world)
+        _desired.y -= bodyRadius
+        _desired.project(state.camera)
+        const bottom = (1 - _desired.y) * 0.5 * rect.height + rect.top
+        _desired.copy(_world)
+        _desired.x += bodyRadius
+        _desired.project(state.camera)
+        const right = (_desired.x * 0.5 + 0.5) * rect.width + rect.left
+        _desired.copy(_world)
+        _desired.x -= bodyRadius
+        _desired.project(state.camera)
+        const left = (_desired.x * 0.5 + 0.5) * rect.width + rect.left
+        const sphereRect = {
+          topicIndex: index,
+          x: left,
+          y: top,
+          width: Math.max(right - left, 1),
+          height: Math.max(bottom - top, 1),
+        }
+        if (!window.__perspectiverseSphereRects) window.__perspectiverseSphereRects = {}
+        window.__perspectiverseSphereRects[topic.id] = sphereRect
       }
     }
 
@@ -250,13 +284,13 @@ export default function Planet({
           (() => {
             if (!anchor) return scale * (isMobile ? 1.32 : 1.45)
             if (!isMobile) return scale * 1.2
-            const bodyReach = isSun ? scale * 1.58 : scale * PLANET_MESH_RADIUS + scale * 0.12
-            const labelGap = portrait ? 0.62 : 0.52
+            const bodyReach = isSun ? scale * 1.58 : scale * PLANET_MESH_RADIUS + scale * 0.08
+            const labelGap = GRID_LABEL_GAP
             return -(bodyReach + labelGap)
           })(),
           0,
         ]}
-        center
+        center={!linearLabelAnchor}
         distanceFactor={htmlDistanceFactor}
         zIndexRange={[10, 0]}
         style={{ pointerEvents: 'none' }}
@@ -268,8 +302,10 @@ export default function Planet({
           style={{
             borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
             pointerEvents: 'auto',
-            transform: labelScale === 1 ? undefined : `scale(${labelScale})`,
-            transformOrigin: 'center center',
+            transform: linearLabelAnchor
+              ? `translateX(-50%)${labelScale === 1 ? '' : ` scale(${labelScale})`}`
+              : labelScale === 1 ? undefined : `scale(${labelScale})`,
+            transformOrigin: linearLabelAnchor ? 'top center' : 'center center',
           }}
           onClick={(event) => {
             event.stopPropagation()

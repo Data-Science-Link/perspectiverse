@@ -877,7 +877,7 @@ h3 {
 
 @media (orientation: landscape) {
   .planet-label.is-mobile.is-linear {
-    max-width: min(22vw, 11rem);
+    max-width: min(18vw, 9.25rem);
     font-size: 15px;
     line-height: 1.42;
   }
