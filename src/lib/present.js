@@ -278,9 +278,18 @@ function presentDigest(topics, previous) {
       }
       const disagreement = oneView
         ? null
-        : faces
-            .map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
-            .join(' ')
+        : (() => {
+            const seenTitles = new Set()
+            const lines = []
+            for (const face of faces) {
+              const label = String(face.title || '').trim()
+              const key = label.toLowerCase()
+              if (!label || seenTitles.has(key)) continue
+              seenTitles.add(key)
+              lines.push(`${label} says ${clean(face.summary).replace(/\.$/, '')}.`)
+            }
+            return lines.join(' ')
+          })()
       const pending =
         topic.stance_check === STANCE_CHECK_FAILED ||
         topic.stance_check === STANCE_CHECK_INCOHERENT ||

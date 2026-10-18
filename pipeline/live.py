@@ -106,6 +106,7 @@ from pipeline.store import (
     write_clusters,
     write_quality_posts,
 )
+from pipeline.face_titles import repair_published_face_titles
 from pipeline.story_attach import merge_alike_published_faces, return_same_story_posts
 from pipeline.topics import CANDIDATE_POOL, cluster_texts
 
@@ -1622,6 +1623,13 @@ def _apply_wide_label_to_face(face: dict, draft: dict, wide: dict) -> None:
         face["arguments"] = wide["arguments"]
     else:
         face.pop("arguments", None)
+    face["_draft_face_label"] = {
+        "title": face["title"],
+        "summary": face["summary"],
+        "representative_posts": list(face["representative_posts"]),
+        **({"arguments": list(face["arguments"])} if face.get("arguments") else {}),
+    }
+    face["_wide_finalize_applied"] = True
 
 
 def _run_one_finalize_job(job: _FinalizeFaceJob) -> dict | None:
@@ -1858,6 +1866,7 @@ def _strip_internal_planet_fields(topics: list[dict]) -> None:
             face.pop("_draft_face_label", None)
             face.pop("_face_member_uris", None)
             face.pop("stance_locked", None)
+            face.pop("_wide_finalize_applied", None)
 
 
 def _finalize_published_planets(
@@ -1872,6 +1881,7 @@ def _finalize_published_planets(
     section = str(context.get("section") or "All topics")
     if context.get("chosen") == "heuristic" or not topics:
         merge_alike_published_faces(topics)
+        repair_published_face_titles(topics, posts, after_wide_finalize=False)
         _strip_internal_planet_fields(topics)
         return set()
     jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
@@ -1879,6 +1889,7 @@ def _finalize_published_planets(
     incomplete = _run_finalize_faces_parallel(jobs, workers, deadline, scope=section)
     # Relabel can rename two faces onto one title after the draft merge already ran.
     merge_alike_published_faces(topics)
+    repair_published_face_titles(topics, posts, after_wide_finalize=True)
     _strip_internal_planet_fields(topics)
     return incomplete
 
@@ -1890,6 +1901,7 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     if jobs[0].context.get("chosen") == "heuristic":
         for job in jobs:
             merge_alike_published_faces(job.built)
+            repair_published_face_titles(job.built, job.posts, after_wide_finalize=False)
             _strip_internal_planet_fields(job.built)
         return set()
     face_jobs: list[_FinalizeFaceJob] = []
@@ -1908,6 +1920,7 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     )
     for job in jobs:
         merge_alike_published_faces(job.built)
+        repair_published_face_titles(job.built, job.posts, after_wide_finalize=True)
         _strip_internal_planet_fields(job.built)
     return incomplete
 

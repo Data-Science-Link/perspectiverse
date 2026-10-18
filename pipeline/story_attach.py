@@ -526,7 +526,7 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
         counts = [max(int(face.get("post_count") or 0), 0) for face in kept]
         topic["post_count"] = sum(counts)
         volumes = to_percents(counts) if sum(counts) else [0.0 for _ in kept]
-        topic_id = int(topic.get("id") or 1)
+        topic_id = topic.get("id") or 1
         for index, (face, volume) in enumerate(zip(kept, volumes)):
             face["volume_percent"] = volume
             face["id"] = face_id(topic_id, index)
