@@ -657,3 +657,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Tradeoff accepted:** editions become mostly posts carried over from the last 7 days, with ~4.7K fresh posts a night instead of ~63K. Some joke planets can grow ("Tax Purposes", #220).
 **Alternatives:** keep deleting judged posts nightly, which means fresher editions but fewer claims in clustering.
 **Revisit:** if freshness or planet quality suffers on the live site, or when #214 revisits the filters.
+
+### 2026-10-18: Delete stored posts Jev scored as spam
+**Decision:** The nightly cleanup permanently deletes stored posts that Jev's cached check scored as spam (≥0.8), as #219 merged it.
+**Why:** Michael chose deletion. A hand-check of 20 found 16 real spam and 2 real posts (a candidate endorsement and an NWS storm warning); that sample is small, and the error is accepted.
+**Alternatives:** keep them stored but out of the edition and the 100K count, which can be undone (not chosen).
+**Revisit:** if more real posts show up among deletions, or under the filter revisit (#214).
+**Safety net:** the 2026-10-18 deletions are backed up in R2.
