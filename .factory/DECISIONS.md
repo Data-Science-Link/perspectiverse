@@ -650,3 +650,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Editions keep landing just under 100K.
 - **Alternatives:** A fixed ~14.3K/day fetch (the prior plan).
 - **Revisit when:** Rounds push daily spend toward the $1 cap or runtime past the 10 AM CT finish.
+
+### 2026-10-18: Keep stored posts that aren't claims
+**Decision:** The nightly cleanup drops only spam and free-filter blocks (chit-chat incl. personal health, link-only, non-English). Stored claims and non-claims stay, count toward the 100K, and feed clustering. Approved by Michael ("Approve 219", Factory room, 2026-10-18 12:31 PM CT); merged as #219 (2ae44b4).
+**Why:** Under option B, quality means non-spam. The old cleanup deleted every judged post, ~28.4K confirmed claims included. Keeping them gives clustering ~94K posts instead of ~37K, for bigger, steadier planets.
+**Tradeoff accepted:** editions become mostly posts carried over from the last 7 days, with ~4.7K fresh posts a night instead of ~63K. Some joke planets can grow ("Tax Purposes", #220).
+**Alternatives:** keep deleting judged posts nightly, which means fresher editions but fewer claims in clustering.
+**Revisit:** if freshness or planet quality suffers on the live site, or when #214 revisits the filters.
