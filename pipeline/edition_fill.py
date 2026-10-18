@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
 from pipeline.chitchat_guard import (
     clustering_topup_shortfall,
+    drop_link_and_language_at_ingest,
     edition_posts_for_clustering,
     get_chitchat_log,
     reset_chitchat_log,
@@ -28,10 +31,14 @@ STOP_WINDOW_EXHAUSTED = "7_day_window_exhausted"
 STOP_NO_PROGRESS = "no_progress"
 
 ENV_MAX_ROUNDS = "PERSPECTIVERSE_EDITION_FILL_MAX_ROUNDS"
-DEFAULT_MAX_ROUNDS = 24
-STORED_OVERFETCH_MARGIN = 500
+# Sized for ~26 min worst-case ingest passes: 260 min ingest budget / ~26 ≈ 10, but
+# rounds are shortfall-bounded (not full 7-day walks), so 5 is a safety valve.
+DEFAULT_MAX_ROUNDS = 5
+STORED_OVERFETCH_MARGIN = 200
 NO_PROGRESS_STREAK = 2
 PROGRESS_FRACTION = 0.005
+# Observed downstream wall time after ingest (cluster + labels + sections).
+POST_INGEST_RESERVE_MINUTES = 55
 
 
 @dataclass
@@ -119,6 +126,23 @@ def at_spend_stop() -> bool:
     return day_paid_usd() >= limit
 
 
+def edition_fill_past_safe_margin(clock: Callable[[], datetime]) -> bool:
+    """True when ingest must stop so clustering, labels, and sections can finish.
+
+    Uses the Actions job start (``PERSPECTIVERSE_JOB_STARTED_AT``), the 360-minute
+    job limit, the 45-minute fill margin, and a 55-minute downstream reserve.
+    """
+    from pipeline.live import FILL_JOB_MARGIN_MINUTES, PIPELINE_JOB_LIMIT_MINUTES, _job_started_at
+
+    now = clock()
+    started = _job_started_at(now)
+    ingest_budget = (
+        PIPELINE_JOB_LIMIT_MINUTES - FILL_JOB_MARGIN_MINUTES - POST_INGEST_RESERVE_MINUTES
+    )
+    deadline = started + timedelta(minutes=ingest_budget)
+    return now.astimezone(timezone.utc) >= deadline.astimezone(timezone.utc)
+
+
 def _log_snapshot() -> dict[str, int]:
     log = get_chitchat_log()
     return {
@@ -151,32 +175,94 @@ def measure_edition(cleaned: list[dict]) -> tuple[list[dict], dict]:
     }
 
 
+def apply_window_eviction(
+    posts: list[dict],
+    *,
+    clock: Callable[[], datetime],
+    window_hours: int,
+) -> list[dict]:
+    """Drop posts outside the rolling window before the first edition measure."""
+    moment = clock()
+    return retire_oldest(
+        posts,
+        now=moment,
+        window_hours=window_hours,
+        target=len(posts),
+    )
+
+
 def trim_to_target(
     cleaned: list[dict],
     planet_posts: list[dict],
     *,
     target: int,
     window_hours: int,
-    now: datetime,
+    clock: Callable[[], datetime],
+    edition_uris_before: set[str] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Cap edition posts to ``target`` with ``retire_oldest``, then align stored corpus."""
+    moment = clock()
     if len(planet_posts) <= target:
         return cleaned, planet_posts
     trimmed_posts = retire_oldest(
         planet_posts,
-        now=now,
+        now=moment,
         window_hours=window_hours,
         target=target,
     )
-    keep_uris = {str(post.get("uri") or "") for post in trimmed_posts if post.get("uri")}
-    aligned = [post for post in cleaned if str(post.get("uri") or "") in keep_uris]
+    trim_uris = {str(post.get("uri") or "") for post in trimmed_posts if post.get("uri")}
+    if drop_link_and_language_at_ingest():
+        aligned = [post for post in cleaned if str(post.get("uri") or "") in trim_uris]
+        aligned = retire_oldest(
+            aligned,
+            now=moment,
+            window_hours=window_hours,
+            target=target,
+        )
+        return aligned, trimmed_posts
+    before = edition_uris_before or {str(post.get("uri") or "") for post in planet_posts if post.get("uri")}
+    aligned = []
+    for post in cleaned:
+        uri = str(post.get("uri") or "")
+        if not uri:
+            continue
+        if uri in trim_uris:
+            aligned.append(post)
+            continue
+        if uri not in before:
+            aligned.append(post)
     aligned = retire_oldest(
         aligned,
-        now=now,
+        now=moment,
         window_hours=window_hours,
-        target=target,
+        target=len(aligned),
     )
     return aligned, trimmed_posts
+
+
+def _try_reach_exact_target(
+    cleaned: list[dict],
+    planet_posts: list[dict],
+    meta: dict,
+    *,
+    target: int,
+    window_hours: int,
+    clock: Callable[[], datetime],
+) -> tuple[bool, list[dict], list[dict], dict]:
+    """Trim overshoot and re-measure. Success only when edition count equals ``target``."""
+    if len(planet_posts) < target:
+        return False, cleaned, planet_posts, meta
+    edition_before = {str(post.get("uri") or "") for post in planet_posts if post.get("uri")}
+    cleaned, planet_posts = trim_to_target(
+        cleaned,
+        planet_posts,
+        target=target,
+        window_hours=window_hours,
+        clock=clock,
+        edition_uris_before=edition_before,
+    )
+    planet_posts, meta = measure_edition(cleaned)
+    return len(planet_posts) == target, cleaned, planet_posts, meta
 
 
 def _print_round(row: EditionRoundLog) -> None:
@@ -191,6 +277,31 @@ def _print_round(row: EditionRoundLog) -> None:
     )
 
 
+def _round_log(
+    *,
+    round_num: int,
+    delta: dict[str, int],
+    near_dup: int,
+    meta: dict,
+    stored_count: int,
+    edition_count: int,
+    elapsed: float,
+) -> EditionRoundLog:
+    return EditionRoundLog(
+        round=round_num,
+        posts_fetched=int(delta.get("fetched", 0)),
+        spam_blocked=int(delta.get("spam_blocked", 0)),
+        chitchat_blocked=int(delta.get("chitchat_blocked", 0)),
+        language_blocked=int(delta.get("language_blocked", 0)),
+        link_blocked=int(delta.get("link_blocked", 0)),
+        near_duplicate_dropped=int(near_dup),
+        late_chitchat_skipped=int(meta.get("skipped_chitchat_cluster_pass") or 0),
+        stored_count=stored_count,
+        edition_quality_count=edition_count,
+        elapsed_seconds=elapsed,
+    )
+
+
 def run_edition_fill_loop(
     existing: list[dict],
     settings: dict,
@@ -198,15 +309,25 @@ def run_edition_fill_loop(
     *,
     target: int,
     now: datetime | None = None,
+    clock: Callable[[], datetime] | None = None,
 ) -> EditionFillResult:
     """Fetch, filter, dedupe, and evict until the edition reaches ``target`` or a stop fires."""
-    moment = now or datetime.now(timezone.utc)
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
-    moment = moment.astimezone(timezone.utc)
+    if clock is not None:
+        tick = clock
+    elif now is not None:
+        fixed = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
+        fixed = fixed.astimezone(timezone.utc)
+
+        def tick() -> datetime:
+            return fixed
+
+    else:
+
+        def tick() -> datetime:
+            return datetime.now(timezone.utc)
     window_hours = int(settings.get("window_hours") or 168)
     reset_chitchat_log()
-    cleaned = list(existing)
+    cleaned = apply_window_eviction(list(existing), clock=tick, window_hours=window_hours)
     planet_posts: list[dict] = []
     meta: dict = {}
     stop_reason = STOP_MAX_ROUNDS
@@ -216,37 +337,32 @@ def run_edition_fill_loop(
     loop_started = time.monotonic()
     max_rounds = max_fetch_rounds()
     fetch_exhausted = False
-
     for round_num in range(1, max_rounds + 1):
         before_log = _log_snapshot()
-        before_stored = len(cleaned)
         before_edition = len(planet_posts)
         near_dup_dropped = 0
 
         planet_posts, meta = measure_edition(cleaned)
         elapsed = time.monotonic() - loop_started
 
-        if len(planet_posts) >= target:
-            cleaned, planet_posts = trim_to_target(
-                cleaned,
-                planet_posts,
-                target=target,
-                window_hours=window_hours,
-                now=moment,
-            )
+        reached, cleaned, planet_posts, meta = _try_reach_exact_target(
+            cleaned,
+            planet_posts,
+            meta,
+            target=target,
+            window_hours=window_hours,
+            clock=tick,
+        )
+        if reached:
             stop_reason = STOP_REACHED_TARGET
-            row = EditionRoundLog(
-                round=round_num,
-                posts_fetched=0,
-                spam_blocked=0,
-                chitchat_blocked=0,
-                language_blocked=0,
-                link_blocked=0,
-                near_duplicate_dropped=near_dup_dropped,
-                late_chitchat_skipped=int(meta.get("skipped_chitchat_cluster_pass") or 0),
+            row = _round_log(
+                round_num=round_num,
+                delta={key: 0 for key in before_log},
+                near_dup=0,
+                meta=meta,
                 stored_count=len(cleaned),
-                edition_quality_count=len(planet_posts),
-                elapsed_seconds=elapsed,
+                edition_count=len(planet_posts),
+                elapsed=time.monotonic() - loop_started,
             )
             rounds.append(row)
             _print_round(row)
@@ -254,39 +370,29 @@ def run_edition_fill_loop(
 
         if at_spend_stop():
             stop_reason = STOP_SPEND
-            row = EditionRoundLog(
-                round=round_num,
-                posts_fetched=0,
-                spam_blocked=0,
-                chitchat_blocked=0,
-                language_blocked=0,
-                link_blocked=0,
-                near_duplicate_dropped=near_dup_dropped,
-                late_chitchat_skipped=int(meta.get("skipped_chitchat_cluster_pass") or 0),
+            row = _round_log(
+                round_num=round_num,
+                delta={key: 0 for key in before_log},
+                near_dup=0,
+                meta=meta,
                 stored_count=len(cleaned),
-                edition_quality_count=len(planet_posts),
-                elapsed_seconds=elapsed,
+                edition_count=len(planet_posts),
+                elapsed=elapsed,
             )
             rounds.append(row)
             _print_round(row)
             break
 
-        from pipeline.live import fill_past_safe_margin
-
-        if fill_past_safe_margin(moment):
+        if edition_fill_past_safe_margin(tick):
             stop_reason = STOP_WALL_TIME
-            row = EditionRoundLog(
-                round=round_num,
-                posts_fetched=0,
-                spam_blocked=0,
-                chitchat_blocked=0,
-                language_blocked=0,
-                link_blocked=0,
-                near_duplicate_dropped=near_dup_dropped,
-                late_chitchat_skipped=int(meta.get("skipped_chitchat_cluster_pass") or 0),
+            row = _round_log(
+                round_num=round_num,
+                delta={key: 0 for key in before_log},
+                near_dup=0,
+                meta=meta,
                 stored_count=len(cleaned),
-                edition_quality_count=len(planet_posts),
-                elapsed_seconds=elapsed,
+                edition_count=len(planet_posts),
+                elapsed=elapsed,
             )
             rounds.append(row)
             _print_round(row)
@@ -298,66 +404,53 @@ def run_edition_fill_loop(
             int(meta.get("skipped_non_english") or 0),
             int(meta.get("skipped_link_only") or 0),
         )
-        stored_target = len(cleaned) + max(shortfall, 1) + STORED_OVERFETCH_MARGIN
-        if round_num == 1:
-            cleaned, fetch_exhausted = ingest_free(
-                existing,
-                settings,
-                queries,
-                target=max(stored_target, target),
-                now=moment,
-                reset_log=True,
-            )
-        else:
-            cleaned, fetch_exhausted = ingest_free(
-                cleaned,
-                settings,
-                queries,
-                target=stored_target,
-                now=moment,
-                reset_log=False,
-            )
+        fetch_budget = max(shortfall, 1) + STORED_OVERFETCH_MARGIN
+        stored_cap = len(cleaned) + fetch_budget
+        cleaned, fetch_exhausted, near_dup_dropped = ingest_free(
+            cleaned,
+            settings,
+            queries,
+            target=stored_cap,
+            now=tick(),
+            reset_log=round_num == 1,
+            max_new_posts=fetch_budget,
+        )
 
         after_log = _log_snapshot()
         delta = _delta(before_log, after_log)
-        stored_added = len(cleaned) - before_stored
         planet_posts, meta = measure_edition(cleaned)
         edition_added = len(planet_posts) - before_edition
-        if len(planet_posts) >= target:
-            cleaned, planet_posts = trim_to_target(
-                cleaned,
-                planet_posts,
-                target=target,
-                window_hours=window_hours,
-                now=moment,
-            )
-            stop_reason = STOP_REACHED_TARGET
         elapsed = time.monotonic() - loop_started
 
-        row = EditionRoundLog(
-            round=round_num,
-            posts_fetched=int(delta["fetched"]),
-            spam_blocked=int(delta["spam_blocked"]),
-            chitchat_blocked=int(delta["chitchat_blocked"]),
-            language_blocked=int(delta["language_blocked"]),
-            link_blocked=int(delta["link_blocked"]),
-            near_duplicate_dropped=near_dup_dropped,
-            late_chitchat_skipped=int(meta.get("skipped_chitchat_cluster_pass") or 0),
+        reached, cleaned, planet_posts, meta = _try_reach_exact_target(
+            cleaned,
+            planet_posts,
+            meta,
+            target=target,
+            window_hours=window_hours,
+            clock=tick,
+        )
+        row = _round_log(
+            round_num=round_num,
+            delta=delta,
+            near_dup=near_dup_dropped,
+            meta=meta,
             stored_count=len(cleaned),
-            edition_quality_count=len(planet_posts),
-            elapsed_seconds=elapsed,
+            edition_count=len(planet_posts),
+            elapsed=elapsed,
         )
         rounds.append(row)
         _print_round(row)
 
-        if stop_reason == STOP_REACHED_TARGET:
+        if reached:
+            stop_reason = STOP_REACHED_TARGET
             break
 
         if fetch_exhausted:
             stop_reason = STOP_WINDOW_EXHAUSTED
             break
 
-        if edition_added < progress_min and stored_added <= 0:
+        if edition_added < progress_min:
             no_progress_streak += 1
         else:
             no_progress_streak = 0

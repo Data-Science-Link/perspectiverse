@@ -201,7 +201,8 @@ def ingest_free(
     extract=None,
     days: int = FREE_INGEST_DAYS,
     reset_log: bool = True,
-) -> tuple[list[dict], bool]:
+    max_new_posts: int | None = None,
+) -> tuple[list[dict], bool, int]:
     """Fetch the last 7 UTC days and keep edition-quality posts.
 
     Spam, chit-chat, and personal health updates are always dropped before the
@@ -241,14 +242,20 @@ def ingest_free(
             seen_text.add(text_key)
     per_day = int(settings.get("free_ingest_per_day") or NON_SPAM_PER_DAY)
     fetch_added = 0
+    near_duplicate_dropped = 0
+    new_cap = max(int(max_new_posts), 0) if max_new_posts is not None else None
     for since, until in day_windows(moment, days):
         if len(kept) >= target:
+            break
+        if new_cap is not None and fetch_added >= new_cap:
             break
         day_new = 0
         day_blocked_spam = 0
         day_blocked_other = 0
         for query in chosen:
             if day_new >= per_day or len(kept) >= target:
+                break
+            if new_cap is not None and fetch_added >= new_cap:
                 break
             try:
                 incoming = fetch(
@@ -277,6 +284,7 @@ def ingest_free(
                     continue
                 text_key = _dedupe_key(str(post.get("clean_text") or ""))
                 if text_key and text_key in seen_text:
+                    near_duplicate_dropped += 1
                     continue
                 if text_key:
                     seen_text.add(text_key)
@@ -285,6 +293,8 @@ def ingest_free(
                 day_new += 1
                 fetch_added += 1
                 if day_new >= per_day or len(kept) >= target:
+                    break
+                if new_cap is not None and fetch_added >= new_cap:
                     break
         log = get_chitchat_log()
         print(
@@ -299,7 +309,7 @@ def ingest_free(
         target=target,
     )
     fetch_exhausted = len(retired) < int(target) and fetch_added == 0
-    return retired, fetch_exhausted
+    return retired, fetch_exhausted, near_duplicate_dropped
 
 
 def stamp_candidate_sections(posts: list[dict], clustered: dict, classify) -> int:

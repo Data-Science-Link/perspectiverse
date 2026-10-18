@@ -100,7 +100,7 @@ def test_ingest_free_stores_non_claims_and_drops_spam(monkeypatch):
             return [remark]
         return []
 
-    kept, _exhausted = ingest_free(
+    kept, _exhausted, _near_dup = ingest_free(
         [],
         {"window_hours": 168, "seed": 0, "free_ingest_per_day": 5},
         ["the"],
@@ -220,7 +220,7 @@ def test_run_live_free_ingest_does_not_call_per_post_jev(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "pipeline.edition_fill.ingest_free",
-        lambda *_args, **_kwargs: (fake_ingest(), False),
+        lambda *_args, **_kwargs: (fake_ingest(), False, 0),
     )
     monkeypatch.setattr("pipeline.live.apply_jev", boom_jev)
     monkeypatch.setattr("pipeline.live.classify_planet_section", lambda _summary, _arguments: "Politics")
