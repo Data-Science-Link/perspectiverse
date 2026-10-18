@@ -6,7 +6,6 @@ from pipeline.language import (
     is_link_only,
     looks_english,
     partition_posts,
-    post_raw_text,
 )
 
 
@@ -38,11 +37,34 @@ def test_one_foreign_word_does_not_drop_english():
 def test_bare_youtube_and_bsky_links_are_link_only():
     assert is_link_only("youtu.be/pY0A8RxdBlg")
     assert is_link_only("#ValhallaVFT youtu.be/Gil2wVgY04U?...")
-    assert is_link_only("There it is!! bsky.app/profile/mari...")
+    assert not is_link_only("There it is!! bsky.app/profile/mari...")
     assert not is_link_only(
         "You might find this video heartening. youtu.be/SOSOyr1yPao "
         "because the committee finally published the full report today."
     )
+
+
+def test_reviewer_commentary_with_links_is_kept():
+    assert not is_link_only("There it is!! bsky.app/profile/mari/example/post")
+    assert not is_link_only(
+        "https://news.yahoo.com/foo This is ridiculous!"
+    )
+    assert not is_link_only(
+        "Another gun tragedy www.nytimes.com/2026/10/01/us/example.html"
+    )
+    assert not is_link_only("Vote Blue! www.cnbc.com/2026/10/01/example.html")
+    assert not is_link_only("Oh thank god https://www.reddit.com/r/example/comments/abc")
+    assert not is_link_only(
+        "Good Evening Colonel youtu.be/oCi0eJ_yntE"
+    )
+    assert not is_link_only(
+        "#netanyahu has to go www.theguardian.com/world/2026/oct/01/example"
+    )
+
+
+def test_gift_link_labels_stay_link_only():
+    assert is_link_only("FREE ARTICLE LINK\n\nwww.nytimes.com/2026/10/12/us/example")
+    assert is_link_only("Gift link youtu.be/abc123")
 
 
 def test_portuguese_posts_are_not_english():
@@ -57,6 +79,22 @@ def test_portuguese_posts_are_not_english():
     )
     assert not looks_english(
         "O governo do Brasil anunciou novas medidas econômicas hoje"
+    )
+
+
+def test_english_false_positives_from_portuguese_shortcut_stay():
+    assert looks_english(
+        "Sherman tank note on the Régiment de Chars de Combat in 1944."
+    )
+    assert looks_english(
+        "Any thoughts on best sherry bodega(s) to visit in El Puerto de Santa María? no idea if it's best."
+    )
+    assert looks_english(
+        "there should be a post-credits scene with no music in Poké Prison, no elaboration needed"
+    )
+    assert looks_english("Hey DG — Río Rancho. No signs no billboards anywhere.")
+    assert looks_english(
+        "Jon Ossoff is the stone cold lock o' da century and o' da week for Georgia."
     )
 
 
@@ -116,7 +154,7 @@ def test_edition_filter_uses_raw_text_over_stale_clean_text():
         "text": "No, it's literally not true. https://www.bls.gov/news.release/pdf/empsit.pdf",
         "clean_text": "No, it's literally not true.",
     }
-    assert edition_filter_reason(post_raw_text(post)) is None
+    assert edition_filter_reason(post) is None
 
 
 def test_tambem_counts_as_portuguese():

@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 
 from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, URL_RE
-from pipeline.language import edition_filter_reason, is_link_only, partition_posts, post_raw_text
+from pipeline.language import edition_filter_reason, is_link_only, partition_posts
 from pipeline.spam_guard import guard_reason, post_body
 
 # Majority of member posts. Titles are not consulted.
@@ -743,7 +743,7 @@ def ingest_block_reason(post: dict) -> str | None:
         return f"chitchat:{chit}"
     if not drop_link_and_language_at_ingest():
         return None
-    reason = edition_filter_reason(post_raw_text(post))
+    reason = edition_filter_reason(post)
     if reason:
         return reason
     return None

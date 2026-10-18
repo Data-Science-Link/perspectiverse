@@ -573,7 +573,6 @@ def test_replay_39072480258_representatives():
     ]
     dropped = [(row["section"], row["name"]) for row in rows if row["decision"] == "DROP"]
     assert dropped == [
-        ("Technology", "App Bsky Profile"),
         ("Health", "Health Issues"),
         ("Health", "Speedy Recovery"),
         ("Health", "Recovering Health"),
