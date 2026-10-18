@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from pipeline.edition_fill import (
+    STOP_EDITION_GAP,
     STOP_MAX_ROUNDS,
     STOP_NO_PROGRESS,
     STOP_REACHED_TARGET,
@@ -239,6 +240,39 @@ def test_pipeline_dict_includes_stop_reason(monkeypatch):
     payload = result.pipeline_dict()
     assert payload["edition_fill_stop_reason"] == STOP_SPEND
     assert "edition_fill_rounds" in payload
+
+
+def test_switch_off_no_ingest_when_link_only_fill_clustering_gap(monkeypatch):
+    """80 edition + 20 link-only stored: main does not fetch (shortfall 0)."""
+    monkeypatch.setenv("DROP_LINK_AND_LANGUAGE_AT_INGEST", "0")
+    moment = datetime(2026, 10, 17, 12, 0, tzinfo=timezone.utc)
+    edition = [_post(index, moment=moment) for index in range(80)]
+    link_only = [
+        {
+            "uri": f"at://fixture/link/{index}",
+            "author": "author",
+            "text": "https://example.com/report",
+            "clean_text": "https://example.com/report",
+            "likes": 1,
+            "created_at": moment.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "is_claim": None,
+            "section": "",
+        }
+        for index in range(20)
+    ]
+    corpus = edition + link_only
+    ingest_calls: list[int] = []
+
+    def track_ingest(*_args, **_kwargs):
+        ingest_calls.append(1)
+        return _ingest_result(corpus)
+
+    monkeypatch.setattr("pipeline.edition_fill.ingest_free", track_ingest)
+    result = run_edition_fill_loop(corpus, _settings(), None, target=100, clock=lambda: moment)
+    assert ingest_calls == []
+    assert len(result.planet_posts) == 80
+    assert result.stop_reason == STOP_EDITION_GAP
+    assert result.stop_reason != STOP_REACHED_TARGET
 
 
 def test_near_duplicate_count_on_round_line(monkeypatch):
