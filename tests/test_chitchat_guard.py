@@ -468,28 +468,24 @@ def test_issue_227_thank_planet_201_mention_cluster_drops():
 
 
 def test_issue_227_twitch_planet_55_bare_link_cards_drop():
-    """Published ~55-post twitch.tv ball: bare link cards plus a few text URLs.
+    """Published ~55-post twitch.tv ball (review: 15/55 stream share, still kept).
 
-    Review at 9075f68 counted 16/55 (29.1%) because link cards keep the URL in
-    ``clean_text`` while ``text`` is blank whitespace.
+    Link cards keep the URL in ``clean_text`` while ``text`` is whitespace.
+    Salient term ``twitch`` names the ball; channel slugs stay below the cutoff.
     """
-    link_card = {"text": " ", "clean_text": "twitch.tv/example_streamer"}
-    text_url = {"text": "twitch.tv/example_streamer"}
-    filler = {
-        "text": "Senate leaders agreed on a stopgap funding bill before the deadline.",
-    }
+    link_card = {"text": " ", "clean_text": "twitch.tv/48291"}
+    text_url = {"text": "twitch.tv/71024"}
     members = [link_card] * 39 + [text_url] * 16
     assert len(members) == 55
     reason = planet_chitchat_reason(members, [], name="Twitch")
-    assert reason is not None
-    assert "stream promos" in reason
-    assert reason.startswith("100%")
+    assert reason == "Mostly about a streaming platform, not a topic"
 
 
 def test_stream_cluster_keeps_topical_news_planets():
-    """Ukraine, vote, Israel, trans, healthcare, and fascism balls must not drop."""
+    """Ukraine, vote, Israel, trans, healthcare, fascism, and Trump/Musk must not drop."""
     fillers = {
         "ukraine": "The anniversary of the invasion is not a happy anniversary for Ukraine.",
+        "trump": "Trump and Musk argued over tariffs and Ukraine aid in a televised interview.",
         "vote": "The Senate should publish the mail ballot rules before November.",
         "israel": (
             "Keep out of prison even if most Israelis die. Netanyahu has port-a-potty "

@@ -148,6 +148,19 @@ GESTURE_CLUSTER_SHARE_DROP = 0.38
 STREAM_CLUSTER_MIN_MEMBERS = 50
 STREAM_CLUSTER_SHARE_DROP = 0.30
 
+_STREAMING_PLATFORM_SALIENT_TERMS = frozenset(
+    {
+        "twitch",
+        "kick",
+        "youtube",
+        "youtu",
+        "rumble",
+        "mixer",
+        "joystick",
+    }
+)
+_STREAM_PLATFORM_DROP_REASON = "Mostly about a streaming platform, not a topic"
+
 _WORK_RE = re.compile(
     r"\b(?:songs?|albums?|movies?|films?|books?|novels?|poems?|goals?|scored|assists?|podcasts?)\b",
     re.IGNORECASE,
@@ -1083,6 +1096,36 @@ _GESTURE_KINDS = frozenset(
 )
 
 
+def _streaming_platform_salient_reason(members: list[dict]) -> str | None:
+    """Drop when salient terms are only streaming-platform tokens (#227)."""
+    from pipeline.cluster_math import salient_terms, tokenize
+
+    texts = [
+        (_post_text_surfaces(member) or post_body(member)).strip()
+        for member in members
+        if (_post_text_surfaces(member) or post_body(member)).strip()
+    ]
+    if not texts:
+        return None
+    counts: dict[str, int] = {}
+    for text in texts:
+        for token in set(tokenize(text)):
+            counts[token] = counts.get(token, 0) + 1
+    if not counts:
+        return None
+    threshold = max(2, int(len(texts) * 0.3))
+    top_terms = salient_terms(texts, limit=1)
+    if not top_terms:
+        return None
+    top = top_terms[0]
+    if top not in _STREAMING_PLATFORM_SALIENT_TERMS:
+        return None
+    for term, weight in counts.items():
+        if weight >= threshold and term not in _STREAMING_PLATFORM_SALIENT_TERMS:
+            return None
+    return _STREAM_PLATFORM_DROP_REASON
+
+
 def _gesture_share(members: list[dict]) -> float:
     if not members:
         return 0.0
@@ -1103,17 +1146,21 @@ def planet_chitchat_reason(
 ) -> str | None:
     """Drop a planet from its posts, never from its title.
 
-    ``name`` and ``terms`` are ignored. Callers still pass the label so logs
-    can name the planet; a rename cannot keep or drop it. ``model_chitchat``
+    ``name`` is ignored. Callers still pass the label so logs can name the
+    planet; a rename cannot keep or drop it. ``terms`` is unused except for
+    API compatibility with the labeler. ``model_chitchat``
     is the yes/no field on the existing planet-naming response. Yes alone
     does not drop a planet. The posts have to be at least 55% chit-chat, or
     the model has to say yes and at least 30% of the posts agree, or at least
     35% are thanks / compliments / wishes with no topical anchor post. Bare
     video links count toward that share. The planet title does not.
     """
-    del terms, name
+    del name, terms
     if not members:
         return None
+    platform = _streaming_platform_salient_reason(members)
+    if platform:
+        return platform
     share = planet_content_share(members)
     if share >= PLEASANTRY_SHARE_DROP:
         return f"{share:.0%} of the posts are chit-chat"
