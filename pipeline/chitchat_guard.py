@@ -743,6 +743,8 @@ def ingest_block_reason(post: dict) -> str | None:
     spam = guard_reason(post)
     if spam:
         return f"spam:{spam}"
+    # Always refuse new bot wires. Stored-row deletion is opt-in; see
+    # ``purge_stored_weather_enabled`` in ``should_drop_stored_post``.
     weather = weather_bot_reason(post)
     if weather:
         return weather

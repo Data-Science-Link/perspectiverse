@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
 from pipeline.chitchat_guard import ingest_block_reason
 from pipeline.section_sanity import partition_politics_planets, politics_planet_destination
 from pipeline.store import connect, load_posts, should_drop_stored_post
-from pipeline.weather_guard import weather_bot_reason
+from pipeline.weather_guard import purge_stored_weather_enabled, weather_bot_reason
 
 
 def section_planet_names(data: dict) -> dict[str, list[str]]:
@@ -60,9 +60,11 @@ def corpus_weather_counts(db_path: Path) -> dict:
     after_ingest = sum(1 for post in hits if ingest_block_reason(post) == "weather_bot")
     stored_delete = sum(1 for post in posts if should_drop_stored_post(post) and weather_bot_reason(post))
     return {
+        "purge_stored_weather_env": purge_stored_weather_enabled(),
         "weather_bot_posts_in_corpus": before_ingest,
         "blocked_at_ingest_weather_only": after_ingest,
         "stored_rows_deleted_for_weather_bot": stored_delete,
+        "stored_rows_remain_in_sqlite_when_purge_off": before_ingest if not purge_stored_weather_enabled() else 0,
         "sample_texts": [str(p.get("text") or "")[:240] for p in random.sample(hits, min(20, len(hits)))],
     }
 

@@ -1,6 +1,10 @@
 {
   "corpus_weather_bot_posts": 434,
-  "stored_rows_permanently_deleted_on_cleanup": 434,
+  "purge_stored_weather_default": "off (set PERSPECTIVERSE_PURGE_STORED_WEATHER=1 to delete stored rows)",
+  "stored_rows_permanently_deleted_on_cleanup_default": 0,
+  "stored_rows_permanently_deleted_when_purge_env_1": 434,
+  "stored_rows_remain_in_sqlite_when_purge_off": 434,
+  "edition_clustering_excludes_stored_weather_bots_when_purge_off": true,
   "hand_check_20_weather_posts": "All 20 sampled corpus hits are NWS/IEMbot wires or dedicated alert accounts (globalweatherpro.com, texasnwsalerts.bsky.social, us-weatheralerts.bsky.social). No human climate-opinion posts in the sample.",
   "environment_section_planets_before": [
     "Cold Weather",

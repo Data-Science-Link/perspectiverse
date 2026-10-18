@@ -1,7 +1,14 @@
 """Weather alert bot filter (#228)."""
 
-from pipeline.chitchat_guard import ingest_block_reason
+from pipeline.chitchat_guard import edition_posts_for_clustering, ingest_block_reason
+from pipeline.store import should_drop_stored_post
+from pipeline.stored_purge import purge_stored_reasons_list
 from pipeline.weather_guard import weather_bot_reason
+
+_BOT = {
+    "author": "ama.nws-bot.us",
+    "text": "AMA updates Severe Thunderstorm Warning till 6:45 PM CDT.",
+}
 
 
 def test_nws_handle_and_warning_wire_are_blocked():
@@ -22,6 +29,23 @@ def test_iem_bot_outlook_is_blocked():
         "text": "Hazardous Weather Outlook issued for central Iowa through Wednesday evening.",
     }
     assert weather_bot_reason(post) == "weather_bot"
+
+
+def test_stored_weather_rows_purge_only_when_reason_listed(monkeypatch):
+    monkeypatch.delenv("PERSPECTIVERSE_PURGE_STORED_REASONS", raising=False)
+    assert purge_stored_reasons_list() == frozenset()
+    assert ingest_block_reason(_BOT) == "weather_bot"
+    assert should_drop_stored_post(_BOT) is False
+
+    monkeypatch.setenv("PERSPECTIVERSE_PURGE_STORED_REASONS", "weather_bot")
+    assert "weather_bot" in purge_stored_reasons_list()
+    assert should_drop_stored_post(_BOT) is True
+
+
+def test_stored_weather_stays_out_of_edition_when_not_listed(monkeypatch):
+    monkeypatch.delenv("PERSPECTIVERSE_PURGE_STORED_REASONS", raising=False)
+    kept, _lang, _links, _chit = edition_posts_for_clustering([_BOT])
+    assert kept == []
 
 
 def test_human_weather_and_climate_discussion_passes():
