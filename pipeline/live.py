@@ -3275,9 +3275,18 @@ def _coverage_needed(count: int) -> int:
 
 
 def _title_covers_posts(title: str, posts: list[dict]) -> bool:
-    from pipeline.face_titles import title_covers_posts
-
-    return title_covers_posts(title, posts)
+    """True when the claim's words show up in about 40% of the sample."""
+    title_stems = {subject_stem(token) for token in content_tokens(title)}
+    title_stems = {stem for stem in title_stems if len(stem) >= 3}
+    if len(posts) < 2 or not title_stems:
+        return True
+    hits = 0
+    for post in posts:
+        text = str(post.get("text") or post.get("clean_text") or "")
+        stems = {subject_stem(token) for token in content_tokens(text)}
+        if title_stems & stems:
+            hits += 1
+    return hits >= _coverage_needed(len(posts))
 
 
 def _posts_share_a_subject(posts: list[dict]) -> bool:

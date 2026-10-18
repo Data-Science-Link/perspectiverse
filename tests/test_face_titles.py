@@ -6,13 +6,14 @@ import copy
 import json
 from pathlib import Path
 
+from pipeline import live
 from pipeline.face_titles import (
     count_duplicate_title_faces,
     face_titles_equal,
     normalize_face_title,
     repair_payload_face_titles,
     repair_published_face_titles,
-    title_covers_posts,
+    title_strictly_supported_by_posts,
 )
 from pipeline.story_attach import merge_alike_published_faces
 
@@ -29,7 +30,7 @@ def test_face_titles_equal_not_subset():
     assert normalize_face_title("Pro Ukraine 2") == normalize_face_title("Pro Ukraine")
 
 
-def test_title_covers_posts_requires_every_title_word():
+def test_publish_path_keeps_loose_stem_coverage():
     outrage = [
         {"text": "Social media posts spark outrage and generate debate about discrimination."},
         {"text": "People are furious about a trans man in the Odyssey and the casting."},
@@ -40,9 +41,24 @@ def test_title_covers_posts_requires_every_title_word():
         {"text": "Small artists do get it when the tools are not generative slop."},
         {"text": "AI ripped the passion out of my writing."},
     ]
-    assert not title_covers_posts("Outrage Over Issues", outrage)
-    assert not title_covers_posts("AI Use", artists)
-    assert title_covers_posts("Small Artists", artists)
+    assert not live._title_covers_posts("Outrage Over Issues", outrage)
+    assert live._title_covers_posts("Artists Reject AI", artists)
+
+
+def test_strict_reporting_requires_every_title_word():
+    outrage = [
+        {"text": "Social media posts spark outrage and generate debate about discrimination."},
+        {"text": "People are furious about a trans man in the Odyssey and the casting."},
+        {"text": "The grooming meme treats misconduct allegations like a fandom war."},
+    ]
+    artists = [
+        {"text": "Stop spreading AI-generated slop. Small artists cannot thrive."},
+        {"text": "Small artists do get it when the tools are not generative slop."},
+        {"text": "AI ripped the passion out of my writing."},
+    ]
+    assert not title_strictly_supported_by_posts("Outrage Over Issues", outrage)
+    assert not title_strictly_supported_by_posts("AI Use", artists)
+    assert title_strictly_supported_by_posts("Small Artists", artists)
 
 
 def test_merge_alike_works_with_section_string_planet_id():

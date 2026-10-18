@@ -30,11 +30,10 @@ def face_titles_equal(left: str | None, right: str | None) -> bool:
     return bool(a) and a == b
 
 
-def title_covers_posts(title: str, posts: list[dict]) -> bool:
-    """True when every title word appears in about 40% of the posts.
+def title_strictly_supported_by_posts(title: str, posts: list[dict]) -> bool:
+    """Reporting-only bar: every title word must appear in about 40% of posts.
 
-    A post counts only when the full title vocabulary is present in its text.
-    Titles with no countable words are never treated as covered.
+    Not used on the live publish or wide-relabel path (see ``live._title_covers_posts``).
     """
     words = _TITLE_WORD.findall(str(title or "").lower())
     if len(posts) < 2 or not words:
@@ -104,7 +103,7 @@ def report_unsupported_face_titles(
             posts = _face_posts(face, post_by_uri)
             if len(posts) < 2:
                 continue
-            if title_covers_posts(title, posts):
+            if title_strictly_supported_by_posts(title, posts):
                 continue
             stats["unsupported_faces"].append({"planet": planet_name, "title": title})
 
