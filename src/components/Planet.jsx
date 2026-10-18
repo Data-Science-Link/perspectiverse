@@ -54,7 +54,7 @@ export default function Planet({
   const scale = topicScale(topic.total_volume_percent, volumeMax)
   const htmlDistanceFactor = labelDistanceFactor ?? (isMobile ? 16 : 18)
   const portrait = useMediaQuery('(orientation: portrait)')
-  const labelScale = anchor && isMobile ? (portrait ? 1.92 : 1.42) : 1
+  const labelScale = anchor && isMobile && portrait ? 1.22 : 1
   const color = topicColor(topic.id, body)
   const ranked = useMemo(
     () => rankPerspectives(topic.perspectives),
@@ -234,7 +234,11 @@ export default function Planet({
         </group>
       </group>
       <Html
-        position={[0, scale * (anchor ? (isMobile ? 1.05 : 1.2) : isMobile ? 1.32 : 1.45), 0]}
+        position={[
+          0,
+          scale * (anchor ? (isMobile ? -1.22 : 1.2) : isMobile ? 1.32 : 1.45),
+          0,
+        ]}
         center
         distanceFactor={htmlDistanceFactor}
         zIndexRange={[10, 0]}

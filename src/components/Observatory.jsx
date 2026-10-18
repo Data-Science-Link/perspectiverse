@@ -302,7 +302,7 @@ export default function Observatory({
     if (!linear) return isMobile ? 16 : 18
     if (isMobile) {
       const homeDistance = Math.hypot(home[0], home[1], home[2])
-      return Math.min(44, Math.max(30, homeDistance * 2.05))
+      return Math.min(30, Math.max(18, homeDistance * 1.15))
     }
     return 18
   }, [linear, isMobile, home])

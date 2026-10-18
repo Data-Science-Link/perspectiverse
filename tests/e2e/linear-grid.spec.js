@@ -22,7 +22,7 @@ async function openLinearGrid(page) {
   await page.getByRole('button', { name: 'Linear' }).click()
   await expect(page.getByRole('button', { name: 'Orbits' })).toBeVisible()
   await expect.poll(async () => page.locator('.observatory .planet-label').count()).toBeGreaterThanOrEqual(10)
-  await page.waitForTimeout(1200)
+  await page.waitForTimeout(2000)
 }
 
 async function glyphHeight(label) {
@@ -89,6 +89,7 @@ function entriesReady(entries) {
   if (entries.length < 10) return false
   for (const entry of entries) {
     if (!entry.box || entry.glyph < 14) return false
+    if (entry.name.includes('…') || entry.name.includes('...')) return false
   }
   for (let i = 0; i < entries.length; i += 1) {
     for (let j = i + 1; j < entries.length; j += 1) {
@@ -98,11 +99,30 @@ function entriesReady(entries) {
   return true
 }
 
+async function expectGridFillsCanvas(page, minFill = 0.7) {
+  const canvas = await page.locator('.observatory canvas').boundingBox()
+  expect(canvas).not.toBeNull()
+  const entries = await labelLayout(page)
+  const tops = entries.map((entry) => entry.box.y)
+  const bottoms = entries.map((entry) => entry.box.y + entry.box.height)
+  const spread = Math.max(...bottoms) - Math.min(...tops)
+  expect(spread / canvas.height).toBeGreaterThanOrEqual(minFill)
+}
+
+async function expectFullLabelTitles(entries) {
+  for (const entry of entries) {
+    expect(entry.name).not.toMatch(/…/)
+    expect(entry.name).not.toMatch(/\.\.\.$/)
+    expect(entry.name.length).toBeGreaterThan(2)
+  }
+}
+
 async function expectAllPlanetsVisible(page) {
   await expect.poll(async () => entriesReady(await labelLayout(page)), { timeout: 15_000 }).toBe(true)
   const entries = await labelLayout(page)
   expect(entries.length).toBeGreaterThanOrEqual(10)
   expectNoLabelOverlaps(entries)
+  await expectFullLabelTitles(entries)
   const canvas = await page.locator('.observatory canvas').boundingBox()
   expect(canvas).not.toBeNull()
   for (const entry of entries) {
@@ -137,6 +157,7 @@ test.describe('Linear grid on phones', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await openLinearGrid(page)
     const entries = await expectAllPlanetsVisible(page)
+    await expectGridFillsCanvas(page, 0.7)
     await expectLayoutBookOrder(page, 'grid')
     await page.screenshot({ path: path.join(screenshotDir, 'phone-portrait.png'), fullPage: false })
     await page.locator('.observatory .planet-label').filter({ hasText: entries[1].name }).click()
@@ -148,6 +169,7 @@ test.describe('Linear grid on phones', () => {
     await page.setViewportSize({ width: 844, height: 390 })
     await openLinearGrid(page)
     await expectAllPlanetsVisible(page)
+    await expectGridFillsCanvas(page, 0.48)
     await expectLayoutBookOrder(page, 'grid')
     await page.screenshot({ path: path.join(screenshotDir, 'phone-landscape.png'), fullPage: false })
   })

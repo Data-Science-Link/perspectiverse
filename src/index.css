@@ -865,7 +865,13 @@ h3 {
 }
 
 .planet-label.is-mobile.is-linear {
-  max-width: min(34vw, 8.75rem);
+  max-width: min(46vw, 11.5rem);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.2;
+  text-align: center;
+  hyphens: auto;
 }
 
 .planet-label.is-dimmed {
