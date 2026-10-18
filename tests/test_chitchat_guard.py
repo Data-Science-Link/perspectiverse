@@ -467,17 +467,44 @@ def test_issue_227_thank_planet_201_mention_cluster_drops():
     assert "65 posts" in reason
 
 
-def test_issue_227_twitch_planet_55_stream_cluster_drops():
-    """Published twitch.tv ball (~55 posts) just under the old 32% stream bar."""
-    promo = {"text": "www.twitch.tv/example_streamer Live now!"}
+def test_issue_227_twitch_planet_55_bare_link_cards_drop():
+    """Published ~55-post twitch.tv ball: bare link cards plus a few text URLs.
+
+    Review at 9075f68 counted 16/55 (29.1%) because link cards keep the URL in
+    ``clean_text`` while ``text`` is blank whitespace.
+    """
+    link_card = {"text": " ", "clean_text": "twitch.tv/example_streamer"}
+    text_url = {"text": "twitch.tv/example_streamer"}
     filler = {
         "text": "Senate leaders agreed on a stopgap funding bill before the deadline.",
     }
-    members = [promo] * 17 + [filler] * 38
+    members = [link_card] * 39 + [text_url] * 16
+    assert len(members) == 55
     reason = planet_chitchat_reason(members, [], name="Twitch")
     assert reason is not None
     assert "stream promos" in reason
-    assert reason.startswith("31%") or reason.startswith("30%")
+    assert reason.startswith("100%")
+
+
+def test_stream_cluster_keeps_topical_news_planets():
+    """Ukraine, vote, Israel, trans, healthcare, and fascism balls must not drop."""
+    fillers = {
+        "ukraine": "The anniversary of the invasion is not a happy anniversary for Ukraine.",
+        "vote": "The Senate should publish the mail ballot rules before November.",
+        "israel": (
+            "Keep out of prison even if most Israelis die. Netanyahu has port-a-potty "
+            "bomb shelters. www.youtube.com/live/0IVuVK6"
+        ),
+        "trans": (
+            "little vent but with all the anti trans stuff happening i hate that i now "
+            "live in constant fear"
+        ),
+        "healthcare": "I'm sick of Congress missing the healthcare vote.",
+        "fascism": "We cannot let fascism take root in our local school boards.",
+    }
+    for name, text in fillers.items():
+        members = [{"text": text}] * 55
+        assert planet_chitchat_reason(members, [], name=name) is None
 
 
 def test_twitch_policy_planet_55_stays():

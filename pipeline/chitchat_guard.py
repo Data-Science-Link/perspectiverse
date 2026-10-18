@@ -158,6 +158,13 @@ _STREAM_URL_RE = re.compile(
     r"(?:https?://)?(?:www\.)?(?:twitch\.tv/|kick\.com/)",
     re.IGNORECASE,
 )
+# Stream hosts for planet stream-share (includes subdomains and YouTube /live).
+_STREAM_DOMAIN_URL_RE = re.compile(
+    r"(?:https?://)?(?:[\w-]+\.)*twitch\.tv(?:/\S*)?|"
+    r"(?:https?://)?(?:[\w-]+\.)*kick\.com(?:/\S*)?|"
+    r"(?:https?://)?(?:www\.)?youtube\.com/live(?:/\S*)?",
+    re.IGNORECASE,
+)
 _STREAM_PHRASE_RE = re.compile(
     r"\b(?:live now|going live|go live|im live|i am live|were live|we are live|"
     r"stream is starting|stream starting|streams starting|stream starts|streams start|stream time|"
@@ -1009,6 +1016,28 @@ def pleasantry_share(members: list[dict]) -> float:
     return hits / len(members)
 
 
+def _post_text_surfaces(post: dict) -> str:
+    """Text and clean_text combined. Link cards often leave ``text`` blank."""
+    return " ".join(
+        part.strip()
+        for part in (str(post.get("text") or ""), str(post.get("clean_text") or ""))
+        if part and part.strip()
+    )
+
+
+def is_bare_stream_domain_link(post: dict) -> bool:
+    """A Twitch, Kick, or YouTube /live URL with almost no other words."""
+    raw = _post_text_surfaces(post)
+    if not _STREAM_DOMAIN_URL_RE.search(raw):
+        return False
+    text = HASHTAG_RE.sub(" ", raw)
+    text = HANDLE_RE.sub(" ", text)
+    text = _STREAM_DOMAIN_URL_RE.sub(" ", text)
+    text = URL_RE.sub(" ", text)
+    words = re.findall(r"[A-Za-z]{3,}", text)
+    return len(words) < 4
+
+
 def is_bare_link_post(post: dict) -> bool:
     """A URL, including youtu.be, with fewer than four words left.
 
@@ -1115,9 +1144,13 @@ def planet_chitchat_reason(
         return f"{gesture:.0%} of the posts are social gestures in a large cluster"
     streamish = 0
     for member in members:
-        raw = post_body(member)
-        plain = _plain(raw)
-        if pleasantry_reason(member) == "stream_announce" or _STREAM_URL_RE.search(raw or ""):
+        surfaces = _post_text_surfaces(member)
+        plain = _plain(surfaces or post_body(member))
+        if pleasantry_reason(member) == "stream_announce":
+            streamish += 1
+        elif is_bare_stream_domain_link(member):
+            streamish += 1
+        elif _STREAM_URL_RE.search(surfaces or ""):
             streamish += 1
         elif _STREAM_URL_RE.search(plain or ""):
             streamish += 1
