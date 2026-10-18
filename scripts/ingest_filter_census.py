@@ -23,7 +23,6 @@ from pipeline.chitchat_guard import edition_posts_for_clustering, ingest_block_r
 from pipeline.cleaning import clean_text
 from pipeline.eval.grouping_eval import embed_texts
 from pipeline.label import heuristic_topic_label
-from pipeline.live import _build_topics, _label_context
 from pipeline.store import connect, load_posts
 from pipeline.topics import CANDIDATE_POOL, cluster_texts
 
@@ -54,12 +53,7 @@ def _load_main_language_module():
 def drop_counts(posts: list[dict], *, use_main: bool) -> tuple[dict[str, int], dict[str, list[str]]]:
     if use_main:
         lang_mod = _load_main_language_module()
-        _kept, language, links = lang_mod.partition_posts(
-            [
-                {"text": post.get("text"), "clean_text": post.get("clean_text")}
-                for post in posts
-            ]
-        )
+        _kept, language, links = lang_mod.partition_posts(posts)
         return {"link_only": links, "language": language}, {}
     counts: dict[str, int] = {}
     samples: dict[str, list[str]] = {}
@@ -98,34 +92,6 @@ def cluster_planets(
         embed=lambda _batch, rows=matrix: rows,
         authors=[str(post.get("author") or "unknown") for post in posts],
     )
-    context = _label_context(
-        {
-            "label_backend": "heuristic",
-            "representative_posts": 12,
-            "seed": seed,
-            "label_workers": 0,
-            "openai_model": "",
-        }
-    )
-    built, _, _ = _build_topics(
-        posts,
-        clustered,
-        {"min_planet_posts": 0, "seed": seed},
-        keep=10_000,
-        context=context,
-    )
-    by_size = sorted(
-        [
-            {
-                "name": str(topic.get("name") or ""),
-                "size": int(topic.get("post_count") or 0),
-                "terms": topic.get("terms") or [],
-            }
-            for topic in built
-        ],
-        key=lambda row: (-row["size"], row["name"]),
-    )
-    # Also label raw candidate clusters not filtered by min_planet_posts
     candidates = []
     for topic in clustered.get("topics") or []:
         indices = [int(i) for i in (topic.get("member_indices") or [])]
@@ -164,9 +130,7 @@ def main() -> None:
             print(f"    - {text}")
 
     kept_main_mod = _load_main_language_module()
-    kept_old, lang_old, link_old = kept_main_mod.partition_posts(
-        [{"text": p.get("text"), "clean_text": p.get("clean_text")} for p in posts]
-    )
+    kept_old, lang_old, link_old = kept_main_mod.partition_posts(posts)
     kept_new, lang_new, link_new, chit_new = edition_posts_for_clustering(posts)
     print(
         f"Clustering input: old kept={len(kept_old)} "
