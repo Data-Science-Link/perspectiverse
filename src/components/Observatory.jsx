@@ -3,6 +3,7 @@ import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutLinear, layoutSolarSystem, orbitElements, topicScale } from '../lib/layout'
+import { installSolarCameraTestHooks, restoreSolarView, stashSolarView } from '../lib/solarCamera'
 import TopicFilter from './TopicFilter'
 import { solarSettings } from '../lib/solarSettings'
 import { OrbitRing, default as Planet } from './Planet'
@@ -41,9 +42,18 @@ function FocusCamera({
     const home = homeView(isMobile, planetCount, layoutExtent, linear)
 
     if (!selectedTopic) {
-      if (!booted.current || lastId.current !== null) {
-        controls.setLookAt(...home, lastId.current !== null)
+      if (lastId.current !== null) {
+        if (!restoreSolarView(controls, true)) {
+          controls.setLookAt(...home, true)
+        }
         lastId.current = null
+        booted.current = true
+        return
+      }
+      if (!booted.current) {
+        if (!restoreSolarView(controls, false)) {
+          controls.setLookAt(...home, false)
+        }
         booted.current = true
       }
       return
@@ -52,6 +62,10 @@ function FocusCamera({
     if (lastId.current === selectedTopic.id) return
     const position = anchors.current[selectedTopic.id]
     if (!position) return
+
+    if (lastId.current === null) {
+      stashSolarView(controls)
+    }
 
     const distance = cameraOffsetForScale(topicScale(selectedTopic.total_volume_percent, volumeMax))
     controls.setLookAt(
@@ -89,9 +103,23 @@ function Universe({
   const inspecting = Boolean(selectedTopic)
   const maxDistance = homeMaxDistance(isMobile, topics.length, layout.extent, { linear })
 
+  const handleSelectTopic = useCallback(
+    (topicId) => {
+      if (selectedTopicId == null) {
+        stashSolarView(controlsRef.current)
+      }
+      onSelectTopic(topicId)
+    },
+    [onSelectTopic, selectedTopicId],
+  )
+
   useEffect(() => {
+    installSolarCameraTestHooks(() => controlsRef.current)
     return () => {
       document.body.style.cursor = 'auto'
+      if (typeof window !== 'undefined' && window.__PV_SOLAR_CAMERA__) {
+        delete window.__PV_SOLAR_CAMERA__
+      }
     }
   }, [])
 
@@ -136,7 +164,7 @@ function Universe({
           dimmed={Boolean(selectedTopicId) && topic.id !== selectedTopicId}
           selectedPerspectiveId={topic.id === selectedTopicId ? selectedPerspectiveId : null}
           anchors={anchors}
-          onSelectTopic={onSelectTopic}
+          onSelectTopic={handleSelectTopic}
           onSelectPerspective={onSelectPerspective}
           isMobile={isMobile}
           volumeMax={volumeMax}
