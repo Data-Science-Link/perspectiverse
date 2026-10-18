@@ -671,3 +671,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Alternatives:** Keep the audit fixes queued behind the 100K work (his 2026-10-17 instruction, now replaced). Cap the outsider review at the number of issues closed the day before (declined).
 **Revisit:** When the site is past early stage, or if the volume of merges starts causing regressions.
 **Replaces:** The 2026-10-17 "after the 100K stuff" ordering, for simple fixes only. Normal and high-risk PRs still go through the product gate, and deleting stored posts still needs Michael's explicit yes.
+
+## 2026-10-18: Email list, visitor chat and the Pages move are specs only, deferred
+
+- **Decision:** The specs in #244 (#239 secure email list, #240 visitor LLM chat, and the move from GitHub Pages to Cloudflare Pages) are merged as docs only. None of them gets built. The separate $50 chat cap applies only once chat is built; its period is still unconfirmed.
+- **Why:** Michael (Factory, 3:07 PM CT): "PLEASE do not build either. They are just big initiatives for the future after refining the sites core functionality... I want to wait until we get everything else polished and really nice."
+- **Alternatives:** Build the email list or chat now. Rejected because core polish comes first.
+- **Revisit:** Only when Michael says the core site is polished and gives an explicit go for a specific build.
