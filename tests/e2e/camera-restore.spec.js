@@ -51,6 +51,27 @@ async function dollySolarView(page, amount = 0.55) {
   await page.waitForTimeout(450)
 }
 
+async function homeDistance(page) {
+  return page.evaluate(() => window.__PV_SOLAR_CAMERA__?.homeDistance?.() ?? null)
+}
+
+async function drillPlanetAndBack(page, testInfo) {
+  if (testInfo.project.name === 'mobile') {
+    await page.locator('.observatory .planet-label').first().click({ force: true })
+  } else {
+    await page.getByRole('button', { name: 'Perspectives' }).click()
+  }
+  await expect(page).toHaveURL(/topic=/)
+  if (testInfo.project.name === 'mobile') {
+    await page.locator('button.chrome-back').click()
+  } else {
+    await page.getByRole('button', { name: '← All topics' }).click()
+  }
+  await expect(page).not.toHaveURL(/topic=/)
+  await waitForCamera(page)
+  await page.waitForTimeout(700)
+}
+
 test.describe('Solar camera restore', () => {
   test('returns to the same zoom and pan after leaving a planet', async ({ page }, testInfo) => {
     await enterSolarSystem(page)
@@ -59,21 +80,7 @@ test.describe('Solar camera restore', () => {
     const before = await readCamera(page)
     expect(before?.distance).toBeTruthy()
 
-    if (testInfo.project.name === 'mobile') {
-      await page.locator('.observatory .planet-label').first().click({ force: true })
-    } else {
-      await page.getByRole('button', { name: 'Perspectives' }).click()
-    }
-    await expect(page).toHaveURL(/topic=/)
-
-    if (testInfo.project.name === 'mobile') {
-      await page.locator('button.chrome-back').click()
-    } else {
-      await page.getByRole('button', { name: '← All topics' }).click()
-    }
-    await expect(page).not.toHaveURL(/topic=/)
-    await waitForCamera(page)
-    await page.waitForTimeout(700)
+    await drillPlanetAndBack(page, testInfo)
 
     const after = await readCamera(page)
     expect(viewsMatch(before, after)).toBe(true)
@@ -96,5 +103,42 @@ test.describe('Solar camera restore', () => {
 
     const after = await readCamera(page)
     expect(viewsMatch(before, after)).toBe(true)
+  })
+
+  test('switching to World after a planet visit uses World home framing', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'Category filter lives on the desktop chrome')
+    await enterSolarSystem(page)
+    await waitForCamera(page)
+    await dollySolarView(page, 0.7)
+    await drillPlanetAndBack(page, testInfo)
+    const zoomed = await readCamera(page)
+
+    await page.locator('#solar-topic-filter').selectOption('World')
+    await page.waitForTimeout(900)
+    await waitForCamera(page)
+    const worldCam = await readCamera(page)
+    const worldHome = await homeDistance(page)
+    expect(worldHome).toBeTruthy()
+    expect(near(worldCam.distance, worldHome, 0.65)).toBe(true)
+    expect(worldCam.distance).toBeLessThan(zoomed.distance - 2)
+  })
+
+  test('Linear after a planet visit centers the row at home distance', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'Linear toggle is on the desktop observatory chrome')
+    await enterSolarSystem(page)
+    await waitForCamera(page)
+    await page.evaluate(() => window.__PV_SOLAR_CAMERA__?.truck?.(5, 0))
+    await page.waitForTimeout(400)
+    await dollySolarView(page, 0.55)
+    await drillPlanetAndBack(page, testInfo)
+
+    await page.getByRole('button', { name: 'Linear' }).click()
+    await page.waitForTimeout(900)
+    await waitForCamera(page)
+    const linearCam = await readCamera(page)
+    const linearHome = await homeDistance(page)
+    expect(linearHome).toBeTruthy()
+    expect(near(linearCam.distance, linearHome, 0.65)).toBe(true)
+    expect(Math.abs(linearCam.target[0])).toBeLessThan(1.5)
   })
 })

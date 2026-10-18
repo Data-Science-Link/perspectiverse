@@ -14,6 +14,7 @@ import {
   topicScale,
 } from '../src/lib/layout.js'
 import { decorateTopics } from '../src/lib/planets.js'
+import { clampSolarView, solarLayoutKey } from '../src/lib/solarCamera.js'
 
 assert.equal(SITE_TITLE, 'Perspectiverse')
 assert.match(SITE_TAGLINE, /perspective/i)
@@ -92,5 +93,14 @@ for (const isMobile of [false, true]) {
   const distance = Math.hypot(framed[0], framed[1], framed[2])
   assert.ok(distance > line.extent * 0.8, `linear camera too close on ${isMobile}`)
 }
+
+assert.equal(solarLayoutKey('all', false), 'all:orbit')
+assert.equal(solarLayoutKey('World', true), 'World:linear')
+const clamped = clampSolarView(
+  { position: [40, 10, 40], target: [30, 0, 0], distance: 50 },
+  { minDistance: 3.2, maxDistance: 19.2, extent: 8, linear: false },
+)
+assert.ok(clamped.distance <= 19.2 + 1e-6)
+assert.ok(Math.abs(clamped.target[0]) <= 8 * 0.45 + 1e-6)
 
 console.log('solar system settings, tagline, and texture quality ok')
