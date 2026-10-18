@@ -19,6 +19,7 @@ from pathlib import Path
 from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, URL_RE
 from pipeline.language import is_link_only, looks_english, partition_posts
 from pipeline.spam_guard import guard_reason, post_body
+from pipeline.weather_guard import weather_bot_reason
 
 # Majority of member posts. Titles are not consulted.
 PLEASANTRY_SHARE_DROP = 0.55
@@ -742,6 +743,9 @@ def ingest_block_reason(post: dict) -> str | None:
     spam = guard_reason(post)
     if spam:
         return f"spam:{spam}"
+    weather = weather_bot_reason(post)
+    if weather:
+        return weather
     chit = pleasantry_reason(post)
     if chit:
         return f"chitchat:{chit}"
@@ -781,6 +785,10 @@ def edition_posts_for_clustering(
     links = 0
     for post in posts:
         uri = str(post.get("uri") or "")
+        if weather_bot_reason(post):
+            if carried_skips is not None and uri in carried:
+                carried_skips["weather_bot"] = carried_skips.get("weather_bot", 0) + 1
+            continue
         text = str(post.get("clean_text") or post.get("text") or "")
         if is_link_only(text):
             links += 1
