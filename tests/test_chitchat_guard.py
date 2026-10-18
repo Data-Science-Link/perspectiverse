@@ -20,6 +20,8 @@ from pipeline.chitchat_guard import (
 )
 from scripts.replay_planet_guard import classify_planet
 from pipeline.free_ingest import keep_edition_quality
+from pipeline.language import edition_filter_reason
+from pipeline.store import should_drop_stored_post
 from pipeline.label import (
     build_planet_name_prompt,
     build_topic_prompt,
@@ -485,6 +487,37 @@ def test_bare_youtube_link_counts_in_the_planet_share_only():
     sentence = {"text": "You might find this video heartening. youtu.be/SOSOyr1yPao"}
     assert not is_bare_link_post(sentence)
     assert planet_chitchat_reason([sentence] * 8, [], name="Music Videos") is None
+
+
+def test_stored_drop_and_clustering_agree_on_raw_text_not_stale_clean_text():
+    """#219 stored rows may have ``clean_text`` without the URL; clustering must match ingest."""
+
+    def assert_agree(post: dict) -> None:
+        drop = should_drop_stored_post(post)
+        kept, language, links, chitchat = edition_posts_for_clustering([post])
+        clustered = len(kept) == 1
+        assert drop != clustered
+        if drop:
+            assert edition_filter_reason(post) in {"link_only", "language"} or (
+                ingest_block_reason(post) is not None
+            )
+
+    commentary = {
+        "uri": "at://stored/commentary-link",
+        "text": "There it is!! bsky.app/profile/example.bsky.social/post/abc",
+        "clean_text": "There it is!!",
+    }
+    assert edition_filter_reason(commentary) is None
+    assert_agree(commentary)
+
+    stale_bare = {
+        "uri": "at://stored/bare-youtube",
+        "text": "youtu.be/VAWjsVoDpm0 #musicsky",
+        "clean_text": "#musicsky",
+    }
+    assert edition_filter_reason(stale_bare) == "link_only"
+    assert ingest_block_reason(stale_bare) == "link_only"
+    assert_agree(stale_bare)
 
 
 def test_clustering_pass_counts_carried_over_skips():

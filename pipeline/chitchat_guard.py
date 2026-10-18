@@ -775,13 +775,13 @@ def edition_posts_for_clustering(
     links = 0
     for post in posts:
         uri = str(post.get("uri") or "")
-        text = str(post.get("clean_text") or post.get("text") or "")
-        if is_link_only(text):
+        reason = edition_filter_reason(post)
+        if reason == "link_only":
             links += 1
             if carried_skips is not None and uri in carried:
                 carried_skips["link_only"] = carried_skips.get("link_only", 0) + 1
             continue
-        if not looks_english(text):
+        if reason == "language":
             language += 1
             if carried_skips is not None and uri in carried:
                 carried_skips["language"] = carried_skips.get("language", 0) + 1
