@@ -182,6 +182,7 @@ def run_live(
     try:
         enforce_before_paid_work()
         existing = load_posts(connection)
+        carried_uris = {str(post.get("uri") or "") for post in existing if post.get("uri")}
         if free_ingest and fixture is None and not relabel:
             print(
                 "Free ingest is on: spam and chit-chat guards instead of per-post Jev, "
@@ -278,9 +279,19 @@ def run_live(
         # DROP_LINK_AND_LANGUAGE_AT_INGEST=0 only lets them count in the
         # stored corpus; it does not put them in this clustering set.
         before_filter = len(planet_posts)
+        carried_cluster_skips: dict[str, int] = {}
         planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
-            planet_posts
+            planet_posts,
+            carried_uris=carried_uris,
+            carried_skips=carried_cluster_skips,
         )
+        if carried_cluster_skips:
+            print(
+                "Carried-over clustering filters: "
+                f"chitchat={carried_cluster_skips.get('chitchat', 0)}, "
+                f"link_only={carried_cluster_skips.get('link_only', 0)}, "
+                f"language={carried_cluster_skips.get('language', 0)}."
+            )
         if skipped_language or skipped_links:
             print(
                 f"Skipped {skipped_language} non-English and {skipped_links} link-only "
@@ -310,7 +321,9 @@ def run_live(
             planet_posts = posts_for_planets(cleaned, require_claims=False)
             before_filter = len(planet_posts)
             planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
-                planet_posts
+                planet_posts,
+                carried_uris=carried_uris,
+                carried_skips=carried_cluster_skips,
             )
             print(
                 f"After top-up: {len(cleaned)} stored, {len(planet_posts)} edition posts for clustering."
@@ -322,6 +335,7 @@ def run_live(
             "skipped_non_english": skipped_language,
             "skipped_link_only": skipped_links,
             "skipped_chitchat_cluster_pass": skipped_chitchat,
+            "carried_cluster_skips": carried_cluster_skips,
             "edition_posts_for_clustering": len(planet_posts),
         }
         if not planet_posts:
@@ -429,11 +443,9 @@ def run_live(
         f"{clustered['noise_count']} excluded as clustering noise, wrote {destination}"
     )
     if free_ingest:
-        log = get_chitchat_log()
-        print(
-            f"Chit-chat ingest filter: {log.chitchat_blocked} of {log.fetched} fetched posts "
-            f"({log.chitchat_share_of_fetched():.2%})."
-        )
+        from pipeline.free_ingest import log_fetch_bucket_summary
+
+        log_fetch_bucket_summary()
     _log_fill_run_summary(payload)
     _write_cost_run(payload, started_at)
     if free_ingest:

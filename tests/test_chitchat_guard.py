@@ -487,6 +487,36 @@ def test_bare_youtube_link_counts_in_the_planet_share_only():
     assert planet_chitchat_reason([sentence] * 8, [], name="Music Videos") is None
 
 
+def test_clustering_pass_counts_carried_over_skips():
+    carried = {"at://old-thanks", "at://old-link"}
+    posts = [
+        {
+            "uri": "at://old-thanks",
+            "text": "Thanks!!",
+            "clean_text": "Thanks!!",
+        },
+        {
+            "uri": "at://old-link",
+            "text": "https://example.com/only",
+            "clean_text": "https://example.com/only",
+        },
+        {
+            "uri": "at://fresh",
+            "text": "The senate should vote on the housing bill before Friday.",
+            "clean_text": "The senate should vote on the housing bill before Friday.",
+        },
+    ]
+    carried_skips: dict[str, int] = {}
+    kept, language, links, chitchat = edition_posts_for_clustering(
+        posts,
+        carried_uris=carried,
+        carried_skips=carried_skips,
+    )
+    assert [post["uri"] for post in kept] == ["at://fresh"]
+    assert (language, links, chitchat) == (0, 1, 1)
+    assert carried_skips == {"link_only": 1, "chitchat": 1}
+
+
 def test_link_and_language_switch_matches_main_on_the_clustering_path(monkeypatch):
     """Main already skipped these posts before clustering and still stored them.
 

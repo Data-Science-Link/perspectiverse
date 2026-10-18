@@ -66,6 +66,11 @@ def is_spam(text: str) -> bool:
     return False
 
 
+def dedupe_key(post: dict) -> str:
+    """Normalized text key for copy-paste dedup across URIs."""
+    return _dedupe_key(str(post.get("clean_text") or post.get("text") or ""))
+
+
 def drop_near_duplicates(posts: list[dict]) -> list[dict]:
     """Drop copy-paste text that survived URI dedup. Safe for the live window."""
     kept: list[dict] = []

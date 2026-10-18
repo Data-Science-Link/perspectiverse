@@ -80,23 +80,40 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     return connection
 
 
-def is_quality_post(post: dict) -> bool:
-    """A post the database keeps: Jev called it a claim and not spam.
-
-    The pre-filter never sets ``is_claim``. Spam at or above the Jev spam
-    threshold is not kept even when the claim score passed.
-    """
-    if post.get("is_claim") is not True:
-        return False
+def is_spam_post(post: dict) -> bool:
+    """True when Jev or the free spam guard would drop the post."""
     spam = post.get("spam_score")
-    if spam is None or spam == "":
-        return True
-    try:
-        from pipeline.jev import SPAM_THRESHOLD
+    if spam is not None and spam != "":
+        try:
+            from pipeline.jev import SPAM_THRESHOLD
 
-        return float(spam) < SPAM_THRESHOLD
-    except (TypeError, ValueError):
-        return True
+            return float(spam) >= SPAM_THRESHOLD
+        except (TypeError, ValueError):
+            pass
+    from pipeline.spam_guard import guard_reason
+
+    return guard_reason(post) is not None
+
+
+def is_quality_post(post: dict) -> bool:
+    """A post the database keeps: any non-spam post (#211).
+
+    Claim versus non-claim does not matter. The free spam guard covers rows
+    with no ``spam_score`` (free ingest).
+    """
+    return not is_spam_post(post)
+
+
+def _stored_post_block_reason(post: dict) -> str | None:
+    """Why a stored row should leave the corpus before clustering."""
+    if is_spam_post(post):
+        return "spam"
+    from pipeline.chitchat_guard import ingest_block_reason
+
+    reason = ingest_block_reason(post)
+    if reason is not None:
+        return reason
+    return None
 
 
 def count_quality_posts(connection: sqlite3.Connection) -> int:
@@ -109,45 +126,58 @@ def _verdict_uris(connection: sqlite3.Connection) -> set[str]:
 
 
 def drop_non_quality_posts(connection: sqlite3.Connection) -> int:
-    """Remove stored spam and non-claims once their verdict is in the cache.
+    """Remove stored spam and posts the free filters now refuse.
 
-    A row with no ``jev_verdicts`` entry stays, so a post is not discarded
-    before its URI is remembered. Quality claims stay.
+    Non-claims stay. A row with no ``jev_verdicts`` entry is still dropped
+    when it is spam on the row or matches the free guards. Cached non-claim
+    verdicts no longer evict the post.
     """
-    verdicts = _verdict_uris(connection)
     existing = load_posts(connection)
     kept: list[dict] = []
-    dropped = 0
+    dropped_spam = 0
+    dropped_filtered = 0
+    kept_non_claim = 0
     for post in existing:
-        uri = str(post.get("uri") or "")
-        if is_quality_post(post) or uri not in verdicts:
+        reason = _stored_post_block_reason(post)
+        if reason is None:
             kept.append(post)
-        else:
-            dropped += 1
+            if post.get("is_claim") is False:
+                kept_non_claim += 1
+            continue
+        if reason == "spam":
+            dropped_spam += 1
+            continue
+        dropped_filtered += 1
+    dropped = dropped_spam + dropped_filtered
     if dropped:
         replace_posts(connection, kept)
         print(
-            f"Dropped {dropped} stored posts that are spam or not claims; "
-            "their verdicts stay in the Jev cache."
+            "Stored corpus cleanup: "
+            f"spam={dropped_spam}, filtered={dropped_filtered} "
+            "(chit-chat, link-only, language, or free spam guard), "
+            f"kept_non_claim={kept_non_claim}; "
+            f"{len(kept)} row(s) remain."
         )
     return dropped
 
 
 def write_quality_posts(connection: sqlite3.Connection, posts: list[dict]) -> None:
-    """Replace the post table with quality claims.
+    """Replace the post table with non-spam edition-quality rows.
 
-    Spam and non-claims in ``posts`` are not inserted. A stored non-claim
-    that still has no cached verdict is left in the table.
+    Spam and posts blocked by the free ingest guards are not inserted.
     """
-    quality = [post for post in posts if is_quality_post(post)]
+    quality = [
+        post
+        for post in posts
+        if is_quality_post(post) and _stored_post_block_reason(post) is None
+    ]
     quality_uris = {str(post.get("uri") or "") for post in quality}
-    verdicts = _verdict_uris(connection)
     held = []
     for post in load_posts(connection):
         uri = str(post.get("uri") or "")
-        if not uri or uri in quality_uris or is_quality_post(post):
+        if not uri or uri in quality_uris:
             continue
-        if uri not in verdicts:
+        if _stored_post_block_reason(post) is None:
             held.append(post)
     replace_posts(connection, quality + held)
 
@@ -397,7 +427,10 @@ def main(argv: list[str] | None = None) -> int:
     """One-time cleanup and the quality-post count the fill done check reads."""
     parser = argparse.ArgumentParser(description="Quality-post helpers for the retained corpus")
     sub = parser.add_subparsers(dest="command", required=True)
-    drop = sub.add_parser("drop-non-quality", help="Remove spam and non-claims whose verdicts are cached")
+    drop = sub.add_parser(
+        "drop-non-quality",
+        help="Remove stored spam and posts blocked by the free ingest guards",
+    )
     drop.add_argument("db", type=Path)
     count = sub.add_parser("count-quality", help="Print how many quality posts are stored")
     count.add_argument("db", type=Path)
