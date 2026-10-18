@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 
 from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, URL_RE
-from pipeline.language import is_link_only, looks_english
+from pipeline.language import is_link_only, looks_english, partition_posts
 from pipeline.spam_guard import guard_reason, post_body
 
 # Majority of member posts. Titles are not consulted.
@@ -26,12 +26,18 @@ PLEASANTRY_SHARE_DROP = 0.55
 # (one of two representatives). 30% is the empty gap between those.
 MODEL_CHITCHAT_SHARE_FLOOR = 0.30
 
-# d721778 removed link-only and non-English posts at ingest in the same change
-# as the #208 chit-chat filter. #208 requires chit-chat out of the 100K. It
-# does not require these two to miss the count. ``partition_posts`` still
-# drops both before clustering, so turning this off only lets them count
-# toward the stored edition. Set the constant, or the environment variable
-# ``DROP_LINK_AND_LANGUAGE_AT_INGEST=0``, to switch that ingest step off.
+# Link-only and non-English filtering before clustering is ``partition_posts``.
+# That call is on main (pre-#209), in live.py since 322b12f. Main's free ingest
+# stored those posts: ``keep_non_spam`` dropped only spam, so they counted
+# toward the corpus, and ``partition_posts`` then kept them out of clustering.
+#
+# This flag is the #209 ingest drop, added in d721778. It does not turn the
+# main clustering filter off.
+# True (default): ingest refuses them, so they do not count toward the 100K,
+# and clustering still skips any that are already stored.
+# False, or ``DROP_LINK_AND_LANGUAGE_AT_INGEST=0``: main's behavior. They
+# count toward the stored corpus, and ``edition_posts_for_clustering`` still
+# removes them before clustering. They are not clustered in either setting.
 DROP_LINK_AND_LANGUAGE_AT_INGEST = True
 
 # Social and function words. A token here is not a public topic.
@@ -595,8 +601,11 @@ chitchat_reason = pleasantry_reason
 def drop_link_and_language_at_ingest() -> bool:
     """Whether ingest refuses link-only and non-English posts.
 
-    The environment variable wins when it is set, so a rerun can switch the
-    step off without editing this file. The default is on.
+    The environment variable wins when it is set. ``0`` reproduces main:
+    those posts count toward the stored corpus. It does not let them into
+    clustering. ``edition_posts_for_clustering`` still removes them, which
+    is what main's ``partition_posts`` already did. The default is on, so
+    ingest refuses them and they do not count toward the 100K.
     """
     raw = os.environ.get("DROP_LINK_AND_LANGUAGE_AT_INGEST")
     if raw is None or not str(raw).strip():
@@ -624,6 +633,43 @@ def ingest_block_reason(post: dict) -> str | None:
     if not looks_english(text):
         return "language"
     return None
+
+
+def edition_posts_for_clustering(posts: list[dict]) -> tuple[list[dict], int, int, int]:
+    """Posts that enter clustering, plus language, link, and chit-chat skips.
+
+    Link-only and non-English posts are always removed. That is
+    ``partition_posts``, which main already ran before #209. Free ingest on
+    main counted those posts in the stored corpus and then skipped them
+    here. ``DROP_LINK_AND_LANGUAGE_AT_INGEST=0`` restores that split: ingest
+    keeps them, and this function still removes them. The switch does not
+    let them into a planet.
+
+    Chit-chat is always removed here too. That part is #208.
+    """
+    kept, language, links = partition_posts(posts)
+    kept, chitchat = filter_chitchat_posts(kept)
+    return kept, language, links, chitchat
+
+
+def clustering_topup_shortfall(
+    target: int,
+    clustered: int,
+    skipped_language: int,
+    skipped_links: int,
+) -> int:
+    """How many more posts to fetch so the edition can fill ``target``.
+
+    With the ingest switch on, link-only and non-English posts do not count
+    toward the 100K, so a clustering gap is a shortfall. With the switch off,
+    those posts already counted in the stored corpus, which is main's
+    behavior, and removing them before clustering is not a reason to fetch
+    more. Chit-chat skips still are.
+    """
+    excluded = 0
+    if not drop_link_and_language_at_ingest():
+        excluded = int(skipped_language) + int(skipped_links)
+    return max(0, int(target) - int(clustered) - excluded)
 
 
 def filter_chitchat_posts(posts: list[dict]) -> tuple[list[dict], int]:

@@ -204,10 +204,13 @@ def ingest_free(
 ) -> list[dict]:
     """Fetch the last 7 UTC days and keep edition-quality posts.
 
-    Spam, chit-chat, link-only, and non-English posts are dropped before they
-    count toward the daily cap or ``target``. Does not call Jev. A search
-    failure keeps the posts already collected. The retained list is cut to the
-    rolling window and ``target``.
+    Spam and chit-chat are always dropped before the daily cap and ``target``.
+    Link-only and non-English posts are dropped there only when
+    ``drop_link_and_language_at_ingest`` is on. When it is off they count
+    toward the stored edition, which is what main did before #209, and
+    clustering still skips them. Does not call Jev. A search failure keeps
+    the posts already collected. The retained list is cut to the rolling
+    window and ``target``.
     """
     if reset_log:
         reset_chitchat_log()

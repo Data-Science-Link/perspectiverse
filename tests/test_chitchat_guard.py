@@ -9,6 +9,8 @@ from pathlib import Path
 
 from pipeline.chitchat_guard import (
     PLEASANTRY_SHARE_DROP,
+    clustering_topup_shortfall,
+    edition_posts_for_clustering,
     ingest_block_reason,
     is_bare_link_post,
     MODEL_CHITCHAT_SHARE_FLOOR,
@@ -438,16 +440,45 @@ def test_bare_youtube_link_counts_in_the_planet_share_only():
     assert planet_chitchat_reason([sentence] * 8, [], name="Music Videos") is None
 
 
-def test_link_and_language_ingest_switch_defaults_on(monkeypatch):
-    dutch = {"text": "Het is niet een goed plan want de regering heeft geen meerderheid."}
+def test_link_and_language_switch_matches_main_on_the_clustering_path(monkeypatch):
+    """Main already skipped these posts before clustering and still stored them.
+
+    ``partition_posts`` is on main (live.py, since 322b12f). Free ingest there
+    counted link-only and non-English posts in the corpus. ``=0`` does that.
+    ``=1`` also refuses them at ingest so they do not count toward the 100K.
+    Neither setting clusters them.
+    """
+    senate = {"text": "The senate should vote on the housing bill before Friday."}
     link = {"text": "https://example.com/only"}
+    dutch = {"text": "Het is niet een goed plan want de regering heeft geen meerderheid."}
+    thanks = {"text": "Thanks!!"}
+    posts = [senate, link, dutch, thanks]
+
+    def clustered():
+        kept, language, links, chitchat = edition_posts_for_clustering(posts)
+        return [post["text"] for post in kept], language, links, chitchat
+
     monkeypatch.delenv("DROP_LINK_AND_LANGUAGE_AT_INGEST", raising=False)
+    kept, language, links, chitchat = clustered()
+    assert kept == [senate["text"]]
+    assert (language, links, chitchat) == (1, 1, 1)
     assert ingest_block_reason(link) == "link_only"
     assert ingest_block_reason(dutch) == "language"
+    # Switch on: the clustering gap is a shortfall, because these posts
+    # do not count toward the stored edition.
+    assert clustering_topup_shortfall(10, 7, skipped_language=2, skipped_links=1) == 3
+
     monkeypatch.setenv("DROP_LINK_AND_LANGUAGE_AT_INGEST", "0")
+    kept, language, links, chitchat = clustered()
+    assert kept == [senate["text"]]
+    assert (language, links, chitchat) == (1, 1, 1)
     assert ingest_block_reason(link) is None
     assert ingest_block_reason(dutch) is None
-    assert ingest_block_reason({"text": "Thanks!!"}).startswith("chitchat:")
+    assert ingest_block_reason(thanks).startswith("chitchat:")
+    # Switch off is main: the three excluded posts already filled the corpus,
+    # so clustering does not ask ingest to replace them. Chit-chat still does.
+    assert clustering_topup_shortfall(10, 7, skipped_language=2, skipped_links=1) == 0
+    assert clustering_topup_shortfall(10, 7, skipped_language=0, skipped_links=0) == 3
 
 
 def test_replay_39072480258_representatives():

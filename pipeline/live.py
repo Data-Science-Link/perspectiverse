@@ -32,7 +32,8 @@ from pipeline.corpus import (
 from pipeline.costs import format_usd
 from pipeline.data_sources.extract_bluesky import MAX_SEARCH_PAGES, extract_posts, format_search_time
 from pipeline.chitchat_guard import (
-    filter_chitchat_posts,
+    clustering_topup_shortfall,
+    edition_posts_for_clustering,
     get_chitchat_log,
     planet_chitchat_reason,
     reset_chitchat_log,
@@ -49,7 +50,6 @@ from pipeline.spend_cap import (
 )
 from pipeline.cluster_math import salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
-from pipeline.language import partition_posts
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
@@ -273,19 +273,28 @@ def run_live(
             require_claims=source == "bluesky" and not relabel and not free_ingest,
         )
         # Full set, from scratch. Yesterday's membership is deleted in write_clusters.
+        # Link-only and non-English posts are removed here on both switch
+        # settings. That filter is partition_posts, which main already ran.
+        # DROP_LINK_AND_LANGUAGE_AT_INGEST=0 only lets them count in the
+        # stored corpus; it does not put them in this clustering set.
         before_filter = len(planet_posts)
-        planet_posts, skipped_language, skipped_links = partition_posts(planet_posts)
+        planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
+            planet_posts
+        )
         if skipped_language or skipped_links:
             print(
                 f"Skipped {skipped_language} non-English and {skipped_links} link-only "
                 f"before clustering ({before_filter} were eligible)."
             )
-        before_chitchat = len(planet_posts)
-        planet_posts, skipped_chitchat = filter_chitchat_posts(planet_posts)
         if skipped_chitchat:
-            print(f"Skipped {skipped_chitchat} chit-chat post(s) before clustering ({before_chitchat} remained).")
-        if free_ingest and not relabel and fixture is None and len(planet_posts) < target:
-            shortfall = target - len(planet_posts)
+            print(
+                f"Skipped {skipped_chitchat} chit-chat post(s) before clustering "
+                f"({before_filter - skipped_language - skipped_links} remained)."
+            )
+        shortfall = clustering_topup_shortfall(
+            target, len(planet_posts), skipped_language, skipped_links
+        )
+        if free_ingest and not relabel and fixture is None and shortfall:
             print(
                 f"Edition quality shortfall: {len(planet_posts)} of {target} after filters; "
                 f"topping up ingest by {shortfall} post(s)."
@@ -300,9 +309,9 @@ def run_live(
             replace_posts(connection, cleaned)
             planet_posts = posts_for_planets(cleaned, require_claims=False)
             before_filter = len(planet_posts)
-            planet_posts, skipped_language, skipped_links = partition_posts(planet_posts)
-            before_chitchat = len(planet_posts)
-            planet_posts, skipped_chitchat = filter_chitchat_posts(planet_posts)
+            planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
+                planet_posts
+            )
             print(
                 f"After top-up: {len(cleaned)} stored, {len(planet_posts)} edition posts for clustering."
             )
