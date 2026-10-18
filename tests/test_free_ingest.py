@@ -100,7 +100,7 @@ def test_ingest_free_stores_non_claims_and_drops_spam(monkeypatch):
             return [remark]
         return []
 
-    kept = ingest_free(
+    kept, _exhausted = ingest_free(
         [],
         {"window_hours": 168, "seed": 0, "free_ingest_per_day": 5},
         ["the"],
@@ -218,7 +218,10 @@ def test_run_live_free_ingest_does_not_call_per_post_jev(monkeypatch, tmp_path):
     def boom_jev(*_args, **_kwargs):
         raise AssertionError("per-post Jev must not run when free ingest is on")
 
-    monkeypatch.setattr("pipeline.live.ingest_free", fake_ingest)
+    monkeypatch.setattr(
+        "pipeline.edition_fill.ingest_free",
+        lambda *_args, **_kwargs: (fake_ingest(), False),
+    )
     monkeypatch.setattr("pipeline.live.apply_jev", boom_jev)
     monkeypatch.setattr("pipeline.live.classify_planet_section", lambda _summary, _arguments: "Politics")
     config = tmp_path / "pipeline.yaml"
@@ -499,7 +502,8 @@ def test_default_schedule_path_makes_zero_per_post_jev_calls(
                 {
                     "uri": "at://fetched/new",
                     "author": "new",
-                    "text": _KEPT_TEXT,
+                    "text": f"{_KEPT_TEXT} Unique morning fetch.",
+                    "clean_text": f"{_KEPT_TEXT} Unique morning fetch.",
                     "likes": 1,
                     "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 }
