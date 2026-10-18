@@ -100,7 +100,7 @@ def test_ingest_free_stores_non_claims_and_drops_spam(monkeypatch):
             return [remark]
         return []
 
-    kept = ingest_free(
+    kept, _exhausted, _near_dup = ingest_free(
         [],
         {"window_hours": 168, "seed": 0, "free_ingest_per_day": 5},
         ["the"],
@@ -174,6 +174,95 @@ def test_fetch_buckets_reconcile_to_fetched():
     assert log.new_stored == 1
     assert log.over_daily_cap >= 1
     assert log.fetched == 3
+
+
+def test_fetch_buckets_already_stored_uri():
+    from pipeline.chitchat_guard import get_chitchat_log, reset_chitchat_log
+
+    moment = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
+    existing = [
+        {
+            "uri": "at://stored",
+            "author": "ada",
+            "text": "The city council should vote on the housing bond before the winter budget deadline.",
+            "likes": 1,
+            "created_at": "2026-10-17T01:00:00Z",
+        }
+    ]
+
+    def fake_extract(**kwargs):
+        return [
+            {
+                "uri": "at://stored",
+                "author": "ada",
+                "text": "The port authority should publish the dredging study before the bond vote next month.",
+                "likes": 1,
+                "created_at": "2026-10-17T02:00:00Z",
+            },
+        ]
+
+    reset_chitchat_log()
+    ingest_free(
+        existing,
+        {"window_hours": 168, "seed": 0, "free_ingest_per_day": 100},
+        ["the"],
+        target=100,
+        now=moment,
+        extract=fake_extract,
+        days=1,
+    )
+    log = get_chitchat_log()
+    assert log.buckets_reconcile()
+    assert log.already_stored == 1
+    assert log.new_stored == 0
+
+
+def test_fetch_buckets_over_target_cap():
+    from pipeline.chitchat_guard import get_chitchat_log, reset_chitchat_log
+
+    moment = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
+    existing = [
+        {
+            "uri": "at://one",
+            "author": "ada",
+            "text": "The city council should vote on the housing bond before the winter budget deadline.",
+            "likes": 1,
+            "created_at": "2026-10-17T01:00:00Z",
+        },
+    ]
+
+    def fake_extract(**kwargs):
+        return [
+            {
+                "uri": "at://three",
+                "author": "cara",
+                "text": "The port authority should publish the dredging study before the bond vote next month.",
+                "likes": 1,
+                "created_at": "2026-10-17T04:00:00Z",
+            },
+            {
+                "uri": "at://four",
+                "author": "dan",
+                "text": "The transit agency should release the ridership model before the fare vote this year.",
+                "likes": 1,
+                "created_at": "2026-10-17T05:00:00Z",
+            },
+        ]
+
+    reset_chitchat_log()
+    ingest_free(
+        existing,
+        {"window_hours": 168, "seed": 0, "free_ingest_per_day": 100},
+        ["the"],
+        target=2,
+        now=moment,
+        extract=fake_extract,
+        days=1,
+    )
+    log = get_chitchat_log()
+    assert log.buckets_reconcile()
+    assert log.new_stored == 1
+    assert log.over_target_cap >= 1
 
 
 def test_paced_fetch_backs_off_on_403(monkeypatch):
@@ -280,7 +369,10 @@ def test_run_live_free_ingest_does_not_call_per_post_jev(monkeypatch, tmp_path):
     def boom_jev(*_args, **_kwargs):
         raise AssertionError("per-post Jev must not run when free ingest is on")
 
-    monkeypatch.setattr("pipeline.live.ingest_free", fake_ingest)
+    monkeypatch.setattr(
+        "pipeline.edition_fill.ingest_free",
+        lambda *_args, **_kwargs: (fake_ingest(), False, 0),
+    )
     monkeypatch.setattr("pipeline.live.apply_jev", boom_jev)
     monkeypatch.setattr("pipeline.live.classify_planet_section", lambda _summary, _arguments: "Politics")
     config = tmp_path / "pipeline.yaml"
@@ -561,10 +653,8 @@ def test_default_schedule_path_makes_zero_per_post_jev_calls(
                 {
                     "uri": "at://fetched/new",
                     "author": "new",
-                    "text": (
-                        "The port authority should publish the dredging study "
-                        "before the bond vote next month."
-                    ),
+                    "text": f"{_KEPT_TEXT} Unique morning fetch.",
+                    "clean_text": f"{_KEPT_TEXT} Unique morning fetch.",
                     "likes": 1,
                     "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 }

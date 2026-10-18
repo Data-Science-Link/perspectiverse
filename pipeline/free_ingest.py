@@ -211,7 +211,9 @@ def _accept_fresh_posts(
     per_day: int,
     day_new: int,
     target: int,
-) -> int:
+    new_cap: int | None,
+    fetch_added: int,
+) -> tuple[int, int]:
     """Append edition-quality fetches. Count cap and duplicate exits in the log."""
     log = get_chitchat_log()
     for post in fresh:
@@ -228,11 +230,15 @@ def _accept_fresh_posts(
         if day_new >= per_day:
             log.over_daily_cap += 1
             continue
+        if new_cap is not None and fetch_added >= new_cap:
+            log.over_max_new_posts += 1
+            continue
         seen.add(uri)
         kept.append(post)
         day_new += 1
+        fetch_added += 1
         log.new_stored += 1
-    return day_new
+    return day_new, fetch_added
 
 
 def log_fetch_bucket_summary() -> None:
@@ -244,7 +250,8 @@ def log_fetch_bucket_summary() -> None:
         f"link_only={log.link_blocked}, language={log.language_blocked}, "
         f"near_duplicate={log.near_duplicate_blocked}, other={log.other_blocked}, "
         f"already_stored={log.already_stored}, over_daily_cap={log.over_daily_cap}, "
-        f"over_target_cap={log.over_target_cap}, missing_uri={log.missing_uri}, "
+        f"over_target_cap={log.over_target_cap}, over_max_new_posts={log.over_max_new_posts}, "
+        f"missing_uri={log.missing_uri}, "
         f"accounted={log.accounted_total()}, "
         f"reconcile={'ok' if log.buckets_reconcile() else 'MISMATCH'}."
     )
@@ -316,7 +323,8 @@ def ingest_free(
     extract=None,
     days: int = FREE_INGEST_DAYS,
     reset_log: bool = True,
-) -> list[dict]:
+    max_new_posts: int | None = None,
+) -> tuple[list[dict], bool, int]:
     """Fetch the last 7 UTC days and keep edition-quality posts.
 
     Spam, chit-chat, and personal health updates are always dropped before the
@@ -356,14 +364,21 @@ def ingest_free(
             f"other={carried_stats['carried_other']}."
         )
     per_day = int(settings.get("free_ingest_per_day") or NON_SPAM_PER_DAY)
+    fetch_added = 0
+    near_dup_before = get_chitchat_log().near_duplicate_blocked
+    new_cap = max(int(max_new_posts), 0) if max_new_posts is not None else None
     for since, until in day_windows(moment, days):
         if len(kept) >= target:
+            break
+        if new_cap is not None and fetch_added >= new_cap:
             break
         day_new = 0
         day_blocked_spam = 0
         day_blocked_other = 0
         for query in chosen:
             if day_new >= per_day or len(kept) >= target:
+                break
+            if new_cap is not None and fetch_added >= new_cap:
                 break
             try:
                 incoming = fetch(
@@ -389,13 +404,15 @@ def ingest_free(
             )
             day_blocked_spam += blocked_spam
             day_blocked_other += blocked_other
-            day_new = _accept_fresh_posts(
+            day_new, fetch_added = _accept_fresh_posts(
                 fresh,
                 kept,
                 seen,
                 per_day=per_day,
                 day_new=day_new,
                 target=target,
+                new_cap=new_cap,
+                fetch_added=fetch_added,
             )
         log = get_chitchat_log()
         print(
@@ -404,12 +421,15 @@ def ingest_free(
             f"(chitchat {log.chitchat_blocked} total), {len(kept)} kept."
         )
     log_fetch_bucket_summary()
-    return retire_oldest(
+    retired = retire_oldest(
         kept,
         now=moment,
         window_hours=window_hours,
         target=target,
     )
+    fetch_exhausted = len(retired) < int(target) and fetch_added == 0
+    near_duplicate_dropped = get_chitchat_log().near_duplicate_blocked - near_dup_before
+    return retired, fetch_exhausted, near_duplicate_dropped
 
 
 def stamp_candidate_sections(posts: list[dict], clustered: dict, classify) -> int:

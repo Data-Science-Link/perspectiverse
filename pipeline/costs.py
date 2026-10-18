@@ -971,6 +971,8 @@ def write_cost_run(
     stance_check_failed: int = 0,
     stance_check_incoherent: int = 0,
     kept_pending_unshared: int = 0,
+    edition_fill_stop_reason: str | None = None,
+    edition_quality_target: int | None = None,
 ) -> Path | None:
     """Write this run's rows to a gitignored file. Never raises."""
     try:
@@ -1008,7 +1010,16 @@ def write_cost_run(
                 "duplicate": int(filters["duplicate"]),
             },
         }
+        if edition_fill_stop_reason:
+            payload["edition_fill_stop_reason"] = str(edition_fill_stop_reason)
+        if edition_quality_target is not None:
+            payload["edition_quality_target"] = int(edition_quality_target)
         _atomic_write(destination, json.dumps(payload, indent=2) + "\n")
+        if edition_fill_stop_reason:
+            print(
+                f"Edition fill ledger: {posts_processed} quality posts "
+                f"(target {edition_quality_target}); stop_reason={edition_fill_stop_reason}."
+            )
         if rows:
             print(f"Cost run file: {destination} ({len(rows)} service row(s)).")
         else:

@@ -260,6 +260,7 @@ class ChitchatRemovalLog:
         self.already_stored = 0
         self.over_daily_cap = 0
         self.over_target_cap = 0
+        self.over_max_new_posts = 0
         self.missing_uri = 0
         self._chitchat_samples: list[dict] = []
 
@@ -275,6 +276,7 @@ class ChitchatRemovalLog:
         self.already_stored = 0
         self.over_daily_cap = 0
         self.over_target_cap = 0
+        self.over_max_new_posts = 0
         self.missing_uri = 0
         self._chitchat_samples.clear()
 
@@ -316,7 +318,15 @@ class ChitchatRemovalLog:
         )
 
     def accounted_total(self) -> int:
-        return self.removal_total() + self.new_stored + self.already_stored + self.over_daily_cap + self.over_target_cap + self.missing_uri
+        return (
+            self.removal_total()
+            + self.new_stored
+            + self.already_stored
+            + self.over_daily_cap
+            + self.over_target_cap
+            + self.over_max_new_posts
+            + self.missing_uri
+        )
 
     def buckets_reconcile(self) -> bool:
         return self.fetched == self.accounted_total()
@@ -339,6 +349,7 @@ class ChitchatRemovalLog:
             "already_stored": self.already_stored,
             "over_daily_cap": self.over_daily_cap,
             "over_target_cap": self.over_target_cap,
+            "over_max_new_posts": self.over_max_new_posts,
             "missing_uri": self.missing_uri,
             "accounted_total": self.accounted_total(),
             "buckets_reconcile": self.buckets_reconcile(),

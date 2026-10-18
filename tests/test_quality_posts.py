@@ -1,4 +1,4 @@
-"""Quality posts are non-spam rows. No paid calls."""
+"""Quality posts are the only rows inserted. No paid calls."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -12,8 +12,10 @@ from pipeline.store import (
     load_posts,
     replace_posts,
     save_jev_verdicts,
+    should_drop_stored_post,
     write_quality_posts,
 )
+
 
 def _post(uri: str, *, claim: bool | None, spam: float | None = None, text: str | None = None) -> dict:
     body = text or f"The city should fund public housing because rents jumped again {uri}."
@@ -37,7 +39,7 @@ def _uris(connection) -> set[str]:
     return {row[0] for row in connection.execute("SELECT uri FROM posts")}
 
 
-def test_write_quality_posts_skips_spam_keeps_non_claims(tmp_path):
+def test_write_quality_posts_skips_spam_and_non_claims(tmp_path):
     connection = connect(tmp_path / "corpus.db")
     write_quality_posts(
         connection,
@@ -48,11 +50,11 @@ def test_write_quality_posts_skips_spam_keeps_non_claims(tmp_path):
             _post("at://unscored", claim=None),
         ],
     )
-    assert _uris(connection) == {"at://claim", "at://aside", "at://unscored"}
+    assert _uris(connection) == {"at://claim"}
     connection.close()
 
 
-def test_cleanup_drops_spam_not_cached_non_claims(tmp_path):
+def test_cleanup_keeps_cached_non_claims_drops_spam_and_filters(tmp_path):
     connection = connect(tmp_path / "corpus.db")
     replace_posts(
         connection,
@@ -71,6 +73,7 @@ def test_cleanup_drops_spam_not_cached_non_claims(tmp_path):
             ("at://cached-spam", 0.9, 0.8, "Politics", "jev-latest", "2026-10-16", "bb", "jev-latest:test"),
         ],
     )
+    assert should_drop_stored_post(_post("at://cached-aside", claim=False, spam=0.2)) is False
     dropped = drop_non_quality_posts(connection)
     assert dropped == 2
     assert _uris(connection) == {"at://claim", "at://cached-aside", "at://uncached-aside"}
@@ -78,16 +81,11 @@ def test_cleanup_drops_spam_not_cached_non_claims(tmp_path):
     assert {"at://cached-aside", "at://cached-spam"} <= cached
     assert drop_non_quality_posts(connection) == 0
     write_quality_posts(connection, [_post("at://later", claim=True, spam=0.1)])
-    assert _uris(connection) == {
-        "at://claim",
-        "at://later",
-        "at://cached-aside",
-        "at://uncached-aside",
-    }
+    assert _uris(connection) == {"at://later", "at://uncached-aside"}
     connection.close()
 
 
-def test_rejected_jev_uris_are_cached_and_non_claims_are_stored(monkeypatch, tmp_path):
+def test_rejected_jev_uris_are_cached_and_not_inserted(monkeypatch, tmp_path):
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
     reset_jev_state()
     reset_meter()
@@ -120,7 +118,7 @@ def test_rejected_jev_uris_are_cached_and_non_claims_are_stored(monkeypatch, tmp
     assert calls["n"] == 1
     assert scored[0]["is_claim"] is False
     write_quality_posts(connection, scored)
-    assert _uris(connection) == {"at://aside"}
+    assert _uris(connection) == set()
     assert "at://aside" in known_scored_uris(connection, now=now)
     apply_jev([aside], connection=connection, now=now)
     assert calls["n"] == 1
@@ -128,7 +126,7 @@ def test_rejected_jev_uris_are_cached_and_non_claims_are_stored(monkeypatch, tmp
     connection.close()
 
 
-def test_halt_persist_keeps_non_claims(tmp_path):
+def test_halt_persist_does_not_insert_non_claims(tmp_path):
     connection = connect(tmp_path / "corpus.db")
     database = tmp_path / "corpus.db"
     persist_paid_corpus(
@@ -139,13 +137,12 @@ def test_halt_persist_keeps_non_claims(tmp_path):
         ],
         db_path=database,
     )
-    stored = {row["uri"] for row in load_posts(connection)}
-    assert stored == {"at://claim", "at://aside"}
+    assert load_posts(connection)[0]["uri"] == "at://claim"
+    assert _uris(connection) == {"at://claim"}
     connection.close()
 
 
 def test_carried_rows_predating_filters_use_clean_text_and_drop_chitchat():
-    """Stored rows with only clean_text still hit the carried-over ingest filters."""
     moment = datetime(2026, 10, 16, 12, tzinfo=timezone.utc)
     cutoff = moment - timedelta(hours=168)
     legacy = {

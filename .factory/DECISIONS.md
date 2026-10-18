@@ -629,3 +629,24 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** The 2026-10-16 fill cost $3.39 before it was cancelled, and merge-triggered runs risked paid work starting by accident.
 - **Alternatives:** Rely on the $1 daily hard stop alone, or ask Michael to approve every paid run.
 - **Revisit when:** Sampling misses real costs, or it delays routine work without catching anything.
+
+### 2026-10-17 — Remove greeting and chit-chat posts from the data and the planets (#208, #209)
+- **Decision:** A free rule filters greetings, thanks, compliments, birthday wishes, "live now" stream announcements, and similar small talk out of the stored data. These posts form no planets and don't count toward the 100K target. Michael: "Take those type of planets away in a future PR" and "The chit chat should be taken out of the data and planets."
+- **Why:** In the 100K preview they took front-page slots ("Art Appreciation" at #2 was 689 thank-you replies) without carrying any perspectives.
+- **Alternatives:** Keep them as non-spam (option B as first worded), or hide only the planets but keep the posts in the count.
+- **Supersedes:** Option B's "any non-spam post counts" (2026-10-16 8:06 PM) for chit-chat posts, and #77's "don't drop planets" for chit-chat planets.
+- **Revisit when:** The rule removes real topic posts, or the edition falls well short of 100K.
+
+### 2026-10-17 — Link-only, non-English and personal health posts don't count toward the 100K (#209, #212)
+- **Decision:** Link-only posts, non-English posts, and personal health updates are removed from the data and don't count toward the 100K quality-post target, alongside spam and chit-chat. The README documents what is filtered and why, with examples (#212).
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-17 8:51 PM and 9:00 PM CT.
+- **Why:** Michael wants 100K quality posts, and these aren't discussion he wants grouped or counted.
+- **Alternatives:** Keep them in the data and only out of planets (main's behavior for link-only and non-English). Rejected for counting.
+- **Revisit when:** The filters remove too much real discussion. About 7% of removed posts in the 2026-10-17 sample were arguably real; Michael accepted that for now (#214).
+
+### 2026-10-17 — Keep pulling until the live edition reaches 100K quality posts (#213, #215)
+- **Decision:** The production pipeline fetches in rounds until the edition holds 100K quality posts after filters, instead of stopping at a fixed daily fetch. It stops at whichever comes first: 100K reached, the spend stop, the time budget, the max-rounds limit, the 7-day window running out, or no progress. It logs which one ended the run. No paid calls happen inside the loop, and the $1 per UTC day hard stop and the sample-first rule still apply.
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-17 9:00 PM CT: "do more of a for loop in the production pipeline to pull until we hit that".
+- **Why:** Editions keep landing just under 100K.
+- **Alternatives:** A fixed ~14.3K/day fetch (the prior plan).
+- **Revisit when:** Rounds push daily spend toward the $1 cap or runtime past the 10 AM CT finish.
