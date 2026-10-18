@@ -643,3 +643,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Michael wants 100K quality posts, and these aren't discussion he wants grouped or counted.
 - **Alternatives:** Keep them in the data and only out of planets (main's behavior for link-only and non-English). Rejected for counting.
 - **Revisit when:** The filters remove too much real discussion. About 7% of removed posts in the 2026-10-17 sample were arguably real; Michael accepted that for now (#214).
+
+### 2026-10-17 — Keep pulling until the live edition reaches 100K quality posts (#213, #215)
+- **Decision:** The production pipeline fetches in rounds until the edition holds 100K quality posts after filters, instead of stopping at a fixed daily fetch. It stops at whichever comes first: 100K reached, the spend stop, the time budget, the max-rounds limit, the 7-day window running out, or no progress. It logs which one ended the run. No paid calls happen inside the loop, and the $1 per UTC day hard stop and the sample-first rule still apply.
+- **Decided by:** Michael, Perspectiverse Factory room, 2026-10-17 9:00 PM CT: "do more of a for loop in the production pipeline to pull until we hit that".
+- **Why:** Editions keep landing just under 100K.
+- **Alternatives:** A fixed ~14.3K/day fetch (the prior plan).
+- **Revisit when:** Rounds push daily spend toward the $1 cap or runtime past the 10 AM CT finish.
