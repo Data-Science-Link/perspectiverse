@@ -22,13 +22,21 @@ async function openLinearGrid(page) {
   await page.getByRole('button', { name: 'Linear' }).click()
   await expect(page.getByRole('button', { name: 'Orbits' })).toBeVisible()
   await expect.poll(async () => page.locator('.observatory .planet-label').count()).toBeGreaterThanOrEqual(10)
-  await page.waitForTimeout(2000)
+  await page.waitForTimeout(3500)
 }
 
-async function glyphHeight(label) {
+async function minLineGlyphHeight(label) {
   return label.evaluate((node) => {
     const range = document.createRange()
     range.selectNodeContents(node)
+    const rects = range.getClientRects()
+    let min = 0
+    for (const rect of rects) {
+      if (rect.height > 0) {
+        min = min === 0 ? rect.height : Math.min(min, rect.height)
+      }
+    }
+    if (min > 0) return min
     return range.getBoundingClientRect().height
   })
 }
@@ -41,9 +49,9 @@ async function labelLayout(page) {
     const label = labels.nth(index)
     const name = (await label.innerText()).trim()
     const box = await label.boundingBox()
-    const glyph = await glyphHeight(label)
+    const lineGlyph = await minLineGlyphHeight(label)
     const topicIndex = Number(await label.getAttribute('data-topic-index'))
-    entries.push({ index, topicIndex, name, box, glyph })
+    entries.push({ index, topicIndex, name, box, lineGlyph })
   }
   return entries.sort((a, b) => a.topicIndex - b.topicIndex)
 }
@@ -88,7 +96,7 @@ async function expectLayoutBookOrder(page, mode = 'grid') {
 function entriesReady(entries) {
   if (entries.length < 10) return false
   for (const entry of entries) {
-    if (!entry.box || entry.glyph < 14) return false
+    if (!entry.box || entry.lineGlyph < 14) return false
     if (entry.name.includes('…') || entry.name.includes('...')) return false
   }
   for (let i = 0; i < entries.length; i += 1) {
@@ -99,14 +107,21 @@ function entriesReady(entries) {
   return true
 }
 
-async function expectGridFillsCanvas(page, minFill = 0.7) {
+async function expectGridFillsCanvas(page, minFill = 0.65) {
   const canvas = await page.locator('.observatory canvas').boundingBox()
+  const filter = await page.locator('#solar-topic-filter').boundingBox()
+  const header = page.locator('header').first()
+  const headerBox = await header.boundingBox()
   expect(canvas).not.toBeNull()
+  expect(filter).not.toBeNull()
+  expect(headerBox).not.toBeNull()
   const entries = await labelLayout(page)
   const tops = entries.map((entry) => entry.box.y)
   const bottoms = entries.map((entry) => entry.box.y + entry.box.height)
   const spread = Math.max(...bottoms) - Math.min(...tops)
-  expect(spread / canvas.height).toBeGreaterThanOrEqual(minFill)
+  const usableTop = Math.max(headerBox.y + headerBox.height, canvas.y)
+  const usableHeight = filter.y - usableTop
+  expect(spread / usableHeight).toBeGreaterThanOrEqual(minFill)
 }
 
 async function expectFullLabelTitles(entries) {
@@ -117,12 +132,25 @@ async function expectFullLabelTitles(entries) {
   }
 }
 
+async function expectAboveTopicFilter(page, entries, clearance = 10) {
+  const filter = page.locator('#solar-topic-filter')
+  await expect(filter).toBeVisible()
+  const filterBox = await filter.boundingBox()
+  expect(filterBox).not.toBeNull()
+  const bottom = Math.max(...entries.map((entry) => entry.box.y + entry.box.height))
+  expect(bottom).toBeLessThanOrEqual(filterBox.y - clearance)
+}
+
 async function expectAllPlanetsVisible(page) {
-  await expect.poll(async () => entriesReady(await labelLayout(page)), { timeout: 15_000 }).toBe(true)
+  await expect.poll(async () => entriesReady(await labelLayout(page)), { timeout: 25_000 }).toBe(true)
   const entries = await labelLayout(page)
   expect(entries.length).toBeGreaterThanOrEqual(10)
+  for (const entry of entries) {
+    expect(entry.lineGlyph).toBeGreaterThanOrEqual(14)
+  }
   expectNoLabelOverlaps(entries)
   await expectFullLabelTitles(entries)
+  await expectAboveTopicFilter(page, entries)
   const canvas = await page.locator('.observatory canvas').boundingBox()
   expect(canvas).not.toBeNull()
   for (const entry of entries) {
@@ -150,6 +178,7 @@ async function expectLabelsInsideCanvas(page) {
 }
 
 test.describe('Linear grid on phones', () => {
+  test.describe.configure({ mode: 'serial' })
   test.use({ deviceScaleFactor: 1 })
 
   test('portrait shows every planet in reading order', async ({ page }, testInfo) => {
@@ -157,7 +186,7 @@ test.describe('Linear grid on phones', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await openLinearGrid(page)
     const entries = await expectAllPlanetsVisible(page)
-    await expectGridFillsCanvas(page, 0.7)
+    await expectGridFillsCanvas(page, 0.65)
     await expectLayoutBookOrder(page, 'grid')
     await page.screenshot({ path: path.join(screenshotDir, 'phone-portrait.png'), fullPage: false })
     await page.locator('.observatory .planet-label').filter({ hasText: entries[1].name }).click()

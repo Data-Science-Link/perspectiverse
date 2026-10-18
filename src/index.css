@@ -869,9 +869,19 @@ h3 {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
-  line-height: 1.2;
+  font-size: 18px;
+  line-height: 1.46;
   text-align: center;
   hyphens: auto;
+}
+
+@media (orientation: landscape) {
+  .planet-label.is-mobile.is-linear {
+    max-width: min(22vw, 11rem);
+    font-size: 15px;
+    line-height: 1.42;
+  }
+
 }
 
 .planet-label.is-dimmed {

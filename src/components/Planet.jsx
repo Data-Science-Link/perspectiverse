@@ -4,7 +4,16 @@ import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, CatmullRomCurve3, DoubleSide, Quaternion, TubeGeometry, Vector3 } from 'three'
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
-import { bodySpin, formatPercent, orbitElements, resumeOrbitAngle, saveOrbitAngle, setOrbitPosition, topicScale } from '../lib/layout'
+import {
+  bodySpin,
+  formatPercent,
+  orbitElements,
+  PLANET_MESH_RADIUS,
+  resumeOrbitAngle,
+  saveOrbitAngle,
+  setOrbitPosition,
+  topicScale,
+} from '../lib/layout'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import SpikyCube from './SpikyCube'
 
@@ -35,6 +44,8 @@ export default function Planet({
   sphereDetail = [48, 36],
   haloDetail = [32, 32],
   labelDistanceFactor,
+  planetVisualScale = 1,
+  linearGrid = false,
 }) {
   const group = useRef()
   const cube = useRef()
@@ -51,10 +62,10 @@ export default function Planet({
   const spinAxis = useMemo(() => new Vector3(...spin.axis), [spin])
   const angle = useRef(resumeOrbitAngle(topic.id, orbit.phase))
   const placed = useRef(Boolean(anchor))
-  const scale = topicScale(topic.total_volume_percent, volumeMax)
+  const scale = topicScale(topic.total_volume_percent, volumeMax) * Math.max(0.55, planetVisualScale)
   const htmlDistanceFactor = labelDistanceFactor ?? (isMobile ? 16 : 18)
   const portrait = useMediaQuery('(orientation: portrait)')
-  const labelScale = anchor && isMobile && portrait ? 1.22 : 1
+  const labelScale = linearGrid && isMobile ? (portrait ? 1.29 : 3.74) : 1
   const color = topicColor(topic.id, body)
   const ranked = useMemo(
     () => rankPerspectives(topic.perspectives),
@@ -236,7 +247,13 @@ export default function Planet({
       <Html
         position={[
           0,
-          scale * (anchor ? (isMobile ? -1.22 : 1.2) : isMobile ? 1.32 : 1.45),
+          (() => {
+            if (!anchor) return scale * (isMobile ? 1.32 : 1.45)
+            if (!isMobile) return scale * 1.2
+            const bodyReach = isSun ? scale * 1.58 : scale * PLANET_MESH_RADIUS + scale * 0.12
+            const labelGap = portrait ? 0.62 : 0.52
+            return -(bodyReach + labelGap)
+          })(),
           0,
         ]}
         center

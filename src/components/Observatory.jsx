@@ -183,6 +183,8 @@ function Universe({
           orbitRadius={linear ? null : layout.radii[index]}
           anchor={linear ? layout.positions[index] : null}
           labelDistanceFactor={linear ? labelDistanceFactor : undefined}
+          planetVisualScale={linear ? (layout.planetVisualScale ?? 1) : 1}
+          linearGrid={linear && layout.mode === 'grid'}
           quality={settings.textureQuality}
           sphereDetail={settings.sphereDetail}
           haloDetail={settings.haloDetail}
@@ -302,10 +304,12 @@ export default function Observatory({
     if (!linear) return isMobile ? 16 : 18
     if (isMobile) {
       const homeDistance = Math.hypot(home[0], home[1], home[2])
-      return Math.min(30, Math.max(18, homeDistance * 1.15))
+      const portrait = canvasAspect < 0.9
+      const factor = portrait ? 1.38 : 2.28
+      return Math.min(44, Math.max(24, homeDistance * factor))
     }
     return 18
-  }, [linear, isMobile, home])
+  }, [linear, isMobile, home, canvasAspect])
 
   useLayoutEffect(() => {
     if (prevLayoutKey.current != null && prevLayoutKey.current !== layoutKey) {
@@ -344,7 +348,9 @@ export default function Observatory({
   const hint = 'Drag to look around'
 
   return (
-    <section className="observatory">
+    <section
+      className={`observatory${linearGrid && canvasAspect > 1.15 ? ' is-linear-phone-landscape' : ''}`}
+    >
       <Canvas
         key={`${epoch}-${isMobile ? 'm' : 'd'}`}
         camera={{
