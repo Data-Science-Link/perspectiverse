@@ -32,14 +32,14 @@ from pipeline.corpus import (
 from pipeline.costs import format_usd
 from pipeline.data_sources.extract_bluesky import MAX_SEARCH_PAGES, extract_posts, format_search_time
 from pipeline.chitchat_guard import (
-    clustering_topup_shortfall,
     edition_posts_for_clustering,
     get_chitchat_log,
     planet_chitchat_reason,
     reset_chitchat_log,
     write_chitchat_log,
 )
-from pipeline.free_ingest import free_ingest_enabled, ingest_free, stamp_candidate_sections
+from pipeline.edition_fill import run_edition_fill_loop
+from pipeline.free_ingest import free_ingest_enabled, stamp_candidate_sections
 from pipeline.jev import apply_jev, classify_planet_section, describe_jev, known_scored_uris
 from pipeline.spend_cap import (
     FILL_BUDGET_TOTAL_USD,
@@ -179,6 +179,9 @@ def run_live(
     free_ingest = free_ingest_enabled(settings)
     stage_seconds: dict[str, float] = {}
     jev_planet_calls = 0
+    edition_fill_done = False
+    edition_pipeline: dict | None = None
+    planet_posts: list[dict] | None = None
     try:
         enforce_before_paid_work()
         existing = load_posts(connection)
@@ -188,14 +191,18 @@ def run_live(
                 "edition-quality posts are stored, Jev runs once per planet."
             )
             ingest_started = time.monotonic()
-            cleaned = ingest_free(
+            fill = run_edition_fill_loop(
                 existing,
                 settings,
                 queries,
                 target=target,
             )
+            cleaned = fill.cleaned
+            planet_posts = fill.planet_posts
+            edition_pipeline = fill.pipeline_dict()
             stage_seconds["ingest"] = round(time.monotonic() - ingest_started, 3)
             source, refreshed = "bluesky", True
+            edition_fill_done = True
         else:
             cleaned, source, refreshed = _collect_posts(
                 existing,
@@ -268,62 +275,54 @@ def run_live(
             write_quality_posts(connection, cleaned)
         else:
             replace_posts(connection, cleaned)
-        planet_posts = posts_for_planets(
-            cleaned,
-            require_claims=source == "bluesky" and not relabel and not free_ingest,
-        )
-        # Full set, from scratch. Yesterday's membership is deleted in write_clusters.
-        # Link-only and non-English posts are removed here on both switch
-        # settings. That filter is partition_posts, which main already ran.
-        # DROP_LINK_AND_LANGUAGE_AT_INGEST=0 only lets them count in the
-        # stored corpus; it does not put them in this clustering set.
-        before_filter = len(planet_posts)
-        planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
-            planet_posts
-        )
-        if skipped_language or skipped_links:
-            print(
-                f"Skipped {skipped_language} non-English and {skipped_links} link-only "
-                f"before clustering ({before_filter} were eligible)."
-            )
-        if skipped_chitchat:
-            print(
-                f"Skipped {skipped_chitchat} chit-chat post(s) before clustering "
-                f"({before_filter - skipped_language - skipped_links} remained)."
-            )
-        shortfall = clustering_topup_shortfall(
-            target, len(planet_posts), skipped_language, skipped_links
-        )
-        if free_ingest and not relabel and fixture is None and shortfall:
-            print(
-                f"Edition quality shortfall: {len(planet_posts)} of {target} after filters; "
-                f"topping up ingest by {shortfall} post(s)."
-            )
-            cleaned = ingest_free(
+        if not edition_fill_done:
+            planet_posts = posts_for_planets(
                 cleaned,
-                settings,
-                queries,
-                target=len(cleaned) + shortfall,
-                reset_log=False,
+                require_claims=source == "bluesky" and not relabel and not free_ingest,
             )
-            replace_posts(connection, cleaned)
-            planet_posts = posts_for_planets(cleaned, require_claims=False)
+            # Full set, from scratch. Yesterday's membership is deleted in write_clusters.
+            # Link-only and non-English posts are removed here on both switch
+            # settings. That filter is partition_posts, which main already ran.
+            # DROP_LINK_AND_LANGUAGE_AT_INGEST=0 only lets them count in the
+            # stored corpus; it does not put them in this clustering set.
             before_filter = len(planet_posts)
             planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
                 planet_posts
             )
-            print(
-                f"After top-up: {len(cleaned)} stored, {len(planet_posts)} edition posts for clustering."
-            )
-        edition_pipeline = {
-            "target_quality_posts": target,
-            "ingest_stored": len(cleaned),
-            "before_language_filter": before_filter,
-            "skipped_non_english": skipped_language,
-            "skipped_link_only": skipped_links,
-            "skipped_chitchat_cluster_pass": skipped_chitchat,
-            "edition_posts_for_clustering": len(planet_posts),
-        }
+            if skipped_language or skipped_links:
+                print(
+                    f"Skipped {skipped_language} non-English and {skipped_links} link-only "
+                    f"before clustering ({before_filter} were eligible)."
+                )
+            if skipped_chitchat:
+                print(
+                    f"Skipped {skipped_chitchat} chit-chat post(s) before clustering "
+                    f"({before_filter - skipped_language - skipped_links} remained)."
+                )
+            edition_pipeline = {
+                "target_quality_posts": target,
+                "ingest_stored": len(cleaned),
+                "before_language_filter": before_filter,
+                "skipped_non_english": skipped_language,
+                "skipped_link_only": skipped_links,
+                "skipped_chitchat_cluster_pass": skipped_chitchat,
+                "edition_posts_for_clustering": len(planet_posts),
+            }
+        else:
+            skipped_language = int(edition_pipeline.get("skipped_non_english") or 0)
+            skipped_links = int(edition_pipeline.get("skipped_link_only") or 0)
+            skipped_chitchat = int(edition_pipeline.get("skipped_chitchat_cluster_pass") or 0)
+            before_filter = int(edition_pipeline.get("before_language_filter") or 0)
+            if skipped_language or skipped_links:
+                print(
+                    f"Skipped {skipped_language} non-English and {skipped_links} link-only "
+                    f"before clustering ({before_filter} were eligible)."
+                )
+            if skipped_chitchat:
+                print(
+                    f"Skipped {skipped_chitchat} chit-chat post(s) before clustering "
+                    f"({before_filter - skipped_language - skipped_links} remained)."
+                )
         if not planet_posts:
             raise RuntimeError("No English claims left to cluster.")
         print(
@@ -435,7 +434,7 @@ def run_live(
             f"({log.chitchat_share_of_fetched():.2%})."
         )
     _log_fill_run_summary(payload)
-    _write_cost_run(payload, started_at)
+    _write_cost_run(payload, started_at, edition_pipeline=edition_pipeline)
     if free_ingest:
         from pipeline.free_ingest_preview import write_stage_timings
 
@@ -490,7 +489,12 @@ def _abort_for_spend_cap(started_at: datetime, exc: SpendCapExceeded) -> None:
         print(f"WARNING: Spend cap stop log skipped: {log_exc}", file=sys.stderr)
 
 
-def _write_cost_run(payload: dict, started_at: datetime) -> None:
+def _write_cost_run(
+    payload: dict,
+    started_at: datetime,
+    *,
+    edition_pipeline: dict | None = None,
+) -> None:
     """Best effort. A cost-log error must not fail a snapshot that already wrote."""
     pending_kept = unshared_pending_planet_count()
     failed_checks = report_stance_check_failures()
@@ -512,6 +516,11 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
             posts_processed=int(payload.get("total_posts") or 0),
             planets_published=count_published_planets(payload),
         )
+        fill_reason = None
+        fill_target = None
+        if isinstance(edition_pipeline, dict):
+            fill_reason = edition_pipeline.get("edition_fill_stop_reason")
+            fill_target = edition_pipeline.get("target_quality_posts")
         write_cost_run(
             posts_processed=int(payload.get("total_posts") or 0),
             planets_published=count_published_planets(payload),
@@ -520,6 +529,8 @@ def _write_cost_run(payload: dict, started_at: datetime) -> None:
             stance_check_failed=failed_checks,
             stance_check_incoherent=incoherent_checks,
             kept_pending_unshared=pending_kept,
+            edition_fill_stop_reason=str(fill_reason) if fill_reason else None,
+            edition_quality_target=int(fill_target) if fill_target is not None else None,
         )
         face = section_face_relabel()
         try:

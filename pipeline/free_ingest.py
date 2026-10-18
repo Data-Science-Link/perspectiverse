@@ -27,7 +27,7 @@ import copy
 import time
 from datetime import datetime, timedelta, timezone
 
-from pipeline.cleaning import clean_text
+from pipeline.cleaning import _dedupe_key, clean_text
 from pipeline.corpus import parse_created, retire_oldest
 from pipeline.data_sources.extract_bluesky import (
     MAX_SEARCH_PAGES,
@@ -201,7 +201,8 @@ def ingest_free(
     extract=None,
     days: int = FREE_INGEST_DAYS,
     reset_log: bool = True,
-) -> list[dict]:
+    max_new_posts: int | None = None,
+) -> tuple[list[dict], bool, int]:
     """Fetch the last 7 UTC days and keep edition-quality posts.
 
     Spam, chit-chat, and personal health updates are always dropped before the
@@ -227,6 +228,7 @@ def ingest_free(
     window_hours = int(settings.get("window_hours") or 168)
     cutoff = moment - timedelta(hours=window_hours)
     seen = {str(post.get("uri") or "") for post in existing if post.get("uri")}
+    seen_text: set[str] = set()
     kept: list[dict] = []
     for post in existing:
         if not post.get("uri") or not _in_window(post, cutoff):
@@ -235,15 +237,25 @@ def ingest_free(
         if ingest_block_reason(prepared) is not None:
             continue
         kept.append(prepared)
+        text_key = _dedupe_key(str(prepared.get("clean_text") or ""))
+        if text_key:
+            seen_text.add(text_key)
     per_day = int(settings.get("free_ingest_per_day") or NON_SPAM_PER_DAY)
+    fetch_added = 0
+    near_duplicate_dropped = 0
+    new_cap = max(int(max_new_posts), 0) if max_new_posts is not None else None
     for since, until in day_windows(moment, days):
         if len(kept) >= target:
+            break
+        if new_cap is not None and fetch_added >= new_cap:
             break
         day_new = 0
         day_blocked_spam = 0
         day_blocked_other = 0
         for query in chosen:
             if day_new >= per_day or len(kept) >= target:
+                break
+            if new_cap is not None and fetch_added >= new_cap:
                 break
             try:
                 incoming = fetch(
@@ -270,10 +282,19 @@ def ingest_free(
                 uri = str(post.get("uri") or "")
                 if not uri or uri in seen:
                     continue
+                text_key = _dedupe_key(str(post.get("clean_text") or ""))
+                if text_key and text_key in seen_text:
+                    near_duplicate_dropped += 1
+                    continue
+                if text_key:
+                    seen_text.add(text_key)
                 seen.add(uri)
                 kept.append(post)
                 day_new += 1
+                fetch_added += 1
                 if day_new >= per_day or len(kept) >= target:
+                    break
+                if new_cap is not None and fetch_added >= new_cap:
                     break
         log = get_chitchat_log()
         print(
@@ -281,12 +302,14 @@ def ingest_free(
             f"{day_blocked_spam} spam, {day_blocked_other} other filtered "
             f"(chitchat {log.chitchat_blocked} total), {len(kept)} kept."
         )
-    return retire_oldest(
+    retired = retire_oldest(
         kept,
         now=moment,
         window_hours=window_hours,
         target=target,
     )
+    fetch_exhausted = len(retired) < int(target) and fetch_added == 0
+    return retired, fetch_exhausted, near_duplicate_dropped
 
 
 def stamp_candidate_sections(posts: list[dict], clustered: dict, classify) -> int:

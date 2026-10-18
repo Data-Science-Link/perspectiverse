@@ -80,6 +80,12 @@ def build_summary(
     if isinstance(stages, dict):
         if isinstance(stages.get("edition_pipeline"), dict):
             summary["edition_pipeline"] = stages["edition_pipeline"]
+            pipeline = stages["edition_pipeline"]
+            reason = pipeline.get("edition_fill_stop_reason")
+            if reason:
+                summary["edition_fill_stop_reason"] = reason
+            if "edition_posts_for_clustering" in pipeline:
+                summary["edition_quality_count"] = int(pipeline["edition_posts_for_clustering"])
         if isinstance(stages.get("chitchat_ingest"), dict):
             summary["chitchat_ingest"] = stages["chitchat_ingest"]
     return summary
