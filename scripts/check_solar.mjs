@@ -13,6 +13,7 @@ import {
   systemExtent,
   topicScale,
 } from '../src/lib/layout.js'
+import { clampSolarView, solarLayoutKey } from '../src/lib/solarCamera.js'
 import { decorateTopics } from '../src/lib/planets.js'
 
 assert.equal(SITE_TITLE, 'Perspectiverse')
@@ -111,6 +112,17 @@ for (let index = 1; index < gridPortrait.positions.length; index += 1) {
 }
 const gridLandscape = layoutLinear(topics, volumeMax, { grid: true, viewportAspect: 844 / 390 })
 assert.equal(gridLandscape.mode, 'grid')
+assert.ok(gridLandscape.cols <= 3, `landscape grid too wide: ${gridLandscape.cols} columns`)
 assert.ok(gridLandscape.cols >= gridPortrait.cols, 'landscape should not use fewer columns than portrait')
+
+assert.equal(solarLayoutKey('all', false), 'all:orbit')
+assert.equal(solarLayoutKey('World', true, false), 'World:linear')
+assert.equal(solarLayoutKey('all', true, true), 'all:grid')
+const clamped = clampSolarView(
+  { position: [40, 10, 40], target: [30, 0, 0], distance: 50 },
+  { minDistance: 3.2, maxDistance: 19.2, extent: 8, linear: false },
+)
+assert.ok(clamped.distance <= 19.2 + 1e-6)
+assert.ok(Math.abs(clamped.target[0]) <= 8 * 0.45 + 1e-6)
 
 console.log('solar system settings, tagline, and texture quality ok')

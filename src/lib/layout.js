@@ -70,14 +70,24 @@ function linearRowSpecs(topics, volumeMax) {
   })
 }
 
-export function pickLinearGridColumns(count, viewportAspect = 1, specs = []) {
+function labelFootprintUnits(name, extent, gap) {
+  const chars = Math.max(4, String(name ?? '').length)
+  return Math.max(extent * 2 + gap, chars * 0.42 + 3.55)
+}
+
+function labelRowHeight(extent, gap) {
+  return extent * 2 + gap + 4.8
+}
+
+export function pickLinearGridColumns(count, viewportAspect = 1, specs = [], topics = [], { maxColumns = 2 } = {}) {
   const n = Math.max(0, Number(count) || 0)
   if (n <= 1) return 1
   const aspect = Math.max(0.35, Math.min(3.2, Number(viewportAspect) || 1))
   const gap = 1.05
-  let bestCols = Math.min(3, n)
+  const maxCols = Math.min(n, Math.max(1, Number(maxColumns) || 2))
+  let bestCols = 1
   let bestScore = Infinity
-  for (let cols = 1; cols <= n; cols += 1) {
+  for (let cols = 1; cols <= Math.min(n, maxCols); cols += 1) {
     const rows = Math.ceil(n / cols)
     const colWidths = Array.from({ length: cols }, () => 0)
     const rowHeights = Array.from({ length: rows }, () => 0)
@@ -85,13 +95,16 @@ export function pickLinearGridColumns(count, viewportAspect = 1, specs = []) {
       const row = Math.floor(index / cols)
       const col = index % cols
       const extent = specs[index]?.extent ?? 0.8
-      colWidths[col] = Math.max(colWidths[col], extent * 2 + gap)
-      rowHeights[row] = Math.max(rowHeights[row], extent * 2 + gap)
+      const name = topics[index]?.name ?? ''
+      const aspectBoost = viewportAspect > 1.2 ? 1.55 : 1
+      const span = labelFootprintUnits(name, extent, gap) * aspectBoost
+      colWidths[col] = Math.max(colWidths[col], span)
+      rowHeights[row] = Math.max(rowHeights[row], labelRowHeight(extent, gap))
     }
     const width = colWidths.reduce((sum, value) => sum + value, 0)
     const height = rowHeights.reduce((sum, value) => sum + value, 0)
     const score = Math.max(width / aspect, height)
-    if (score < bestScore - 1e-6 || (Math.abs(score - bestScore) <= 1e-6 && cols > bestCols)) {
+    if (score < bestScore - 1e-6 || (Math.abs(score - bestScore) <= 1e-6 && cols < bestCols)) {
       bestScore = score
       bestCols = cols
     }
@@ -99,13 +112,13 @@ export function pickLinearGridColumns(count, viewportAspect = 1, specs = []) {
   return bestCols
 }
 
-function layoutLinearGrid(specs, viewportAspect = 1) {
+function layoutLinearGrid(specs, viewportAspect = 1, topics = []) {
   const n = specs.length
   if (n === 0) {
     return { positions: [], extent: LABEL_PAD, extentY: LABEL_PAD, mode: 'grid', cols: 1 }
   }
   const gap = 1.05
-  const cols = pickLinearGridColumns(n, viewportAspect, specs)
+  const cols = pickLinearGridColumns(n, viewportAspect, specs, topics)
   const rows = Math.ceil(n / cols)
   const colWidths = Array.from({ length: cols }, () => 0)
   const rowHeights = Array.from({ length: rows }, () => 0)
@@ -113,8 +126,19 @@ function layoutLinearGrid(specs, viewportAspect = 1) {
     const row = Math.floor(index / cols)
     const col = index % cols
     const extent = specs[index].extent
-    colWidths[col] = Math.max(colWidths[col], extent * 2 + gap)
-    rowHeights[row] = Math.max(rowHeights[row], extent * 2 + gap)
+    const name = topics[index]?.name ?? ''
+    const aspectBoost = viewportAspect > 1.2 ? 1.55 : 1
+    const span = labelFootprintUnits(name, extent, gap) * aspectBoost
+    colWidths[col] = Math.max(colWidths[col], span)
+    rowHeights[row] = Math.max(rowHeights[row], labelRowHeight(extent, gap))
+  }
+  const colPad = viewportAspect > 1.2 ? 1.5 : 1.34
+  const rowPad = viewportAspect > 1.2 ? 1.18 : 1.14
+  for (let index = 0; index < colWidths.length; index += 1) {
+    colWidths[index] *= colPad
+  }
+  for (let index = 0; index < rowHeights.length; index += 1) {
+    rowHeights[index] *= rowPad
   }
   const totalWidth = colWidths.reduce((sum, value) => sum + value, 0)
   const totalHeight = rowHeights.reduce((sum, value) => sum + value, 0)
@@ -174,7 +198,7 @@ export function layoutLinear(topics = [], volumeMax = 100, options = {}) {
   const specs = linearRowSpecs(topics, volumeMax)
   const grid = Boolean(options.grid)
   if (grid && specs.length > 0) {
-    return layoutLinearGrid(specs, options.viewportAspect ?? 1)
+    return layoutLinearGrid(specs, options.viewportAspect ?? 1, topics)
   }
   return layoutLinearRow(specs)
 }
@@ -208,7 +232,7 @@ export function homeLookAt(isMobile = false, planetCount = 10, layoutExtent = nu
     const extentY = options.extentY ?? extent
     const distanceH = extentX / Math.tan(horizontalHalf)
     const distanceV = extentY / Math.tan(verticalHalf)
-    const mobileMargin = options.grid ? 1.24 : 1.12
+    const mobileMargin = options.grid ? 1.48 : 1.12
     const distance = Math.max(distanceH, distanceV) * (isMobile ? mobileMargin : 1.06)
     const yLift = options.grid ? 0.12 : 0.22
     const y = distance * yLift

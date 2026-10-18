@@ -5,6 +5,7 @@ import { AdditiveBlending, CatmullRomCurve3, DoubleSide, Quaternion, TubeGeometr
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
 import { bodySpin, formatPercent, orbitElements, resumeOrbitAngle, saveOrbitAngle, setOrbitPosition, topicScale } from '../lib/layout'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import SpikyCube from './SpikyCube'
 
 const _desired = new Vector3()
@@ -33,6 +34,7 @@ export default function Planet({
   quality = 'high',
   sphereDetail = [48, 36],
   haloDetail = [32, 32],
+  labelDistanceFactor,
 }) {
   const group = useRef()
   const cube = useRef()
@@ -50,6 +52,9 @@ export default function Planet({
   const angle = useRef(resumeOrbitAngle(topic.id, orbit.phase))
   const placed = useRef(Boolean(anchor))
   const scale = topicScale(topic.total_volume_percent, volumeMax)
+  const htmlDistanceFactor = labelDistanceFactor ?? (isMobile ? 16 : 18)
+  const portrait = useMediaQuery('(orientation: portrait)')
+  const labelScale = anchor && isMobile ? (portrait ? 1.92 : 1.42) : 1
   const color = topicColor(topic.id, body)
   const ranked = useMemo(
     () => rankPerspectives(topic.perspectives),
@@ -75,7 +80,10 @@ export default function Planet({
       } else {
         setOrbitPosition(_desired, orbit.radius, angle.current, orbit.inclination, orbit.node)
       }
-      if (placed.current !== linear) {
+      if (linear) {
+        group.current.position.copy(_desired)
+        placed.current = true
+      } else if (placed.current !== linear) {
         const blend = 1 - Math.exp(-delta * 4.5)
         group.current.position.lerp(_desired, blend)
         if (group.current.position.distanceTo(_desired) < 0.05) placed.current = linear
@@ -226,19 +234,21 @@ export default function Planet({
         </group>
       </group>
       <Html
-        position={[0, scale * (isMobile ? 1.32 : 1.45), 0]}
+        position={[0, scale * (anchor ? (isMobile ? 1.05 : 1.2) : isMobile ? 1.32 : 1.45), 0]}
         center
-        distanceFactor={isMobile ? 16 : 18}
+        distanceFactor={htmlDistanceFactor}
         zIndexRange={[10, 0]}
         style={{ pointerEvents: 'none' }}
       >
         <button
           type="button"
           data-topic-index={index}
-          className={`planet-label ${dimmed ? 'is-dimmed' : ''} ${isMobile ? 'is-mobile' : ''}`}
+          className={`planet-label ${dimmed ? 'is-dimmed' : ''} ${isMobile ? 'is-mobile' : ''} ${anchor ? 'is-linear' : ''}`}
           style={{
             borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
             pointerEvents: 'auto',
+            transform: labelScale === 1 ? undefined : `scale(${labelScale})`,
+            transformOrigin: 'center center',
           }}
           onClick={(event) => {
             event.stopPropagation()

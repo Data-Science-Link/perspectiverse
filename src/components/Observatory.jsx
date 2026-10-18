@@ -1,15 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutLinear, layoutSolarSystem, orbitElements, topicScale } from '../lib/layout'
+import {
+  clearSolarView,
+  installSolarCameraTestHooks,
+  restoreSolarView,
+  solarLayoutKey,
+  stashSolarView,
+} from '../lib/solarCamera'
 import TopicFilter from './TopicFilter'
 import { solarSettings } from '../lib/solarSettings'
 import { OrbitRing, default as Planet } from './Planet'
 import TwinklingStars from './TwinklingStars'
 
-function homeView(isMobile, planetCount = 10, layoutExtent = null, frame = {}) {
-  return homeLookAt(isMobile, planetCount, layoutExtent, frame)
+function homeView(isMobile, planetCount = 10, layoutExtent = null, homeFrame = {}) {
+  return homeLookAt(isMobile, planetCount, layoutExtent, homeFrame)
 }
 // camera-controls ACTION bits: ROTATE 1, TRUCK 2, DOLLY 16, TOUCH_ROTATE 64,
 // TOUCH_TRUCK 128, TOUCH_DOLLY 1024, TOUCH_DOLLY_TRUCK 4096. NONE is 0.
@@ -27,13 +34,15 @@ function FocusCamera({
   volumeMax = 100,
   layoutExtent = null,
   homeFrame = {},
+  layoutKey,
+  limits,
 }) {
   const lastId = useRef(null)
   const booted = useRef(false)
 
   useEffect(() => {
     booted.current = false
-  }, [isMobile, planetCount, layoutExtent, homeFrame])
+  }, [isMobile, planetCount, layoutExtent, homeFrame, layoutKey])
 
   useFrame(() => {
     const controls = controlsRef.current
@@ -41,9 +50,18 @@ function FocusCamera({
     const home = homeView(isMobile, planetCount, layoutExtent, homeFrame)
 
     if (!selectedTopic) {
-      if (!booted.current || lastId.current !== null) {
-        controls.setLookAt(...home, lastId.current !== null)
+      if (lastId.current !== null) {
+        if (!restoreSolarView(controls, layoutKey, limits, true)) {
+          controls.setLookAt(...home, true)
+        }
         lastId.current = null
+        booted.current = true
+        return
+      }
+      if (!booted.current) {
+        if (!restoreSolarView(controls, layoutKey, limits, false)) {
+          controls.setLookAt(...home, false)
+        }
         booted.current = true
       }
       return
@@ -52,6 +70,10 @@ function FocusCamera({
     if (lastId.current === selectedTopic.id) return
     const position = anchors.current[selectedTopic.id]
     if (!position) return
+
+    if (lastId.current === null) {
+      stashSolarView(controls, layoutKey)
+    }
 
     const distance = cameraOffsetForScale(topicScale(selectedTopic.total_volume_percent, volumeMax))
     controls.setLookAt(
@@ -81,20 +103,37 @@ function Universe({
   volumeMax = 100,
   layout = { radii: [], extent: null, positions: null },
   linear = false,
+  labelDistanceFactor = 18,
   homeFrame = {},
+  layoutKey,
+  limits,
   settings,
 }) {
   const controlsRef = useRef()
   const anchors = useRef({})
   const selectedTopic = topics.find((topic) => topic.id === selectedTopicId) ?? null
   const inspecting = Boolean(selectedTopic)
-  const maxDistance = homeMaxDistance(isMobile, topics.length, layout.extent, homeFrame)
+  const maxDistance = limits?.maxDistance ?? homeMaxDistance(isMobile, topics.length, layout.extent, homeFrame)
+
+  const handleSelectTopic = useCallback(
+    (topicId) => {
+      if (selectedTopicId == null) {
+        stashSolarView(controlsRef.current, layoutKey)
+      }
+      onSelectTopic(topicId)
+    },
+    [onSelectTopic, selectedTopicId, layoutKey],
+  )
 
   useEffect(() => {
+    installSolarCameraTestHooks(() => controlsRef.current, () => ({ layoutKey, limits }))
     return () => {
       document.body.style.cursor = 'auto'
+      if (typeof window !== 'undefined' && window.__PV_SOLAR_CAMERA__) {
+        delete window.__PV_SOLAR_CAMERA__
+      }
     }
-  }, [])
+  }, [layoutKey, limits])
 
   return (
     <>
@@ -137,12 +176,13 @@ function Universe({
           dimmed={Boolean(selectedTopicId) && topic.id !== selectedTopicId}
           selectedPerspectiveId={topic.id === selectedTopicId ? selectedPerspectiveId : null}
           anchors={anchors}
-          onSelectTopic={onSelectTopic}
+          onSelectTopic={handleSelectTopic}
           onSelectPerspective={onSelectPerspective}
           isMobile={isMobile}
           volumeMax={volumeMax}
           orbitRadius={linear ? null : layout.radii[index]}
           anchor={linear ? layout.positions[index] : null}
+          labelDistanceFactor={linear ? labelDistanceFactor : undefined}
           quality={settings.textureQuality}
           sphereDetail={settings.sphereDetail}
           haloDetail={settings.haloDetail}
@@ -167,6 +207,8 @@ function Universe({
         volumeMax={volumeMax}
         layoutExtent={layout.extent}
         homeFrame={homeFrame}
+        layoutKey={layoutKey}
+        limits={limits}
       />
       {settings.bloom && !inspecting && (
         <EffectComposer disableNormalPass>
@@ -194,42 +236,83 @@ export default function Observatory({
   const [epoch, setEpoch] = useState(0)
   const [showOrbits, setShowOrbits] = useState(false)
   const [linear, setLinear] = useState(false)
-  const [viewportAspect, setViewportAspect] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 1,
+  const [canvasAspect, setCanvasAspect] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 1.2,
   )
   const remounts = useRef(0)
+  const prevLayoutKey = useRef(null)
+  const aspectObserver = useRef(null)
   const settings = useMemo(() => solarSettings(isMobile), [isMobile])
 
-  useEffect(() => {
-    const update = () => setViewportAspect(window.innerWidth / window.innerHeight)
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
+  const bindCanvas = useCallback((canvas) => {
+    if (!canvas || typeof ResizeObserver === 'undefined') return
+    const measure = () => {
+      const rect = canvas.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) {
+        setCanvasAspect(rect.width / rect.height)
+      }
+    }
+    measure()
+    aspectObserver.current?.disconnect()
+    aspectObserver.current = new ResizeObserver(measure)
+    aspectObserver.current.observe(canvas)
   }, [])
+
+  useEffect(() => () => aspectObserver.current?.disconnect(), [])
 
   const layout = useMemo(
     () => (
       linear
-        ? layoutLinear(topics, volumeMax, { grid: isMobile, viewportAspect })
+        ? layoutLinear(topics, volumeMax, { grid: isMobile, viewportAspect: canvasAspect })
         : layoutSolarSystem(topics, volumeMax)
     ),
-    [linear, topics, volumeMax, isMobile, viewportAspect],
+    [linear, topics, volumeMax, isMobile, canvasAspect],
   )
   const linearGrid = linear && layout.mode === 'grid'
   const homeFrame = useMemo(
     () => ({
       linear,
       grid: linearGrid,
-      viewportAspect,
+      viewportAspect: canvasAspect,
       extentX: layout.extentX ?? layout.extent,
       extentY: layout.extentY ?? layout.extent,
     }),
-    [linear, linearGrid, viewportAspect, layout.extent, layout.extentX, layout.extentY],
+    [linear, linearGrid, canvasAspect, layout.extent, layout.extentX, layout.extentY],
   )
   const home = useMemo(
     () => homeLookAt(isMobile, topics.length, layout.extent, homeFrame),
     [isMobile, topics.length, layout.extent, homeFrame],
   )
+  const layoutKey = useMemo(
+    () => solarLayoutKey(category, linear, linearGrid),
+    [category, linear, linearGrid],
+  )
+  const limits = useMemo(
+    () => ({
+      minDistance: 3.2,
+      maxDistance: homeMaxDistance(isMobile, topics.length, layout.extent, homeFrame),
+      home,
+      extent: layout.extent ?? 12,
+      linear,
+      grid: linearGrid,
+    }),
+    [isMobile, topics.length, layout.extent, linear, linearGrid, home, homeFrame],
+  )
+  const labelDistanceFactor = useMemo(() => {
+    if (!linear) return isMobile ? 16 : 18
+    if (isMobile) {
+      const homeDistance = Math.hypot(home[0], home[1], home[2])
+      return Math.min(44, Math.max(30, homeDistance * 2.05))
+    }
+    return 18
+  }, [linear, isMobile, home])
+
+  useLayoutEffect(() => {
+    if (prevLayoutKey.current != null && prevLayoutKey.current !== layoutKey) {
+      clearSolarView()
+    }
+    prevLayoutKey.current = layoutKey
+  }, [layoutKey])
 
   useEffect(() => {
     if (!linear || typeof window === 'undefined') {
@@ -248,6 +331,7 @@ export default function Observatory({
 
   const onCreated = useCallback(({ gl }) => {
     const canvas = gl.domElement
+    bindCanvas(canvas)
     const onLost = (event) => {
       event.preventDefault()
       if (remounts.current >= 1) return
@@ -255,7 +339,7 @@ export default function Observatory({
       setEpoch((value) => value + 1)
     }
     canvas.addEventListener('webglcontextlost', onLost)
-  }, [])
+  }, [bindCanvas])
 
   const hint = 'Drag to look around'
 
@@ -291,7 +375,10 @@ export default function Observatory({
           volumeMax={volumeMax}
           layout={layout}
           linear={linear}
+          labelDistanceFactor={labelDistanceFactor}
           homeFrame={homeFrame}
+          layoutKey={layoutKey}
+          limits={limits}
           settings={settings}
         />
       </Canvas>

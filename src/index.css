@@ -864,6 +864,10 @@ h3 {
   text-overflow: ellipsis;
 }
 
+.planet-label.is-mobile.is-linear {
+  max-width: min(34vw, 8.75rem);
+}
+
 .planet-label.is-dimmed {
   opacity: 0.18;
 }
