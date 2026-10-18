@@ -88,6 +88,8 @@ free_ingest: true
 
 # Private planet and perspective briefings in R2 (dossiers/<edition>/<planet-id>.md).
 # Off: the grounded summary, brief, and detail stay as they are, and nothing
-# is written under dossiers/. On spends against the $1/day pipeline cap.
+# is written under dossiers/. On, rebuilds spend at most min($0.25, room left
+# under the $1/day cap after a reserve for the rest of the run). Over-budget
+# briefings wait for a later night and do not stop publishing.
 # PERSPECTIVERSE_DOSSIERS=1 turns it on for one run. Leave this false.
 dossiers: false

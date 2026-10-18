@@ -9,10 +9,16 @@ import pytest
 
 from pipeline.briefs import sentences
 from pipeline.dossier import (
+    DOSSIER_NIGHTLY_BUDGET_USD,
+    DOSSIER_OUTPUT_TOKENS_4PAGE,
     DOSSIER_PROMPT_VERSION,
+    DOSSIER_RUN_RESERVE_USD,
+    DossierBudget,
     MemoryDossierStore,
     apply_dossiers,
+    apply_dossiers_batch,
     assert_dossier_key,
+    dossier_night_budget,
     edition_markdown_key,
     enforce_no_repeat,
     estimate_tokens,
@@ -23,6 +29,8 @@ from pipeline.dossier import (
     needs_rebuild,
     price_tokens,
     project_nightly,
+    project_pair,
+    sample_posts,
     _same_sentence,
 )
 from pipeline.r2 import assert_dossier_key as r2_assert_dossier_key
@@ -276,6 +284,8 @@ def test_price_uses_the_repo_llama_rates():
     assert full["usd"] > fifth["usd"] > 0
     assert full["planets"] == 110
     assert full["calls"] == 110 * 3 * 2
+    assert full["usd"] > DOSSIER_NIGHTLY_BUDGET_USD
+    assert full["usd"] <= DOSSIER_NIGHTLY_BUDGET_USD * 3
 
 
 def test_keys_stay_under_dossiers_and_reject_the_corpus():
@@ -350,6 +360,208 @@ def test_label_context_keeps_dossiers_off(monkeypatch):
     enabled = dict(settings, dossiers=True)
     context = live._label_context(enabled)
     assert context["dossiers"] is False
+
+
+def _named_topic(name, topic_id, face_id, face_title, posts, post_count, face_count=None):
+    topic = _topic(posts)
+    topic["id"] = topic_id
+    topic["name"] = name
+    topic["post_count"] = post_count
+    topic["summary"] = f"Old summary for {name}."
+    face = topic["perspectives"][0]
+    face["id"] = face_id
+    face["title"] = face_title
+    face["post_count"] = post_count if face_count is None else face_count
+    face["summary"] = f"Old face summary for {face_title}."
+    return topic
+
+
+def _briefing_titles(prompts):
+    titles = []
+    for prompt in prompts:
+        if not prompt.startswith("Write an internal briefing"):
+            continue
+        kind = "planet"
+        title = ""
+        for line in prompt.splitlines():
+            if line.startswith("Kind: "):
+                kind = line.split(": ", 1)[1]
+            if line.startswith("Title: "):
+                title = line.split(": ", 1)[1]
+        titles.append((kind, title))
+    return titles
+
+
+def test_dossier_night_budget_is_the_min_of_allowance_and_cap_room():
+    heavy = Decimal("0.978")
+    assert dossier_night_budget(heavy) == Decimal("0")
+    assert dossier_night_budget(heavy, reserve_usd=0) == Decimal("0.022")
+    assert dossier_night_budget(Decimal("0.168")) == DOSSIER_NIGHTLY_BUDGET_USD
+    assert dossier_night_budget(Decimal("0"), already_usd=Decimal("0.20")) == Decimal("0.05")
+    assert DOSSIER_RUN_RESERVE_USD == Decimal("0.15")
+
+
+def test_budget_exhausted_still_publishes_and_keeps_summaries():
+    from pipeline.spend_cap import SpendCapExceeded
+
+    posts = _posts()
+    topic = _named_topic("Big", 1, "1A", "Big view", posts, 100)
+    before = topic["summary"]
+    face_before = topic["perspectives"][0]["summary"]
+    calls = []
+
+    def generate(prompt):
+        calls.append(prompt)
+        raise SpendCapExceeded("daily stop", spent_usd=Decimal("1.00"))
+
+    from pipeline import live
+
+    context = {
+        "dossiers": True,
+        "dossier_store": MemoryDossierStore(),
+        "summary_model": generate,
+        "edition_date": EDITION,
+        "dossier_budget": DossierBudget(spent_today=Decimal("0"), stop=Decimal("1")),
+    }
+    published = None
+    try:
+        live._apply_dossiers_if_enabled([topic], posts, context, reserve_usd=0)
+        published = {"topics": [topic]}
+    except SpendCapExceeded:
+        published = None
+    assert published is not None
+    assert len(calls) == 1
+    assert topic["summary"] == before
+    assert topic["perspectives"][0]["summary"] == face_before
+    assert "_dossier_action" not in topic
+
+    capped = DossierBudget(spent_today=Decimal("0.978"), stop=Decimal("1"))
+    quiet = []
+    apply_dossiers_batch(
+        [topic],
+        posts,
+        generate=_generate(quiet),
+        store=MemoryDossierStore(),
+        edition=EDITION,
+        budget=capped,
+        reserve_usd=DOSSIER_RUN_RESERVE_USD,
+    )
+    assert quiet == []
+    assert topic["summary"] == before
+    assert capped.spent == Decimal("0")
+
+
+def test_deferred_rebuild_keeps_previous_dossier_and_carries_over():
+    posts = _posts()
+    big = _named_topic("Big", 1, "1A", "Big view", posts, 100)
+    small = _named_topic("Small", 2, "2A", "Small view", posts, 5)
+    previous = {
+        "prompt_version": DOSSIER_PROMPT_VERSION,
+        "summary": "Stored small summary stays while the rebuild waits.",
+        "brief": "Stored small brief one. Stored small brief two. Stored small brief three.",
+        "detail": (
+            "Stored small paragraph one is long enough to stand.\n\n"
+            "Stored small paragraph two is long enough to stand.\n\n"
+            "Stored small paragraph three is long enough to stand."
+        ),
+        "post_uris": ["at://post/0"],
+        "top_n": [{"uri": "at://post/0", "likes": 1}],
+    }
+    store = MemoryDossierStore()
+    store.put_json(index_key("World", "Small"), previous)
+    sampled = sample_posts(posts)
+    big_cost = project_pair(
+        sampled,
+        kind="planet",
+        title="Big",
+        rivals=[],
+        output_tokens=DOSSIER_OUTPUT_TOKENS_4PAGE,
+    )["usd"]
+    small_cost = project_pair(
+        sampled,
+        kind="planet",
+        title="Small",
+        rivals=[],
+        output_tokens=DOSSIER_OUTPUT_TOKENS_4PAGE,
+    )["usd"]
+    planet_cost = max(big_cost, small_cost)
+    prompts = []
+    budget = DossierBudget(nightly_usd=planet_cost, spent_today=Decimal("0"), stop=Decimal("1"))
+    apply_dossiers_batch(
+        [small, big],
+        posts,
+        generate=_generate(prompts),
+        store=store,
+        edition=EDITION,
+        budget=budget,
+        reserve_usd=0,
+    )
+    assert _briefing_titles(prompts) == [("planet", "Big")]
+    assert big["summary"] != "Old summary for Big."
+    assert small["summary"] == previous["summary"]
+    assert store.get_text(edition_markdown_key(EDITION, 2)) is None
+    assert store.get_text(edition_markdown_key(EDITION, 1))
+
+    prompts.clear()
+    next_budget = DossierBudget(nightly_usd=planet_cost, spent_today=Decimal("0"), stop=Decimal("1"))
+    apply_dossiers_batch(
+        [small, big],
+        posts,
+        generate=_generate(prompts),
+        store=store,
+        edition=EDITION,
+        budget=next_budget,
+        reserve_usd=0,
+    )
+    assert _briefing_titles(prompts) == [("planet", "Small")]
+    assert small["summary"] != previous["summary"]
+    assert store.get_text(edition_markdown_key(EDITION, 2))
+    assert ("planet", "Big") not in _briefing_titles(prompts)
+
+
+def test_rebuild_order_is_biggest_planets_then_their_faces():
+    posts = _posts()
+    other_posts = _posts()
+    for index, post in enumerate(other_posts):
+        post["uri"] = f"at://other/{index}"
+    big = _named_topic("Big", 1, "1A", "Small camp", posts, 80, face_count=10)
+    big["perspectives"].append(
+        {
+            "id": "1B",
+            "title": "Large camp",
+            "summary": "Old large camp summary.",
+            "brief": "Old large one. Old large two. Old large three.",
+            "detail": (
+                "Old large paragraph one is long enough to stand.\n\n"
+                "Old large paragraph two is long enough to stand.\n\n"
+                "Old large paragraph three is long enough to stand."
+            ),
+            "representative_posts": other_posts,
+            "_face_member_uris": [post["uri"] for post in other_posts],
+            "post_count": 70,
+        }
+    )
+    mid = _named_topic("Mid", 2, "2A", "Mid view", posts, 40)
+    small = _named_topic("Small", 3, "3A", "Small view", posts, 5)
+    prompts = []
+    apply_dossiers_batch(
+        [small, mid, big],
+        posts + other_posts,
+        generate=_generate(prompts),
+        store=MemoryDossierStore(),
+        edition=EDITION,
+        budget=DossierBudget(spent_today=Decimal("0"), stop=Decimal("1")),
+        reserve_usd=0,
+    )
+    assert _briefing_titles(prompts) == [
+        ("planet", "Big"),
+        ("planet", "Mid"),
+        ("planet", "Small"),
+        ("perspective", "Large camp"),
+        ("perspective", "Small camp"),
+        ("perspective", "Mid view"),
+        ("perspective", "Small view"),
+    ]
 
 
 def test_sample_command_prints_cost_and_does_not_call_the_model(tmp_path, monkeypatch, capsys):

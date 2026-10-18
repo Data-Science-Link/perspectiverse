@@ -7,13 +7,19 @@ briefing plus the top posts. The briefing itself stays in Cloudflare R2 under
 
 The switch is off. ``dossiers: false`` and an unset ``PERSPECTIVERSE_DOSSIERS``
 make no model call and no R2 write. Turning it on spends against the same
-$1/day pipeline cap as labeling. A future visitor chat that reads these
-objects pays for its own calls; this module does not meter a chat.
+$1/day pipeline cap as labeling, inside a smaller dossier budget: the minimum
+of $0.25 and whatever is left under that cap after a reserve for the rest of
+the run. A dossier that does not fit is deferred. The previous briefing stays,
+or the current summaries stay when there is no briefing yet. Deferral does
+not stop the run and does not stop publishing. A future visitor chat that
+reads these objects pays for its own calls; this module does not meter a chat.
 
 Rebuilds are the exception. A stored briefing is reused unless more than 20%
 of the current post URIs are new, or a post newly enters the top 8 with more
 likes than the least-liked post already in that top 8. A tie among equal
-likes does not rebuild.
+likes does not rebuild. The first night, and any later night that needs a
+full rebuild, spends at most the dossier budget, largest planets first and
+then their perspectives, and continues the rest on later nights.
 """
 
 from __future__ import annotations
@@ -49,6 +55,15 @@ DOSSIER_OUTPUT_TOKENS_4PAGE = 2500
 READER_OUTPUT_TOKENS = 500
 # A model that overruns the 1,800-word ask. Used only as an approval ceiling.
 OUTPUT_OVERSHOOT = Decimal("1.20")
+# One night of dossier model calls. A full rebuild is about $0.53, so the
+# first build takes more than one night on its own.
+DOSSIER_NIGHTLY_BUDGET_USD = Decimal("0.25")
+# Held back while paid work is still ahead of the dossier pass. Global
+# dossiers run before section labeling. A typical night's DeepInfra labeling
+# is about $0.13 (2026-10-16 $0.117, 2026-10-18 $0.135). $0.15 leaves that
+# remainder under the $1 cap. The section pass, which runs after labeling,
+# passes a zero reserve.
+DOSSIER_RUN_RESERVE_USD = Decimal("0.15")
 
 DOSSIER_PROMPT_VERSION = "1"
 SAMPLE_LIMIT = 40
@@ -99,6 +114,96 @@ def price_tokens(input_tokens: int, output_tokens: int) -> Decimal:
         + Decimal(int(output_tokens)) * LLAMA_70B_OUTPUT_USD_PER_MILLION
     ) / Decimal(1_000_000)
     return cost.quantize(Decimal("0.00000001"), rounding=ROUND_HALF_UP)
+
+
+def dossier_night_budget(
+    spent_today: Decimal | int | str,
+    *,
+    reserve_usd: Decimal | int | str = DOSSIER_RUN_RESERVE_USD,
+    stop_usd: Decimal | int | str = Decimal("1.00"),
+    nightly_usd: Decimal | int | str = DOSSIER_NIGHTLY_BUDGET_USD,
+    already_usd: Decimal | int | str = 0,
+) -> Decimal:
+    """Dollars of dossier model calls still allowed.
+
+    ``min(nightly budget still unused, cap − spent today − reserve)``.
+    A negative remainder is zero. This is the allowance, not a second meter:
+    the calls that fit still count toward the pipeline's $1/day cap.
+    """
+    spent = Decimal(str(spent_today))
+    reserve = Decimal(str(reserve_usd))
+    stop = Decimal(str(stop_usd))
+    nightly = Decimal(str(nightly_usd))
+    already = Decimal(str(already_usd))
+    nightly_left = nightly - already
+    if nightly_left < 0:
+        nightly_left = Decimal("0")
+    room = stop - spent - reserve
+    if room < 0:
+        room = Decimal("0")
+    return min(nightly_left, room)
+
+
+class DossierBudget:
+    """The dossier pass's own allowance. Exhausting it defers work.
+
+    It does not raise ``SpendCapExceeded`` and it does not stop publishing.
+    ``spent_today`` and ``stop`` let a test pin the cap. When they are omitted,
+    the live ledger and the pipeline stop are read at each check.
+    """
+
+    def __init__(
+        self,
+        nightly_usd: Decimal | int | str = DOSSIER_NIGHTLY_BUDGET_USD,
+        *,
+        spent_today: Decimal | int | str | None = None,
+        stop: Decimal | int | str | None = None,
+    ) -> None:
+        self.nightly_usd = Decimal(str(nightly_usd))
+        self.spent = Decimal("0")
+        self.spent_today = None if spent_today is None else Decimal(str(spent_today))
+        self.stop = None if stop is None else Decimal(str(stop))
+        self.stopped = False
+
+    def remaining(self, reserve_usd: Decimal | int | str) -> Decimal:
+        if self.stopped:
+            return Decimal("0")
+        today, limit = self._today_and_stop()
+        if self.stopped:
+            return Decimal("0")
+        return dossier_night_budget(
+            today,
+            reserve_usd=reserve_usd,
+            stop_usd=limit,
+            nightly_usd=self.nightly_usd,
+            already_usd=self.spent,
+        )
+
+    def fits(self, cost: Decimal, reserve_usd: Decimal | int | str) -> bool:
+        if self.stopped or cost < 0:
+            return False
+        return cost <= self.remaining(reserve_usd)
+
+    def charge(self, cost: Decimal) -> None:
+        if cost > 0:
+            self.spent += cost
+
+    def _today_and_stop(self) -> tuple[Decimal, Decimal]:
+        if self.spent_today is not None:
+            limit = Decimal("1.00") if self.stop is None else self.stop
+            return self.spent_today, limit
+        try:
+            from pipeline.spend_cap import day_paid_usd, stop_usd
+        except Exception:
+            self.stopped = True
+            return Decimal("0"), Decimal("0")
+        try:
+            return day_paid_usd(), stop_usd()
+        except Exception:
+            # A dossier check must not become a publish stop, including a
+            # misread ledger or a bad cap setting raised from the meter.
+            self.stopped = True
+            return Decimal("0"), Decimal("0")
 
 
 def post_uri(post: dict) -> str:
@@ -731,145 +836,296 @@ def apply_dossiers(
     generate: Callable[[str], str] | None,
     store: DossierStore | None,
     edition: str,
+    budget: DossierBudget | None = None,
+    reserve_usd: Decimal | int | str = 0,
 ) -> dict:
-    """Fill public tiers from private briefings when the caller passes a model and a store.
+    """Fill one planet's public tiers from private briefings.
 
-    With either missing, the topic is unchanged. Nothing in the briefing
-    markdown is attached to the topic, so it cannot land in ``data.json``.
+    With the model or the store missing, the topic is unchanged. Nothing in
+    the briefing markdown is attached to the topic, so it cannot land in
+    ``data.json``. A batch of planets should use ``apply_dossiers_batch`` so
+    the largest planets are funded first.
     """
-    if generate is None or store is None:
-        return topic
-    by_uri = {str(post.get("uri")): post for post in posts or [] if post.get("uri")}
-    perspectives = [face for face in (topic.get("perspectives") or []) if isinstance(face, dict)]
-    try:
-        _fill_dossiers(topic, perspectives, by_uri, generate, store, edition)
-    finally:
-        for target in (topic, *perspectives):
-            target.pop("_dossier_action", None)
-    return topic
-
-
-def _fill_dossiers(topic, perspectives, by_uri, generate, store, edition) -> None:
-    for face in perspectives:
-        others = [
-            other
-            for other in perspectives
-            if other is not face and other.get("title") and other.get("title") != face.get("title")
-        ]
-        rival_posts: list[dict] = []
-        for other in others:
-            rival_posts.extend(
-                _resolve_posts(other.get("_face_member_uris"), by_uri, other.get("representative_posts"))
-            )
-        _apply_one(
-            face,
-            _resolve_posts(face.get("_face_member_uris"), by_uri, face.get("representative_posts")),
-            kind="perspective",
-            title=str(face.get("title") or topic.get("name") or "View"),
-            subject_name=str(topic.get("name") or ""),
-            rivals=[str(other.get("title")) for other in others],
-            rival_posts=rival_posts[:6],
-            groups=(),
-            category=str(topic.get("category") or "uncategorized"),
-            planet_name=str(topic.get("name") or "planet"),
-            planet_id=topic.get("id"),
-            perspective_id=face.get("id"),
-            generate=generate,
-            store=store,
-            edition=edition,
-            forbidden=(),
-        )
-    member_posts = _resolve_posts(topic.get("_member_uris"), by_uri, None)
-    if not member_posts:
-        seen: set[str] = set()
-        for face in perspectives:
-            for post in face.get("representative_posts") or []:
-                key = post_uri(post)
-                if key in seen:
-                    continue
-                seen.add(key)
-                member_posts.append(post)
-    groups = []
-    for face in perspectives:
-        groups.append(
-            (
-                str(face.get("title") or "View"),
-                _resolve_posts(face.get("_face_member_uris"), by_uri, face.get("representative_posts")),
-            )
-        )
-    forbidden: list[str] = []
-    for face in perspectives:
-        forbidden.append(str(face.get("summary") or ""))
-        forbidden.append(str(face.get("brief") or ""))
-    _apply_one(
-        topic,
-        member_posts,
-        kind="planet",
-        title=str(topic.get("name") or "Planet"),
-        subject_name=str(topic.get("name") or ""),
-        rivals=_planet_rivals(perspectives),
-        rival_posts=(),
-        groups=groups,
-        category=str(topic.get("category") or "uncategorized"),
-        planet_name=str(topic.get("name") or "planet"),
-        planet_id=topic.get("id"),
-        perspective_id=None,
+    apply_dossiers_batch(
+        [topic],
+        posts,
         generate=generate,
         store=store,
         edition=edition,
-        forbidden=forbidden,
+        budget=budget,
+        reserve_usd=reserve_usd,
     )
-    wrote = sum(1 for face in perspectives if face.get("_dossier_action") == "wrote")
-    reused = sum(1 for face in perspectives if face.get("_dossier_action") == "reused")
-    if topic.get("_dossier_action") == "wrote":
-        wrote += 1
-    elif topic.get("_dossier_action") == "reused":
-        reused += 1
-    name = topic.get("name") or topic.get("id")
-    print(f"Dossier {name}: wrote {wrote}, reused {reused}.")
+    return topic
+
+
+def apply_dossiers_batch(
+    topics: Sequence[dict],
+    posts: Sequence[dict],
+    *,
+    generate: Callable[[str], str] | None,
+    store: DossierStore | None,
+    edition: str,
+    budget: DossierBudget | None = None,
+    reserve_usd: Decimal | int | str = 0,
+) -> None:
+    """Brief every planet and perspective that fits in ``budget``.
+
+    Order is the largest planets first, then their perspectives (largest
+    planet, then largest perspective). A unit that does not fit waits for a
+    later night. The previous briefing's public tiers stay in place. When no
+    briefing is stored, the summaries already on the planet stay. Either
+    outcome returns normally.
+    """
+    chosen = [topic for topic in topics if isinstance(topic, dict)]
+    if generate is None or store is None:
+        return
+    allowance = budget if budget is not None else DossierBudget()
+    reserve = Decimal(str(reserve_usd))
+    by_uri = {str(post.get("uri")): post for post in posts or [] if post.get("uri")}
+    units = _schedule_units(chosen, by_uri)
+    written_planets: list[dict] = []
+    try:
+        for unit in units:
+            try:
+                _apply_one(
+                    unit,
+                    generate=generate,
+                    store=store,
+                    edition=edition,
+                    budget=allowance,
+                    reserve_usd=reserve,
+                )
+            except Exception as exc:
+                from pipeline.spend_cap import SpendCapExceeded
+
+                if isinstance(exc, SpendCapExceeded):
+                    allowance.stopped = True
+                    _defer_unit(unit)
+                    print(
+                        "Dossier call hit the daily spend cap. "
+                        "Deferring the rest of the briefings and publishing."
+                    )
+                    continue
+                print(f"Dossier skipped for {unit['title']}: {exc}")
+                unit["target"]["_dossier_action"] = "skipped"
+            if unit["kind"] == "planet" and unit["target"].get("_dossier_action") == "wrote":
+                written_planets.append(unit)
+        for unit in written_planets:
+            if any(
+                face.get("_dossier_action") == "wrote"
+                for face in unit["perspectives"]
+            ):
+                _refresh_planet_tiers(unit, store)
+    finally:
+        for unit in units:
+            unit["target"].pop("_dossier_action", None)
+    wrote = sum(1 for unit in units if unit.get("action") == "wrote")
+    reused = sum(1 for unit in units if unit.get("action") == "reused")
+    deferred = sum(1 for unit in units if unit.get("action") == "deferred")
+    print(f"Dossiers: wrote {wrote}, reused {reused}, deferred {deferred}.")
+    if deferred:
+        print(
+            "Deferred dossiers keep the previous briefing, or the current summaries "
+            "when none is stored, and are retried on a later night."
+        )
+
+
+def _member_posts(topic: dict, perspectives: Sequence[dict], by_uri: dict[str, dict]) -> list[dict]:
+    member_posts = _resolve_posts(topic.get("_member_uris"), by_uri, None)
+    if member_posts:
+        return member_posts
+    seen: set[str] = set()
+    collected: list[dict] = []
+    for face in perspectives:
+        for post in face.get("representative_posts") or []:
+            key = post_uri(post)
+            if key in seen:
+                continue
+            seen.add(key)
+            collected.append(post)
+    return collected
+
+
+def _unit_size(target: dict, posts: Sequence[dict]) -> int:
+    raw = target.get("post_count")
+    if raw is None or raw == "":
+        return len(posts)
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return len(posts)
+
+
+def _schedule_units(topics: Sequence[dict], by_uri: dict[str, dict]) -> list[dict]:
+    """Largest planets, then perspectives of those planets, largest first."""
+    planets: list[dict] = []
+    faces: list[dict] = []
+    for topic in topics:
+        perspectives = [face for face in (topic.get("perspectives") or []) if isinstance(face, dict)]
+        member_posts = _member_posts(topic, perspectives, by_uri)
+        planet_size = _unit_size(topic, member_posts)
+        planet_name = str(topic.get("name") or "planet")
+        groups = []
+        for face in perspectives:
+            groups.append(
+                (
+                    str(face.get("title") or "View"),
+                    _resolve_posts(face.get("_face_member_uris"), by_uri, face.get("representative_posts")),
+                )
+            )
+        planets.append(
+            {
+                "target": topic,
+                "posts": member_posts,
+                "kind": "planet",
+                "title": str(topic.get("name") or "Planet"),
+                "subject_name": str(topic.get("name") or ""),
+                "rivals": _planet_rivals(perspectives),
+                "rival_posts": [],
+                "groups": groups,
+                "category": str(topic.get("category") or "uncategorized"),
+                "planet_name": planet_name,
+                "planet_id": topic.get("id"),
+                "perspective_id": None,
+                "perspectives": perspectives,
+                "sort": (0, -planet_size, planet_name, ""),
+            }
+        )
+        for face in perspectives:
+            others = [
+                other
+                for other in perspectives
+                if other is not face and other.get("title") and other.get("title") != face.get("title")
+            ]
+            rival_posts: list[dict] = []
+            for other in others:
+                rival_posts.extend(
+                    _resolve_posts(other.get("_face_member_uris"), by_uri, other.get("representative_posts"))
+                )
+            face_posts = _resolve_posts(face.get("_face_member_uris"), by_uri, face.get("representative_posts"))
+            face_title = str(face.get("title") or topic.get("name") or "View")
+            faces.append(
+                {
+                    "target": face,
+                    "posts": face_posts,
+                    "kind": "perspective",
+                    "title": face_title,
+                    "subject_name": str(topic.get("name") or ""),
+                    "rivals": [str(other.get("title")) for other in others],
+                    "rival_posts": rival_posts[:6],
+                    "groups": (),
+                    "category": str(topic.get("category") or "uncategorized"),
+                    "planet_name": planet_name,
+                    "planet_id": topic.get("id"),
+                    "perspective_id": face.get("id"),
+                    "perspectives": perspectives,
+                    "sort": (1, -planet_size, planet_name, -_unit_size(face, face_posts), face_title),
+                }
+            )
+    return sorted(planets + faces, key=lambda unit: unit["sort"])
+
+
+def _restore_stored_tiers(target: dict, stored: dict | None) -> bool:
+    if not stored:
+        return False
+    if not (stored.get("summary") and stored.get("brief") and stored.get("detail")):
+        return False
+    target["summary"] = str(stored.get("summary") or "")
+    target["brief"] = str(stored.get("brief") or "")
+    target["detail"] = str(stored.get("detail") or "")
+    return True
+
+
+def _defer_unit(unit: dict, stored: dict | None = None) -> None:
+    """Keep the previous briefing's public tiers, or the summaries already there."""
+    _restore_stored_tiers(unit["target"], stored)
+    unit["action"] = "deferred"
+    unit["target"]["_dossier_action"] = "deferred"
+
+
+def _call_model(generate, prompt: str, budget: DossierBudget, cost: Decimal, reserve_usd: Decimal) -> str | None:
+    if budget.stopped or not budget.fits(cost, reserve_usd):
+        return None
+    try:
+        text = generate(prompt)
+    except Exception as exc:
+        from pipeline.spend_cap import SpendCapExceeded
+
+        if isinstance(exc, SpendCapExceeded):
+            budget.stopped = True
+            print(
+                "Dossier call hit the daily spend cap. "
+                "Deferring the rest of the briefings and publishing."
+            )
+            return None
+        raise
+    budget.charge(cost)
+    return text
 
 
 def _apply_one(
-    target: dict,
-    posts: list[dict],
+    unit: dict,
     *,
-    kind: str,
-    title: str,
-    subject_name: str,
-    rivals: list[str],
-    rival_posts: Sequence[dict],
-    groups: Sequence[tuple[str, Sequence[dict]]],
-    category: str,
-    planet_name: str,
-    planet_id: object,
-    perspective_id: object | None,
     generate: Callable[[str], str],
     store: DossierStore,
     edition: str,
-    forbidden: Sequence[str],
+    budget: DossierBudget,
+    reserve_usd: Decimal,
 ) -> None:
-    usable = [post for post in posts if str(post.get("text") or post.get("clean_text") or "").strip()]
+    target = unit["target"]
+    kind = unit["kind"]
+    title = unit["title"]
+    usable = [post for post in unit["posts"] if str(post.get("text") or post.get("clean_text") or "").strip()]
     if not usable:
+        unit["action"] = "skipped"
         target["_dossier_action"] = "skipped"
         return
     uris = [post_uri(post) for post in usable]
     top = top_n_records(usable)
+    perspective_id = unit["perspective_id"]
     face_slug = None if perspective_id is None else f"{perspective_id}-{title}"
-    pointer = index_key(category, planet_name, face_slug)
+    pointer = index_key(unit["category"], unit["planet_name"], face_slug)
     stored = store.get_json(pointer)
     if stored and not needs_rebuild(stored, uris, top):
-        target["summary"] = str(stored.get("summary") or target.get("summary") or "")
-        target["brief"] = str(stored.get("brief") or target.get("brief") or "")
-        target["detail"] = str(stored.get("detail") or target.get("detail") or "")
+        _restore_stored_tiers(target, stored)
+        unit["action"] = "reused"
         target["_dossier_action"] = "reused"
         return
     sampled = sample_posts(usable, SAMPLE_LIMIT)
-    prompt = build_dossier_prompt(kind, title, sampled, rivals, subject_name, rival_posts)
-    drafted = _strip_fence(generate(prompt) or "")
+    rivals = list(unit["rivals"])
+    quote = project_pair(
+        sampled,
+        kind=kind,
+        title=title,
+        rivals=rivals,
+        output_tokens=DOSSIER_OUTPUT_TOKENS_4PAGE,
+    )
+    if budget.stopped or not budget.fits(quote["usd"], reserve_usd):
+        _defer_unit(unit, stored)
+        return
+    if kind == "planet":
+        forbidden = []
+        for face in unit["perspectives"]:
+            forbidden.append(str(face.get("summary") or ""))
+            forbidden.append(str(face.get("brief") or ""))
+    else:
+        forbidden = []
+        for face in unit["perspectives"]:
+            if face is target:
+                continue
+            forbidden.append(str(face.get("summary") or ""))
+            forbidden.append(str(face.get("brief") or ""))
+    prompt = build_dossier_prompt(kind, title, sampled, rivals, unit["subject_name"], unit["rival_posts"])
+    drafted_raw = _call_model(generate, prompt, budget, quote["dossier_usd"], reserve_usd)
+    if drafted_raw is None:
+        _defer_unit(unit, stored)
+        return
+    drafted = _strip_fence(drafted_raw)
     if not _headings_present(drafted):
-        drafted = extractive_dossier(kind, title, sampled, rivals, groups)
+        drafted = extractive_dossier(kind, title, sampled, rivals, unit["groups"])
     reader_prompt = build_reader_prompt(kind, title, drafted, top_posts(usable, TOP_N), rivals)
-    parsed = _parse_reader(generate(reader_prompt) or "") or {}
+    reader_raw = _call_model(generate, reader_prompt, budget, quote["reader_usd"], reserve_usd)
+    parsed = _parse_reader(reader_raw or "") or {}
     reader = enforce_no_repeat(
         summary=str(parsed.get("summary") or ""),
         brief=str(parsed.get("brief") or ""),
@@ -879,6 +1135,41 @@ def _apply_one(
         posts=sampled,
         title=title,
     )
+    _store_briefing(
+        target,
+        store,
+        edition=edition,
+        planet_id=unit["planet_id"],
+        perspective_id=perspective_id,
+        pointer=pointer,
+        kind=kind,
+        title=title,
+        drafted=drafted,
+        uris=uris,
+        top=top,
+        reader=reader,
+    )
+    unit["action"] = "wrote"
+    unit["drafted"] = drafted
+    unit["sampled"] = sampled
+    target["_dossier_action"] = "wrote"
+
+
+def _store_briefing(
+    target: dict,
+    store: DossierStore,
+    *,
+    edition: str,
+    planet_id: object,
+    perspective_id: object | None,
+    pointer: str,
+    kind: str,
+    title: str,
+    drafted: str,
+    uris: Sequence[str],
+    top: Sequence[dict],
+    reader: dict,
+) -> None:
     markdown_key = edition_markdown_key(edition, planet_id, perspective_id)
     meta_key = edition_meta_key(edition, planet_id, perspective_id)
     record = {
@@ -888,7 +1179,7 @@ def _apply_one(
         "name": title,
         "markdown_key": markdown_key,
         "post_uris": sorted(set(uris)),
-        "top_n": top,
+        "top_n": list(top),
         "summary": reader["summary"],
         "brief": reader["brief"],
         "detail": reader["detail"],
@@ -899,7 +1190,57 @@ def _apply_one(
     target["summary"] = reader["summary"]
     target["brief"] = reader["brief"]
     target["detail"] = reader["detail"]
-    target["_dossier_action"] = "wrote"
+
+
+def _refresh_planet_tiers(unit: dict, store: DossierStore) -> None:
+    """Drop a planet sentence that repeats a perspective written later in this pass.
+
+    The planet is funded first. Perspectives are written after it. This pass
+    is local: it does not call the model.
+    """
+    target = unit["target"]
+    drafted = str(unit.get("drafted") or "")
+    sampled = list(unit.get("sampled") or [])
+    if not drafted:
+        return
+    forbidden: list[str] = []
+    for face in unit["perspectives"]:
+        forbidden.append(str(face.get("summary") or ""))
+        forbidden.append(str(face.get("brief") or ""))
+    reader = enforce_no_repeat(
+        summary=str(target.get("summary") or ""),
+        brief=str(target.get("brief") or ""),
+        detail=str(target.get("detail") or ""),
+        dossier=drafted,
+        forbidden=forbidden,
+        posts=sampled,
+        title=unit["title"],
+    )
+    perspective_id = unit["perspective_id"]
+    face_slug = None if perspective_id is None else f"{perspective_id}-{unit['title']}"
+    pointer = index_key(unit["category"], unit["planet_name"], face_slug)
+    stored = store.get_json(pointer) or {}
+    if not stored:
+        target["summary"] = reader["summary"]
+        target["brief"] = reader["brief"]
+        target["detail"] = reader["detail"]
+        return
+    stored["summary"] = reader["summary"]
+    stored["brief"] = reader["brief"]
+    stored["detail"] = reader["detail"]
+    store.put_json(pointer, stored)
+    markdown_key = str(stored.get("markdown_key") or "")
+    if markdown_key.endswith(".md"):
+        meta_key = markdown_key[: -len(".md")] + ".meta.json"
+        meta = store.get_json(meta_key)
+        if meta:
+            meta["summary"] = reader["summary"]
+            meta["brief"] = reader["brief"]
+            meta["detail"] = reader["detail"]
+            store.put_json(meta_key, meta)
+    target["summary"] = reader["summary"]
+    target["brief"] = reader["brief"]
+    target["detail"] = reader["detail"]
 
 
 def planning_posts(count: int, chars: int = PLANNING_POST_CHARS) -> list[dict]:
@@ -946,6 +1287,8 @@ def project_pair(
         "dossier_output_tokens": int(output_tokens),
         "reader_input_tokens": reader_in,
         "reader_output_tokens": READER_OUTPUT_TOKENS,
+        "dossier_usd": dossier_usd,
+        "reader_usd": reader_usd,
         "usd": dossier_usd + reader_usd,
     }
 
@@ -1114,6 +1457,15 @@ def sample_report(topics: list[dict]) -> str:
         f"and no top-{TOP_N} post climbs the like floor: {_format_usd(steady['usd'])}."
     )
     blocks.append(
+        "A dossier night is capped at "
+        f"{_format_usd(DOSSIER_NIGHTLY_BUDGET_USD)} or whatever is left under the "
+        "$1/day cap after the reserve for the rest of the run, whichever is smaller. "
+        "Largest planets are rebuilt first, then their perspectives. "
+        "Anything over that budget waits for a later night. "
+        "The previous briefing stays, or the current summaries stay when there is no briefing. "
+        "A full rebuild is spread across nights and does not stop publishing."
+    )
+    blocks.append(
         "This spend is pipeline labeling spend and counts against the $1/day cap. "
         "It is not a visitor-chat budget."
     )
@@ -1195,8 +1547,15 @@ def main(argv: list[str] | None = None) -> int:
         print("R2 is not configured. Not calling the model.", file=sys.stderr)
         return 1
     edition = args.edition.strip() or datetime.now(timezone.utc).date().isoformat()
+    apply_dossiers_batch(
+        topics,
+        [],
+        generate=_real_generate,
+        store=store,
+        edition=edition,
+        reserve_usd=0,
+    )
     for topic in topics:
-        apply_dossiers(topic, [], generate=_real_generate, store=store, edition=edition)
         blob = json.dumps({"summary": topic.get("summary"), "brief": topic.get("brief"), "detail": topic.get("detail")})
         if "dossiers/" in blob:
             raise RuntimeError("Refusing to print a private key in the public fields")

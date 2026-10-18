@@ -16,7 +16,7 @@ from pathlib import Path
 
 from pipeline.assemble import FACE_LETTERS, assemble_payload, face_id, topic_name, write_payload
 from pipeline.briefs import apply_level_summaries
-from pipeline.dossier import apply_dossiers, dossiers_enabled, open_dossier_store
+from pipeline.dossier import DossierBudget, apply_dossiers_batch, dossiers_enabled, open_dossier_store
 from pipeline.cleaning import clean_posts, drop_near_duplicates
 from pipeline.corpus import (
     TARGET_POSTS,
@@ -1098,6 +1098,7 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         else:
             context["dossiers"] = True
             context["dossier_store"] = dossier_store
+            context["dossier_budget"] = DossierBudget()
     return context
 
 
@@ -1863,12 +1864,21 @@ def _wide_label_face_from_posts(
     }
 
 
-def _apply_dossiers_if_enabled(topics: list[dict], posts: list[dict], context: dict) -> None:
+def _apply_dossiers_if_enabled(
+    topics: list[dict],
+    posts: list[dict],
+    context: dict,
+    *,
+    reserve_usd: Decimal | int | str | None = None,
+) -> None:
     """Rewrite public tiers from private briefings when the switch is on.
 
     Off, or on without R2 or a model: the grounded summary, brief, and detail
-    stay as ``apply_level_summaries`` wrote them. ``SpendCapExceeded`` still
-    stops the run. Any other dossier error keeps that planet's grounded text.
+    stay as ``apply_level_summaries`` wrote them. A dossier that does not fit
+    in its budget is deferred. That does not raise, and it does not stop
+    publishing. ``reserve_usd`` is held back for paid work still ahead. The
+    global catalog passes the section-labeling reserve. The section pass,
+    which runs after that labeling, passes 0.
     """
     if not context.get("dossiers"):
         return
@@ -1877,16 +1887,44 @@ def _apply_dossiers_if_enabled(topics: list[dict], posts: list[dict], context: d
     if store is None or generate is None:
         print("Dossiers are on but storage or the model is missing; keeping the grounded summaries.")
         return
-    from pipeline.spend_cap import SpendCapExceeded
+    from decimal import Decimal as _Decimal
 
+    from pipeline.dossier import DOSSIER_RUN_RESERVE_USD
+
+    budget = context.get("dossier_budget")
+    if not isinstance(budget, DossierBudget):
+        budget = DossierBudget()
+        context["dossier_budget"] = budget
+    if reserve_usd is None:
+        reserve_usd = DOSSIER_RUN_RESERVE_USD
     edition = str(context.get("edition_date") or datetime.now(timezone.utc).date().isoformat())
-    for topic in topics:
-        try:
-            apply_dossiers(topic, posts, generate=generate, store=store, edition=edition)
-        except SpendCapExceeded:
-            raise
-        except Exception as exc:
-            print(f"Dossier skipped for {topic.get('name')}: {exc}")
+    try:
+        apply_dossiers_batch(
+            topics,
+            posts,
+            generate=generate,
+            store=store,
+            edition=edition,
+            budget=budget,
+            reserve_usd=_Decimal(str(reserve_usd)),
+        )
+    except Exception as exc:
+        print(f"Dossiers stopped early ({exc}). Keeping the summaries and publishing.")
+
+
+def _apply_section_dossiers(jobs: list[_SectionLabelJob]) -> None:
+    """One dossier pass for every section planet, largest first.
+
+    Section labeling is already finished, so this pass does not hold a reserve.
+    """
+    if not jobs:
+        return
+    topics: list[dict] = []
+    posts: list[dict] = []
+    for job in jobs:
+        topics.extend(job.built)
+        posts.extend(job.posts)
+    _apply_dossiers_if_enabled(topics, posts, jobs[0].context, reserve_usd=0)
 
 
 def _strip_internal_planet_fields(topics: list[dict]) -> None:
@@ -1930,7 +1968,8 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     if jobs[0].context.get("chosen") == "heuristic":
         for job in jobs:
             merge_alike_published_faces(job.built)
-            _apply_dossiers_if_enabled(job.built, job.posts, job.context)
+        _apply_section_dossiers(jobs)
+        for job in jobs:
             _strip_internal_planet_fields(job.built)
         return set()
     face_jobs: list[_FinalizeFaceJob] = []
@@ -1949,7 +1988,8 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     )
     for job in jobs:
         merge_alike_published_faces(job.built)
-        _apply_dossiers_if_enabled(job.built, job.posts, job.context)
+    _apply_section_dossiers(jobs)
+    for job in jobs:
         _strip_internal_planet_fields(job.built)
     return incomplete
 
