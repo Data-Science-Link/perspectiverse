@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pipeline.corpus_persist import persist_paid_corpus
 from pipeline.jev import apply_jev, known_scored_uris, reset_jev_state
 from pipeline.costs import reset_meter
+from pipeline.chitchat_guard import ingest_block_reason, planet_chitchat_reason
 from pipeline.free_ingest import prepare_post, refresh_carried_posts
 from pipeline.store import (
     connect,
@@ -15,6 +16,7 @@ from pipeline.store import (
     should_drop_stored_post,
     write_quality_posts,
 )
+from pipeline.stored_purge import PURGE_STORED_REASONS_ENV, stored_purge_key_for_ingest_reason
 
 
 def _post(uri: str, *, claim: bool | None, spam: float | None = None, text: str | None = None) -> dict:
@@ -88,6 +90,19 @@ def test_cleanup_keeps_cached_non_claims_drops_spam_and_filters(tmp_path):
     write_quality_posts(connection, [_post("at://later", claim=True, spam=0.1)])
     assert _uris(connection) == {"at://later", "at://uncached-aside"}
     connection.close()
+
+
+def test_stored_chitchat_purge_is_opt_in(tmp_path, monkeypatch):
+    thanks = _post("at://thanks", claim=True, spam=0.1, text="Thank you!!")
+    block = ingest_block_reason(thanks)
+    assert block.startswith("chitchat:")
+    assert stored_purge_key_for_ingest_reason(block) == "chitchat"
+    monkeypatch.delenv(PURGE_STORED_REASONS_ENV, raising=False)
+    assert should_drop_stored_post(thanks) is False
+    monkeypatch.setenv(PURGE_STORED_REASONS_ENV, "chitchat")
+    assert should_drop_stored_post(thanks) is True
+    planet = [{"text": "Thank you!!"}] * 16
+    assert planet_chitchat_reason(planet, [], name="Thank")
 
 
 def test_cleanup_drops_cached_spam_when_row_has_no_scores(tmp_path):
@@ -308,6 +323,52 @@ def test_workflow_drop_non_quality_end_to_end(tmp_path, capsys):
     }
     verdicts = {row[0] for row in connection.execute("SELECT uri FROM jev_verdicts")}
     assert verdicts == {"at://cached-spam", "at://cached-aside"}
+    connection.close()
+
+
+def test_workflow_drop_non_quality_purges_when_reasons_listed(tmp_path, capsys, monkeypatch):
+    from pipeline.store import main
+
+    monkeypatch.setenv(PURGE_STORED_REASONS_ENV, "chitchat,link_only,language")
+    db = tmp_path / "live_corpus.db"
+    connection = connect(db)
+    dutch = "Het is niet een goed plan want de regering heeft geen meerderheid in het parlement."
+    replace_posts(
+        connection,
+        [
+            {
+                "uri": "at://thanks",
+                "author": "ada",
+                "text": "Thank you so much!",
+                "clean_text": "Thank you so much!",
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            {
+                "uri": "at://link-only",
+                "author": "ada",
+                "text": "https://example.com/only",
+                "clean_text": "https://example.com/only",
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            {
+                "uri": "at://non-english",
+                "author": "ada",
+                "text": dutch,
+                "clean_text": dutch,
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            _post("at://claim", claim=True, spam=0.1),
+        ],
+    )
+    connection.close()
+    assert main(["drop-non-quality", str(db)]) == 0
+    captured = capsys.readouterr().out
+    assert "filtered=3" in captured
+    connection = connect(db)
+    assert _uris(connection) == {"at://claim"}
     connection.close()
 
 
