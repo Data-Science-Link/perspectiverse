@@ -2,6 +2,8 @@
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from pipeline.corpus_persist import persist_paid_corpus
 from pipeline.jev import apply_jev, known_scored_uris, reset_jev_state
 from pipeline.costs import reset_meter
@@ -15,6 +17,11 @@ from pipeline.store import (
     should_drop_stored_post,
     write_quality_posts,
 )
+
+
+@pytest.fixture(autouse=True)
+def _allow_paid_jev_quality_tests(monkeypatch):
+    monkeypatch.setenv("PERSPECTIVERSE_ALLOW_PAID", "1")
 
 
 def _post(uri: str, *, claim: bool | None, spam: float | None = None, text: str | None = None) -> dict:

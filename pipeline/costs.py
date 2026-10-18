@@ -624,7 +624,13 @@ def record_attempt(
     status: str,
     error_class: str = "",
 ) -> None:
-    from pipeline.spend_cap import SpendCapExceeded, account_recorded_attempt
+    from pipeline.spend_cap import (
+        PAID_CALL_SERVICES,
+        PaidCallsBlocked,
+        SpendCapExceeded,
+        account_recorded_attempt,
+        require_paid_opt_in,
+    )
 
     try:
         from pipeline.publish_guard import ERROR_CLASSES
@@ -646,9 +652,11 @@ def record_attempt(
             status=status_value,
             error_class=recorded_class,
         )
+        if attempt.service in PAID_CALL_SERVICES:
+            require_paid_opt_in(f"metering {attempt.service}")
         get_meter().record(attempt)
         account_recorded_attempt(attempt)
-    except SpendCapExceeded:
+    except (SpendCapExceeded, PaidCallsBlocked):
         raise
     except Exception as exc:
         warn(f"Cost meter dropped an attempt: {exc}")
@@ -680,9 +688,10 @@ def record_llm_attempt(
     """Record one DeepInfra (or other OpenAI-compatible) attempt.
 
     Raises ``SpendCapExceeded`` when today's paid calls are at the hard stop.
+    Raises ``PaidCallsBlocked`` when ``PERSPECTIVERSE_ALLOW_PAID`` is unset.
     Any other metering error is a warning.
     """
-    from pipeline.spend_cap import SpendCapExceeded
+    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
     try:
         usage = _usage_dict(payload)
@@ -697,7 +706,7 @@ def record_llm_attempt(
             status=status,
             error_class=error_class,
         )
-    except SpendCapExceeded:
+    except (SpendCapExceeded, PaidCallsBlocked):
         raise
     except Exception as exc:
         warn(f"Cost log skipped for a labeling call: {exc}")
@@ -790,9 +799,10 @@ def record_jev_attempt(
     """Record one Jev attempt. Cost is computed from input tokens.
 
     Raises ``SpendCapExceeded`` when today's paid calls are at the hard stop.
+    Raises ``PaidCallsBlocked`` when ``PERSPECTIVERSE_ALLOW_PAID`` is unset.
     Top-up rounds use this same recorder. Any other metering error is a warning.
     """
-    from pipeline.spend_cap import SpendCapExceeded
+    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
     try:
         usage = _usage_dict(payload)
@@ -806,7 +816,7 @@ def record_jev_attempt(
             cost_source="computed",
             status=status,
         )
-    except SpendCapExceeded:
+    except (SpendCapExceeded, PaidCallsBlocked):
         raise
     except Exception as exc:
         warn(f"Cost log skipped for a Jev call: {exc}")

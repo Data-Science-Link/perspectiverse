@@ -9,6 +9,11 @@ from pipeline.spend_cap import SpendCapExceeded
 from pipeline.store import connect
 
 
+@pytest.fixture(autouse=True)
+def _allow_paid_jev_tests(monkeypatch):
+    monkeypatch.setenv("PERSPECTIVERSE_ALLOW_PAID", "1")
+
+
 def _post(uri: str, text: str) -> dict:
     return {
         "uri": uri,

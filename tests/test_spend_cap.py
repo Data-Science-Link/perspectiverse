@@ -54,6 +54,7 @@ def _isolated_cap(monkeypatch):
     monkeypatch.delenv("PERSPECTIVERSE_COST_LEDGER", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_COST_RUN", raising=False)
     monkeypatch.delenv("PERSPECTIVERSE_SPEND_CAP_MARKER", raising=False)
+    monkeypatch.setenv("PERSPECTIVERSE_ALLOW_PAID", "1")
     reset_meter()
     yield
     reset_meter()
@@ -730,6 +731,7 @@ def test_workflow_stops_publish_unless_the_live_step_succeeds():
     assert "spend_cap_stop.json" in text
     assert "steps.live.outcome == 'success'" in text
     assert "PERSPECTIVERSE_LEDGER_PYTHONPATH" in text
+    assert 'PERSPECTIVERSE_ALLOW_PAID: "1"' in text
     stage_at = text.index("name: Stage halted corpus before ledger git checkout")
     hold_at = text.index("name: Keep yesterday's edition when the daily spend cap stops the run")
     upload_at = text.index("name: Upload halted corpus to R2")

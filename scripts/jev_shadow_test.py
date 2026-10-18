@@ -517,6 +517,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Dollar cap for the whole script. Values above 0.03 are clamped.",
     )
     args = parser.parse_args(argv)
+    from pipeline.spend_cap import ENV_ALLOW_PAID, paid_calls_allowed
+
+    if not paid_calls_allowed():
+        print(
+            f"Paid Jev calls are off. Set {ENV_ALLOW_PAID}=1 before running this review script.",
+            file=sys.stderr,
+        )
+        return 2
     key = (__import__("os").getenv("TYPESAFE_API_KEY") or "").strip()
     if not key:
         print("TYPESAFE_API_KEY is unset. Not calling TypeSafe. Set the key and rerun this script.", file=sys.stderr)

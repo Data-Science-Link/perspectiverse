@@ -68,6 +68,7 @@ def _clean_meter(monkeypatch):
     monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
     monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
     monkeypatch.delenv("GITHUB_RUN_ATTEMPT", raising=False)
+    monkeypatch.setenv("PERSPECTIVERSE_ALLOW_PAID", "1")
     reset_meter()
     yield
     reset_meter()

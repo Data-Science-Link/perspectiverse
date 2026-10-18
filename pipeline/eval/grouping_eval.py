@@ -867,6 +867,12 @@ def main() -> None:
 
     llm_rows = []
     if args.llm and samples:
+        from pipeline.spend_cap import ENV_ALLOW_PAID, paid_calls_allowed
+
+        if not paid_calls_allowed():
+            raise SystemExit(
+                f"Paid labeling is off. Set {ENV_ALLOW_PAID}=1 before --llm grouping eval."
+            )
         from pipeline.embed import embed_minilm
         from pipeline.label import _openai_generate, resolve_openai_model
 

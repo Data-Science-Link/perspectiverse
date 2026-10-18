@@ -21,6 +21,11 @@ from pipeline.label import (
 from pipeline.settings import MAX_PROMPT_POSTS
 
 
+@pytest.fixture(autouse=True)
+def _allow_paid_label_tests(monkeypatch):
+    monkeypatch.setenv("PERSPECTIVERSE_ALLOW_PAID", "1")
+
+
 def _prompt_post_count(prompt: str) -> int:
     body = prompt.split("Posts:\n", 1)[1]
     return len([line for line in body.splitlines() if line.startswith("- ")])

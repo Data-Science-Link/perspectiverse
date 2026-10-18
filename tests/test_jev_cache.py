@@ -4,6 +4,8 @@ import json
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
+import pytest
+
 from pipeline.costs import (
     JEV_BATCH_SPAM_CLAIM_TOKENS_PER_POST,
     JEV_PLANET_SECTION_TOKENS,
@@ -29,6 +31,11 @@ from pipeline.store import (
     replace_posts,
     save_jev_verdicts,
 )
+
+
+@pytest.fixture(autouse=True)
+def _allow_paid_jev_cache_tests(monkeypatch):
+    monkeypatch.setenv("PERSPECTIVERSE_ALLOW_PAID", "1")
 
 
 def _post(uri: str, text: str, **extra) -> dict:

@@ -526,6 +526,14 @@ def main() -> int:
     parser.add_argument("--skip-stance", action="store_true")
     args = parser.parse_args()
     load_dotenv()
+    from pipeline.spend_cap import ENV_ALLOW_PAID, paid_calls_allowed
+
+    if not paid_calls_allowed():
+        print(
+            f"Paid labeling calls are off. Set {ENV_ALLOW_PAID}=1 before running this review script.",
+            file=sys.stderr,
+        )
+        return 2
     _require_clear()
     started = time.monotonic()
     reference = json.loads(args.reference.read_text())
