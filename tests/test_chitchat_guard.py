@@ -449,6 +449,51 @@ def test_get_well_wishes_and_personal_health_updates_drop():
     assert blocked_other == 2
 
 
+def test_issue_227_thank_planet_201_mention_cluster_drops():
+    """Published Thank ball (~201 posts): many thank mentions, few ingest thanks."""
+    filler = {
+        "text": "The housing council meets Tuesday about zoning changes downtown.",
+    }
+    mention = {
+        "text": (
+            "I want to thank everyone who came out to support the local "
+            "fundraiser last night."
+        ),
+    }
+    members = [mention] * 65 + [filler] * (201 - 65)
+    reason = planet_chitchat_reason(members, [], name="Thank")
+    assert reason is not None
+    assert "mention thanks" in reason
+    assert "65 posts" in reason
+
+
+def test_issue_227_twitch_planet_55_stream_cluster_drops():
+    """Published twitch.tv ball (~55 posts) just under the old 32% stream bar."""
+    promo = {"text": "www.twitch.tv/example_streamer Live now!"}
+    filler = {
+        "text": "Senate leaders agreed on a stopgap funding bill before the deadline.",
+    }
+    members = [promo] * 17 + [filler] * 38
+    reason = planet_chitchat_reason(members, [], name="Twitch")
+    assert reason is not None
+    assert "stream promos" in reason
+    assert reason.startswith("31%") or reason.startswith("30%")
+
+
+def test_twitch_policy_planet_55_stays():
+    policy = {
+        "text": (
+            "Twitch's new moderation policy will change how streamers handle politics "
+            "on the platform during live broadcasts."
+        ),
+    }
+    filler = {
+        "text": "Congress debated the spending package late into the evening on Thursday.",
+    }
+    members = [policy] * 8 + [filler] * 47
+    assert planet_chitchat_reason(members, [], name="Streaming Policy") is None
+
+
 def test_issue_227_production_thank_planet_samples():
     """Exact lines from the #224 reviewer sample of the Thank planet (622 posts)."""
     drops = [

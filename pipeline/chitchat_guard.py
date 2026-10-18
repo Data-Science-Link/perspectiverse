@@ -140,11 +140,13 @@ _GESTURE_WIPE_RE = re.compile(
 THANK_PLANET_MIN_MEMBERS = 15
 THANK_PLANET_SHARE_DROP = 0.25
 THANK_PLANET_MIN_THANKS = 5
+# Mention-based thanks balls can be mostly long-form gratitude, not ingest thanks.
+THANK_PLANET_MENTION_SHARE_DROP = 0.30
 # Reaction / stream balls sized like published chit-chat planets.
 GESTURE_CLUSTER_MIN_MEMBERS = 40
 GESTURE_CLUSTER_SHARE_DROP = 0.38
 STREAM_CLUSTER_MIN_MEMBERS = 50
-STREAM_CLUSTER_SHARE_DROP = 0.32
+STREAM_CLUSTER_SHARE_DROP = 0.30
 
 _WORK_RE = re.compile(
     r"\b(?:songs?|albums?|movies?|films?|books?|novels?|poems?|goals?|scored|assists?|podcasts?)\b",
@@ -1105,7 +1107,7 @@ def planet_chitchat_reason(
     if (
         len(members) >= THANK_PLANET_MIN_MEMBERS
         and thanks_mentions >= THANK_PLANET_MIN_THANKS
-        and mention_share >= 0.40
+        and mention_share >= THANK_PLANET_MENTION_SHARE_DROP
     ):
         return f"{mention_share:.0%} of the posts mention thanks ({thanks_mentions} posts)"
     gesture = _gesture_share(members)
@@ -1117,8 +1119,11 @@ def planet_chitchat_reason(
         plain = _plain(raw)
         if pleasantry_reason(member) == "stream_announce" or _STREAM_URL_RE.search(raw or ""):
             streamish += 1
+        elif _STREAM_URL_RE.search(plain or ""):
+            streamish += 1
         elif re.search(r"\b(?:twitch|kick)\b", plain or "") and _word_count(plain) <= 40:
             streamish += 1
-    if len(members) >= STREAM_CLUSTER_MIN_MEMBERS and streamish / len(members) >= STREAM_CLUSTER_SHARE_DROP:
-        return f"{streamish:.0%} of the posts are stream promos or Twitch plugs"
+    stream_share = streamish / len(members)
+    if len(members) >= STREAM_CLUSTER_MIN_MEMBERS and stream_share >= STREAM_CLUSTER_SHARE_DROP:
+        return f"{stream_share:.0%} of the posts are stream promos or Twitch plugs"
     return None
