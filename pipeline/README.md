@@ -94,6 +94,21 @@ A run does not replace that live `data.json` when labeling failures degraded it:
 
 A run also stops without publishing when paid calls for the UTC day reach $1.00. The total is labeling, Jev, and top-ups, across every run that day (scheduled, push, and manual). At $1.00 the log prints a warning and a GitHub Actions `::warning` annotation, then exits 14 before writing `data.json`. The workflow does not deploy. It may append the cost ledger on `data-snapshot` so a later run the same day counts the stopped spend; `public/data.json` is not replaced. See `pipeline/spend_cap.py`.
 
+### Private dossiers (off)
+
+`pipeline/dossier.py` can write a 2–4 page briefing per planet and per perspective from a 40-post sample, store it in R2 at `dossiers/<edition>/<planet-id>.md` (and `.../<perspective-id>.md`), and rebuild `summary`, `brief`, and `detail` from that briefing plus the top 8 posts. Each public tier has to add a sentence the tier above did not already say. The briefing is not written to `public/` or `data.json`. Tools and a future visitor chat read it with `load_dossier_text` / `load_retrieval_pack`. Chat tokens are not this budget.
+
+The switch defaults off (`dossiers: false`, `PERSPECTIVERSE_DOSSIERS` unset), so a normal run does not call the model and does not write those keys. Turning it on uses the same DeepInfra path as labeling, so the dollars count toward the $1/day cap. A stored briefing is reused unless more than 20% of the post URIs are new, or a post newly enters the top 8 with more likes than the previous floor. A tie at that floor does not rebuild.
+
+Print the cost for named planets without spending:
+
+```bash
+python -m pipeline.dossier sample --data public/data.json \
+  --planets "Russia Ukraine War" "Gaza War" "US Election Vote"
+```
+
+`--run` is the paid sample. It refuses to start while a Daily Discourse Pipeline run is queued, and it refuses when R2 is not configured. Do not pass `--run` until that printed cost is approved. An extractive outline, with no model, is `python -m pipeline.dossier outline` and the same `--planets`.
+
 The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` and `costs/daily_spend_14d.svg` on `data-snapshot` (one row per paid service and model, including Cloudflare R2). Each row includes `trigger` (`schedule`, `push`, `workflow_dispatch`, or backfilled from GitHub Actions) so the chart can stack production spend above merge- and test-triggered spend on the same day (#101). Those files are not under `public/`, so Pages does not deploy them. A cost-log error is a warning and does not stop the snapshot.
 
 ### When the pipeline triggers

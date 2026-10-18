@@ -16,6 +16,7 @@ from pathlib import Path
 
 from pipeline.assemble import FACE_LETTERS, assemble_payload, face_id, topic_name, write_payload
 from pipeline.briefs import apply_level_summaries
+from pipeline.dossier import apply_dossiers, dossiers_enabled, open_dossier_store
 from pipeline.cleaning import clean_posts, drop_near_duplicates
 from pipeline.corpus import (
     TARGET_POSTS,
@@ -1073,7 +1074,7 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         if raw_workers is None:
             raw_workers = DEFAULT_LABEL_WORKERS
         workers = max(1, int(raw_workers))
-    return {
+    context = {
         "backend": backend,
         "model": model,
         "chosen": chosen,
@@ -1086,7 +1087,18 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         "workers": workers,
         "min_planet_posts": _planet_post_floor(settings),
         "stance_second_face_share": settings.get("stance_second_face_share"),
+        "dossiers": False,
+        "dossier_store": None,
+        "edition_date": datetime.now(timezone.utc).date().isoformat(),
     }
+    if dossiers_enabled(settings):
+        dossier_store = open_dossier_store()
+        if dossier_store is None:
+            print("Dossiers are on but R2 is not configured; keeping the grounded summaries.")
+        else:
+            context["dossiers"] = True
+            context["dossier_store"] = dossier_store
+    return context
 
 
 # A planet whose labels collapse below MIN_FACES may try this many other
@@ -1851,6 +1863,32 @@ def _wide_label_face_from_posts(
     }
 
 
+def _apply_dossiers_if_enabled(topics: list[dict], posts: list[dict], context: dict) -> None:
+    """Rewrite public tiers from private briefings when the switch is on.
+
+    Off, or on without R2 or a model: the grounded summary, brief, and detail
+    stay as ``apply_level_summaries`` wrote them. ``SpendCapExceeded`` still
+    stops the run. Any other dossier error keeps that planet's grounded text.
+    """
+    if not context.get("dossiers"):
+        return
+    store = context.get("dossier_store")
+    generate = context.get("summary_model")
+    if store is None or generate is None:
+        print("Dossiers are on but storage or the model is missing; keeping the grounded summaries.")
+        return
+    from pipeline.spend_cap import SpendCapExceeded
+
+    edition = str(context.get("edition_date") or datetime.now(timezone.utc).date().isoformat())
+    for topic in topics:
+        try:
+            apply_dossiers(topic, posts, generate=generate, store=store, edition=edition)
+        except SpendCapExceeded:
+            raise
+        except Exception as exc:
+            print(f"Dossier skipped for {topic.get('name')}: {exc}")
+
+
 def _strip_internal_planet_fields(topics: list[dict]) -> None:
     for topic in topics:
         topic.pop("_member_uris", None)
@@ -1872,6 +1910,7 @@ def _finalize_published_planets(
     section = str(context.get("section") or "All topics")
     if context.get("chosen") == "heuristic" or not topics:
         merge_alike_published_faces(topics)
+        _apply_dossiers_if_enabled(topics, posts, context)
         _strip_internal_planet_fields(topics)
         return set()
     jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
@@ -1879,6 +1918,7 @@ def _finalize_published_planets(
     incomplete = _run_finalize_faces_parallel(jobs, workers, deadline, scope=section)
     # Relabel can rename two faces onto one title after the draft merge already ran.
     merge_alike_published_faces(topics)
+    _apply_dossiers_if_enabled(topics, posts, context)
     _strip_internal_planet_fields(topics)
     return incomplete
 
@@ -1890,6 +1930,7 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     if jobs[0].context.get("chosen") == "heuristic":
         for job in jobs:
             merge_alike_published_faces(job.built)
+            _apply_dossiers_if_enabled(job.built, job.posts, job.context)
             _strip_internal_planet_fields(job.built)
         return set()
     face_jobs: list[_FinalizeFaceJob] = []
@@ -1908,6 +1949,7 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     )
     for job in jobs:
         merge_alike_published_faces(job.built)
+        _apply_dossiers_if_enabled(job.built, job.posts, job.context)
         _strip_internal_planet_fields(job.built)
     return incomplete
 

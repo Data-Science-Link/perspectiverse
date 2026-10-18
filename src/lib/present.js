@@ -216,6 +216,10 @@ function stampIds(topicId, faces) {
 
 const FILLER = /that is the position in the posts about|is the claim these posts repeat|the posts gathered here are making that case|the same claim shows up again across the posts|these posts are making that case/i
 
+function _normSentence(text) {
+  return clean(text).replace(/[.!?]+$/g, '').toLowerCase()
+}
+
 function briefReady(text) {
   if (FILLER.test(text || '')) return false
   const count = splitSentences(text).length
@@ -248,9 +252,14 @@ export function presentTopic(topic) {
   const unchanged = (topic.perspectives || []).length === copied.length
     && (topic.perspectives || []).every((face, index) => face.title === copied[index].title)
   const planet = planetCopy(topic, copied)
-  const summary = splitSentences(unchanged && topic.brief ? topic.brief : planet.brief)[0]
-    || topic.summary
-    || topic.name
+  const briefSource = unchanged && topic.brief ? topic.brief : planet.brief
+  const storedSummary = splitSentences(topic.summary || '')[0] || ''
+  const briefLead = splitSentences(briefSource)[0] || ''
+  const summaryStandsAlone = storedSummary
+    && _normSentence(storedSummary) !== _normSentence(briefLead)
+  const summary = summaryStandsAlone
+    ? storedSummary
+    : (briefLead || topic.summary || topic.name)
   return {
     ...topic,
     summary,

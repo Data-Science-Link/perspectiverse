@@ -85,3 +85,9 @@ jev_batch: false
 # sets PERSPECTIVERSE_FREE_INGEST=1, except legacy_jev=true or a fill dispatch,
 # which set it to 0 and take the old per-post path.
 free_ingest: true
+
+# Private planet and perspective briefings in R2 (dossiers/<edition>/<planet-id>.md).
+# Off: the grounded summary, brief, and detail stay as they are, and nothing
+# is written under dossiers/. On spends against the $1/day pipeline cap.
+# PERSPECTIVERSE_DOSSIERS=1 turns it on for one run. Leave this false.
+dossiers: false

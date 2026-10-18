@@ -298,4 +298,36 @@ assert.equal(incoherentPlanet.stancePending, true)
 assert.equal(incoherentPlanet.opposingNote, PERSPECTIVES_PENDING)
 assert.equal(/opposing view/i.test(incoherentPlanet.opposingNote), false)
 
+const distinct = presentTopic({
+  id: 1,
+  name: 'Russia Ukraine War',
+  category: 'World',
+  total_volume_percent: 100,
+  post_count: 5,
+  summary: 'Russia Ukraine War is the subject of these posts.',
+  brief: 'The posts name an oil deal tied to the negotiators. A second line questions whether the talks help Ukraine. A third line says the aid was steered aside.',
+  detail: 'One post cites a multibillion-dollar oil deal and names the negotiators in the thread.\n\n@karrieurbanist.bsky.social writes that the talks expanded to an oil deal.\n\nNo post in this sample defends the oil talks or calls them a peace plan.',
+  perspectives: [
+    {
+      id: '1A',
+      title: 'Ukraine Oil Deal',
+      summary: 'Trump allies benefit from US-Russia oil deal talks.',
+      brief: 'The posts say allies of the negotiators benefit from the oil talks. They question whether Ukraine is helped. They call the arrangement a grift.',
+      detail: 'The sampled posts cite a multibillion-dollar oil deal and name Kushner and Witkoff.\n\n@karrieurbanist.bsky.social writes that the talks expanded to include an oil deal.\n\nThe posts do not include a defense of the talks as a peace agreement.',
+      volume_percent: 100,
+      representative_posts: [{ author: 'ada', text: 'The talks expanded to an oil deal.', likes: 2 }],
+    },
+  ],
+})
+assert.equal(distinct.summary, 'Russia Ukraine War is the subject of these posts.')
+assert.equal(distinct.brief.startsWith('The posts name an oil deal'), true)
+assert.equal(distinct.summary === splitSentences(distinct.brief)[0], false)
+
+const repeated = presentTopic({
+  ...distinct,
+  summary: splitSentences(distinct.brief)[0],
+  perspectives: distinct.perspectives,
+})
+assert.equal(repeated.summary, splitSentences(repeated.brief)[0])
+
 console.log('presented planets keep real perspectives and skip stock filler')

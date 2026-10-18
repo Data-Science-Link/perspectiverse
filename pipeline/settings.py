@@ -85,6 +85,9 @@ DEFAULTS: dict[str, Any] = {
     # per candidate planet, and a 7-day search toward 14,300 non-spam posts
     # a day. That path does not call per-post Jev.
     "free_ingest": False,
+    # Private 2–4 page briefings in R2. Off: no dossier model call and no
+    # R2 write. On spends against the same $1/day cap as labeling.
+    "dossiers": False,
 }
 
 
@@ -124,6 +127,9 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
     free_flag = (os.getenv("PERSPECTIVERSE_FREE_INGEST") or "").strip().lower()
     if free_flag:
         settings["free_ingest"] = free_flag in {"1", "true", "yes", "on"}
+    dossier_flag = (os.getenv("PERSPECTIVERSE_DOSSIERS") or "").strip().lower()
+    if dossier_flag:
+        settings["dossiers"] = dossier_flag in {"1", "true", "yes", "on"}
     ollama_model = (os.getenv("OLLAMA_MODEL") or "").strip()
     if ollama_model:
         settings["ollama_model"] = ollama_model
