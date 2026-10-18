@@ -438,9 +438,10 @@ def stamp_candidate_sections(posts: list[dict], clustered: dict, classify) -> in
     ``classify(summary, arguments)`` returns a section name or None. A miss
     leaves the post's section blank so the keyword map can still name the
     planet. Returns how many classify calls were made. A spend-cap stop
-    still aborts the run. Any other classify error keeps the keyword map.
+    still aborts the run. ``PaidCallsBlocked`` also aborts. Any other classify
+    error keeps the keyword map.
     """
-    from pipeline.spend_cap import SpendCapExceeded
+    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
     calls = 0
     for topic in clustered.get("topics") or []:
@@ -455,7 +456,7 @@ def stamp_candidate_sections(posts: list[dict], clustered: dict, classify) -> in
         calls += 1
         try:
             section = classify(terms or "planet", arguments)
-        except SpendCapExceeded:
+        except (SpendCapExceeded, PaidCallsBlocked):
             raise
         except Exception as exc:
             print(f"Planet section call failed ({type(exc).__name__}).")

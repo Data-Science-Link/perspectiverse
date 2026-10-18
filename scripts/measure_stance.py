@@ -25,6 +25,7 @@ if str(ROOT) not in sys.path:
 
 from pipeline.costs import get_meter
 from pipeline.label import _openai_generate, resolve_openai_model
+from pipeline.spend_cap import PaidCallsBlocked
 from pipeline.settings import load_dotenv
 from pipeline.stance import (
     STANCES,
@@ -176,6 +177,8 @@ def blind_label_planets(reference: dict, posts: dict[str, dict], rows: dict, mod
                 labels = _label_batch([item[2] for item in chunk], prompt, model, cap)
                 if not labels:
                     labels = _label_batch([item[2] for item in chunk], prompt, model, cap)
+            except PaidCallsBlocked:
+                raise
             except Exception as exc:
                 failures.append({"planet": planet["name"], "error": str(exc), "start": start})
                 if "spend cap" in str(exc):
@@ -262,6 +265,8 @@ def run_global(data: dict, posts: dict, grouped: dict, cap: Decimal) -> list[dic
         before_uris = sorted(uri for _perspective, rows, _size in drafted for uri, _p, _d in rows)
         try:
             after, log = apply_stance_pass(drafted, members, context, subject=str(planet.get("name") or ""))
+        except PaidCallsBlocked:
+            raise
         except RuntimeError as exc:
             results.append(
                 {
@@ -354,6 +359,8 @@ def section_merge(data: dict, cap: Decimal) -> list[dict]:
                 )
             try:
                 raw = _call(build_merge_prompt(drafted, members), model, cap)
+            except PaidCallsBlocked:
+                raise
             except RuntimeError as exc:
                 record["error"] = str(exc)
                 rows.append(record)
@@ -547,6 +554,8 @@ def main() -> int:
         probe = _blind_prompt("Is this a test question?", "Yes.", "No.", ["One short sentence about the subject."])
         try:
             _call(probe, blind_model, args.max_usd)
+        except PaidCallsBlocked:
+            raise
         except Exception as exc:
             print(f"Blind model {blind_model} failed ({exc}). Trying {BLIND_FALLBACK}.")
             blind_model = BLIND_FALLBACK

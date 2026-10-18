@@ -446,11 +446,15 @@ def _accepts_seed(generate: Callable) -> bool:
 
 def _invoke(generate: Callable, prompt: str, seed: int | None) -> tuple[str | None, BaseException | None]:
     """One generator call. A raised transport error is the failure, not a crash."""
+    from pipeline.spend_cap import PaidCallsBlocked
+
     try:
         if seed is not None and _accepts_seed(generate):
             raw = generate(prompt, seed=seed)
         else:
             raw = generate(prompt)
+    except PaidCallsBlocked:
+        raise
     except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
         return None, exc
     return raw or "", None

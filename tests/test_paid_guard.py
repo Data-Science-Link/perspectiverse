@@ -7,8 +7,10 @@ from decimal import Decimal
 import pytest
 
 from pipeline.costs import SERVICE_DEEPINFRA, SERVICE_JEV, get_meter, record_attempt, reset_meter
+from pipeline.briefs import _ask_model
+from pipeline.free_ingest import stamp_candidate_sections
 from pipeline.jev import _post_systemone, apply_jev, classify_planet_section, reset_jev_state
-from pipeline.label import _openai_generate, label_topic
+from pipeline.label import _openai_generate, label_topic, resolve_openai_model
 from pipeline.spend_cap import (
     ENV_ALLOW_PAID,
     PaidCallsBlocked,
@@ -127,6 +129,25 @@ def test_classify_planet_section_raises_without_opt_in(monkeypatch):
     reset_jev_state()
     with pytest.raises(PaidCallsBlocked):
         classify_planet_section("Housing costs", "Rent is too high in the city.")
+
+
+@pytest.mark.expect_paid_blocked
+def test_stamp_candidate_sections_raises_without_opt_in(monkeypatch):
+    monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    reset_jev_state()
+    posts = [{"text": "rent is too high", "clean_text": "rent is too high"}]
+    clustered = {"topics": [{"terms": ["rent"], "member_indices": [0]}]}
+    with pytest.raises(PaidCallsBlocked):
+        stamp_candidate_sections(posts, clustered, classify_planet_section)
+
+
+@pytest.mark.expect_paid_blocked
+def test_ask_model_raises_without_opt_in(monkeypatch):
+    monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    with pytest.raises(PaidCallsBlocked):
+        _ask_model(lambda prompt: _openai_generate(prompt, resolve_openai_model()), "hello")
 
 
 @pytest.mark.expect_paid_blocked
