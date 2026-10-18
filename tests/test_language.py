@@ -1,5 +1,6 @@
 """Local language and link-only filters. No model and no network."""
 
+from pipeline.cleaning import clean_text
 from pipeline.language import is_link_only, looks_english, partition_posts
 
 
@@ -26,3 +27,38 @@ def test_one_foreign_word_does_not_drop_english():
     assert looks_english("The committee will meet after the vote, niet the hearing.")
     assert not is_link_only("The committee posted the bill at https://example.com/bill today.")
     assert is_link_only("https://example.com/only")
+
+
+def test_bare_youtube_and_bsky_links_are_link_only():
+    assert is_link_only("youtu.be/pY0A8RxdBlg")
+    assert is_link_only("#ValhallaVFT youtu.be/Gil2wVgY04U?...")
+    assert is_link_only("There it is!! bsky.app/profile/mari...")
+    assert not is_link_only(
+        "You might find this video heartening. youtu.be/SOSOyr1yPao "
+        "because the committee finally published the full report today."
+    )
+
+
+def test_portuguese_posts_are_not_english():
+    assert not looks_english(
+        "Geórgia vira polo de barrigas de aluguel para estrangeiros"
+    )
+    assert not looks_english(
+        "Veja o resultado da Quina concurso 7141 desta terça-feira (13)"
+    )
+
+
+def test_english_with_names_and_loanwords_stays():
+    assert looks_english(
+        "The committee will meet in São Paulo after the vote on the housing bill."
+    )
+    assert looks_english(
+        "Read the senate bill at https://example.com/story before Friday."
+    )
+
+
+def test_clean_text_strips_bare_domains_for_clustering():
+    raw = "There it is!! bsky.app/profile/mari… still a real story about the bill."
+    stripped = clean_text(raw)
+    assert "bsky.app" not in stripped
+    assert "bill" in stripped

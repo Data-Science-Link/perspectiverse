@@ -199,10 +199,6 @@ _SPORTS_RESULT_RE = re.compile(
     r"\b(?:games?|seasons?|innings?|quarters?|overtime|playoffs?|touchdowns?|goals?|scored|defeated)\b",
     re.IGNORECASE,
 )
-_BARE_LINK_RE = re.compile(
-    r"https?://\S+|www\.\S+|(?:https?://)?(?:www\.)?(?:youtu\.be|youtube\.com)/\S+",
-    re.IGNORECASE,
-)
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 _AGREEMENT_EXACT = frozenset(
@@ -747,7 +743,7 @@ def ingest_block_reason(post: dict) -> str | None:
         return f"chitchat:{chit}"
     if not drop_link_and_language_at_ingest():
         return None
-    text = str(post.get("clean_text") or post.get("text") or "")
+    text = str(post.get("text") or post.get("clean_text") or "")
     if is_link_only(text):
         return "link_only"
     if not looks_english(text):
@@ -853,18 +849,9 @@ def pleasantry_share(members: list[dict]) -> float:
 def is_bare_link_post(post: dict) -> bool:
     """A URL, including youtu.be, with fewer than four words left.
 
-    Planet share counts these. Ingest does not treat them as chit-chat:
-    ``is_link_only`` still misses youtu.be, and #208 does not require a bare
-    video link to miss the 100K.
+    Planet share counts these. Ingest uses the same ``is_link_only`` rule.
     """
-    raw = post_body(post)
-    if not _BARE_LINK_RE.search(raw or ""):
-        return False
-    text = HASHTAG_RE.sub(" ", raw)
-    text = HANDLE_RE.sub(" ", text)
-    text = _BARE_LINK_RE.sub(" ", text)
-    words = re.findall(r"[A-Za-z]{3,}", text)
-    return len(words) < 4
+    return is_link_only(post_body(post))
 
 
 def planet_content_share(members: list[dict]) -> float:

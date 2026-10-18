@@ -8,12 +8,12 @@ the text is only a link. Short English remarks are kept.
 from __future__ import annotations
 
 import re
+import unicodedata
 
-_URL = re.compile(
-    r"https?://\S+|www\.\S+|\b[\w.-]+\.(?:com|org|net|io|co)(?:/|\b)\S*",
-    re.IGNORECASE,
-)
-_TOKEN = re.compile(r"[a-z']{2,}")
+from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, has_link_host, strip_link_hosts
+
+_TOKEN = re.compile(r"[\w']{2,}", re.UNICODE)
+_WORD_3 = re.compile(r"[^\W\d_]{3,}", re.UNICODE)
 
 # Function words that are ordinary English. A hit here is evidence for English.
 _ENGLISH = frozenset(
@@ -189,7 +189,7 @@ _FOREIGN = frozenset(
         "mais",
         "dans",
         "qui",
-        # Spanish / Portuguese
+        # Spanish / Portuguese (shared and PT-specific)
         "los",
         "las",
         "una",
@@ -203,8 +203,11 @@ _FOREIGN = frozenset(
         "del",
         "porque",
         "tambien",
+        "também",
         "nao",
+        "não",
         "sao",
+        "são",
         "mais",
         "foi",
         "pelo",
@@ -212,8 +215,41 @@ _FOREIGN = frozenset(
         "que",
         "con",
         "sus",
+        "de",
+        "da",
+        "do",
+        "dos",
+        "das",
+        "em",
+        "um",
+        "uma",
+        "os",
+        "as",
+        "com",
+        "seu",
+        "sua",
+        "seus",
+        "suas",
+        "está",
+        "esta",
+        "estao",
+        "estão",
+        "ser",
+        "ter",
+        "veja",
+        "desta",
+        "deste",
+        "terça",
+        "terca",
+        "feira",
     }
 )
+
+
+def _fold_token(token: str) -> str:
+    lowered = token.lower()
+    normalized = unicodedata.normalize("NFD", lowered)
+    return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
 
 
 def _non_latin_ratio(text: str) -> float:
@@ -228,13 +264,20 @@ def _non_latin_ratio(text: str) -> float:
     return foreign / len(letters)
 
 
+def _strip_for_link_check(text: str) -> str:
+    body = HANDLE_RE.sub(" ", text or "")
+    body = strip_link_hosts(body)
+    body = HASHTAG_RE.sub(" ", body)
+    return body
+
+
 def is_link_only(text: str) -> bool:
-    """True when removing URLs leaves fewer than four words."""
-    if not _URL.search(text or ""):
+    """True when removing URLs and hashtags leaves fewer than four real words."""
+    body = str(text or "")
+    if not has_link_host(body):
         return False
-    stripped = _URL.sub(" ", text or "")
-    words = re.findall(r"[A-Za-z]{3,}", stripped)
-    return len(words) < 4
+    stripped = _strip_for_link_check(body)
+    return len(_WORD_3.findall(stripped)) < 4
 
 
 def looks_english(text: str) -> bool:
@@ -242,7 +285,7 @@ def looks_english(text: str) -> bool:
     body = str(text or "")
     if _non_latin_ratio(body) >= 0.2:
         return False
-    tokens = _TOKEN.findall(body.lower())
+    tokens = [_fold_token(token) for token in _TOKEN.findall(body)]
     if len(tokens) < 4:
         return True
     english = sum(1 for token in tokens if token in _ENGLISH)
@@ -258,7 +301,7 @@ def partition_posts(posts: list[dict]) -> tuple[list[dict], int, int]:
     language = 0
     links = 0
     for post in posts:
-        text = str(post.get("clean_text") or post.get("text") or "")
+        text = str(post.get("text") or post.get("clean_text") or "")
         if is_link_only(text):
             links += 1
             continue

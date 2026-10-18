@@ -480,7 +480,7 @@ def test_bare_youtube_link_counts_in_the_planet_share_only():
     bare = {"text": "youtu.be/VAWjsVoDpm0 #musicsky"}
     assert pleasantry_reason(bare) is None
     assert is_bare_link_post(bare)
-    assert ingest_block_reason(bare) is None
+    assert ingest_block_reason(bare) == "link_only"
     assert planet_chitchat_reason([bare] * 8, [], name="Music Videos")
     sentence = {"text": "You might find this video heartening. youtu.be/SOSOyr1yPao"}
     assert not is_bare_link_post(sentence)
@@ -573,6 +573,7 @@ def test_replay_39072480258_representatives():
     ]
     dropped = [(row["section"], row["name"]) for row in rows if row["decision"] == "DROP"]
     assert dropped == [
+        ("Technology", "App Bsky Profile"),
         ("Health", "Health Issues"),
         ("Health", "Speedy Recovery"),
         ("Health", "Recovering Health"),

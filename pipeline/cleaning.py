@@ -4,7 +4,27 @@ from __future__ import annotations
 
 import re
 
+# http(s) and www. Bare hosts (youtu.be, bsky.app, …) are ``BARE_HOST_RE`` so
+# chit-chat ``_plain`` can leave them for stream-promo detection while ingest
+# and clustering still strip them via ``strip_link_hosts``.
+_BARE_DOMAIN = (
+    r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
+    r"(?:[a-z]{2,63})"
+    r"(?:/[^\s]*)?"
+)
 URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
+BARE_HOST_RE = re.compile(rf"\b{_BARE_DOMAIN}\b", re.IGNORECASE)
+
+
+def strip_link_hosts(text: str) -> str:
+    """Remove scheme URLs, www links, and bare domains."""
+    without = URL_RE.sub(" ", text or "")
+    return BARE_HOST_RE.sub(" ", without)
+
+
+def has_link_host(text: str) -> bool:
+    body = text or ""
+    return bool(URL_RE.search(body) or BARE_HOST_RE.search(body))
 HANDLE_RE = re.compile(r"@[A-Za-z0-9._-]+")
 WHITESPACE_RE = re.compile(r"\s+")
 REPEAT_RE = re.compile(r"(.)\1{7,}")
@@ -32,10 +52,10 @@ SPAM_PHRASES = (
 
 
 def clean_text(text: str) -> str:
-    """Strip URLs and handles and collapse whitespace."""
-    without_urls = URL_RE.sub(" ", text or "")
-    without_handles = HANDLE_RE.sub(" ", without_urls)
-    return WHITESPACE_RE.sub(" ", without_handles).strip()
+    """Strip URLs, bare link hosts, and handles; collapse whitespace."""
+    without_handles = HANDLE_RE.sub(" ", text or "")
+    without_urls = strip_link_hosts(without_handles)
+    return WHITESPACE_RE.sub(" ", without_urls).strip()
 
 
 def _dedupe_key(text: str) -> str:
