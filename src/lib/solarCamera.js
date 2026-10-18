@@ -10,6 +10,12 @@ const _offset = new Vector3()
 /** @type {{ key: string | null, view: SolarView | null }} */
 let _stash = { key: null, view: null }
 
+export const FREEZE_ORBITS_STORAGE_KEY = 'perspectiverse.freeze-orbits'
+
+export function solarOrbitsFrozen() {
+  return typeof window !== 'undefined' && window.localStorage?.getItem(FREEZE_ORBITS_STORAGE_KEY) === '1'
+}
+
 export function solarLayoutKey(category = 'all', linear = false) {
   const topicFilter = category && category !== 'all' ? category : 'all'
   return `${topicFilter}:${linear ? 'linear' : 'orbit'}`

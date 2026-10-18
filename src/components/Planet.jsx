@@ -5,6 +5,7 @@ import { AdditiveBlending, CatmullRomCurve3, DoubleSide, Quaternion, TubeGeometr
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
 import { bodySpin, formatPercent, orbitElements, resumeOrbitAngle, saveOrbitAngle, setOrbitPosition, topicScale } from '../lib/layout'
+import { solarOrbitsFrozen } from '../lib/solarCamera'
 import SpikyCube from './SpikyCube'
 
 const _desired = new Vector3()
@@ -59,8 +60,9 @@ export default function Planet({
   const focusIndex = ranked.findIndex((face) => face.id === selectedPerspectiveId)
 
   useFrame((state, delta) => {
+    const frozen = solarOrbitsFrozen()
     const linear = Boolean(anchor)
-    if (!linear && !isSun && !selected) {
+    if (!frozen && !linear && !isSun && !selected) {
       angle.current += delta * orbit.speed
     }
     if (!linear && !isSun) {
@@ -104,7 +106,7 @@ export default function Planet({
       return
     }
 
-    if (drag.current || selected) return
+    if (frozen || drag.current || selected) return
     cube.current.rotateOnAxis(spinAxis, delta * spin.speed)
   })
 
