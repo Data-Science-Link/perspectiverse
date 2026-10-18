@@ -306,7 +306,7 @@ export default function Observatory({
       const homeDistance = Math.hypot(home[0], home[1], home[2])
       const portrait = canvasAspect < 0.9
       if (canvasAspect > 1.15) {
-        return Math.max(18, homeDistance * 0.73)
+        return Math.max(22, homeDistance * 0.96)
       }
       const factor = portrait ? 1.34 : 1.08
       return Math.min(42, Math.max(20, homeDistance * factor))
@@ -330,6 +330,7 @@ export default function Observatory({
     window.__perspectiverseLinearLayout = {
       mode: layout.mode,
       cols: layout.cols ?? topics.length,
+      rows: layout.rows ?? Math.ceil(topics.length / (layout.cols ?? topics.length)),
       positions: layout.positions,
     }
     return () => {

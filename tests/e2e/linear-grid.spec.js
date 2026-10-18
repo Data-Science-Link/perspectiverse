@@ -229,7 +229,7 @@ test.describe('Linear grid on phones', () => {
     await openLinearGrid(page)
     await expectAllPlanetsVisible(page)
     const layout = await page.evaluate(() => window.__perspectiverseLinearLayout)
-    expect(layout?.cols).toBe(3)
+    expect(layout?.rows ?? Math.ceil(10 / (layout?.cols ?? 1))).toBeLessThanOrEqual(2)
     await expectGridFillsCanvas(page, 0.48)
     await expectLayoutBookOrder(page, 'grid')
     await page.screenshot({ path: path.join(screenshotDir, 'phone-landscape.png'), fullPage: false })

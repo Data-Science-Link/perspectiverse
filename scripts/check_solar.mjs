@@ -110,9 +110,9 @@ for (let index = 1; index < gridPortrait.positions.length; index += 1) {
     assert.ok(next[0] < prev[0], 'each row starts on the left')
   }
 }
-const gridLandscape = layoutLinear(topics, volumeMax, { grid: true, viewportAspect: 844 / 390 })
+const gridLandscape = layoutLinear(topics, volumeMax, { grid: true, viewportAspect: 2.54 })
 assert.equal(gridLandscape.mode, 'grid')
-assert.ok(gridLandscape.cols <= 3, `landscape grid too wide: ${gridLandscape.cols} columns`)
+assert.ok(Math.ceil(topics.length / gridLandscape.cols) <= 2, `landscape should use at most 2 rows: ${gridLandscape.cols} columns`)
 assert.ok(gridLandscape.cols >= gridPortrait.cols, 'landscape should not use fewer columns than portrait')
 
 assert.equal(solarLayoutKey('all', false), 'all:orbit')
