@@ -489,18 +489,23 @@ def test_bare_youtube_link_counts_in_the_planet_share_only():
     assert planet_chitchat_reason([sentence] * 8, [], name="Music Videos") is None
 
 
-def test_stored_drop_and_clustering_agree_on_raw_text_not_stale_clean_text():
+def test_stored_drop_and_clustering_agree_on_raw_text_not_stale_clean_text(monkeypatch):
     """#219 stored rows may have ``clean_text`` without the URL; clustering must match ingest."""
 
-    def assert_agree(post: dict) -> None:
-        drop = should_drop_stored_post(post)
+    monkeypatch.delenv("PERSPECTIVERSE_PURGE_STORED_REASONS", raising=False)
+
+    def assert_edition_matches_ingest(post: dict) -> None:
+        block = ingest_block_reason(post)
+        edition = edition_filter_reason(post)
+        assert edition == block
         kept, language, links, chitchat = edition_posts_for_clustering([post])
-        clustered = len(kept) == 1
-        assert drop != clustered
-        if drop:
-            assert edition_filter_reason(post) in {"link_only", "language"} or (
-                ingest_block_reason(post) is not None
-            )
+        if block in {"link_only", "language"}:
+            assert len(kept) == 0
+            assert should_drop_stored_post(post) is False
+        elif block is None:
+            assert len(kept) == 1
+        else:
+            assert len(kept) == 0
 
     commentary = {
         "uri": "at://stored/commentary-link",
@@ -508,7 +513,7 @@ def test_stored_drop_and_clustering_agree_on_raw_text_not_stale_clean_text():
         "clean_text": "There it is!!",
     }
     assert edition_filter_reason(commentary) is None
-    assert_agree(commentary)
+    assert_edition_matches_ingest(commentary)
 
     stale_bare = {
         "uri": "at://stored/bare-youtube",
@@ -517,7 +522,7 @@ def test_stored_drop_and_clustering_agree_on_raw_text_not_stale_clean_text():
     }
     assert edition_filter_reason(stale_bare) == "link_only"
     assert ingest_block_reason(stale_bare) == "link_only"
-    assert_agree(stale_bare)
+    assert_edition_matches_ingest(stale_bare)
 
 
 def test_clustering_pass_counts_carried_over_skips():
