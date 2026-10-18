@@ -68,14 +68,21 @@ def build_summary(
     if isinstance(stages, dict) and isinstance(stages.get("wall_seconds"), dict):
         for name, seconds in stages["wall_seconds"].items():
             wall[str(name)] = round(float(seconds), 3)
-    return {
+    summary = {
         "posts_per_utc_day": dict(posts_by_day),
         "post_count": int(sum(posts_by_day.values())),
+        "edition_posts": int(data.get("total_posts") or 0),
         "planet_count": count_published_planets(data),
         "jev_planet_label_calls": calls,
         "jev_planet_label_usd": format_usd(usd),
         "wall_seconds": wall,
     }
+    if isinstance(stages, dict):
+        if isinstance(stages.get("edition_pipeline"), dict):
+            summary["edition_pipeline"] = stages["edition_pipeline"]
+        if isinstance(stages.get("chitchat_ingest"), dict):
+            summary["chitchat_ingest"] = stages["chitchat_ingest"]
+    return summary
 
 
 def write_stage_timings(
@@ -83,6 +90,8 @@ def write_stage_timings(
     *,
     wall_seconds: dict[str, float],
     jev_planet_label_calls: int,
+    edition_pipeline: dict | None = None,
+    chitchat_ingest: dict | None = None,
 ) -> None:
     """Persist stage timings next to the corpus. Gitignored under ``pipeline/data/``."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -90,6 +99,10 @@ def write_stage_timings(
         "wall_seconds": {name: round(float(seconds), 3) for name, seconds in wall_seconds.items()},
         "jev_planet_label_calls": int(jev_planet_label_calls),
     }
+    if edition_pipeline:
+        payload["edition_pipeline"] = edition_pipeline
+    if chitchat_ingest:
+        payload["chitchat_ingest"] = chitchat_ingest
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
@@ -113,6 +126,9 @@ def write_preview(
         raise FileNotFoundError(f"No trial data.json at {data_path}")
     out_dir.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(data_path, out_dir / DATA_NAME)
+    chitchat_path = db_path.parent / "chitchat_removed.json"
+    if chitchat_path.is_file():
+        shutil.copyfile(chitchat_path, out_dir / "chitchat_removed.json")
     summary = build_summary(
         data=_read_json(data_path),
         posts_by_day=posts_per_utc_day(db_path),

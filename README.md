@@ -12,6 +12,32 @@ On a phone the solar system stays up front: tagline, a short prompt, and a rail 
 
 Bodies keep solar-system skins in volume order: the largest topic is the Sun, then Mercury through Pluto.
 
+## What we filter out and why
+
+The edition is up to **100,000 quality posts**. Every class below is removed before that cap, so a removed post does not count toward the 100,000. The same check runs again before clustering. A planet whose posts are still mostly one of these classes is not published, and the next candidate fills the slot. The planet's title is not an input.
+
+One switch covers link-only and non-English posts only. `DROP_LINK_AND_LANGUAGE_AT_INGEST` defaults to on, so those posts do not count toward the 100,000. Set it to `0` and they count in the stored corpus, which is what the pipeline did before this filter, and clustering still skips them. Spam, chit-chat, and personal health updates are not behind that switch.
+
+**Spam.** Promo, bots, and solicitations are not a public conversation. "Buy followers now." "Crypto giveaway, link in bio." "Tune in now" on a station bumper.
+
+**Chit-chat and pleasantries.** These are social gestures, not a topic the public is debating. `thanks`: "Thanks, that was kind." "You're welcome." `compliment`: "So cute." "You look lovely." `greeting`: "Good morning." "Hello." `agreement`: "Of course." "Count me in." `wish`: a birthday, holiday, congratulations, or get-well line, such as "Happy birthday." "Hope you feel better soon." A news anniversary stays. `luck`: "Good luck." "Best of luck." A news story about good-luck charms stays. `weekend`: "Have a fun weekend." "Happy weekend."
+
+**Emoji-only replies (`reaction`).** An emoji or punctuation with no words is not a perspective. A hashtag stays. "👀" "!!!"
+
+**Mundane personal status (`status`).** A ride arriving is a private errand, not a public topic. A strike story stays. "My Uber is here." "Our cab is here."
+
+**Short replies (`reply`).** One or two words with no public topic do not carry a perspective. "Yes." "Same." "Lol."
+
+**Birthday and stream plugs (`stream_announce`).** A go-live is the author talking about their own event. A hearing that is live now stays. "I am live, come hang out." "Time to stream." Birthday wishes are `wish`, above.
+
+**Link-only.** A URL with no sentence has nothing to map. "https://example.com/story" on its own. A headline plus a link stays.
+
+**Non-English.** The edition is an English sample. A post in another language would otherwise take a slot away from an English one. "Het parlement stemt volgende week over de begroting." "El senado vota la ley de vivienda el viernes."
+
+**Personal health updates (`health_update`).** Someone's own illness, surgery, or recovery journal is a private status, not a public-health topic. Directed get-well wishes are already pleasantries. An outbreak, a vaccine, a hospital policy, or an argument about the healthcare system stays. "I have been sick all week." "Just got back from the hospital." "The migraine finally passed and I am still tired."
+
+**Chit-chat planets.** A planet drops when at least 55% of its posts are pleasantries, personal health updates, or bare links. A naming-model "yes" drops it only when at least 30% of the posts agree. "Hope you feel better" repeated across the members. A stack of "I have been sick" journals. A stack of thank-you replies. A healthcare-policy planet stays.
+
 ## Current status
 
 The observatory ships a **live** `public/data.json`. The daily job holds a rolling window of up to **10,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check**. Non-claims stay stored and do not count. The public fetch is a neutral 7-day sample, not a sports or AI keyword quota. Each later day drops posts older than seven days and searches only today. Planet names, face titles, and perspective steelmans are generated (LLM when a key is present, heuristic otherwise). The dropdown is a newspaper: World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, and Other.

@@ -31,6 +31,14 @@ from pipeline.corpus import (
 )
 from pipeline.costs import format_usd
 from pipeline.data_sources.extract_bluesky import MAX_SEARCH_PAGES, extract_posts, format_search_time
+from pipeline.chitchat_guard import (
+    clustering_topup_shortfall,
+    edition_posts_for_clustering,
+    get_chitchat_log,
+    planet_chitchat_reason,
+    reset_chitchat_log,
+    write_chitchat_log,
+)
 from pipeline.free_ingest import free_ingest_enabled, ingest_free, stamp_candidate_sections
 from pipeline.jev import apply_jev, classify_planet_section, describe_jev, known_scored_uris
 from pipeline.spend_cap import (
@@ -42,12 +50,12 @@ from pipeline.spend_cap import (
 )
 from pipeline.cluster_math import salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
-from pipeline.language import partition_posts
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
 from pipeline.label import (
     catchall_reasons,
     content_tokens,
+    chitchat_flag,
     label_perspective,
     label_topic,
     name_from_perspectives,
@@ -176,8 +184,8 @@ def run_live(
         existing = load_posts(connection)
         if free_ingest and fixture is None and not relabel:
             print(
-                "Free ingest is on: spam guard instead of per-post Jev, "
-                "every non-spam post is stored, Jev runs once per planet."
+                "Free ingest is on: spam and chit-chat guards instead of per-post Jev, "
+                "edition-quality posts are stored, Jev runs once per planet."
             )
             ingest_started = time.monotonic()
             cleaned = ingest_free(
@@ -265,16 +273,63 @@ def run_live(
             require_claims=source == "bluesky" and not relabel and not free_ingest,
         )
         # Full set, from scratch. Yesterday's membership is deleted in write_clusters.
+        # Link-only and non-English posts are removed here on both switch
+        # settings. That filter is partition_posts, which main already ran.
+        # DROP_LINK_AND_LANGUAGE_AT_INGEST=0 only lets them count in the
+        # stored corpus; it does not put them in this clustering set.
         before_filter = len(planet_posts)
-        planet_posts, skipped_language, skipped_links = partition_posts(planet_posts)
+        planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
+            planet_posts
+        )
         if skipped_language or skipped_links:
             print(
                 f"Skipped {skipped_language} non-English and {skipped_links} link-only "
-                f"claims before clustering ({before_filter} claims were eligible)."
+                f"before clustering ({before_filter} were eligible)."
             )
+        if skipped_chitchat:
+            print(
+                f"Skipped {skipped_chitchat} chit-chat post(s) before clustering "
+                f"({before_filter - skipped_language - skipped_links} remained)."
+            )
+        shortfall = clustering_topup_shortfall(
+            target, len(planet_posts), skipped_language, skipped_links
+        )
+        if free_ingest and not relabel and fixture is None and shortfall:
+            print(
+                f"Edition quality shortfall: {len(planet_posts)} of {target} after filters; "
+                f"topping up ingest by {shortfall} post(s)."
+            )
+            cleaned = ingest_free(
+                cleaned,
+                settings,
+                queries,
+                target=len(cleaned) + shortfall,
+                reset_log=False,
+            )
+            replace_posts(connection, cleaned)
+            planet_posts = posts_for_planets(cleaned, require_claims=False)
+            before_filter = len(planet_posts)
+            planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
+                planet_posts
+            )
+            print(
+                f"After top-up: {len(cleaned)} stored, {len(planet_posts)} edition posts for clustering."
+            )
+        edition_pipeline = {
+            "target_quality_posts": target,
+            "ingest_stored": len(cleaned),
+            "before_language_filter": before_filter,
+            "skipped_non_english": skipped_language,
+            "skipped_link_only": skipped_links,
+            "skipped_chitchat_cluster_pass": skipped_chitchat,
+            "edition_posts_for_clustering": len(planet_posts),
+        }
         if not planet_posts:
             raise RuntimeError("No English claims left to cluster.")
-        print(f"Reclustering {len(planet_posts)} posts from scratch.")
+        print(
+            f"Reclustering {len(planet_posts)} edition-quality posts from scratch "
+            f"({len(cleaned)} stored in corpus)."
+        )
         texts = [post["clean_text"] for post in planet_posts]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
         # Fixed floor. The corpus size does not raise it, and the group count
@@ -369,10 +424,16 @@ def run_live(
     )
     destination = write_payload(payload, output)
     print(
-        f"Live snapshot: {len(planet_posts)} public claims "
-        f"from {len(cleaned)} posts in the window, "
-        f"{clustered['noise_count']} excluded as noise, wrote {destination}"
+        f"Live snapshot: {len(planet_posts)} edition-quality posts "
+        f"from {len(cleaned)} stored in the window, "
+        f"{clustered['noise_count']} excluded as clustering noise, wrote {destination}"
     )
+    if free_ingest:
+        log = get_chitchat_log()
+        print(
+            f"Chit-chat ingest filter: {log.chitchat_blocked} of {log.fetched} fetched posts "
+            f"({log.chitchat_share_of_fetched():.2%})."
+        )
     _log_fill_run_summary(payload)
     _write_cost_run(payload, started_at)
     if free_ingest:
@@ -382,7 +443,10 @@ def run_live(
             database.parent / "free_ingest_stages.json",
             wall_seconds=stage_seconds,
             jev_planet_label_calls=jev_planet_calls,
+            edition_pipeline=edition_pipeline,
+            chitchat_ingest=get_chitchat_log().to_dict(),
         )
+        write_chitchat_log(database.parent / "chitchat_removed.json")
     return destination
 
 
@@ -1858,8 +1922,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         context["story_calls"] = {"faces": 0, "names": 0, "briefs": 0, "finalize_faces": 0}
     log: list[str] = []
     members = [posts[index] for index in topic["member_indices"]]
+    label = topic_name(list(topic.get("terms") or []))
     if _below_planet_floor(len(members), context):
-        label = topic_name(list(topic.get("terms") or []))
         return _exclude_for_floor(context, log, label, len(members), _post_samples(members))
     backend = context["backend"]
     model = context["model"]
@@ -1982,12 +2046,14 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     )
     context["story_calls"]["names"] += 1
     name = str(planet.get("name") or topic_name(terms))
+    # Yes from either existing naming response. No, or a missing field, does not override a high share.
+    model_chitchat = chitchat_flag(planet)
     if (
         planet.get("label_source") == "heuristic"
         or topic_name_is_weak(name, members, terms)
         or _name_misses_faces(name, perspectives)
     ):
-        renamed = name_from_perspectives(
+        renamed, rename_flag = name_from_perspectives(
             planet_prompt_posts,
             perspectives,
             terms,
@@ -1999,11 +2065,20 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         # spends the call even when the answer is unusable.
         if context.get("chosen") != "heuristic":
             context["story_calls"]["names"] += 1
+        if rename_flag is True:
+            model_chitchat = True
         fallback = str(perspectives[0].get("title") or "") if perspectives else ""
         if renamed and not _name_misses_faces(renamed, perspectives):
             name = renamed
         elif fallback and not _title_needs_repair(fallback) and not _is_camp_title(fallback):
             name = fallback
+    chit = planet_chitchat_reason(members, terms, name=name, model_chitchat=model_chitchat)
+    if chit:
+        log.append(
+            f"INFO {context.get('section') or 'All topics'}: not publishing chit-chat planet "
+            f"{name} ({len(members)} posts). {chit}"
+        )
+        return _exclude_for_floor(context, log, name, len(members), _post_samples(members))
     face_volumes = to_percents([item[2] for item in drafted])
     perspectives = []
     face_rows: list[tuple[str, int, float]] = []
