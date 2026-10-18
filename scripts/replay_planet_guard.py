@@ -10,9 +10,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from pipeline.chitchat_guard import planet_chitchat_reason, planet_content_share
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from pipeline.chitchat_guard import (
+    ingest_block_reason,
+    planet_chitchat_reason,
+    planet_content_share,
+    pleasantry_reason,
+)
 
 
 def representative_texts(topic: dict) -> list[str]:
@@ -64,6 +74,58 @@ def classify_artifact(data: dict) -> list[dict]:
     return rows
 
 
+def representative_posts(data: dict) -> list[dict]:
+    """Every saved representative, with the ingest reason that would remove it."""
+    posts: list[dict] = []
+    for section, topic in iter_published_planets(data):
+        name = str(topic.get("name") or "")
+        for text in representative_texts(topic):
+            post = {"text": text}
+            reason = ingest_block_reason(post)
+            kind = pleasantry_reason(post)
+            posts.append(
+                {
+                    "section": section,
+                    "name": name,
+                    "reason": reason or "kept",
+                    "kind": kind or "",
+                    "text": text,
+                }
+            )
+    return posts
+
+
+def class_counts(posts: list[dict]) -> dict[str, int]:
+    """How many representatives each ingest class removes. ``kept`` stay."""
+    counts: dict[str, int] = {}
+    for post in posts:
+        reason = str(post.get("reason") or "kept")
+        if reason.startswith("chitchat:"):
+            reason = reason.split(":", 1)[1]
+        elif reason.startswith("spam:"):
+            reason = "spam"
+        counts[reason] = counts.get(reason, 0) + 1
+    return counts
+
+
+def format_class_counts(posts: list[dict], *, edition_posts: int | None) -> str:
+    counts = class_counts(posts)
+    removed = sum(count for reason, count in counts.items() if reason != "kept")
+    lines = [
+        f"Representative posts: {len(posts)}. Removed by the ingest filter: {removed}. Kept: {counts.get('kept', 0)}.",
+    ]
+    if edition_posts:
+        lines.append(
+            "The artifact stores representatives, not the full edition. "
+            f"The saved edition held {edition_posts} posts. "
+            "A removed representative was inside that count and would not count toward it now. "
+            "Posts that are not in the artifact cannot be re-counted."
+        )
+    for reason in sorted(counts, key=lambda item: (-counts[item], item)):
+        lines.append(f"  {reason:<16} {counts[reason]}")
+    return "\n".join(lines)
+
+
 def format_table(rows: list[dict], *, heading: str) -> str:
     lines = [
         heading,
@@ -98,6 +160,14 @@ def main() -> int:
     if only:
         rows = [row for row in rows if row["name"] in only]
     print(format_table(rows, heading=f"Replay {args.data}"))
+    posts = representative_posts(data)
+    edition = data.get("total_posts")
+    try:
+        edition_posts = int(edition) if edition is not None else None
+    except (TypeError, ValueError):
+        edition_posts = None
+    print()
+    print(format_class_counts(posts, edition_posts=edition_posts))
     return 0
 
 

@@ -3,8 +3,10 @@
 No network and no model calls. A post is chit-chat when its text is a social
 gesture — a thank-you or compliment reply, a birthday, holiday, or get-well
 wish, a live-now self-promotion, or a one-word agreement — and it does not carry a
-public topic. Planet titles are not an input. Used at free ingest before the
-daily cap, and as a planet guard after labeling.
+public topic. A personal health update is the author's own illness, surgery,
+or recovery journal. Health news and public-health or policy posts stay.
+Planet titles are not an input. Used at free ingest before the daily cap, and
+as a planet guard after labeling.
 """
 
 from __future__ import annotations
@@ -152,6 +154,47 @@ _FIRST_PERSON_RECOVERY_RE = re.compile(
     r"\b(?:i am|im|ive|i have|i feel|i felt|ive been|i will)\b.{0,40}\b(?:better|recovered|recovery)\b",
     re.IGNORECASE,
 )
+# A system, law, or outbreak. Not "hospital", "doctor", or "flu": those words
+# also appear in someone's own illness journal.
+_PUBLIC_HEALTH_RE = re.compile(
+    r"\b(?:healthcare|health care|health insurance|medicare|medicaid|"
+    r"single payer|universal coverage|premiums?|copays?|"
+    r"congress|senate|senators?|governors?|outbreaks?|pandemic|"
+    r"vaccines?|staffing|public health|policies|policy)\b",
+    re.IGNORECASE,
+)
+# The phrase already names the author. "sick of" is removed before this runs.
+_PERSONAL_HEALTH_AUTHOR_RE = re.compile(
+    r"(?:"
+    r"\b(?:ive|i have) been (?:so |really |very |pretty |extremely |just |home )?(?:sick|ill)\b"
+    r"|\b(?:im|i am) (?:so |really |very |too |just |home )?(?:sick|ill)\b"
+    r"|\b(?:i feel|im feeling|ive been feeling|i have been feeling) "
+    r"(?:so |really |very |too |extremely )?(?:sick|ill)\b"
+    r"|\bfeeling (?:so |really |very )?too ill\b|\bfeeling too ill\b"
+    r"|\bfeel(?:ing)? so sick\b"
+    r"|\b(?:so |really |very )?sick and ill\b"
+    r"|\bgetting sick\b"
+    r"|\bnot feeling well\b"
+    r"|\bsickly\b"
+    r"|\b(?:back|home) from (?:the )?hospital\b"
+    r"|\b(?:had|have) to go to (?:the )?hospital\b"
+    r"|\b(?:i |ive |im ).{0,50}\b(?:went|going) to (?:the )?hospital\b"
+    r"|\bmy (?:surgery|migraine|fever|chemo|chemotherapy|diagnosis|illness|infection|meds)\b"
+    r"|\b(?:i had|i have|ive had|ive got|i got|im having) "
+    r"(?:a |the |another |massive |bad |really |little ){0,4}(?:migraine|fever|surgery)\b"
+    r"|\bmedicated up\b|\b(?:im|i am) medicated\b"
+    r"|\bfully recovered from chemo\b|\brecovered from chemo\b"
+    r")",
+    re.IGNORECASE,
+)
+# A condition word. It counts only when the author is also in the post.
+_PERSONAL_HEALTH_CONDITION_RE = re.compile(
+    r"\b(?:migraines?|chemo(?:therapy)?|bedridden|health issues|weak immune|"
+    r"threw up|thrown up|vomited|from coughing|my fever|stomach ache|"
+    r"fainting)\b",
+    re.IGNORECASE,
+)
+_PERSONAL_HEALTH_AUTHOR_TOKEN_RE = re.compile(r"\b(?:i|im|ive|id|my|me)\b")
 _SPORTS_RESULT_RE = re.compile(
     r"\b(?:games?|seasons?|innings?|quarters?|overtime|playoffs?|touchdowns?|goals?|scored|defeated)\b",
     re.IGNORECASE,
@@ -522,11 +565,32 @@ def _birthday(raw: str, plain: str) -> bool:
     return True
 
 
+def _personal_health(plain: str) -> bool:
+    """The author's own illness, surgery, or recovery journal.
+
+    Directed wishes are handled by ``_get_well``. A public-health or policy
+    post stays, including one that mentions a hospital, a vaccine, or a bill.
+    "Sick of" a politician is a complaint, not a fever.
+    """
+    if not plain or _PUBLIC_HEALTH_RE.search(plain):
+        return False
+    text = re.sub(r"\bsick and tired of\b", " ", plain)
+    text = re.sub(r"\bsick of\b", " ", text)
+    text = re.sub(r"\bmakes me sick\b", " ", text)
+    text = re.sub(r"\b(?:feel|feeling|felt) (?:so |really |very )?sick about\b", " ", text)
+    text = re.sub(r"\bsick about\b", " ", text)
+    if _PERSONAL_HEALTH_AUTHOR_RE.search(text):
+        return True
+    if _PERSONAL_HEALTH_CONDITION_RE.search(text) and _PERSONAL_HEALTH_AUTHOR_TOKEN_RE.search(text):
+        return True
+    return False
+
+
 def _get_well(plain: str) -> bool:
     """A directed get-well, condolence, or recovery wish.
 
-    A first-person illness journal ("I'm feeling better", "fully recovered
-    from chemo") stays. So does a news report of an illness.
+    The author's own illness journal is ``_personal_health``, not a wish.
+    A news report of an illness stays in both checks.
     """
     if _news(plain) or _work_topic(plain):
         return False
@@ -582,6 +646,8 @@ def pleasantry_reason(post: dict) -> str | None:
         return "wish"
     if _get_well(plain):
         return "wish"
+    if _personal_health(plain):
+        return "health_update"
     kind = _wish(plain)
     if kind:
         return kind
@@ -614,10 +680,12 @@ def drop_link_and_language_at_ingest() -> bool:
 
 
 def ingest_block_reason(post: dict) -> str | None:
-    """Spam, chit-chat, and optionally link-only or non-English.
+    """Spam, chit-chat, personal health updates, and optionally link-only or non-English.
 
-    None means edition-quality. Link-only and language are the d721778 ingest
-    step and follow ``drop_link_and_language_at_ingest``.
+    None means edition-quality. A personal health update is a chit-chat reason
+    (``health_update``), so it is removed before the daily cap and does not
+    count toward the 100K. Link-only and language are the d721778 ingest step
+    and follow ``drop_link_and_language_at_ingest``.
     """
     spam = guard_reason(post)
     if spam:

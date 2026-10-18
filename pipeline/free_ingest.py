@@ -204,7 +204,8 @@ def ingest_free(
 ) -> list[dict]:
     """Fetch the last 7 UTC days and keep edition-quality posts.
 
-    Spam and chit-chat are always dropped before the daily cap and ``target``.
+    Spam, chit-chat, and personal health updates are always dropped before the
+    daily cap and ``target``.
     Link-only and non-English posts are dropped there only when
     ``drop_link_and_language_at_ingest`` is on. When it is off they count
     toward the stored edition, which is what main did before #209, and

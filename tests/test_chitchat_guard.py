@@ -357,8 +357,13 @@ def test_chitchat_drop_frees_the_catalog_slot_for_the_next_candidate():
     assert "bill" in built[0]["name"].lower() or "housing" in built[0]["name"].lower() or "council" in built[0]["name"].lower()
 
 
-def test_get_well_wishes_drop_and_illness_journals_stay():
-    drops = [
+def test_get_well_wishes_and_personal_health_updates_drop():
+    """Directed wishes and the author's own illness journal are removed.
+
+    A hospital story, a staffing policy, or a healthcare argument stays.
+    The planet title is not what drops a journal planet.
+    """
+    wishes = [
         "Oh I am sorry to hear this. Wishing you a speedy and full recovery.",
         "Hoping for a speedy recovery!",
         "Despite it, I'm wishing you a speedy recovery.",
@@ -370,27 +375,40 @@ def test_get_well_wishes_drop_and_illness_journals_stay():
         "prayers for you",
         "Get well soon",
     ]
-    stays = [
+    journals = [
+        "I've been sick all week.",
+        "Just got back from the hospital.",
         "I'm feeling so much better today! Still wiped and tired, but the migraine has passed.",
         "It is a lie to tell myself that I will ever be fully recovered from chemo, but some things will return in time.",
-        "The senator was admitted to the hospital after the illness was reported.",
-        "Hospital policy now covers recovery time after surgery for the nurses.",
         "I feel so sick and ill right now. Why is this happening to me?",
         "I am medicated up at this point and feeling better.",
+    ]
+    stays = [
+        "The senator was admitted to the hospital after the illness was reported.",
+        "Hospital policy now covers recovery time after surgery for the nurses.",
+        "The measles outbreak closed two schools after new cases were reported.",
+        "Medicare should cover hospital stays after surgery.",
+        "I feel sick about the new tariffs.",
+        "I'm sick of Congress missing the healthcare vote.",
         "got a haircut y'all",
         "new haircut with limited edition color",
+        "The cup-final injury will keep the striker out of the championship.",
     ]
-    for text in drops:
+    for text in wishes:
         assert pleasantry_reason({"text": text}) == "wish", text
+    for text in journals:
+        assert pleasantry_reason({"text": text}) == "health_update", text
+        assert ingest_block_reason({"text": text}) == "chitchat:health_update", text
     for text in stays:
         assert pleasantry_reason({"text": text}) is None, text
-    wishes = [{"text": "Hope you feel better soon"}] * 6
-    assert planet_chitchat_reason(wishes, [], name="Health Issues")
-    assert planet_chitchat_reason(wishes, [], name="Kind Words")
-    journals = [
-        {"text": "I'm feeling so much better today! Still wiped, but the migraine has passed."}
+    wish_planet = [{"text": "Hope you feel better soon"}] * 6
+    assert planet_chitchat_reason(wish_planet, [], name="Health Issues")
+    assert planet_chitchat_reason(wish_planet, [], name="Kind Words")
+    journal_planet = [
+        {"text": "I've been sick all week and I am still home from the hospital."}
     ] * 6
-    assert planet_chitchat_reason(journals, [], name="Health Issues") is None
+    assert planet_chitchat_reason(journal_planet, [], name="Health Issues")
+    assert planet_chitchat_reason(journal_planet, [], name="Kind Words")
     chemo = [
         {
             "text": (
@@ -399,7 +417,36 @@ def test_get_well_wishes_drop_and_illness_journals_stay():
             )
         }
     ] * 6
-    assert planet_chitchat_reason(chemo, [], name="Recovering Health") is None
+    assert planet_chitchat_reason(chemo, [], name="Recovering Health")
+    # Mostly journals or wishes drops. A minority does not, and the title cannot.
+    mixed_drop = [
+        {"text": "I've been sick all week."},
+        {"text": "Just got back from the hospital."},
+        {"text": "Hope you feel better soon"},
+        {"text": "I am medicated up at this point and feeling better."},
+        {"text": "The measles outbreak closed two schools after new cases were reported."},
+        {"text": "Medicare should cover hospital stays after surgery."},
+    ]
+    assert planet_chitchat_reason(mixed_drop, [], name="Health Issues")
+    mixed_keep = [
+        {"text": "I've been sick all week."},
+        {"text": "The senator was admitted to the hospital after the illness was reported."},
+        {"text": "Hospital policy now covers recovery time after surgery for the nurses."},
+        {"text": "The measles outbreak closed two schools after new cases were reported."},
+        {"text": "Medicare should cover hospital stays after surgery."},
+        {"text": "Healthcare in the US is tied to employment and the insurance industry."},
+    ]
+    assert planet_chitchat_reason(mixed_keep, [], name="Health Issues") is None
+    kept, blocked_spam, blocked_other = keep_edition_quality(
+        [
+            {"uri": "at://news", "text": "The measles outbreak closed two schools after new cases were reported."},
+            {"uri": "at://sick", "text": "I've been sick all week."},
+            {"uri": "at://back", "text": "Just got back from the hospital."},
+        ]
+    )
+    assert [post["uri"] for post in kept] == ["at://news"]
+    assert blocked_spam == 0
+    assert blocked_other == 2
 
 
 def test_hashtags_sports_jabs_and_stream_mentions_stay():
@@ -482,12 +529,12 @@ def test_link_and_language_switch_matches_main_on_the_clustering_path(monkeypatc
 
 
 def test_replay_39072480258_representatives():
-    """Saved planets from the run where the guard published zero chit-chat planets.
+    """Saved planets from preview 39072480258.
 
-    Speedy Recovery's five representatives are all recovery wishes, so the
-    guard drops it. Health Issues is 90/127 on a face labeled Get Well, but
-    only a minority of those representatives are directed wishes, so the
-    representative share stays under 55% and the title does not drop it.
+    Speedy Recovery's representatives are recovery wishes. Health Issues and
+    Recovering Health are mostly personal illness journals plus those wishes,
+    so they drop too. US Healthcare is a policy argument and stays. The title
+    is not the input.
     """
     payload = json.loads(REPLAY.read_text(encoding="utf-8"))
     rows = [
@@ -495,7 +542,11 @@ def test_replay_39072480258_representatives():
         for planet in payload["planets"]
     ]
     dropped = [(row["section"], row["name"]) for row in rows if row["decision"] == "DROP"]
-    assert dropped == [("Health", "Speedy Recovery")]
+    assert dropped == [
+        ("Health", "Health Issues"),
+        ("Health", "Speedy Recovery"),
+        ("Health", "Recovering Health"),
+    ]
     by_name = {(row["section"], row["name"]): row for row in rows}
     speedy = by_name[("Health", "Speedy Recovery")]
     assert speedy["share"] == 1
@@ -505,14 +556,17 @@ def test_replay_39072480258_representatives():
         name="Kind Words",
     )
     issues = by_name[("Health", "Health Issues")]
-    assert issues["decision"] == "KEEP"
-    assert 0.20 < issues["share"] < PLEASANTRY_SHARE_DROP
+    assert issues["share"] >= PLEASANTRY_SHARE_DROP
+    recovering = by_name[("Health", "Recovering Health")]
+    assert recovering["share"] >= PLEASANTRY_SHARE_DROP
     for section, name in (
-        ("Health", "Recovering Health"),
         ("Other", "New Haircuts"),
         ("global", "Music Videos"),
         ("Culture", "Music Videos"),
         ("Health", "US Healthcare"),
+        ("Health", "Eating Issues"),
+        ("Other", "Sleep Issues"),
+        ("Education", "School Medication Policy"),
     ):
         assert by_name[(section, name)]["decision"] == "KEEP"
         assert by_name[(section, name)]["share"] < PLEASANTRY_SHARE_DROP
