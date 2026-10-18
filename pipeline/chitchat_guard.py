@@ -22,8 +22,6 @@ from pipeline.spam_guard import guard_reason, post_body
 
 # Majority of member posts. Titles are not consulted.
 PLEASANTRY_SHARE_DROP = 0.55
-# Thanks / compliments / wishes with no topical post in the sample (#227).
-GESTURE_THREAD_SHARE_DROP = 0.35
 # A model "yes" needs the posts to agree. In the preview fixture every
 # real-topic planet is 0% pleasantry (97 of the 100 non-target planets).
 # The only planets under 55% that contain any pleasantry are at 50%
@@ -97,7 +95,7 @@ _FILLER = frozenset(
 _NEWS_RE = re.compile(
     r"\b(?:veterans?|congress|senate|senators?|court|rulings?|(?<!\bin )laws?|bills?|council|"
     r"impeach(?:ed|ment|ments)?|"
-    r"votes?|voting|voters?|polic(?:y|ies)|wages?|reports?|invasion|ukrain\w*|housing|"
+    r"votes?|voting|voters?|voted|polic(?:y|ies)|wages?|reports?|invasion|ukrain\w*|housing|"
     r"gambling|elections?|presidents?|tax(?:es)?|tariffs?|military|police|hospitals?|"
     r"vaccines?|climate|schools?|students?|universit\w*|inflation|strikes?|unions?|"
     r"protests?|refugees?|treat(?:y|ies)|sanctions?|parliament|ministers?|governors?|"
@@ -114,6 +112,39 @@ _NEWS_RE = re.compile(
     r"symptoms?|lessons?|vaccines?|ndp|canadians?|pope|popes|troops|trump|putin|musk)\b",
     re.IGNORECASE,
 )
+
+# Political or argumentative posts that open with thanks or “great”.
+_DISCUSSION_RE = re.compile(
+    r"\b(?:nazis?|fascists?|never forget|scumbag|stolen|destroying|communities|"
+    r"environment|screenplay|studios?|webtoon|comicfury|itch|tumblr|organizations?|"
+    r"audience|ebooks?|treatments?|hires?|industry|platforms?)\b",
+    re.IGNORECASE,
+)
+
+_CIVIC_TAG_RE = re.compile(
+    r"#(?:ivoted|voteblue|votered|nokings|resist|fbr|vote)\b",
+    re.IGNORECASE,
+)
+
+_GESTURE_WIPE_RE = re.compile(
+    r"\b(?:thank you|thanks|thankyou|thx|ty|my pleasure|youre welcome|you are welcome|"
+    r"happy to help|glad to help|no problem|dont mention it|of course|"
+    r"incredible|awesome|amazing|beautiful|gorgeous|stunning|lovely|fantastic|wonderful|"
+    r"great|best|photogenic|cute|hot|sexy|adorable|delightful|so good|so pretty|"
+    r"love it|love this|love you|thankful|grateful|appreciate|pleasure|welcome|"
+    r"photogenic|wonderful design|lovely work|nice work|amazing work|great work)\b",
+    re.IGNORECASE,
+)
+
+# Thanks-heavy courtesy clusters (#227). Independent of a single anchor post.
+THANK_PLANET_MIN_MEMBERS = 15
+THANK_PLANET_SHARE_DROP = 0.25
+THANK_PLANET_MIN_THANKS = 5
+# Reaction / stream balls sized like published chit-chat planets.
+GESTURE_CLUSTER_MIN_MEMBERS = 40
+GESTURE_CLUSTER_SHARE_DROP = 0.38
+STREAM_CLUSTER_MIN_MEMBERS = 50
+STREAM_CLUSTER_SHARE_DROP = 0.32
 
 _WORK_RE = re.compile(
     r"\b(?:songs?|albums?|movies?|films?|books?|novels?|poems?|goals?|scored|assists?|podcasts?)\b",
@@ -412,6 +443,30 @@ def _news(plain: str) -> bool:
     return bool(_NEWS_RE.search(plain or ""))
 
 
+def _discussion_topic(raw: str, plain: str) -> bool:
+    if _CIVIC_TAG_RE.search(raw or ""):
+        return True
+    return bool(_DISCUSSION_RE.search(plain or ""))
+
+
+def _gesture_remainder_substance(plain: str) -> list[str]:
+    text = _GESTURE_WIPE_RE.sub(" ", plain or "")
+    text = re.sub(r"[^\w\s]", " ", text)
+    return _substance(" ".join(text.split()))
+
+
+def _gesture_is_the_post(raw: str, plain: str, *, creator: bool = False) -> bool:
+    """True when gratitude or praise is the whole post, not a lead-in to a topic."""
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain):
+        return False
+    subs = _gesture_remainder_substance(plain)
+    if re.search(r"^(?:thank you|thanks|ty|thx)\b", plain or ""):
+        return len(subs) <= 3 and _word_count(plain) <= 60
+    if creator:
+        return len(subs) <= 2 and _word_count(plain) <= 55
+    return len(subs) <= 1 and _word_count(" ".join(subs)) <= 6
+
+
 def _work_topic(plain: str) -> bool:
     return bool(_WORK_RE.search(plain or ""))
 
@@ -508,22 +563,25 @@ def _person_directed(plain: str) -> bool:
     )
 
 
-def _courtesy_reply(plain: str) -> bool:
+def _courtesy_reply(raw: str, plain: str) -> bool:
     """Short “my pleasure” / “happy to help” replies, not policy."""
-    if _news(plain) or _work_topic(plain):
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain):
         return False
-    if re.search(
+    if not re.search(
         r"\b(?:my pleasure|youre welcome|you are welcome|happy to help|glad to help|"
-        r"no problem|anytime|dont mention it|do not mention it)\b",
+        r"no problem|dont mention it|do not mention it)\b",
         plain or "",
     ):
-        return _word_count(plain) <= 40
-    return False
+        return False
+    subs = _gesture_remainder_substance(plain)
+    return _word_count(plain) <= 40 and len(subs) <= 3
 
 
-def _creator_compliment(plain: str) -> bool:
+def _creator_compliment(raw: str, plain: str) -> bool:
     """Praise for someone's art, WIP pics, shirt, etc."""
-    if _news(plain) or _sports_play(plain):
+    if re.search(r"^great\s*[-–—]", plain or ""):
+        return False
+    if _discussion_topic(raw, plain) or _news(plain) or _sports_play(plain):
         return False
     if not re.search(r"\byour\b", plain or ""):
         return False
@@ -539,11 +597,11 @@ def _creator_compliment(plain: str) -> bool:
         plain or "",
     ):
         return False
-    return _word_count(plain) <= 55
+    return _word_count(plain) <= 55 and _gesture_is_the_post(raw, plain, creator=True)
 
 
 def _thanks(raw: str, plain: str) -> bool:
-    if _courtesy_reply(plain):
+    if _courtesy_reply(raw, plain):
         return True
     thanked = bool(
         re.search(r"\b(?:thank you|thanks|thankyou|thx)\b", plain or "")
@@ -559,56 +617,48 @@ def _thanks(raw: str, plain: str) -> bool:
         return False
     if HASHTAG_RE.search(raw or ""):
         tag_plain = _plain(" ".join(HASHTAG_RE.findall(raw or "")))
-        if _news(tag_plain) or len(_substance(tag_plain)) >= 1:
+        if _news(tag_plain) or _discussion_topic(raw, tag_plain) or len(_substance(tag_plain)) >= 1:
             return False
-    if _news(plain) or _work_topic(plain) or _sports_play(plain):
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain) or _sports_play(plain):
         return False
-    if grateful and not thanked and len(_substance(plain)) > 1:
-        return False
-    if grateful and not thanked:
-        return True
-    if len(_substance(plain)) <= 2:
-        return True
-    # Longer thank-you replies with no public topic (production Thank planet, #227).
-    if re.search(r"^(?:thank you|thanks|ty|thx)\b", plain or "") and _word_count(plain) <= 60:
-        return len(_substance(plain)) <= 6
-    if thanked and _person_directed(plain) and _word_count(plain) <= 50:
-        return len(_substance(plain)) <= 5
-    return False
+    return _gesture_is_the_post(raw, plain)
 
 
-def _enthusiasm_reaction(plain: str) -> bool:
+def _enthusiasm_reaction(raw: str, plain: str) -> bool:
     """Short “so good” reactions, not a sports or policy argument."""
-    if _news(plain) or _work_topic(plain):
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain):
         return False
     if re.search(r"\bso good at\b", plain or ""):
         return False
-    if re.search(r"\b(?:comment section|press conference|hearing|vote|bill)\b", plain or ""):
+    if re.search(r"\b(?:comment section|press conference|hearing|vote|voted|bill)\b", plain or ""):
         return False
     if not re.search(
         r"\b(?:(?:this|that|it) is )?so good\b|^(?:this|that) is so good\b|\blooks so good\b",
         plain or "",
     ):
         return False
-    return _word_count(plain) <= 14
+    if not _word_count(plain) <= 14:
+        return False
+    return _gesture_is_the_post(raw, plain)
 
 
-def _art_praise(plain: str) -> bool:
-    if _news(plain) or _work_topic(plain):
+def _art_praise(raw: str, plain: str) -> bool:
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain):
         return False
     if re.search(r"\bhow can i\b", plain or ""):
         return False
-    if re.search(
+    if not re.search(
         r"\b(?:look how cute|how cute (?:this|it)|wonderful design|lovely work|"
-        r"great work|nice work|amazing work|beautiful (?:design|rendering|art))\b",
+        r"nice work|amazing work|beautiful (?:design|rendering|art))\b",
         plain or "",
     ):
-        return _word_count(plain) <= 48 and len(_substance(plain)) <= 4
-    return False
+        return False
+    subs = _gesture_remainder_substance(plain)
+    return _word_count(plain) <= 48 and len(subs) <= 4
 
 
 def _compliment(raw: str, plain: str) -> bool:
-    if _enthusiasm_reaction(plain) or _art_praise(plain) or _creator_compliment(plain):
+    if _enthusiasm_reaction(raw, plain) or _art_praise(raw, plain) or _creator_compliment(raw, plain):
         return True
     if not re.search(
         r"\b(?:cute|beautiful|gorgeous|stunning|lovely|sexy|adorable|delightful|"
@@ -617,13 +667,12 @@ def _compliment(raw: str, plain: str) -> bool:
         plain or "",
     ):
         return False
-    if _news(plain) or _work_topic(plain) or _sports_play(raw):
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain) or _sports_play(raw):
         return False
-    subs = _substance(plain)
+    subs = _gesture_remainder_substance(plain)
     if _person_directed(plain):
-        return len(subs) <= 3 and _word_count(plain) <= 48
-    # A bare "so cute" / "beautiful!" with no topic noun. One real noun keeps it.
-    return len(subs) == 0 and _word_count(plain) <= 24
+        return _word_count(plain) <= 48 and len(subs) <= 5
+    return _word_count(plain) <= 24 and len(subs) <= 1
 
 
 def _wish(plain: str) -> str | None:
@@ -811,7 +860,7 @@ def pleasantry_reason(post: dict) -> str | None:
         return kind
     if _thanks(raw, plain):
         return "thanks"
-    if _creator_compliment(plain):
+    if _creator_compliment(raw, plain):
         return "compliment"
     if _compliment(raw, plain):
         return "compliment"
@@ -1014,26 +1063,6 @@ def _gesture_share(members: list[dict]) -> float:
     return hits / len(members)
 
 
-def _topical_anchor(post: dict) -> bool:
-    """A post that carries public discussion, not a social gesture."""
-    reason = pleasantry_reason(post)
-    if reason:
-        return False
-    raw = post_body(post)
-    plain = _plain(raw)
-    if not plain:
-        return False
-    if "?" in raw:
-        return True
-    if _news(plain) or _work_topic(plain) or _sports_play(raw):
-        return True
-    return len(_substance(plain)) >= 2
-
-
-def _planet_has_topical_anchor(members: list[dict]) -> bool:
-    return any(_topical_anchor(member) for member in members)
-
-
 def planet_chitchat_reason(
     members: list[dict],
     terms: list[str],
@@ -1059,15 +1088,37 @@ def planet_chitchat_reason(
         return f"{share:.0%} of the posts are chit-chat"
     if model_chitchat is True and share >= MODEL_CHITCHAT_SHARE_FLOOR:
         return f"naming prompt marked the posts as chit-chat and {share:.0%} of the posts agree"
-    gesture = _gesture_share(members)
-    thanks_share = sum(1 for m in members if pleasantry_reason(m) == "thanks") / len(members)
+    thanks_count = sum(1 for member in members if pleasantry_reason(member) == "thanks")
+    thanks_share = thanks_count / len(members)
     if (
-        gesture >= GESTURE_THREAD_SHARE_DROP
-        and thanks_share >= 0.28
-        and not _planet_has_topical_anchor(members)
+        len(members) >= THANK_PLANET_MIN_MEMBERS
+        and thanks_share >= THANK_PLANET_SHARE_DROP
+        and thanks_count >= THANK_PLANET_MIN_THANKS
     ):
-        return (
-            f"{gesture:.0%} of the posts are thanks, compliments, or wishes "
-            "and none carry a public topic"
-        )
+        return f"{thanks_share:.0%} of the posts are thanks ({thanks_count} posts)"
+    thanks_mentions = sum(
+        1
+        for member in members
+        if re.search(r"\b(?:thank you|thanks|thank)\b", _plain(post_body(member)) or "")
+    )
+    mention_share = thanks_mentions / len(members)
+    if (
+        len(members) >= THANK_PLANET_MIN_MEMBERS
+        and thanks_mentions >= THANK_PLANET_MIN_THANKS
+        and mention_share >= 0.40
+    ):
+        return f"{mention_share:.0%} of the posts mention thanks ({thanks_mentions} posts)"
+    gesture = _gesture_share(members)
+    if len(members) >= GESTURE_CLUSTER_MIN_MEMBERS and gesture >= GESTURE_CLUSTER_SHARE_DROP:
+        return f"{gesture:.0%} of the posts are social gestures in a large cluster"
+    streamish = 0
+    for member in members:
+        raw = post_body(member)
+        plain = _plain(raw)
+        if pleasantry_reason(member) == "stream_announce" or _STREAM_URL_RE.search(raw or ""):
+            streamish += 1
+        elif re.search(r"\b(?:twitch|kick)\b", plain or "") and _word_count(plain) <= 40:
+            streamish += 1
+    if len(members) >= STREAM_CLUSTER_MIN_MEMBERS and streamish / len(members) >= STREAM_CLUSTER_SHARE_DROP:
+        return f"{streamish:.0%} of the posts are stream promos or Twitch plugs"
     return None

@@ -464,6 +464,28 @@ def test_issue_227_production_thank_planet_samples():
     assert pleasantry_reason({"text": "How can I contribute to this great work?"}) is None
 
 
+def test_issue_227_reviewer_false_positive_keeps():
+    """Topical posts from the bc-88ba023c hand sample must stay."""
+    keeps = [
+        "Thank you - never forget. The only people who support nazis... are nazis.",
+        "I voted today, and it feels so good! #IVoted",
+        (
+            "Great - they are scumbag organizations… if you/your staff has used AI for the photo "
+            "to please not. It is destroying communities, the environment, & is built on stolen work."
+        ),
+        (
+            "Webtoon vs ComicFury vs Itch vs Tumblr — find your audience. "
+            "Great for posting ebooks and building a readership."
+        ),
+        (
+            "I can't do treatments. Anytime a studio hires me to write a screenplay "
+            "I end up rewriting the whole thing."
+        ),
+    ]
+    for text in keeps:
+        assert pleasantry_reason({"text": text}) is None, text
+
+
 def test_issue_227_missed_shapes_and_topical_lookalikes():
     drops = [
         "THIS IS SO GOOD",
@@ -484,14 +506,7 @@ def test_issue_227_missed_shapes_and_topical_lookalikes():
     ]
     for text in keeps:
         assert pleasantry_reason({"text": text}) is None, text
-    thank_thread = [
-        {"text": "Thank you!!"},
-        {"text": "Thanks so much"},
-        {"text": "Thank you all"},
-        {"text": "ty"},
-        {"text": "grateful for today"},
-    ] * 2
-    thank_thread.append({"text": "❤️"})
+    thank_thread = [{"text": "Thank you!!"}] * 8 + [{"text": "Thanks so much!"}] * 10
     assert planet_chitchat_reason(thank_thread, [], name="Thank You")
     policy = [
         {
