@@ -7,8 +7,8 @@ from decimal import Decimal
 import pytest
 
 from pipeline.costs import SERVICE_DEEPINFRA, SERVICE_JEV, get_meter, record_attempt, reset_meter
-from pipeline.jev import _post_systemone
-from pipeline.label import _openai_generate
+from pipeline.jev import _post_systemone, apply_jev, classify_planet_section, reset_jev_state
+from pipeline.label import _openai_generate, label_topic
 from pipeline.spend_cap import (
     ENV_ALLOW_PAID,
     PaidCallsBlocked,
@@ -24,6 +24,7 @@ def test_paid_calls_allowed_truthy_values(monkeypatch):
         assert paid_calls_allowed() is True
 
 
+@pytest.mark.expect_paid_blocked
 def test_paid_calls_blocked_when_unset(monkeypatch):
     monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
     assert paid_calls_allowed() is False
@@ -31,12 +32,14 @@ def test_paid_calls_blocked_when_unset(monkeypatch):
         require_paid_opt_in("unit test")
 
 
+@pytest.mark.expect_paid_blocked
 def test_guard_before_paid_call_requires_opt_in(monkeypatch):
     monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
     with pytest.raises(PaidCallsBlocked):
         guard_before_paid_call("Jev")
 
 
+@pytest.mark.expect_paid_blocked
 def test_metering_paid_service_requires_opt_in(monkeypatch):
     monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
     reset_meter()
@@ -53,6 +56,7 @@ def test_metering_paid_service_requires_opt_in(monkeypatch):
     assert len(get_meter().attempts()) == 0
 
 
+@pytest.mark.expect_paid_blocked
 def test_openai_generate_raises_without_opt_in(monkeypatch):
     monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
@@ -66,6 +70,7 @@ def test_openai_generate_raises_without_opt_in(monkeypatch):
         _openai_generate("hello", "model")
 
 
+@pytest.mark.expect_paid_blocked
 def test_post_systemone_raises_without_opt_in(monkeypatch):
     monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
@@ -90,6 +95,59 @@ def test_paid_guard_allows_when_opted_in(monkeypatch):
     _post_systemone({"questions": {}, "state": "hello"})
     assert len(get_meter().attempts()) == 1
     assert get_meter().attempts()[0].service == SERVICE_JEV
+
+
+def _sample_posts():
+    text = "The city council should fund more public housing because rents keep rising."
+    return [
+        {
+            "uri": "at://fixture/paid-guard/1",
+            "author": "ada",
+            "text": text,
+            "clean_text": text,
+            "likes": 1,
+            "created_at": "2026-10-18T12:00:00Z",
+        }
+    ]
+
+
+@pytest.mark.expect_paid_blocked
+def test_label_topic_openai_raises_without_opt_in(monkeypatch):
+    monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    posts = _sample_posts()
+    with pytest.raises(PaidCallsBlocked):
+        label_topic(posts, ["housing"], backend="openai", model="unit-test-llm")
+
+
+@pytest.mark.expect_paid_blocked
+def test_classify_planet_section_raises_without_opt_in(monkeypatch):
+    monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    reset_jev_state()
+    with pytest.raises(PaidCallsBlocked):
+        classify_planet_section("Housing costs", "Rent is too high in the city.")
+
+
+@pytest.mark.expect_paid_blocked
+def test_apply_jev_raises_without_opt_in(monkeypatch):
+    monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    reset_jev_state()
+
+    def fake(url, **kwargs):
+        return {
+            "model": "jev-test",
+            "answers": {
+                "spam": {"type": "noul", "noul": 0.1},
+                "section": {"type": "choice", "choice": "Politics", "confidence": 0.9},
+            },
+            "usage": {"input_tokens": 10, "output_tokens": 0},
+        }
+
+    monkeypatch.setattr("pipeline.jev.read_json", fake)
+    with pytest.raises(PaidCallsBlocked):
+        apply_jev(_sample_posts())
 
 
 def test_deepinfra_metering_with_opt_in(monkeypatch):

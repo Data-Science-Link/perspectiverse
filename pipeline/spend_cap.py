@@ -97,7 +97,7 @@ class SpendCapExceeded(Exception):
         self.spent_usd = spent_usd
 
 
-class PaidCallsBlocked(RuntimeError):
+class PaidCallsBlocked(Exception):
     """Paid labeling or Jev calls are off until ``PERSPECTIVERSE_ALLOW_PAID`` is set."""
 
 

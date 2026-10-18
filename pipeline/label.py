@@ -1522,11 +1522,15 @@ def perspectives_share_subject(
     chosen = _resolve_backend(backend)
     if chosen == "heuristic":
         return True
+    from pipeline.spend_cap import PaidCallsBlocked
+
     try:
         if generate is not None:
             raw = generate(build_same_subject_prompt(faces)) or ""
         else:
             raw = _generator_for(chosen, model)(build_same_subject_prompt(faces)) or ""
+    except PaidCallsBlocked:
+        raise
     except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError):
         return True
     parsed = _load_object(raw)
@@ -1569,10 +1573,14 @@ def name_from_perspectives(
     chosen = _resolve_backend(backend)
     if chosen == "heuristic":
         return None, None
+    from pipeline.spend_cap import PaidCallsBlocked
+
     try:
         raw = _generator_for(chosen, model)(
             build_planet_name_prompt(posts, faces, post_limit=post_limit)
         ) or ""
+    except PaidCallsBlocked:
+        raise
     except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError):
         return None, None
     parsed = parse_label(raw) or _load_object(raw)
@@ -1694,9 +1702,13 @@ def _from_generator(
     terms: list[str],
     posts: list[dict],
 ) -> dict:
+    from pipeline.spend_cap import PaidCallsBlocked
+
     for _attempt in range(2):
         try:
             raw = generate(prompt) or ""
+        except PaidCallsBlocked:
+            raise
         except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError):
             raw = ""
         parsed = parse_label(raw)
@@ -1933,7 +1945,7 @@ def _remember_label_cost(
 
     ``SpendCapExceeded`` still stops the run. A swallowed cap would publish.
     """
-    from pipeline.spend_cap import SpendCapExceeded
+    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
     try:
         from pipeline.costs import llm_service_for_base_url, record_llm_attempt
@@ -1945,7 +1957,7 @@ def _remember_label_cost(
             status=status,
             error_class="" if status == "success" else error_class,
         )
-    except SpendCapExceeded:
+    except (SpendCapExceeded, PaidCallsBlocked):
         raise
     except Exception as exc:
         sys.stderr.write(f"WARNING: Cost log skipped for a labeling call: {exc}\n")

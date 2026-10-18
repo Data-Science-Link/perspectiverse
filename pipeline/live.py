@@ -43,6 +43,7 @@ from pipeline.free_ingest import free_ingest_enabled, log_fetch_bucket_summary, 
 from pipeline.jev import apply_jev, classify_planet_section, describe_jev, known_scored_uris
 from pipeline.spend_cap import (
     FILL_BUDGET_TOTAL_USD,
+    PaidCallsBlocked,
     SpendCapExceeded,
     day_paid_usd,
     guard_before_paid_call,
@@ -1726,7 +1727,7 @@ def _run_finalize_faces_parallel(
                 job = inflight.pop(future)
                 try:
                     wide = future.result()
-                except SpendCapExceeded:
+                except (SpendCapExceeded, PaidCallsBlocked):
                     raise
                 except Exception as exc:  # noqa: BLE001 - keep draft label on failure
                     print(f"Wide face relabel failed ({type(exc).__name__}); keeping draft label.")
@@ -2694,7 +2695,7 @@ def _safe_draft(posts: list[dict], clustered: dict, topic: dict, context: dict):
     """
     try:
         return _draft_planet(posts, clustered, topic, context)
-    except SpendCapExceeded:
+    except (SpendCapExceeded, PaidCallsBlocked):
         raise
     except Exception as exc:  # noqa: BLE001 - one bad planet must not block the snapshot
         return None, [f"Dropping candidate {topic.get('id')}: drafting failed ({type(exc).__name__}: {exc})."]
@@ -3084,7 +3085,7 @@ def _cluster_sections(
                 embed=lambda _texts, m=sub_matrix: m,
                 authors=[str(p.get("author") or "unknown") for p in section_posts],
             )
-        except SpendCapExceeded:
+        except (SpendCapExceeded, PaidCallsBlocked):
             raise
         except Exception as exc:  # noqa: BLE001 - one section must not block the snapshot
             print(f"Section {section}: skipped ({type(exc).__name__}: {exc}).")

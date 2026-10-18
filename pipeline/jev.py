@@ -162,8 +162,10 @@ def apply_jev(
             decisions=decisions,
         )
     except Exception as exc:
-        from pipeline.spend_cap import SpendCapExceeded
+        from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
+        if isinstance(exc, PaidCallsBlocked):
+            raise
         if not isinstance(exc, SpendCapExceeded):
             raise
         halted = exc
@@ -532,8 +534,10 @@ def _classify_many(
                 except CancelledError:
                     continue
                 except Exception as exc:
-                    from pipeline.spend_cap import SpendCapExceeded
+                    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
+                    if isinstance(exc, PaidCallsBlocked):
+                        raise
                     if isinstance(exc, SpendCapExceeded):
                         halted = exc
                         continue
@@ -716,9 +720,9 @@ def classify_planet_section(summary: str, arguments: str) -> str | None:
     try:
         payload = _post_systemone(planet_section_body(summary, arguments))
     except Exception as exc:
-        from pipeline.spend_cap import SpendCapExceeded
+        from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
-        if isinstance(exc, SpendCapExceeded):
+        if isinstance(exc, (SpendCapExceeded, PaidCallsBlocked)):
             raise
         return None
     parsed = parse_planet_section(payload)
@@ -840,13 +844,13 @@ def _remember_jev_cost(payload: dict | None, status: str) -> None:
 
     ``SpendCapExceeded`` still stops the run, including a top-up round.
     """
-    from pipeline.spend_cap import SpendCapExceeded
+    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
     try:
         from pipeline.costs import record_jev_attempt
 
         record_jev_attempt(requested_model=_model(), payload=payload, status=status)
-    except SpendCapExceeded:
+    except (SpendCapExceeded, PaidCallsBlocked):
         raise
     except Exception as exc:
         sys.stderr.write(f"WARNING: Cost log skipped for a Jev call: {exc}\n")
