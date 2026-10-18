@@ -110,7 +110,10 @@ def build_planet_name_prompt(
     body = _post_lines(posts, limit=post_limit if post_limit is not None else 10)
     return (
         "Name the one subject these perspectives share.\n"
-        "Return JSON only: {\"name\": \"2-4 words\"}.\n"
+        "Return JSON only: {\"name\": \"2-4 words\", \"chitchat\": \"yes or no\"}.\n"
+        "chitchat is yes only for greetings, thanks, compliments, birthday or holiday wishes, "
+        "live-now self-promotion, or one-word agreement, and no when the posts discuss a public topic "
+        "even if those words appear.\n"
         "The name is a newsbeat: a specific event, case, or policy. "
         "Every word must appear in the posts. Do not invent a movement, bill, or person. "
         "If the perspectives are different stories, name the largest one.\n"
@@ -125,7 +128,10 @@ def build_topic_prompt(posts: list[dict], terms: list[str], *, post_limit: int |
     return (
         "Name one public-conversation topic clustered from social posts.\n"
         "Return JSON only, with no markdown: "
-        '{"name": "2-4 words", "summary": "one sentence"}\n'
+        '{"name": "2-4 words", "summary": "one sentence", "chitchat": "yes or no"}\n'
+        "chitchat is yes only for greetings, thanks, compliments, birthday or holiday wishes, "
+        "live-now self-promotion, or one-word agreement, and no when the posts discuss a public topic "
+        "even if those words appear.\n"
         "The name should sound like a newsbeat: a specific event, case, or policy, "
         "not a mood, a party, or a keyword dump. "
         "Use only entities that appear in the posts or the salient terms. "
@@ -217,6 +223,9 @@ def parse_label(text: str) -> dict | None:
     parsed: dict = {"title": title[:48], "summary": summary[:280]}
     if data.get("name"):
         parsed["name"] = str(data["name"]).strip()[:48]
+    flag = chitchat_flag(data)
+    if flag is not None:
+        parsed["chitchat"] = flag
     arguments = _clean_arguments(data.get("arguments"))
     if arguments:
         parsed["arguments"] = arguments
@@ -1526,6 +1535,21 @@ def perspectives_share_subject(
     return bool(parsed.get("same"))
 
 
+def chitchat_flag(data: dict | None) -> bool | None:
+    """Yes/no from the existing naming response. Missing means do not drop."""
+    if not isinstance(data, dict) or "chitchat" not in data:
+        return None
+    raw = data.get("chitchat")
+    if isinstance(raw, bool):
+        return raw
+    text = str(raw).strip().lower()
+    if text in {"yes", "true", "y"}:
+        return True
+    if text in {"no", "false", "n"}:
+        return False
+    return None
+
+
 def name_from_perspectives(
     posts: list[dict],
     faces: list[dict],
@@ -1534,32 +1558,41 @@ def name_from_perspectives(
     backend: str = "auto",
     model: str | None = None,
     post_limit: int | None = None,
-) -> str | None:
-    """A newsbeat name that the posts actually use."""
+) -> tuple[str | None, bool | None]:
+    """A newsbeat name the posts use, plus the naming response's chit-chat flag.
+
+    The flag is read from the same call. Heuristic naming makes no call and
+    returns no flag. A rejected name still returns the flag.
+    """
     if not faces:
-        return None
+        return None, None
     chosen = _resolve_backend(backend)
     if chosen == "heuristic":
-        return None
+        return None, None
     try:
         raw = _generator_for(chosen, model)(
             build_planet_name_prompt(posts, faces, post_limit=post_limit)
         ) or ""
     except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError, KeyError):
-        return None
+        return None, None
     parsed = parse_label(raw) or _load_object(raw)
     if not isinstance(parsed, dict):
-        return None
+        return None, None
+    flag = chitchat_flag(parsed)
     name = str(parsed.get("name") or parsed.get("title") or "").strip()
     if not name:
-        return None
-    grounded = ground_topic({"name": name, "summary": str(faces[0].get("summary") or name)}, posts, terms)
+        return None, flag
+    grounded = ground_topic(
+        {"name": name, "summary": str(faces[0].get("summary") or name), "chitchat": flag},
+        posts,
+        terms,
+    )
     if grounded.get("label_source") == "heuristic":
-        return None
+        return None, flag
     cleaned = str(grounded.get("name") or "").strip()
     if not cleaned or _title_needs_repair(cleaned) or _is_camp_title(cleaned):
-        return None
-    return cleaned
+        return None, flag
+    return cleaned, flag
 
 
 def _generator_for(chosen: str, model: str | None) -> Callable[..., str]:

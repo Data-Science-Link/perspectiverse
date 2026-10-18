@@ -7,8 +7,9 @@ to ``0``. A config that omits the key stays off (``DEFAULTS``).
 
 When the setting is on, three things change:
 
-* The free spam guard replaces per-post Jev spam and claim checks. Every
-  post the guard lets through is stored, including non-claims.
+* The free spam guard and chit-chat filter replace per-post Jev spam and
+  claim checks. Edition-quality posts (not spam, chit-chat, link-only, or
+  non-English) are stored, including non-claims.
 * Jev runs once per candidate planet, and only to pick a newspaper category.
   Member posts inherit that category. Section solar systems then use the
   category the way they use a per-post section today.
@@ -34,8 +35,8 @@ from pipeline.data_sources.extract_bluesky import (
     extract_posts,
     format_search_time,
 )
+from pipeline.chitchat_guard import get_chitchat_log, ingest_block_reason, reset_chitchat_log
 from pipeline.schema import CATEGORIES
-from pipeline.spam_guard import guard_reason
 
 # One seventh of a 100,000-post week, the #192 availability bar.
 NON_SPAM_PER_DAY = 14_300
@@ -155,17 +156,35 @@ def prepare_post(post: dict) -> dict:
     return prepared
 
 
-def keep_non_spam(posts: list[dict]) -> tuple[list[dict], int]:
-    """Return prepared posts the guard lets through, and how many it blocked."""
+def keep_edition_quality(posts: list[dict]) -> tuple[list[dict], int, int]:
+    """Return posts that pass spam, chit-chat, language, and link-only checks.
+
+    The daily non-spam cap counts only posts returned here, so chit-chat never
+    fills a 14,300 slot and ingest can top up until ``target`` quality posts.
+    """
+    log = get_chitchat_log()
     kept: list[dict] = []
-    blocked = 0
+    blocked_spam = 0
+    blocked_other = 0
     for post in posts:
+        log.record_fetch(1)
         prepared = prepare_post(post)
-        if guard_reason(prepared) is not None:
-            blocked += 1
+        reason = ingest_block_reason(prepared)
+        if reason is not None:
+            log.record_block(prepared, reason)
+            if reason.startswith("spam:"):
+                blocked_spam += 1
+            else:
+                blocked_other += 1
             continue
         kept.append(prepared)
-    return kept, blocked
+    return kept, blocked_spam, blocked_other
+
+
+def keep_non_spam(posts: list[dict]) -> tuple[list[dict], int]:
+    """Backward-compatible wrapper. Prefer ``keep_edition_quality``."""
+    kept, blocked_spam, blocked_other = keep_edition_quality(posts)
+    return kept, blocked_spam + blocked_other
 
 
 def _in_window(post: dict, cutoff: datetime) -> bool:
@@ -181,12 +200,21 @@ def ingest_free(
     now: datetime | None = None,
     extract=None,
     days: int = FREE_INGEST_DAYS,
+    reset_log: bool = True,
 ) -> list[dict]:
-    """Fetch the last 7 UTC days and keep every non-spam post.
+    """Fetch the last 7 UTC days and keep edition-quality posts.
 
-    Does not call Jev. A search failure keeps the posts already collected.
-    The retained list is cut to the rolling window and ``target``.
+    Spam, chit-chat, and personal health updates are always dropped before the
+    daily cap and ``target``.
+    Link-only and non-English posts are dropped there only when
+    ``drop_link_and_language_at_ingest`` is on. When it is off they count
+    toward the stored edition, which is what main did before #209, and
+    clustering still skips them. Does not call Jev. A search failure keeps
+    the posts already collected. The retained list is cut to the rolling
+    window and ``target``.
     """
+    if reset_log:
+        reset_chitchat_log()
     moment = now or datetime.now(timezone.utc)
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=timezone.utc)
@@ -204,7 +232,7 @@ def ingest_free(
         if not post.get("uri") or not _in_window(post, cutoff):
             continue
         prepared = prepare_post(post)
-        if guard_reason(prepared) is not None:
+        if ingest_block_reason(prepared) is not None:
             continue
         kept.append(prepared)
     per_day = int(settings.get("free_ingest_per_day") or NON_SPAM_PER_DAY)
@@ -212,7 +240,8 @@ def ingest_free(
         if len(kept) >= target:
             break
         day_new = 0
-        day_blocked = 0
+        day_blocked_spam = 0
+        day_blocked_other = 0
         for query in chosen:
             if day_new >= per_day or len(kept) >= target:
                 break
@@ -234,8 +263,9 @@ def ingest_free(
                     f"Free ingest {format_search_time(since)} query {query!r} failed ({exc})."
                 )
                 continue
-            fresh, blocked = keep_non_spam(incoming)
-            day_blocked += blocked
+            fresh, blocked_spam, blocked_other = keep_edition_quality(incoming)
+            day_blocked_spam += blocked_spam
+            day_blocked_other += blocked_other
             for post in fresh:
                 uri = str(post.get("uri") or "")
                 if not uri or uri in seen:
@@ -245,9 +275,11 @@ def ingest_free(
                 day_new += 1
                 if day_new >= per_day or len(kept) >= target:
                     break
+        log = get_chitchat_log()
         print(
-            f"Free ingest {since.date().isoformat()}: {day_new} new non-spam, "
-            f"{day_blocked} blocked, {len(kept)} kept."
+            f"Free ingest {since.date().isoformat()}: {day_new} new edition-quality, "
+            f"{day_blocked_spam} spam, {day_blocked_other} other filtered "
+            f"(chitchat {log.chitchat_blocked} total), {len(kept)} kept."
         )
     return retire_oldest(
         kept,
