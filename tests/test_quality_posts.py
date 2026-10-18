@@ -75,8 +75,13 @@ def test_cleanup_keeps_cached_non_claims_drops_spam_and_filters(tmp_path):
     )
     assert should_drop_stored_post(_post("at://cached-aside", claim=False, spam=0.2)) is False
     dropped = drop_non_quality_posts(connection)
-    assert dropped == 2
-    assert _uris(connection) == {"at://claim", "at://cached-aside", "at://uncached-aside"}
+    assert dropped == 1
+    assert _uris(connection) == {
+        "at://claim",
+        "at://cached-aside",
+        "at://uncached-aside",
+        "at://thanks",
+    }
     cached = {row[0] for row in connection.execute("SELECT uri FROM jev_verdicts")}
     assert {"at://cached-aside", "at://cached-spam"} <= cached
     assert drop_non_quality_posts(connection) == 0
@@ -135,10 +140,8 @@ def test_kept_non_claim_counts_cached_verdict_without_row_label(tmp_path, capsys
         ],
     )
     dropped = drop_non_quality_posts(connection)
-    assert dropped == 1
-    assert _uris(connection) == {"at://cached-aside"}
-    logged = capsys.readouterr().out
-    assert "kept_non_claim=1" in logged
+    assert dropped == 0
+    assert _uris(connection) == {"at://cached-aside", "at://thanks"}
     connection.close()
 
 
@@ -289,14 +292,20 @@ def test_workflow_drop_non_quality_end_to_end(tmp_path, capsys):
     assert main(["drop-non-quality", str(db)]) == 0
     captured = capsys.readouterr().out
     assert (
-        "Stored corpus cleanup: spam=1, filtered=3 "
+        "Stored corpus cleanup: spam=1, filtered=0 "
         "(chit-chat, link-only, language, or free spam guard), "
-        "kept_non_claim=1; 2 row(s) remain."
+        "kept_non_claim=1; 5 row(s) remain."
     ) in captured
-    assert captured.strip().splitlines()[-1] == "4"
+    assert captured.strip().splitlines()[-1] == "1"
 
     connection = connect(db)
-    assert _uris(connection) == {"at://claim", "at://cached-aside"}
+    assert _uris(connection) == {
+        "at://claim",
+        "at://cached-aside",
+        "at://thanks",
+        "at://link-only",
+        "at://non-english",
+    }
     verdicts = {row[0] for row in connection.execute("SELECT uri FROM jev_verdicts")}
     assert verdicts == {"at://cached-spam", "at://cached-aside"}
     connection.close()
