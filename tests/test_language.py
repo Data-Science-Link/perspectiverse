@@ -177,6 +177,55 @@ def test_tambem_counts_as_portuguese():
     assert not looks_english("Isso também é um problema para o governo e para nós")
 
 
+def test_reviewer_english_frame_and_normalization_fixtures():
+    """bc-269b82cc review: sports bots, Kick mods, strikethrough, PT lottery lines."""
+    sports = [
+        "GOAL! 55' — Xesc Fullana scores for Poblense. Yeclano 1–2 Poblense. Segunda División RFEF - Group 3",
+        "GOAL! 28' — P. Mikita scores for Polonia Środa. Lech Poznań II 1–2 Polonia Środa. III Liga - Group 2",
+        "GOAL! 49' — J. Pedraza scores for Sevilla Atletico. Antoniano 1–2 Sevilla Atletico. Segunda División RFEF - Group 4",
+        "Anna·Anvegard 11' — Goal for Häcken W (penalty). Häcken W 1–0 Hammarby W. Damallsvenskan",
+        "GOAL! 7' — P. Petre scores for FC Bacau. FC Bacau 3–0 Gloria Bistriţa. Liga II",
+        "GOAL! 14' — M. Conde scores for Sporting Gijón II (penalty). Sporting Gijón II 3–0 Colunga. Tercera División RFEF - Group 2",
+        "GOAL! 9' — R. Marquez scores for Antoniano (penalty). Antoniano 1–0 Sevilla Atletico. Segunda División RFEF - Group 4",
+        "GOAL! 10' — A. Ladera scores for Villafranca. Villafranca 1–0 Gévora. Tercera División RFEF - Group 14",
+    ]
+    for line in sports:
+        assert looks_english(line)
+
+    assert looks_english("Just seen a Dutch Mike Neville doppelgänger.")
+    assert looks_english(
+        "S̶o̶ w̶e̶ s̶h̶o̶u̶l̶d̶ g̶o̶ a̶h̶e̶a̶d̶ w̶i̶t̶h̶ A̶l̶ S̶m̶i̶t̶h̶/J̶a̶k̶e̶ "
+        "F̶e̶a̶t̶h̶e̶r̶s̶t̶o̶n̶ t̶o̶x̶i̶c̶ y̶a̶o̶i̶ a̶f̶t̶e̶r̶ a̶l̶l̶?̶"
+    )
+    assert looks_english(
+        "#ac7ionman #kickban\niNachoBaby 🔨 BANNED by Ac7ionMan (after 1s)\n"
+        '"S i g n u p o n A n t i s l a v e . c o m F r e e s p e e c h p l a t f o r m"\n'
+        "kick.com/ac7ionman"
+    )
+    assert looks_english(
+        "#feef #kicktimeout\nBEURRSG ⏳ 1m timeout by BotRix (after 10m13s)\n"
+        '"SHOW B OOBS HaHaa HaHaa SHOW B OOBS HaHaa HaHaa"\n'
+        "kick.com/feef"
+    )
+
+    assert not looks_english(
+        "Geórgia vira polo de barrigas de aluguel para estrangeiros"
+    )
+    assert not looks_english("Fetiches mais populares no brasil ... acho que não")
+    assert not looks_english(
+        "O governo do Brasil anunciou novas medidas econômicas hoje"
+    )
+    assert not looks_english(
+        "Resultado da Lotofácil de hoje: veja números e ganhadores do concurso 3806 (sexta, 16/10)"
+    )
+    assert not looks_english(
+        "Resultado da Quina de hoje: veja números e ganhadores do concurso 7144 (sexta, 16/10)"
+    )
+    assert not looks_english(
+        "Veja o resultado da Lotofácil concurso 3803 desta terça-feira (13)"
+    )
+
+
 def test_clean_text_strips_bare_domains_for_clustering():
     raw = "There it is!! bsky.app/profile/mari… still a real story about the bill."
     stripped = clean_text(raw)

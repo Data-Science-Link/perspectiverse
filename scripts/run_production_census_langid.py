@@ -35,7 +35,7 @@ URL_PLANET_RE = re.compile(
 
 
 def main() -> None:
-    random.seed(224)
+    random.seed(2518)
     db = Path("/tmp/production_live_corpus.db")
     conn = connect(db)
     posts = load_posts(conn)
