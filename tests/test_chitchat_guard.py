@@ -449,6 +449,61 @@ def test_get_well_wishes_and_personal_health_updates_drop():
     assert blocked_other == 2
 
 
+def test_issue_227_production_thank_planet_samples():
+    """Exact lines from the #224 reviewer sample of the Thank planet (622 posts)."""
+    drops = [
+        "Thank you so much ^^u^^ we're gradually getting back into the swing of things with it",
+        "My pleasure, Kate. I'll keep the lights on for you.",
+        "Your work in progress pics are always incredible!",
+        "Of course! Thank you for making an awesome shirt!",
+        "Thanks! lots of photogenic ones today.",
+    ]
+    for text in drops:
+        assert pleasantry_reason({"text": text}) is not None, text
+    assert pleasantry_reason({"text": "Thank you, Senator, for voting no on the bill."}) is None
+    assert pleasantry_reason({"text": "How can I contribute to this great work?"}) is None
+
+
+def test_issue_227_missed_shapes_and_topical_lookalikes():
+    drops = [
+        "THIS IS SO GOOD",
+        "this is so good 🤩",
+        "This is so good.",
+        "Wonderful design and rendering!! Love his soft eyes",
+        "Omg look how cute this is!!",
+        "Karaoke stream! Join me",
+        "I appreciate all the support on here",
+    ]
+    for text in drops:
+        assert pleasantry_reason({"text": text}) is not None, text
+    keeps = [
+        "Thank you, Senator, for voting no on the bill.",
+        "Twitch's new moderation policy will change how streamers handle politics on the platform.",
+        "The Senate Judiciary Committee is live now for the confirmation hearing on the nominee.",
+        "The jobs report was amazing and wages finally rose.",
+    ]
+    for text in keeps:
+        assert pleasantry_reason({"text": text}) is None, text
+    thank_thread = [
+        {"text": "Thank you!!"},
+        {"text": "Thanks so much"},
+        {"text": "Thank you all"},
+        {"text": "ty"},
+        {"text": "grateful for today"},
+    ] * 2
+    thank_thread.append({"text": "❤️"})
+    assert planet_chitchat_reason(thank_thread, [], name="Thank You")
+    policy = [
+        {
+            "text": (
+                "Twitch's new moderation policy will change how streamers handle politics "
+                "on the platform during live broadcasts."
+            )
+        }
+    ] * 6
+    assert planet_chitchat_reason(policy, [], name="Thank You") is None
+
+
 def test_hashtags_sports_jabs_and_stream_mentions_stay():
     stays = [
         "#NoKings❌👑",
