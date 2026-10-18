@@ -1454,7 +1454,7 @@ def test_fill_dispatch_check_runs_after_ledger_load():
     assert "data-snapshot:costs/ledger.csv" in ledger_step["run"]
     workflow_text = Path(".github/workflows/pipeline.yml").read_text(encoding="utf-8")
     assert "timeout-minutes: 360" in workflow_text
-    drop_at = names.index("Drop stored spam and non-claims whose verdicts are cached")
+    drop_at = names.index("Drop stored spam and free-filter blocks from the corpus")
     counts_at = names.index("Corpus quality-post count for the fill done check")
     assert drop_at < counts_at < refuse_at
     assert "drop-non-quality" in steps[drop_at]["run"]

@@ -57,7 +57,7 @@ EXPECTED_IF = {
     "Pin pipeline modules for ledger steps after git checkout": WORK_GATE,
     "Download corpus from R2": WORK_GATE,
     "Restore Jev verdict cache": WORK_GATE,
-    "Drop stored spam and non-claims whose verdicts are cached": WORK_GATE,
+    "Drop stored spam and free-filter blocks from the corpus": WORK_GATE,
     "Corpus quality-post count for the fill done check": WORK_GATE,
     "Load today's cost ledger for the spend cap": WORK_GATE,
     "Refuse fill dispatch when the fill campaign is complete": (

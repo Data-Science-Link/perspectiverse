@@ -99,6 +99,73 @@ def is_quality_post(post: dict) -> bool:
         return True
 
 
+def _jev_verdict_is_spam(verdict_row: tuple) -> bool:
+    spam = verdict_row[1]
+    if spam is None or spam == "":
+        return False
+    try:
+        from pipeline.jev import SPAM_THRESHOLD
+
+        return float(spam) >= SPAM_THRESHOLD
+    except (TypeError, ValueError):
+        return False
+
+
+def _jev_verdict_is_non_claim(verdict_row: tuple) -> bool:
+    claim = verdict_row[2]
+    if claim is None or claim == "":
+        return False
+    try:
+        from pipeline.jev import CLAIM_THRESHOLD
+
+        return float(claim) < CLAIM_THRESHOLD
+    except (TypeError, ValueError):
+        return False
+
+
+def _stored_spam_or_guard(post: dict) -> bool:
+    spam = post.get("spam_score")
+    if spam is not None and spam != "":
+        try:
+            from pipeline.jev import SPAM_THRESHOLD
+
+            if float(spam) >= SPAM_THRESHOLD:
+                return True
+        except (TypeError, ValueError):
+            pass
+    from pipeline.spam_guard import guard_reason
+
+    return guard_reason(post) is not None
+
+
+def _stored_spam(post: dict, verdict_row: tuple | None) -> bool:
+    if verdict_row is not None and _jev_verdict_is_spam(verdict_row):
+        return True
+    return _stored_spam_or_guard(post)
+
+
+def _kept_stored_non_claim(post: dict, verdict_row: tuple | None) -> bool:
+    if verdict_row is not None:
+        if _jev_verdict_is_spam(verdict_row):
+            return False
+        if _jev_verdict_is_non_claim(verdict_row):
+            return True
+    return post.get("is_claim") is False
+
+
+def should_drop_stored_post(post: dict, verdict_row: tuple | None = None) -> bool:
+    """Whether ``drop_non_quality_posts`` removes a row already in the corpus.
+
+    Non-spam non-claims stay (#217). Spam and free ingest blocks leave.
+    Cached Jev spam counts even when the row has no ``spam_score``.
+    """
+    if _stored_spam(post, verdict_row):
+        return True
+    from pipeline.chitchat_guard import ingest_block_reason
+
+    return ingest_block_reason(post) is not None
+
+
 def count_quality_posts(connection: sqlite3.Connection) -> int:
     """Quality posts already stored. This is the fill done-count."""
     return sum(1 for post in load_posts(connection) if is_quality_post(post))
@@ -109,26 +176,40 @@ def _verdict_uris(connection: sqlite3.Connection) -> set[str]:
 
 
 def drop_non_quality_posts(connection: sqlite3.Connection) -> int:
-    """Remove stored spam and non-claims once their verdict is in the cache.
+    """Remove stored spam and posts the free filters now refuse.
 
-    A row with no ``jev_verdicts`` entry stays, so a post is not discarded
-    before its URI is remembered. Quality claims stay.
+    Non-claims stay even when a cached Jev verdict says they are not claims.
     """
-    verdicts = _verdict_uris(connection)
     existing = load_posts(connection)
+    verdicts = load_jev_verdicts(
+        connection,
+        [str(post.get("uri") or "") for post in existing],
+    )
     kept: list[dict] = []
-    dropped = 0
+    dropped_spam = 0
+    dropped_filtered = 0
+    kept_non_claim = 0
     for post in existing:
         uri = str(post.get("uri") or "")
-        if is_quality_post(post) or uri not in verdicts:
+        verdict_row = verdicts.get(uri)
+        if not should_drop_stored_post(post, verdict_row):
             kept.append(post)
-        else:
-            dropped += 1
+            if _kept_stored_non_claim(post, verdict_row):
+                kept_non_claim += 1
+            continue
+        if _stored_spam(post, verdict_row):
+            dropped_spam += 1
+            continue
+        dropped_filtered += 1
+    dropped = dropped_spam + dropped_filtered
     if dropped:
         replace_posts(connection, kept)
         print(
-            f"Dropped {dropped} stored posts that are spam or not claims; "
-            "their verdicts stay in the Jev cache."
+            "Stored corpus cleanup: "
+            f"spam={dropped_spam}, filtered={dropped_filtered} "
+            "(chit-chat, link-only, language, or free spam guard), "
+            f"kept_non_claim={kept_non_claim}; "
+            f"{len(kept)} row(s) remain."
         )
     return dropped
 
@@ -397,7 +478,10 @@ def main(argv: list[str] | None = None) -> int:
     """One-time cleanup and the quality-post count the fill done check reads."""
     parser = argparse.ArgumentParser(description="Quality-post helpers for the retained corpus")
     sub = parser.add_subparsers(dest="command", required=True)
-    drop = sub.add_parser("drop-non-quality", help="Remove spam and non-claims whose verdicts are cached")
+    drop = sub.add_parser(
+        "drop-non-quality",
+        help="Remove stored spam and posts blocked by the free ingest guards",
+    )
     drop.add_argument("db", type=Path)
     count = sub.add_parser("count-quality", help="Print how many quality posts are stored")
     count.add_argument("db", type=Path)

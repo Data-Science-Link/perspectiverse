@@ -175,7 +175,7 @@ jobs:
           restore-keys: |
             jev-verdict-cache-
 
-      - name: Drop stored spam and non-claims whose verdicts are cached
+      - name: Drop stored spam and free-filter blocks from the corpus
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'
         run: |
           source .venv/bin/activate

@@ -205,7 +205,7 @@ def test_trim_undershoot_does_not_report_reached(monkeypatch):
     fresh = [_post(index, moment=moment) for index in range(7)]
     measures = {"n": 0}
 
-    def fake_measure(cleaned):
+    def fake_measure(cleaned, **kwargs):
         measures["n"] += 1
         meta = {
             "before_language_filter": len(fresh),

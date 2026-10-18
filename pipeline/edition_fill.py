@@ -72,6 +72,7 @@ class EditionFillResult:
     skipped_chitchat_cluster_pass: int = 0
     ingest_stored: int = 0
     before_language_filter: int = 0
+    carried_cluster_skips: dict[str, int] = field(default_factory=dict)
 
     def pipeline_dict(self) -> dict:
         return {
@@ -82,6 +83,8 @@ class EditionFillResult:
             "skipped_link_only": self.skipped_link_only,
             "skipped_chitchat_cluster_pass": self.skipped_chitchat_cluster_pass,
             "edition_posts_for_clustering": len(self.planet_posts),
+            "carried_cluster_skips": dict(self.carried_cluster_skips),
+            "chitchat_ingest": get_chitchat_log().to_dict(),
             "edition_fill_stop_reason": self.stop_reason,
             "edition_fill_rounds": [
                 {
@@ -162,15 +165,30 @@ def _delta(before: dict[str, int], after: dict[str, int]) -> dict[str, int]:
     return {key: int(after.get(key, 0)) - int(before.get(key, 0)) for key in before}
 
 
-def measure_edition(cleaned: list[dict]) -> tuple[list[dict], dict]:
+def measure_edition(
+    cleaned: list[dict],
+    *,
+    carried_uris: set[str] | None = None,
+    carried_skips: dict[str, int] | None = None,
+) -> tuple[list[dict], dict]:
     """Edition-quality posts for clustering plus skip counts from the clustering pass."""
     from pipeline.live import posts_for_planets
 
     planet_posts = posts_for_planets(cleaned, require_claims=False)
     before_filter = len(planet_posts)
+    cluster_skips = carried_skips if carried_skips is not None else {}
     planet_posts, skipped_language, skipped_links, skipped_chitchat = edition_posts_for_clustering(
-        planet_posts
+        planet_posts,
+        carried_uris=carried_uris or set(),
+        carried_skips=cluster_skips,
     )
+    if cluster_skips:
+        print(
+            "Carried-over clustering filters: "
+            f"chitchat={cluster_skips.get('chitchat', 0)}, "
+            f"link_only={cluster_skips.get('link_only', 0)}, "
+            f"language={cluster_skips.get('language', 0)}."
+        )
     return planet_posts, {
         "before_language_filter": before_filter,
         "skipped_non_english": skipped_language,
@@ -252,6 +270,8 @@ def _try_reach_exact_target(
     target: int,
     window_hours: int,
     clock: Callable[[], datetime],
+    carried_uris: set[str] | None = None,
+    carried_cluster_skips: dict[str, int] | None = None,
 ) -> tuple[bool, list[dict], list[dict], dict]:
     """Trim overshoot and re-measure. Success only when edition count equals ``target``."""
     if len(planet_posts) < target:
@@ -265,7 +285,11 @@ def _try_reach_exact_target(
         clock=clock,
         edition_uris_before=edition_before,
     )
-    planet_posts, meta = measure_edition(cleaned)
+    planet_posts, meta = measure_edition(
+        cleaned,
+        carried_uris=carried_uris,
+        carried_skips=carried_cluster_skips,
+    )
     return len(planet_posts) == target, cleaned, planet_posts, meta
 
 
@@ -290,10 +314,16 @@ def _run_switch_off_one_shot(
     tick: Callable[[], datetime],
     window_hours: int,
     loop_started: float,
+    carried_uris: set[str],
+    carried_cluster_skips: dict[str, int],
 ) -> EditionFillResult:
     """Main's one-shot top-up: initial ingest only when stored < target; fetch when shortfall > 0."""
     cleaned = apply_window_eviction(list(existing), clock=tick, window_hours=window_hours)
-    planet_posts, meta = measure_edition(cleaned)
+    planet_posts, meta = measure_edition(
+        cleaned,
+        carried_uris=carried_uris,
+        carried_skips=carried_cluster_skips,
+    )
     reached, cleaned, planet_posts, meta = _try_reach_exact_target(
         cleaned,
         planet_posts,
@@ -301,6 +331,8 @@ def _run_switch_off_one_shot(
         target=target,
         window_hours=window_hours,
         clock=tick,
+        carried_uris=carried_uris,
+        carried_cluster_skips=carried_cluster_skips,
     )
     if reached:
         row = _round_log(
@@ -324,6 +356,7 @@ def _run_switch_off_one_shot(
             skipped_chitchat_cluster_pass=int(meta.get("skipped_chitchat_cluster_pass") or 0),
             ingest_stored=len(cleaned),
             before_language_filter=int(meta.get("before_language_filter") or 0),
+            carried_cluster_skips=dict(carried_cluster_skips),
         )
 
     near_dup_total = 0
@@ -337,7 +370,11 @@ def _run_switch_off_one_shot(
             reset_log=True,
         )
         near_dup_total += near_dup
-        planet_posts, meta = measure_edition(cleaned)
+        planet_posts, meta = measure_edition(
+            cleaned,
+            carried_uris=carried_uris,
+            carried_skips=carried_cluster_skips,
+        )
 
     shortfall = clustering_topup_shortfall(
         target,
@@ -355,7 +392,11 @@ def _run_switch_off_one_shot(
             reset_log=False,
         )
         near_dup_total += near_dup
-        planet_posts, meta = measure_edition(cleaned)
+        planet_posts, meta = measure_edition(
+            cleaned,
+            carried_uris=carried_uris,
+            carried_skips=carried_cluster_skips,
+        )
 
     reached, cleaned, planet_posts, meta = _try_reach_exact_target(
         cleaned,
@@ -364,6 +405,8 @@ def _run_switch_off_one_shot(
         target=target,
         window_hours=window_hours,
         clock=tick,
+        carried_uris=carried_uris,
+        carried_cluster_skips=carried_cluster_skips,
     )
     stop_reason = STOP_REACHED_TARGET if reached else STOP_EDITION_GAP
     row = _round_log(
@@ -387,6 +430,7 @@ def _run_switch_off_one_shot(
         skipped_chitchat_cluster_pass=int(meta.get("skipped_chitchat_cluster_pass") or 0),
         ingest_stored=len(cleaned),
         before_language_filter=int(meta.get("before_language_filter") or 0),
+        carried_cluster_skips=dict(carried_cluster_skips),
     )
     print(result.summary_line())
     if stop_reason != STOP_REACHED_TARGET:
@@ -447,6 +491,8 @@ def run_edition_fill_loop(
         def tick() -> datetime:
             return datetime.now(timezone.utc)
     window_hours = int(settings.get("window_hours") or 168)
+    carried_uris = {str(post.get("uri") or "") for post in existing if post.get("uri")}
+    carried_cluster_skips: dict[str, int] = {}
     reset_chitchat_log()
     loop_started = time.monotonic()
     if not drop_link_and_language_at_ingest():
@@ -458,6 +504,8 @@ def run_edition_fill_loop(
             tick=tick,
             window_hours=window_hours,
             loop_started=loop_started,
+            carried_uris=carried_uris,
+            carried_cluster_skips=carried_cluster_skips,
         )
     cleaned = apply_window_eviction(list(existing), clock=tick, window_hours=window_hours)
     planet_posts: list[dict] = []
@@ -473,7 +521,11 @@ def run_edition_fill_loop(
         before_edition = len(planet_posts)
         near_dup_dropped = 0
 
-        planet_posts, meta = measure_edition(cleaned)
+        planet_posts, meta = measure_edition(
+            cleaned,
+            carried_uris=carried_uris,
+            carried_skips=carried_cluster_skips,
+        )
         elapsed = time.monotonic() - loop_started
 
         reached, cleaned, planet_posts, meta = _try_reach_exact_target(
@@ -483,6 +535,8 @@ def run_edition_fill_loop(
             target=target,
             window_hours=window_hours,
             clock=tick,
+            carried_uris=carried_uris,
+            carried_cluster_skips=carried_cluster_skips,
         )
         if reached:
             stop_reason = STOP_REACHED_TARGET
@@ -549,7 +603,11 @@ def run_edition_fill_loop(
 
         after_log = _log_snapshot()
         delta = _delta(before_log, after_log)
-        planet_posts, meta = measure_edition(cleaned)
+        planet_posts, meta = measure_edition(
+            cleaned,
+            carried_uris=carried_uris,
+            carried_skips=carried_cluster_skips,
+        )
         edition_added = len(planet_posts) - before_edition
         elapsed = time.monotonic() - loop_started
 
@@ -560,6 +618,8 @@ def run_edition_fill_loop(
             target=target,
             window_hours=window_hours,
             clock=tick,
+            carried_uris=carried_uris,
+            carried_cluster_skips=carried_cluster_skips,
         )
         row = _round_log(
             round_num=round_num,
@@ -607,6 +667,7 @@ def run_edition_fill_loop(
         skipped_chitchat_cluster_pass=int(meta.get("skipped_chitchat_cluster_pass") or 0),
         ingest_stored=len(cleaned),
         before_language_filter=int(meta.get("before_language_filter") or 0),
+        carried_cluster_skips=dict(carried_cluster_skips),
     )
     print(result.summary_line())
     if stop_reason != STOP_REACHED_TARGET:

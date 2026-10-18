@@ -114,6 +114,157 @@ def test_ingest_free_stores_non_claims_and_drops_spam(monkeypatch):
     assert all(post["is_claim"] is None for post in kept)
 
 
+def test_fetch_buckets_reconcile_to_fetched():
+    from pipeline.chitchat_guard import get_chitchat_log, reset_chitchat_log
+
+    moment = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
+    shared = (
+        "The city should build public housing near the train station this year "
+        "because rents keep climbing for working families."
+    )
+    existing = [
+        {
+            "uri": "at://stored",
+            "author": "ada",
+            "text": shared,
+            "likes": 1,
+            "created_at": "2026-10-17T01:00:00Z",
+        }
+    ]
+
+    def fake_extract(**kwargs):
+        return [
+            {
+                "uri": "at://copy-text",
+                "author": "bob",
+                "text": shared,
+                "likes": 1,
+                "created_at": "2026-10-17T03:00:00Z",
+            },
+            {
+                "uri": "at://fresh-one",
+                "author": "cara",
+                "text": "The school board should publish the safety audit before the bond vote next month.",
+                "likes": 1,
+                "created_at": "2026-10-17T04:00:00Z",
+            },
+            {
+                "uri": "at://fresh-two",
+                "author": "dan",
+                "text": "The port expansion needs an independent review of environmental impacts this year.",
+                "likes": 1,
+                "created_at": "2026-10-17T05:00:00Z",
+            },
+        ]
+
+    reset_chitchat_log()
+    ingest_free(
+        existing,
+        {"window_hours": 168, "seed": 0, "free_ingest_per_day": 1},
+        ["the"],
+        target=100,
+        now=moment,
+        extract=fake_extract,
+        days=1,
+    )
+    log = get_chitchat_log()
+    assert log.buckets_reconcile()
+    assert log.fetched == log.accounted_total()
+    assert log.near_duplicate_blocked >= 1
+    assert log.new_stored == 1
+    assert log.over_daily_cap >= 1
+    assert log.fetched == 3
+
+
+def test_fetch_buckets_already_stored_uri():
+    from pipeline.chitchat_guard import get_chitchat_log, reset_chitchat_log
+
+    moment = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
+    existing = [
+        {
+            "uri": "at://stored",
+            "author": "ada",
+            "text": "The city council should vote on the housing bond before the winter budget deadline.",
+            "likes": 1,
+            "created_at": "2026-10-17T01:00:00Z",
+        }
+    ]
+
+    def fake_extract(**kwargs):
+        return [
+            {
+                "uri": "at://stored",
+                "author": "ada",
+                "text": "The port authority should publish the dredging study before the bond vote next month.",
+                "likes": 1,
+                "created_at": "2026-10-17T02:00:00Z",
+            },
+        ]
+
+    reset_chitchat_log()
+    ingest_free(
+        existing,
+        {"window_hours": 168, "seed": 0, "free_ingest_per_day": 100},
+        ["the"],
+        target=100,
+        now=moment,
+        extract=fake_extract,
+        days=1,
+    )
+    log = get_chitchat_log()
+    assert log.buckets_reconcile()
+    assert log.already_stored == 1
+    assert log.new_stored == 0
+
+
+def test_fetch_buckets_over_target_cap():
+    from pipeline.chitchat_guard import get_chitchat_log, reset_chitchat_log
+
+    moment = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
+    existing = [
+        {
+            "uri": "at://one",
+            "author": "ada",
+            "text": "The city council should vote on the housing bond before the winter budget deadline.",
+            "likes": 1,
+            "created_at": "2026-10-17T01:00:00Z",
+        },
+    ]
+
+    def fake_extract(**kwargs):
+        return [
+            {
+                "uri": "at://three",
+                "author": "cara",
+                "text": "The port authority should publish the dredging study before the bond vote next month.",
+                "likes": 1,
+                "created_at": "2026-10-17T04:00:00Z",
+            },
+            {
+                "uri": "at://four",
+                "author": "dan",
+                "text": "The transit agency should release the ridership model before the fare vote this year.",
+                "likes": 1,
+                "created_at": "2026-10-17T05:00:00Z",
+            },
+        ]
+
+    reset_chitchat_log()
+    ingest_free(
+        existing,
+        {"window_hours": 168, "seed": 0, "free_ingest_per_day": 100},
+        ["the"],
+        target=2,
+        now=moment,
+        extract=fake_extract,
+        days=1,
+    )
+    log = get_chitchat_log()
+    assert log.buckets_reconcile()
+    assert log.new_stored == 1
+    assert log.over_target_cap >= 1
+
+
 def test_paced_fetch_backs_off_on_403(monkeypatch):
     calls = {"n": 0}
 

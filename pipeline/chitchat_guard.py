@@ -254,6 +254,14 @@ class ChitchatRemovalLog:
         self.chitchat_blocked = 0
         self.language_blocked = 0
         self.link_blocked = 0
+        self.near_duplicate_blocked = 0
+        self.other_blocked = 0
+        self.new_stored = 0
+        self.already_stored = 0
+        self.over_daily_cap = 0
+        self.over_target_cap = 0
+        self.over_max_new_posts = 0
+        self.missing_uri = 0
         self._chitchat_samples: list[dict] = []
 
     def reset(self) -> None:
@@ -262,6 +270,14 @@ class ChitchatRemovalLog:
         self.chitchat_blocked = 0
         self.language_blocked = 0
         self.link_blocked = 0
+        self.near_duplicate_blocked = 0
+        self.other_blocked = 0
+        self.new_stored = 0
+        self.already_stored = 0
+        self.over_daily_cap = 0
+        self.over_target_cap = 0
+        self.over_max_new_posts = 0
+        self.missing_uri = 0
         self._chitchat_samples.clear()
 
     def record_fetch(self, count: int = 1) -> None:
@@ -288,6 +304,32 @@ class ChitchatRemovalLog:
             self.language_blocked += 1
         elif reason == "link_only":
             self.link_blocked += 1
+        else:
+            self.other_blocked += 1
+
+    def removal_total(self) -> int:
+        return (
+            self.spam_blocked
+            + self.chitchat_blocked
+            + self.language_blocked
+            + self.link_blocked
+            + self.near_duplicate_blocked
+            + self.other_blocked
+        )
+
+    def accounted_total(self) -> int:
+        return (
+            self.removal_total()
+            + self.new_stored
+            + self.already_stored
+            + self.over_daily_cap
+            + self.over_target_cap
+            + self.over_max_new_posts
+            + self.missing_uri
+        )
+
+    def buckets_reconcile(self) -> bool:
+        return self.fetched == self.accounted_total()
 
     def chitchat_share_of_fetched(self) -> float:
         if self.fetched <= 0:
@@ -297,10 +339,20 @@ class ChitchatRemovalLog:
     def to_dict(self) -> dict:
         return {
             "fetched": self.fetched,
+            "new_stored": self.new_stored,
             "spam_blocked": self.spam_blocked,
             "chitchat_blocked": self.chitchat_blocked,
             "language_blocked": self.language_blocked,
             "link_blocked": self.link_blocked,
+            "near_duplicate_blocked": self.near_duplicate_blocked,
+            "other_blocked": self.other_blocked,
+            "already_stored": self.already_stored,
+            "over_daily_cap": self.over_daily_cap,
+            "over_target_cap": self.over_target_cap,
+            "over_max_new_posts": self.over_max_new_posts,
+            "missing_uri": self.missing_uri,
+            "accounted_total": self.accounted_total(),
+            "buckets_reconcile": self.buckets_reconcile(),
             "chitchat_share_of_fetched": round(self.chitchat_share_of_fetched(), 6),
             "removed_sample": list(self._chitchat_samples),
         }
@@ -703,7 +755,12 @@ def ingest_block_reason(post: dict) -> str | None:
     return None
 
 
-def edition_posts_for_clustering(posts: list[dict]) -> tuple[list[dict], int, int, int]:
+def edition_posts_for_clustering(
+    posts: list[dict],
+    *,
+    carried_uris: set[str] | None = None,
+    carried_skips: dict[str, int] | None = None,
+) -> tuple[list[dict], int, int, int]:
     """Posts that enter clustering, plus language, link, and chit-chat skips.
 
     Link-only and non-English posts are always removed. That is
@@ -714,9 +771,33 @@ def edition_posts_for_clustering(posts: list[dict]) -> tuple[list[dict], int, in
     let them into a planet.
 
     Chit-chat is always removed here too. That part is #208.
+
+    When ``carried_uris`` and ``carried_skips`` are set, counts how many
+    skipped posts came from an earlier run's stored corpus (#217).
     """
-    kept, language, links = partition_posts(posts)
-    kept, chitchat = filter_chitchat_posts(kept)
+    carried = carried_uris or set()
+    kept: list[dict] = []
+    language = 0
+    links = 0
+    for post in posts:
+        uri = str(post.get("uri") or "")
+        text = str(post.get("clean_text") or post.get("text") or "")
+        if is_link_only(text):
+            links += 1
+            if carried_skips is not None and uri in carried:
+                carried_skips["link_only"] = carried_skips.get("link_only", 0) + 1
+            continue
+        if not looks_english(text):
+            language += 1
+            if carried_skips is not None and uri in carried:
+                carried_skips["language"] = carried_skips.get("language", 0) + 1
+            continue
+        kept.append(post)
+    kept, chitchat = filter_chitchat_posts(
+        kept,
+        carried_uris=carried if carried_skips is not None else None,
+        carried_skips=carried_skips,
+    )
     return kept, language, links, chitchat
 
 
@@ -740,8 +821,14 @@ def clustering_topup_shortfall(
     return max(0, int(target) - int(clustered) - excluded)
 
 
-def filter_chitchat_posts(posts: list[dict]) -> tuple[list[dict], int]:
+def filter_chitchat_posts(
+    posts: list[dict],
+    *,
+    carried_uris: set[str] | None = None,
+    carried_skips: dict[str, int] | None = None,
+) -> tuple[list[dict], int]:
     """Drop chit-chat posts that reached clustering. Returns (kept, dropped)."""
+    carried = carried_uris or set()
     kept: list[dict] = []
     dropped = 0
     for post in posts:
@@ -749,6 +836,9 @@ def filter_chitchat_posts(posts: list[dict]) -> tuple[list[dict], int]:
             kept.append(post)
             continue
         dropped += 1
+        uri = str(post.get("uri") or "")
+        if carried_skips is not None and uri in carried:
+            carried_skips["chitchat"] = carried_skips.get("chitchat", 0) + 1
         _LOG.record_block(post, "chitchat:late")
     return kept, dropped
 

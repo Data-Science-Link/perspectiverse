@@ -27,7 +27,7 @@ import copy
 import time
 from datetime import datetime, timedelta, timezone
 
-from pipeline.cleaning import _dedupe_key, clean_text
+from pipeline.cleaning import clean_text, dedupe_key
 from pipeline.corpus import parse_created, retire_oldest
 from pipeline.data_sources.extract_bluesky import (
     MAX_SEARCH_PAGES,
@@ -140,7 +140,7 @@ def paced_fetch(query, cursor, limit, since=None, until=None):
 
 def prepare_post(post: dict) -> dict:
     """Attach cleaned text. Does not drop the post."""
-    text = str(post.get("text") or "")
+    text = str(post.get("text") or post.get("clean_text") or "")
     prepared = dict(post)
     prepared["text"] = text
     prepared["clean_text"] = clean_text(text) or text
@@ -156,11 +156,17 @@ def prepare_post(post: dict) -> dict:
     return prepared
 
 
-def keep_edition_quality(posts: list[dict]) -> tuple[list[dict], int, int]:
+def keep_edition_quality(
+    posts: list[dict],
+    *,
+    seen_text: set[str] | None = None,
+) -> tuple[list[dict], int, int]:
     """Return posts that pass spam, chit-chat, language, and link-only checks.
 
     The daily non-spam cap counts only posts returned here, so chit-chat never
     fills a 14,300 slot and ingest can top up until ``target`` quality posts.
+    When ``seen_text`` is set, copy-paste text already in the corpus or an
+    earlier fetch in this run is counted as ``near_duplicate_blocked``.
     """
     log = get_chitchat_log()
     kept: list[dict] = []
@@ -177,8 +183,78 @@ def keep_edition_quality(posts: list[dict]) -> tuple[list[dict], int, int]:
             else:
                 blocked_other += 1
             continue
+        if seen_text is not None:
+            key = dedupe_key(prepared)
+            if key and key in seen_text:
+                log.near_duplicate_blocked += 1
+                continue
+            if key:
+                seen_text.add(key)
         kept.append(prepared)
     return kept, blocked_spam, blocked_other
+
+
+def _seed_seen_text(posts: list[dict]) -> set[str]:
+    keys: set[str] = set()
+    for post in posts:
+        key = dedupe_key(post)
+        if key:
+            keys.add(key)
+    return keys
+
+
+def _accept_fresh_posts(
+    fresh: list[dict],
+    kept: list[dict],
+    seen: set[str],
+    *,
+    per_day: int,
+    day_new: int,
+    target: int,
+    new_cap: int | None,
+    fetch_added: int,
+) -> tuple[int, int]:
+    """Append edition-quality fetches. Count cap and duplicate exits in the log."""
+    log = get_chitchat_log()
+    for post in fresh:
+        uri = str(post.get("uri") or "")
+        if not uri:
+            log.missing_uri += 1
+            continue
+        if uri in seen:
+            log.already_stored += 1
+            continue
+        if len(kept) >= target:
+            log.over_target_cap += 1
+            continue
+        if day_new >= per_day:
+            log.over_daily_cap += 1
+            continue
+        if new_cap is not None and fetch_added >= new_cap:
+            log.over_max_new_posts += 1
+            continue
+        seen.add(uri)
+        kept.append(post)
+        day_new += 1
+        fetch_added += 1
+        log.new_stored += 1
+    return day_new, fetch_added
+
+
+def log_fetch_bucket_summary() -> None:
+    log = get_chitchat_log()
+    print(
+        "Free ingest fetch buckets: "
+        f"fetched={log.fetched}, new={log.new_stored}, "
+        f"spam={log.spam_blocked}, chitchat={log.chitchat_blocked}, "
+        f"link_only={log.link_blocked}, language={log.language_blocked}, "
+        f"near_duplicate={log.near_duplicate_blocked}, other={log.other_blocked}, "
+        f"already_stored={log.already_stored}, over_daily_cap={log.over_daily_cap}, "
+        f"over_target_cap={log.over_target_cap}, over_max_new_posts={log.over_max_new_posts}, "
+        f"missing_uri={log.missing_uri}, "
+        f"accounted={log.accounted_total()}, "
+        f"reconcile={'ok' if log.buckets_reconcile() else 'MISMATCH'}."
+    )
 
 
 def keep_non_spam(posts: list[dict]) -> tuple[list[dict], int]:
@@ -189,6 +265,52 @@ def keep_non_spam(posts: list[dict]) -> tuple[list[dict], int]:
 
 def _in_window(post: dict, cutoff: datetime) -> bool:
     return parse_created(post.get("created_at") or "") >= cutoff
+
+
+def _classify_block_reason(reason: str) -> str:
+    if reason.startswith("spam:"):
+        return "spam"
+    if reason.startswith("chitchat:"):
+        return "chitchat"
+    if reason == "link_only":
+        return "link_only"
+    if reason == "language":
+        return "language"
+    return "other"
+
+
+def refresh_carried_posts(
+    existing: list[dict],
+    cutoff: datetime,
+) -> tuple[list[dict], dict[str, int]]:
+    """Re-run edition filters on rows already in the corpus."""
+    stats = {
+        "carried_seen": 0,
+        "carried_kept": 0,
+        "carried_spam": 0,
+        "carried_chitchat": 0,
+        "carried_link_only": 0,
+        "carried_language": 0,
+        "carried_other": 0,
+    }
+    kept: list[dict] = []
+    for post in existing:
+        if not post.get("uri") or not _in_window(post, cutoff):
+            continue
+        stats["carried_seen"] += 1
+        prepared = prepare_post(post)
+        reason = ingest_block_reason(prepared)
+        if reason is not None:
+            bucket = _classify_block_reason(reason)
+            key = f"carried_{bucket}"
+            if bucket == "other":
+                stats["carried_other"] += 1
+            else:
+                stats[key] = stats.get(key, 0) + 1
+            continue
+        kept.append(prepared)
+        stats["carried_kept"] += 1
+    return kept, stats
 
 
 def ingest_free(
@@ -228,21 +350,22 @@ def ingest_free(
     window_hours = int(settings.get("window_hours") or 168)
     cutoff = moment - timedelta(hours=window_hours)
     seen = {str(post.get("uri") or "") for post in existing if post.get("uri")}
-    seen_text: set[str] = set()
-    kept: list[dict] = []
-    for post in existing:
-        if not post.get("uri") or not _in_window(post, cutoff):
-            continue
-        prepared = prepare_post(post)
-        if ingest_block_reason(prepared) is not None:
-            continue
-        kept.append(prepared)
-        text_key = _dedupe_key(str(prepared.get("clean_text") or ""))
-        if text_key:
-            seen_text.add(text_key)
+    kept, carried_stats = refresh_carried_posts(existing, cutoff)
+    seen_text = _seed_seen_text(kept)
+    if carried_stats["carried_seen"]:
+        print(
+            "Carried-over corpus filters: "
+            f"seen={carried_stats['carried_seen']}, "
+            f"kept={carried_stats['carried_kept']}, "
+            f"spam={carried_stats['carried_spam']}, "
+            f"chitchat={carried_stats['carried_chitchat']}, "
+            f"link_only={carried_stats['carried_link_only']}, "
+            f"language={carried_stats['carried_language']}, "
+            f"other={carried_stats['carried_other']}."
+        )
     per_day = int(settings.get("free_ingest_per_day") or NON_SPAM_PER_DAY)
     fetch_added = 0
-    near_duplicate_dropped = 0
+    near_dup_before = get_chitchat_log().near_duplicate_blocked
     new_cap = max(int(max_new_posts), 0) if max_new_posts is not None else None
     for since, until in day_windows(moment, days):
         if len(kept) >= target:
@@ -275,33 +398,29 @@ def ingest_free(
                     f"Free ingest {format_search_time(since)} query {query!r} failed ({exc})."
                 )
                 continue
-            fresh, blocked_spam, blocked_other = keep_edition_quality(incoming)
+            fresh, blocked_spam, blocked_other = keep_edition_quality(
+                incoming,
+                seen_text=seen_text,
+            )
             day_blocked_spam += blocked_spam
             day_blocked_other += blocked_other
-            for post in fresh:
-                uri = str(post.get("uri") or "")
-                if not uri or uri in seen:
-                    continue
-                text_key = _dedupe_key(str(post.get("clean_text") or ""))
-                if text_key and text_key in seen_text:
-                    near_duplicate_dropped += 1
-                    continue
-                if text_key:
-                    seen_text.add(text_key)
-                seen.add(uri)
-                kept.append(post)
-                day_new += 1
-                fetch_added += 1
-                if day_new >= per_day or len(kept) >= target:
-                    break
-                if new_cap is not None and fetch_added >= new_cap:
-                    break
+            day_new, fetch_added = _accept_fresh_posts(
+                fresh,
+                kept,
+                seen,
+                per_day=per_day,
+                day_new=day_new,
+                target=target,
+                new_cap=new_cap,
+                fetch_added=fetch_added,
+            )
         log = get_chitchat_log()
         print(
             f"Free ingest {since.date().isoformat()}: {day_new} new edition-quality, "
             f"{day_blocked_spam} spam, {day_blocked_other} other filtered "
             f"(chitchat {log.chitchat_blocked} total), {len(kept)} kept."
         )
+    log_fetch_bucket_summary()
     retired = retire_oldest(
         kept,
         now=moment,
@@ -309,6 +428,7 @@ def ingest_free(
         target=target,
     )
     fetch_exhausted = len(retired) < int(target) and fetch_added == 0
+    near_duplicate_dropped = get_chitchat_log().near_duplicate_blocked - near_dup_before
     return retired, fetch_exhausted, near_duplicate_dropped
 
 
