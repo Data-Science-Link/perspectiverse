@@ -1,14 +1,15 @@
-"""Cheap local checks for posts that should not enter an English clustering.
+"""Local checks for link-only posts and non-English language (#221–#223).
 
-No model and no network. A post is skipped when another language's function
-words outnumber English ones, when the letters are mostly not Latin, or when
-the text is only a link. Short English remarks are kept.
+Link-only rules are lexical. Language uses the pinned ``langid`` model on text
+with URLs, handles, and hashtags stripped. Short or ambiguous text is kept.
 """
 
 from __future__ import annotations
 
 import re
 import unicodedata
+
+import langid
 
 from pipeline.cleaning import (
     HANDLE_RE,
@@ -20,9 +21,14 @@ from pipeline.cleaning import (
     strip_link_hosts,
 )
 
-_TOKEN = re.compile(r"[\w']{2,}", re.UNICODE)
+# langid log-probability gap (top language vs English) required to drop a post.
+_LANGID_MARGIN = 25.0
+# Fewer letters than this after stripping → keep (too short to ID reliably).
+_MIN_LANGID_LETTERS = 24
+# Fewer distinct words → keep (repetitive / synthetic blurbs).
+_MIN_LANGID_UNIQUE_WORDS = 4
+
 _ALPHA_WORD = re.compile(r"[A-Za-zÀ-ÿ']+")
-_PT_STRONG_ACCENT_RE = re.compile(r"[ãõç]", re.IGNORECASE)
 
 _LINK_BOILERPLATE_RE = re.compile(
     r"\b(?:gift\s+link|free\s+(?:article\s+)?link|article\s+link|free\s+article|"
@@ -31,307 +37,11 @@ _LINK_BOILERPLATE_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Function words that are ordinary English. A hit here is evidence for English.
-_ENGLISH = frozenset(
-    {
-        "the",
-        "and",
-        "is",
-        "to",
-        "of",
-        "in",
-        "on",
-        "it",
-        "be",
-        "as",
-        "at",
-        "by",
-        "or",
-        "we",
-        "he",
-        "if",
-        "so",
-        "do",
-        "an",
-        "my",
-        "me",
-        "us",
-        "am",
-        "no",
-        "that",
-        "this",
-        "with",
-        "from",
-        "have",
-        "about",
-        "they",
-        "them",
-        "their",
-        "what",
-        "when",
-        "where",
-        "which",
-        "would",
-        "could",
-        "should",
-        "there",
-        "your",
-        "been",
-        "were",
-        "was",
-        "are",
-        "not",
-        "but",
-        "its",
-        "our",
-        "out",
-        "you",
-        "for",
-        "youre",
-        "into",
-        "just",
-        "like",
-        "how",
-        "who",
-        "dont",
-        "has",
-        "can",
-        "get",
-        "got",
-        "she",
-        "his",
-        "her",
-        "him",
-        "one",
-        "must",
-        "because",
-        "people",
-        "will",
-        "theyre",
-        "its",
-        "than",
-        "then",
-        "also",
-        "some",
-        "any",
-        "all",
-        "more",
-        "been",
-        "being",
-        "over",
-        "after",
-        "before",
-        "why",
-        "yes",
-        "here",
-        "weve",
-        "ive",
-        "im",
-        "dont",
-        "didnt",
-        "isnt",
-        "wasnt",
-        "arent",
-        "cant",
-        "wont",
-    }
-)
-
-_FOREIGN_RAW = frozenset(
-    {
-        # Dutch
-        "niet",
-        "het",
-        "een",
-        "van",
-        "dat",
-        "hij",
-        "zij",
-        "wij",
-        "naar",
-        "geen",
-        "wordt",
-        "deze",
-        "omdat",
-        "tussen",
-        "voor",
-        "bij",
-        "uit",
-        "dan",
-        "wat",
-        "ook",
-        "maar",
-        "heb",
-        "hebben",
-        "zijn",
-        "jullie",
-        # German
-        "und",
-        "nicht",
-        "eine",
-        "der",
-        "das",
-        "den",
-        "dem",
-        "ein",
-        "sich",
-        "dass",
-        "auch",
-        "ist",
-        "mit",
-        "auf",
-        "fuer",
-        "nach",
-        "wenn",
-        "oder",
-        "werden",
-        # French
-        "les",
-        "des",
-        "une",
-        "est",
-        "pas",
-        "dans",
-        "pour",
-        "avec",
-        "sont",
-        "nous",
-        "vous",
-        "elle",
-        "aux",
-        "cette",
-        "mais",
-        "qui",
-        # Spanish / Portuguese (shared and PT-specific)
-        "los",
-        "las",
-        "una",
-        "por",
-        "para",
-        "como",
-        "pero",
-        "esta",
-        "este",
-        "hay",
-        "del",
-        "porque",
-        "tambien",
-        "também",
-        "nao",
-        "não",
-        "sao",
-        "são",
-        "mais",
-        "foi",
-        "pelo",
-        "pela",
-        "que",
-        "con",
-        "sus",
-        "de",
-        "da",
-        "do",
-        "dos",
-        "das",
-        "em",
-        "um",
-        "uma",
-        "os",
-        "seu",
-        "sua",
-        "seus",
-        "suas",
-        "está",
-        "estao",
-        "estão",
-        "ser",
-        "ter",
-        "veja",
-        "desta",
-        "deste",
-        "terça",
-        "terca",
-        "feira",
-        "brasil",
-        "governo",
-        "anunciou",
-        "medidas",
-        "economicas",
-        "econômicas",
-        "fetiches",
-        "populares",
-        "acho",
-        "isso",
-        "voce",
-        "você",
-    }
-)
-
-# Portuguese cues that are not ordinary English function words.
-_PORTUGUESE_ONLY_RAW = frozenset(
-    {
-        "nao",
-        "não",
-        "que",
-        "para",
-        "uma",
-        "com",
-        "está",
-        "estao",
-        "estão",
-        "voce",
-        "você",
-        "tambem",
-        "também",
-        "mais",
-        "isso",
-        "brasil",
-        "governo",
-        "anunciou",
-        "medidas",
-        "economicas",
-        "econômicas",
-        "fetiches",
-        "populares",
-        "acho",
-        "veja",
-        "desta",
-        "deste",
-        "sao",
-        "são",
-        "pelo",
-        "pela",
-        "terça",
-        "terca",
-        "feira",
-        "ser",
-        "ter",
-        "foi",
-        "porque",
-        "tambien",
-        "vira",
-        "aluguel",
-        "estrangeiros",
-        "barrigas",
-    }
-)
-
 
 def _fold_token(token: str) -> str:
     lowered = token.lower()
     normalized = unicodedata.normalize("NFD", lowered)
     return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
-
-
-_FOREIGN = frozenset(_fold_token(word) for word in _FOREIGN_RAW)
-# Shared with place names, titles, and English slang; not foreign evidence alone.
-_FOREIGN_EVIDENCE_EXCLUDE = frozenset(
-    _fold_token(word)
-    for word in ("da", "de", "la", "el", "del", "di", "van", "von")
-)
-_PORTUGUESE_ONLY = frozenset(
-    _fold_token(word) for word in _PORTUGUESE_ONLY_RAW if _fold_token(word) not in _ENGLISH
-)
 
 
 def post_raw_text(post: dict) -> str:
@@ -343,7 +53,7 @@ def _strip_for_language(text: str) -> str:
     body = HANDLE_RE.sub(" ", text or "")
     body = strip_link_hosts(body)
     body = HASHTAG_RE.sub(" ", body)
-    return body
+    return WHITESPACE_RE.sub(" ", body).strip()
 
 
 def _strip_for_link_check(text: str) -> str:
@@ -351,6 +61,22 @@ def _strip_for_link_check(text: str) -> str:
     body = strip_link_hosts(body)
     body = HASHTAG_RE.sub(" ", body)
     return WHITESPACE_RE.sub(" ", body).strip()
+
+
+def _latin_letters_for_langid(stripped: str) -> str:
+    """Latin script for langid; drop emoji and non-Latin letters (names stay in the post)."""
+    chunks: list[str] = []
+    for char in stripped:
+        if char.isalpha():
+            if char.isascii() or ord(char) <= 0x024F:
+                chunks.append(char)
+            else:
+                chunks.append(" ")
+        elif char in {"'", "-"}:
+            chunks.append(char)
+        else:
+            chunks.append(" ")
+    return WHITESPACE_RE.sub(" ", "".join(chunks)).strip()
 
 
 def _non_latin_ratio(text: str) -> float:
@@ -408,38 +134,33 @@ def is_link_only(text: str) -> bool:
     return False
 
 
-def _portuguese_signal(body: str, tokens: list[str]) -> bool:
-    folded = [_fold_token(token) for token in tokens]
-    pt_hits = sum(1 for token in folded if token in _PORTUGUESE_ONLY)
-    if _PT_STRONG_ACCENT_RE.search(body) and pt_hits >= 2:
-        return True
-    if pt_hits >= 4:
-        return True
-    return False
-
-
 def looks_english(text: str) -> bool:
-    """True unless the post is clearly not English."""
+    """True unless langid is confidently non-English on stripped text."""
     body = str(text or "")
     if _non_latin_ratio(body) >= 0.2:
         return False
     stripped = _strip_for_language(body)
-    tokens = [_fold_token(token) for token in _TOKEN.findall(stripped)]
-    if len(tokens) < 4:
+    lang_input = _latin_letters_for_langid(stripped)
+    letters = sum(1 for char in lang_input if char.isalpha())
+    if letters < _MIN_LANGID_LETTERS:
         return True
-    if _portuguese_signal(body, tokens):
+    if len(set(_ALPHA_WORD.findall(lang_input))) < _MIN_LANGID_UNIQUE_WORDS:
+        return True
+    if not lang_input:
+        return True
+    ranked = langid.rank(lang_input)
+    if not ranked:
+        return True
+    top_lang, top_score = ranked[0]
+    if top_lang == "en":
+        return True
+    en_score = next((score for lang, score in ranked if lang == "en"), None)
+    if en_score is None:
         return False
-    english = sum(1 for token in tokens if token in _ENGLISH)
-    foreign = sum(
-        1
-        for token in tokens
-        if token in _FOREIGN
-        and token not in _ENGLISH
-        and token not in _FOREIGN_EVIDENCE_EXCLUDE
-    )
-    if foreign >= 2 and foreign >= english:
-        return False
-    return True
+    margin = top_score - en_score
+    if margin < _LANGID_MARGIN:
+        return True
+    return False
 
 
 def edition_filter_reason(post: dict) -> str | None:
