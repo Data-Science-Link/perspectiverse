@@ -88,9 +88,29 @@ for (let index = 1; index < line.positions.length; index += 1) {
 }
 assert.ok(line.positions[0][0] < 0 && line.positions[line.positions.length - 1][0] > 0, 'the line is centered on the origin')
 for (const isMobile of [false, true]) {
-  const framed = homeLookAt(isMobile, topics.length, line.extent, { linear: true })
+  const framed = homeLookAt(isMobile, topics.length, line.extent, { linear: true, extentX: line.extentX, extentY: line.extentY })
   const distance = Math.hypot(framed[0], framed[1], framed[2])
   assert.ok(distance > line.extent * 0.8, `linear camera too close on ${isMobile}`)
 }
+
+const gridPortrait = layoutLinear(topics, volumeMax, { grid: true, viewportAspect: 390 / 844 })
+assert.equal(gridPortrait.mode, 'grid')
+assert.ok(gridPortrait.cols >= 2 && gridPortrait.cols <= 5, `unexpected grid columns: ${gridPortrait.cols}`)
+for (let index = 1; index < gridPortrait.positions.length; index += 1) {
+  const prev = gridPortrait.positions[index - 1]
+  const next = gridPortrait.positions[index]
+  const prevRow = Math.floor((index - 1) / gridPortrait.cols)
+  const nextRow = Math.floor(index / gridPortrait.cols)
+  if (prevRow === nextRow) {
+    assert.ok(next[0] > prev[0], 'grid row reads left to right')
+    assert.ok(Math.abs(next[1] - prev[1]) < 0.2, 'grid row stays level')
+  } else {
+    assert.ok(next[1] < prev[1], 'later rows sit below earlier rows')
+    assert.ok(next[0] < prev[0], 'each row starts on the left')
+  }
+}
+const gridLandscape = layoutLinear(topics, volumeMax, { grid: true, viewportAspect: 844 / 390 })
+assert.equal(gridLandscape.mode, 'grid')
+assert.ok(gridLandscape.cols >= gridPortrait.cols, 'landscape should not use fewer columns than portrait')
 
 console.log('solar system settings, tagline, and texture quality ok')

@@ -8,8 +8,8 @@ import { solarSettings } from '../lib/solarSettings'
 import { OrbitRing, default as Planet } from './Planet'
 import TwinklingStars from './TwinklingStars'
 
-function homeView(isMobile, planetCount = 10, layoutExtent = null, linear = false) {
-  return homeLookAt(isMobile, planetCount, layoutExtent, { linear })
+function homeView(isMobile, planetCount = 10, layoutExtent = null, frame = {}) {
+  return homeLookAt(isMobile, planetCount, layoutExtent, frame)
 }
 // camera-controls ACTION bits: ROTATE 1, TRUCK 2, DOLLY 16, TOUCH_ROTATE 64,
 // TOUCH_TRUCK 128, TOUCH_DOLLY 1024, TOUCH_DOLLY_TRUCK 4096. NONE is 0.
@@ -26,19 +26,19 @@ function FocusCamera({
   planetCount = 10,
   volumeMax = 100,
   layoutExtent = null,
-  linear = false,
+  homeFrame = {},
 }) {
   const lastId = useRef(null)
   const booted = useRef(false)
 
   useEffect(() => {
     booted.current = false
-  }, [isMobile, planetCount, layoutExtent, linear])
+  }, [isMobile, planetCount, layoutExtent, homeFrame])
 
   useFrame(() => {
     const controls = controlsRef.current
     if (!controls) return
-    const home = homeView(isMobile, planetCount, layoutExtent, linear)
+    const home = homeView(isMobile, planetCount, layoutExtent, homeFrame)
 
     if (!selectedTopic) {
       if (!booted.current || lastId.current !== null) {
@@ -81,13 +81,14 @@ function Universe({
   volumeMax = 100,
   layout = { radii: [], extent: null, positions: null },
   linear = false,
+  homeFrame = {},
   settings,
 }) {
   const controlsRef = useRef()
   const anchors = useRef({})
   const selectedTopic = topics.find((topic) => topic.id === selectedTopicId) ?? null
   const inspecting = Boolean(selectedTopic)
-  const maxDistance = homeMaxDistance(isMobile, topics.length, layout.extent, { linear })
+  const maxDistance = homeMaxDistance(isMobile, topics.length, layout.extent, homeFrame)
 
   useEffect(() => {
     return () => {
@@ -165,7 +166,7 @@ function Universe({
         planetCount={topics.length}
         volumeMax={volumeMax}
         layoutExtent={layout.extent}
-        linear={linear}
+        homeFrame={homeFrame}
       />
       {settings.bloom && !inspecting && (
         <EffectComposer disableNormalPass>
@@ -193,16 +194,58 @@ export default function Observatory({
   const [epoch, setEpoch] = useState(0)
   const [showOrbits, setShowOrbits] = useState(false)
   const [linear, setLinear] = useState(false)
+  const [viewportAspect, setViewportAspect] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 1,
+  )
   const remounts = useRef(0)
   const settings = useMemo(() => solarSettings(isMobile), [isMobile])
+
+  useEffect(() => {
+    const update = () => setViewportAspect(window.innerWidth / window.innerHeight)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
   const layout = useMemo(
-    () => (linear ? layoutLinear(topics, volumeMax) : layoutSolarSystem(topics, volumeMax)),
-    [linear, topics, volumeMax],
+    () => (
+      linear
+        ? layoutLinear(topics, volumeMax, { grid: isMobile, viewportAspect })
+        : layoutSolarSystem(topics, volumeMax)
+    ),
+    [linear, topics, volumeMax, isMobile, viewportAspect],
+  )
+  const linearGrid = linear && layout.mode === 'grid'
+  const homeFrame = useMemo(
+    () => ({
+      linear,
+      grid: linearGrid,
+      viewportAspect,
+      extentX: layout.extentX ?? layout.extent,
+      extentY: layout.extentY ?? layout.extent,
+    }),
+    [linear, linearGrid, viewportAspect, layout.extent, layout.extentX, layout.extentY],
   )
   const home = useMemo(
-    () => homeLookAt(isMobile, topics.length, layout.extent, { linear }),
-    [isMobile, topics.length, layout.extent, linear],
+    () => homeLookAt(isMobile, topics.length, layout.extent, homeFrame),
+    [isMobile, topics.length, layout.extent, homeFrame],
   )
+
+  useEffect(() => {
+    if (!linear || typeof window === 'undefined') {
+      delete window.__perspectiverseLinearLayout
+      return undefined
+    }
+    window.__perspectiverseLinearLayout = {
+      mode: layout.mode,
+      cols: layout.cols ?? topics.length,
+      positions: layout.positions,
+    }
+    return () => {
+      delete window.__perspectiverseLinearLayout
+    }
+  }, [linear, layout, topics.length])
+
   const onCreated = useCallback(({ gl }) => {
     const canvas = gl.domElement
     const onLost = (event) => {
@@ -248,6 +291,7 @@ export default function Observatory({
           volumeMax={volumeMax}
           layout={layout}
           linear={linear}
+          homeFrame={homeFrame}
           settings={settings}
         />
       </Canvas>

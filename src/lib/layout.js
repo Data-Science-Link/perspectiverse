@@ -61,14 +61,95 @@ export function layoutSolarSystem(topics = [], volumeMax = 100) {
   }
 }
 
-export function layoutLinear(topics = [], volumeMax = 100) {
-  const gap = 1.7
-  const specs = topics.map((topic, index) => {
+function linearRowSpecs(topics, volumeMax) {
+  return topics.map((topic, index) => {
     const scale = topicScale(topic.total_volume_percent, volumeMax)
     const sun = index === 0 || topic.body?.key === 'sun'
     const rings = Boolean(topic.body?.rings)
     return { extent: bodyExtent(scale, { sun, rings }) }
   })
+}
+
+export function pickLinearGridColumns(count, viewportAspect = 1, specs = []) {
+  const n = Math.max(0, Number(count) || 0)
+  if (n <= 1) return 1
+  const aspect = Math.max(0.35, Math.min(3.2, Number(viewportAspect) || 1))
+  const gap = 1.05
+  let bestCols = Math.min(3, n)
+  let bestScore = Infinity
+  for (let cols = 1; cols <= n; cols += 1) {
+    const rows = Math.ceil(n / cols)
+    const colWidths = Array.from({ length: cols }, () => 0)
+    const rowHeights = Array.from({ length: rows }, () => 0)
+    for (let index = 0; index < n; index += 1) {
+      const row = Math.floor(index / cols)
+      const col = index % cols
+      const extent = specs[index]?.extent ?? 0.8
+      colWidths[col] = Math.max(colWidths[col], extent * 2 + gap)
+      rowHeights[row] = Math.max(rowHeights[row], extent * 2 + gap)
+    }
+    const width = colWidths.reduce((sum, value) => sum + value, 0)
+    const height = rowHeights.reduce((sum, value) => sum + value, 0)
+    const score = Math.max(width / aspect, height)
+    if (score < bestScore - 1e-6 || (Math.abs(score - bestScore) <= 1e-6 && cols > bestCols)) {
+      bestScore = score
+      bestCols = cols
+    }
+  }
+  return bestCols
+}
+
+function layoutLinearGrid(specs, viewportAspect = 1) {
+  const n = specs.length
+  if (n === 0) {
+    return { positions: [], extent: LABEL_PAD, extentY: LABEL_PAD, mode: 'grid', cols: 1 }
+  }
+  const gap = 1.05
+  const cols = pickLinearGridColumns(n, viewportAspect, specs)
+  const rows = Math.ceil(n / cols)
+  const colWidths = Array.from({ length: cols }, () => 0)
+  const rowHeights = Array.from({ length: rows }, () => 0)
+  for (let index = 0; index < n; index += 1) {
+    const row = Math.floor(index / cols)
+    const col = index % cols
+    const extent = specs[index].extent
+    colWidths[col] = Math.max(colWidths[col], extent * 2 + gap)
+    rowHeights[row] = Math.max(rowHeights[row], extent * 2 + gap)
+  }
+  const totalWidth = colWidths.reduce((sum, value) => sum + value, 0)
+  const totalHeight = rowHeights.reduce((sum, value) => sum + value, 0)
+  const colStarts = []
+  let xCursor = -totalWidth / 2
+  for (const width of colWidths) {
+    colStarts.push(xCursor + width / 2)
+    xCursor += width
+  }
+  const rowStarts = []
+  let yCursor = totalHeight / 2
+  for (const height of rowHeights) {
+    rowStarts.push(yCursor - height / 2)
+    yCursor -= height
+  }
+  const positions = specs.map((_, index) => {
+    const row = Math.floor(index / cols)
+    const col = index % cols
+    return [colStarts[col], rowStarts[row], 0]
+  })
+  const labelPad = LABEL_PAD * 1.35
+  const extentX = totalWidth / 2 + labelPad
+  const extentY = totalHeight / 2 + labelPad
+  return {
+    positions,
+    extent: Math.max(extentX, extentY),
+    extentX,
+    extentY,
+    mode: 'grid',
+    cols,
+  }
+}
+
+function layoutLinearRow(specs) {
+  const gap = 1.7
   let cursor = 0
   const centers = []
   for (const spec of specs) {
@@ -78,11 +159,24 @@ export function layoutLinear(topics = [], volumeMax = 100) {
   const width = Math.max(cursor - gap, 0)
   const shift = width / 2
   const positions = centers.map((center) => [center - shift, 0, 0])
+  const extent = width / 2 + LABEL_PAD
   return {
     positions,
-    extent: width / 2 + LABEL_PAD,
+    extent,
+    extentX: extent,
+    extentY: LABEL_PAD,
     mode: 'linear',
+    cols: specs.length,
   }
+}
+
+export function layoutLinear(topics = [], volumeMax = 100, options = {}) {
+  const specs = linearRowSpecs(topics, volumeMax)
+  const grid = Boolean(options.grid)
+  if (grid && specs.length > 0) {
+    return layoutLinearGrid(specs, options.viewportAspect ?? 1)
+  }
+  return layoutLinearRow(specs)
 }
 
 export function orbitsClear(layout) {
@@ -107,10 +201,17 @@ export function homeLookAt(isMobile = false, planetCount = 10, layoutExtent = nu
   const fov = isMobile ? 48 : 42
   const half = (fov * Math.PI) / 360
   if (options.linear) {
-    const aspect = isMobile ? 0.58 : 1.2
+    const aspect = options.viewportAspect ?? (isMobile ? 0.58 : 1.2)
     const horizontalHalf = Math.atan(Math.tan(half) * aspect)
-    const distance = (extent / Math.tan(horizontalHalf)) * (isMobile ? 1.12 : 1.06)
-    const y = distance * 0.22
+    const verticalHalf = half
+    const extentX = options.extentX ?? extent
+    const extentY = options.extentY ?? extent
+    const distanceH = extentX / Math.tan(horizontalHalf)
+    const distanceV = extentY / Math.tan(verticalHalf)
+    const mobileMargin = options.grid ? 1.24 : 1.12
+    const distance = Math.max(distanceH, distanceV) * (isMobile ? mobileMargin : 1.06)
+    const yLift = options.grid ? 0.12 : 0.22
+    const y = distance * yLift
     const z = Math.sqrt(Math.max(distance * distance - y * y, 1))
     return [0, y, z, 0, 0, 0]
   }

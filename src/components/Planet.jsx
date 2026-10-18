@@ -234,6 +234,7 @@ export default function Planet({
       >
         <button
           type="button"
+          data-topic-index={index}
           className={`planet-label ${dimmed ? 'is-dimmed' : ''} ${isMobile ? 'is-mobile' : ''}`}
           style={{
             borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
