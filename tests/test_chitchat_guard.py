@@ -829,3 +829,37 @@ def test_issue_208_good_morning_planet_representatives_drop():
     share = sum(1 for m in members if pleasantry_reason(m)) / len(members)
     assert share >= PLEASANTRY_SHARE_DROP
     assert planet_chitchat_reason(members, [], name="Good Morning") is not None
+
+
+def test_issue_208_morning_patterns_do_not_swallow_topics():
+    """Short real-topic posts must stay, including ones that miss ``_NEWS_RE``.
+
+    ``good morning`` inside a sentence, a ``morning <word>`` prefix such as
+    "morning after" or "Morning Joe", and a daypart plug at the end of a
+    complaint are not wishes. ``Protect Trans Kids`` is not the only slogan
+    that should survive a greeting lead-in.
+    """
+    keeps = [
+        "Morning Joe said viewers loved the opening interview.",
+        "Morning commute was brutal today",
+        "good morning america interview with the coach",
+        "Morning after pill ban",
+        "Morning after pill access expands",
+        "Good morning, the Lakers won",
+        "Good morning! The Yankees won again",
+        "Good afternoon, the Fed held rates steady",
+        "Good night at the museum, the new exhibit opens Friday",
+        "You are so far out of touch, I'm just not going to waste anymore time. Have a good evening.",
+        "Good morning! Black Lives Matter",
+        "Good morning! Free Palestine",
+        "Good morning world news: talks stalled",
+        "A good morning run before the marathon",
+        "Morning after the game the coach resigned",
+        "Good night folks, see you at the rally tomorrow",
+    ]
+    misclassified = []
+    for text in keeps:
+        reason = pleasantry_reason({"text": text})
+        if reason is not None:
+            misclassified.append(f"{reason}: {text}")
+    assert misclassified == [], "\n".join(misclassified)
