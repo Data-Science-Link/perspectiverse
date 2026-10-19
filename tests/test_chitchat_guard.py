@@ -848,6 +848,14 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
         "Good morning from",
         "Hiya Baron! Good morning to you.",
         "Every Morning is a Good Morning…",
+        "Good morning, I hope everyone sleeps well",
+        "Good morning all, peaceful vibes today",
+        "Morning friends, enjoy your coffee",
+        "Good morning dear, sleep well",
+        "Good morning everyone, stay warm",
+        "Good night, sweet dreams",
+        "Good morning folks, coffee is on",
+        "Good morning, I hope your day is easy",
     ]
     for text in must_catch:
         assert pleasantry_reason({"text": text}) == "greeting", text
@@ -877,6 +885,20 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
         "Good morning, enjoy your indictment",
         "Good morning, I hope Congress votes tonight",
         "Good morning, I hope Ukraine holds the line",
+        "Good morning, I hope my landlord fixes the heat",
+        "Good morning, enjoy the eclipse today",
+        "Good morning, the parade starts at noon",
+        "Good morning, the train is delayed again",
+        "Good morning, the bakery opens late today",
+        "Good morning, the bridge is closed for repairs",
+        "Good morning, aurora season is starting up north",
+        "Good morning, the recital starts at six",
+        "Good morning, the ferry is cancelled again",
+        "Good morning, the comet is visible tonight",
+        "Good morning, choir practice moved to Sunday",
+        "Good morning, the Wi-Fi is down again",
+        "Good morning, the vaccine clinic opens at nine",
+        "Good morning, tariffs are back in the headlines",
     ]
     misclassified = []
     for text in keeps:
