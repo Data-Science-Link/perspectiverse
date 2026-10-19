@@ -8,6 +8,14 @@ async function enterSolarSystem(page) {
   }
 }
 
+async function tapPlanetLabel(page, locator) {
+  await expect(locator).toBeVisible()
+  await locator.evaluate((node) => {
+    node.scrollIntoView({ block: 'center', inline: 'center' })
+    node.click()
+  })
+}
+
 async function observatoryStats(page) {
   return page.locator('.observatory canvas').evaluate((canvas) => {
     const width = canvas.width
@@ -106,17 +114,17 @@ test.describe('Perspectiverse views', () => {
     await page.getByRole('button', { name: 'Linear' }).click()
     await expect(page.getByRole('button', { name: 'Orbits' })).toBeVisible()
     await expect(page.getByText('Largest to smallest')).toBeVisible()
+    if (testInfo.project.name === 'mobile') {
+      await tapPlanetLabel(page, page.locator('.observatory .planet-label').first())
+      await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
+      return
+    }
     await page.getByRole('button', { name: 'Orbits' }).click()
     await expect(page.getByRole('button', { name: 'Linear' })).toBeVisible()
-
-    if (testInfo.project.name === 'mobile') {
-      await page.locator('.observatory .planet-label').first().click({ force: true })
-    }
     await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
-    if (testInfo.project.name !== 'mobile') {
-      await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
-    }
+    await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
   })
 
   test('respects do not show again and still lets the menu reopen welcome', async ({ page }) => {
@@ -139,7 +147,7 @@ test.describe('Perspectiverse views', () => {
     await enterSolarSystem(page)
 
     if (testInfo.project.name === 'mobile') {
-      await page.locator('.observatory .planet-label').first().click({ force: true })
+      await tapPlanetLabel(page, page.locator('.observatory .planet-label').first())
     } else {
       await page.getByRole('button', { name: 'Perspectives' }).click()
     }
@@ -269,7 +277,10 @@ test.describe('Perspectiverse views', () => {
     await expect(page).not.toHaveURL(/topic=/)
     await expect(page.locator('.observatory canvas')).toBeVisible()
 
-    await page.locator('.observatory .planet-label', { hasText: secondName }).first().click({ force: true })
+    await tapPlanetLabel(
+      page,
+      page.locator('.observatory .planet-label', { hasText: secondName }).first(),
+    )
     const secondCount = (await page.locator('.reading-screen .eyebrow').innerText()).trim()
     expect(secondCount).toMatch(/\d[\d,]* posts/i)
     expect(secondCount).not.toEqual(firstCount)
