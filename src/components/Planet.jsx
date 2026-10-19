@@ -67,6 +67,7 @@ export default function Planet({
   const naturalScale = topicScale(topic.total_volume_percent, volumeMax) * Math.max(0.55, planetVisualScale)
   const scale = Number.isFinite(meshScale) ? meshScale : naturalScale
   const htmlDistanceFactor = labelDistanceFactor ?? (isMobile ? 16 : 18)
+  const orbitScreenLabel = isMobile && !anchor
   const portrait = useMediaQuery('(orientation: portrait)')
   const labelScale = linearGrid && isMobile ? (portrait ? 1.08 : 1) : 1
   const linearLabelAnchor = Boolean(anchor && isMobile)
@@ -287,7 +288,7 @@ export default function Planet({
           />
         </group>
       </group>
-      {!linearGrid && (
+      {!linearGrid && !orbitScreenLabel && (
       <Html
         position={[
           0,

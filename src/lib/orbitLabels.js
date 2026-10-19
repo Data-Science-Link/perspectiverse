@@ -1,3 +1,20 @@
+export const ORBIT_LABEL_FONT_PX = 10
+
+/** Screen size of a phone orbit pill before any nudge. Matches the overlay CSS. */
+export function orbitLabelCssBox(name, viewportWidth = 390) {
+  const text = String(name || 'Topic')
+  const font = ORBIT_LABEL_FONT_PX
+  const padX = 12
+  const padY = 4
+  const border = 2
+  const natural = Math.ceil(text.length * font * 0.62 + padX + border)
+  const cap = Math.max(64, viewportWidth * 0.46)
+  return {
+    width: Math.min(cap, Math.max(36, natural)),
+    height: Math.ceil(font * 1.25 + padY + border),
+  }
+}
+
 function clampNudge(item, bounds) {
   const left = item.x + item.nx
   const top = item.y + item.ny
@@ -60,56 +77,6 @@ export function separateLabelBoxes(boxes, bounds, { gap = 3, iterations = 24 } =
     x: Math.round(item.nx),
     y: Math.round(item.ny),
   }))
-}
-
-export function applyOrbitLabelNudges() {
-  if (typeof document === 'undefined') return
-  const nodes = [...document.querySelectorAll('.observatory .planet-label.is-mobile:not(.is-linear)')]
-  if (nodes.length === 0) return
-  const header = document.querySelector('header')?.getBoundingClientRect()
-  const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
-  const bounds = {
-    left: 4,
-    top: Math.max(4, (header?.bottom ?? 0) + 4),
-    right: window.innerWidth - 4,
-    bottom: Math.max(40, (chrome?.top ?? window.innerHeight) - 4),
-  }
-  if (!(bounds.right > bounds.left + 40) || !(bounds.bottom > bounds.top + 40)) return
-  const boxes = nodes.map((node) => {
-    const nudge = node.__orbitNudge || { x: 0, y: 0 }
-    const rect = node.getBoundingClientRect()
-    return {
-      x: rect.left - nudge.x,
-      y: rect.top - nudge.y,
-      w: rect.width,
-      h: rect.height,
-    }
-  })
-  const nudges = separateLabelBoxes(boxes, bounds)
-  nodes.forEach((node, index) => {
-    const next = nudges[index]
-    const prev = node.__orbitNudge || { x: 0, y: 0 }
-    if (prev.x === next.x && prev.y === next.y) return
-    const rect = node.getBoundingClientRect()
-    const layoutWidth = node.offsetWidth || rect.width
-    const scale = layoutWidth > 0 ? rect.width / layoutWidth : 1
-    const localX = scale > 0.05 ? next.x / scale : next.x
-    const localY = scale > 0.05 ? next.y / scale : next.y
-    node.__orbitNudge = next
-    node.style.translate = next.x === 0 && next.y === 0
-      ? ''
-      : `${localX.toFixed(2)}px ${localY.toFixed(2)}px`
-  })
-}
-
-export function clearOrbitLabelNudges() {
-  if (typeof document === 'undefined') return
-  document.querySelectorAll('.observatory .planet-label').forEach((node) => {
-    if (node.__orbitNudge || node.style.translate) {
-      node.style.translate = ''
-      delete node.__orbitNudge
-    }
-  })
 }
 
 export function labelCenterIsClear(boxes) {

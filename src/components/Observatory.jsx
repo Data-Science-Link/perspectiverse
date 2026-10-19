@@ -2,13 +2,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { CameraControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
+import { Vector3 } from 'three'
 import { hexToRgba, topicColor } from '../lib/colors'
 import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutLinear, layoutSolarSystem, orbitElements, splitLabelLines, topicScale } from '../lib/layout'
-import { applyOrbitLabelNudges, clearOrbitLabelNudges } from '../lib/orbitLabels'
+import { separateLabelBoxes } from '../lib/orbitLabels'
 import {
   clearSolarView,
   installSolarCameraTestHooks,
   mobileOrbitHome,
+  orbitSamplePoints,
   restoreSolarView,
   solarLayoutKey,
   stashSolarView,
@@ -161,13 +163,86 @@ const INSPECT_MOUSE = { left: 0, middle: 0, right: 0, wheel: 16 }
 const ORBIT_TOUCH = { one: 64, two: 4096, three: 128 }
 const INSPECT_TOUCH = { one: 0, two: 1024, three: 0 }
 
-function OrbitLabelNudger({ enabled }) {
-  useEffect(() => {
-    if (!enabled) clearOrbitLabelNudges()
-  }, [enabled])
+const _labelPoint = new Vector3()
+const LABEL_HOLD_MS = 220
 
-  useFrame(() => {
-    if (enabled) applyOrbitLabelNudges()
+function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
+  const nudges = useRef(null)
+  const nudgeKey = useRef('')
+
+  useFrame(({ camera, gl }) => {
+    if (!enabled) return
+    const overlay = document.querySelector('.orbit-labels')
+    if (!overlay) return
+    const nodes = [...overlay.querySelectorAll('.planet-label')]
+    if (nodes.length !== topics.length) return
+    const canvasRect = gl.domElement.getBoundingClientRect()
+    const overlayRect = overlay.getBoundingClientRect()
+    if (canvasRect.width < 20 || canvasRect.height < 20) return
+
+    const bases = []
+    for (let index = 0; index < topics.length; index += 1) {
+      const pos = anchors.current[topics[index].id]
+      if (!pos) return
+      const lift = (layout.items?.[index]?.scale ?? 1) * 1.32
+      _labelPoint.set(pos.x, pos.y + lift, pos.z).project(camera)
+      if (_labelPoint.z < -1 || _labelPoint.z > 1) return
+      bases.push({
+        x: (_labelPoint.x * 0.5 + 0.5) * canvasRect.width + (canvasRect.left - overlayRect.left),
+        y: (1 - _labelPoint.y) * 0.5 * canvasRect.height + (canvasRect.top - overlayRect.top),
+      })
+    }
+
+    if (nudgeKey.current !== fitKey || !nudges.current) {
+      const home = fitKey.split(',').map(Number)
+      if (home.length >= 6) {
+        const dx = camera.position.x - home[0]
+        const dy = camera.position.y - home[1]
+        const dz = camera.position.z - home[2]
+        _labelPoint.set(home[3], home[4], home[5]).project(camera)
+        const aimed = dx * dx + dy * dy + dz * dz < 0.64
+          && Math.abs(_labelPoint.x) < 0.08
+          && Math.abs(_labelPoint.y) < 0.08
+          && _labelPoint.z < 1
+        if (!aimed) return
+      }
+      if (nodes.some((node) => node.offsetWidth < 2)) return
+      const header = document.querySelector('header')?.getBoundingClientRect()
+      const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
+      const bounds = {
+        left: 4,
+        top: Math.max(4, (header ? header.bottom - overlayRect.top : 0) + 4),
+        right: Math.max(40, overlayRect.width - 4),
+        bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
+      }
+      if (!(bounds.bottom > bounds.top + 24) || !(bounds.right > bounds.left + 24)) return
+      const boxes = nodes.map((node, index) => ({
+        x: bases[index].x - node.offsetWidth / 2,
+        y: bases[index].y - node.offsetHeight / 2,
+        w: node.offsetWidth,
+        h: node.offsetHeight,
+      }))
+      nudges.current = separateLabelBoxes(boxes, bounds, { gap: 4, iterations: 48 })
+      nudgeKey.current = fitKey
+      nodes.forEach((node) => {
+        node._orbitHold = 0
+      })
+    }
+
+    const now = performance.now()
+    nodes.forEach((node, index) => {
+      const nudge = nudges.current[index] || { x: 0, y: 0 }
+      const left = Math.round(bases[index].x - node.offsetWidth / 2 + nudge.x)
+      const top = Math.round(bases[index].y - node.offsetHeight / 2 + nudge.y)
+      if (node._orbitLeft === left && node._orbitTop === top) return
+      if (node._orbitLeft != null && now < (node._orbitHold || 0)) return
+      node._orbitLeft = left
+      node._orbitTop = top
+      node._orbitHold = now + LABEL_HOLD_MS
+      node.style.left = `${left}px`
+      node.style.top = `${top}px`
+      node.style.visibility = 'visible'
+    })
   })
 
   return null
@@ -256,6 +331,7 @@ function Universe({
   layoutKey,
   limits,
   settings,
+  fitKey = '',
 }) {
   const controlsRef = useRef()
   const anchors = useRef({})
@@ -349,7 +425,6 @@ function Universe({
         mouseButtons={inspecting ? INSPECT_MOUSE : ORBIT_MOUSE}
         touches={inspecting ? INSPECT_TOUCH : ORBIT_TOUCH}
       />
-      <OrbitLabelNudger enabled={isMobile && !linear} />
       <FocusCamera
         controlsRef={controlsRef}
         anchors={anchors}
@@ -362,6 +437,15 @@ function Universe({
         layoutKey={layoutKey}
         limits={limits}
       />
+      {isMobile && !linear && (
+        <OrbitLabelPlacer
+          enabled
+          topics={topics}
+          anchors={anchors}
+          layout={layout}
+          fitKey={fitKey}
+        />
+      )}
       {settings.bloom && !inspecting && (
         <EffectComposer disableNormalPass>
           <Bloom intensity={0.32} luminanceThreshold={0.42} luminanceSmoothing={0.45} mipmapBlur />
@@ -528,10 +612,12 @@ export default function Observatory({
   const orbitHome = useMemo(() => {
     if (!isMobile || linear) return null
     const frame = orbitFrame ?? estimateOrbitFrame(canvasAspect)
+    const samples = orbitSamplePoints(topics, layout)
     const reference = homeLookAt(true, topics.length, layout.extent)
     const referenceDistance = Math.hypot(reference[0], reference[1], reference[2])
-    return mobileOrbitHome(layout.extent ?? 12, frame, { referenceDistance })
-  }, [isMobile, linear, orbitFrame, canvasAspect, topics.length, layout.extent])
+    return mobileOrbitHome(layout.extent ?? 12, frame, { samples, referenceDistance })
+  }, [isMobile, linear, orbitFrame, canvasAspect, topics, layout])
+  const orbitFitKey = orbitHome?.lookAt?.map((value) => Number(value).toFixed(2)).join(',') ?? ''
 
   const homeFrame = useMemo(
     () => ({
@@ -657,11 +743,28 @@ export default function Observatory({
           layoutKey={layoutKey}
           limits={limits}
           settings={settings}
+          fitKey={orbitFitKey}
         />
       </Canvas>
       {topics.length === 0 && (
         <div className="observatory-empty">
           <p>No planets in {category}.</p>
+        </div>
+      )}
+      {isMobile && !linear && (
+        <div className="orbit-labels">
+          {topics.map((topic, index) => (
+            <button
+              key={topic.id}
+              type="button"
+              data-topic-index={index}
+              className="planet-label is-mobile is-orbit"
+              style={{ borderColor: hexToRgba(topicColor(topic.id, topic.body), 0.55) }}
+              onClick={() => onSelectTopic(topic.id)}
+            >
+              {topic.name}
+            </button>
+          ))}
         </div>
       )}
       {linearGrid && layout.screenPlaces && (

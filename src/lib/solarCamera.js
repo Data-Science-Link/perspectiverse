@@ -1,4 +1,6 @@
 import { PerspectiveCamera, Vector3 } from 'three'
+import { orbitElements, resumeOrbitAngle, setOrbitPosition } from './layout.js'
+import { orbitLabelCssBox } from './orbitLabels.js'
 
 /** @typedef {{ position: [number, number, number], target: [number, number, number], distance: number }} SolarView */
 /** @typedef {{ minDistance?: number, maxDistance?: number, home?: number[], extent?: number, linear?: boolean, grid?: boolean }} SolarLimits */
@@ -32,33 +34,36 @@ export function homeDistanceFromLookAt(home = []) {
 
 const MOBILE_ORBIT_FOV = 48
 const MOBILE_ORBIT_ELEVATION = 0.26
-const MOBILE_ORBIT_PAD_X = 48
-const MOBILE_ORBIT_PAD_Y = 18
+const MOBILE_ORBIT_MARGIN = 10
+const _centroid = new Vector3()
+const _focus = new Vector3()
+const _camPos = new Vector3()
+const _aim = new Vector3()
+const _right = new Vector3()
+const _up = new Vector3()
 
-function orbitSphereSamples(radius) {
-  const points = [[0, 0, 0]]
-  const count = 42
-  const golden = Math.PI * (3 - Math.sqrt(5))
-  for (let index = 0; index < count; index += 1) {
-    const y = count === 1 ? 0 : 1 - (index / (count - 1)) * 2
-    const ring = Math.sqrt(Math.max(0, 1 - y * y))
-    const theta = golden * index
-    points.push([
-      Math.cos(theta) * ring * radius,
-      y * radius,
-      Math.sin(theta) * ring * radius,
-    ])
-  }
-  return points
-}
-
-function orbitPose(distance, targetY) {
-  const lift = distance * MOBILE_ORBIT_ELEVATION
-  const z = Math.sqrt(Math.max(distance * distance - lift * lift, 1))
-  return {
-    position: [0, targetY + lift, z],
-    target: [0, targetY, 0],
-  }
+/**
+ * World positions of the planets and their label anchors at the angles they
+ * hold right now. The phone camera frames this cluster, not the full orbits.
+ */
+export function orbitSamplePoints(topics = [], layout = {}) {
+  const radii = layout.radii ?? []
+  const items = layout.items ?? []
+  const point = new Vector3()
+  return topics.map((topic, index) => {
+    const isSun = index === 0
+    const orbit = orbitElements(index, isSun, topic.id, radii[index] ?? 0)
+    const angle = resumeOrbitAngle(topic.id, orbit.phase)
+    if (isSun) point.set(0, 0, 0)
+    else setOrbitPosition(point, orbit.radius, angle, orbit.inclination, orbit.node)
+    const scale = items[index]?.scale ?? 1
+    return {
+      planet: [point.x, point.y, point.z],
+      label: [point.x, point.y + scale * 1.32, point.z],
+      bodyRadius: items[index]?.extent ?? scale,
+      name: topic.name || 'Topic',
+    }
+  })
 }
 
 export function projectToCanvas(point, lookAt, width, height, fov = MOBILE_ORBIT_FOV) {
@@ -77,110 +82,177 @@ export function projectToCanvas(point, lookAt, width, height, fov = MOBILE_ORBIT
   }
 }
 
-function projectBounds(samples, pose, width, height) {
-  const lookAt = [...pose.position, ...pose.target]
+function usableBox(frame) {
+  const width = Math.max(40, Number(frame.width) || 390)
+  const height = Math.max(40, Number(frame.height) || 700)
+  const usable = frame.usable ?? { x: 8, y: 8, width: width - 16, height: Math.max(40, height - 140) }
+  const margin = Number.isFinite(frame.margin) ? frame.margin : MOBILE_ORBIT_MARGIN
+  const box = {
+    left: usable.x + margin,
+    right: usable.x + usable.width - margin,
+    top: usable.y + margin,
+    bottom: usable.y + usable.height - margin,
+  }
+  if (!(box.right > box.left + 24)) {
+    const mid = usable.x + usable.width / 2
+    box.left = mid - 12
+    box.right = mid + 12
+  }
+  if (!(box.bottom > box.top + 24)) {
+    const mid = usable.y + usable.height / 2
+    box.top = mid - 12
+    box.bottom = mid + 12
+  }
+  return { width, height, box }
+}
+
+function contentBounds(samples, position, target, width, height) {
+  const lookAt = [position.x, position.y, position.z, target.x, target.y, target.z]
+  const half = (MOBILE_ORBIT_FOV * Math.PI) / 360
   let minX = Infinity
   let maxX = -Infinity
   let minY = Infinity
   let maxY = -Infinity
-  let behind = false
-  for (const point of samples) {
-    const projected = projectToCanvas(point, lookAt, width, height)
-    if (!projected || projected.behind) behind = true
-    if (!projected) continue
-    minX = Math.min(minX, projected.x)
-    maxX = Math.max(maxX, projected.x)
-    minY = Math.min(minY, projected.y)
-    maxY = Math.max(maxY, projected.y)
+  for (const sample of samples) {
+    const label = projectToCanvas(sample.label, lookAt, width, height)
+    const planet = projectToCanvas(sample.planet, lookAt, width, height)
+    if (!label || !planet || label.behind || planet.behind) return null
+    const distP = Math.hypot(
+      position.x - sample.planet[0],
+      position.y - sample.planet[1],
+      position.z - sample.planet[2],
+    )
+    const px = height / (2 * Math.tan(half) * Math.max(distP, 0.5))
+    const br = (sample.bodyRadius || 0) * px
+    const hw = (sample.labelWidth || 0) / 2
+    const hh = (sample.labelHeight || 0) / 2
+    minX = Math.min(minX, label.x - hw, planet.x - br)
+    maxX = Math.max(maxX, label.x + hw, planet.x + br)
+    minY = Math.min(minY, label.y - hh, planet.y - br)
+    maxY = Math.max(maxY, label.y + hh, planet.y + br)
   }
-  return { minX, maxX, minY, maxY, behind }
+  if (!Number.isFinite(minX)) return null
+  return { minX, maxX, minY, maxY }
 }
 
 function boundsFit(bounds, box) {
-  return !bounds.behind
+  return Boolean(bounds)
     && bounds.minX >= box.left
     && bounds.maxX <= box.right
     && bounds.minY >= box.top
     && bounds.maxY <= box.bottom
 }
 
-function centerTargetY(distance, samples, width, height, box) {
-  const want = (box.top + box.bottom) / 2
-  let lo = -distance
-  let hi = distance
-  let best = 0
-  for (let step = 0; step < 22; step += 1) {
-    const mid = (lo + hi) / 2
-    const bounds = projectBounds(samples, orbitPose(distance, mid), width, height)
-    const center = (bounds.minY + bounds.maxY) / 2
-    best = mid
-    if (!Number.isFinite(center) || center < want) lo = mid
-    else hi = mid
+function frameAt(samples, centroid, distance, azimuth, width, height, box) {
+  const elevCos = Math.sqrt(Math.max(1 - MOBILE_ORBIT_ELEVATION * MOBILE_ORBIT_ELEVATION, 0.2))
+  _aim.set(
+    Math.sin(azimuth) * elevCos,
+    MOBILE_ORBIT_ELEVATION,
+    Math.cos(azimuth) * elevCos,
+  ).multiplyScalar(distance)
+  _focus.copy(centroid)
+  let bounds = null
+  const half = (MOBILE_ORBIT_FOV * Math.PI) / 360
+  const pxPer = height / (2 * Math.tan(half) * distance)
+  for (let step = 0; step < 6; step += 1) {
+    _camPos.copy(_focus).add(_aim)
+    bounds = contentBounds(samples, _camPos, _focus, width, height)
+    if (!bounds) return null
+    const dx = (box.left + box.right) / 2 - (bounds.minX + bounds.maxX) / 2
+    const dy = (box.top + box.bottom) / 2 - (bounds.minY + bounds.maxY) / 2
+    if (Math.abs(dx) < 0.6 && Math.abs(dy) < 0.6) break
+    _fitCamera.fov = MOBILE_ORBIT_FOV
+    _fitCamera.aspect = width / Math.max(height, 1)
+    _fitCamera.position.copy(_camPos)
+    _fitCamera.lookAt(_focus)
+    _fitCamera.updateMatrixWorld()
+    _right.setFromMatrixColumn(_fitCamera.matrixWorld, 0)
+    _up.setFromMatrixColumn(_fitCamera.matrixWorld, 1)
+    _focus.addScaledVector(_right, -dx / pxPer)
+    _focus.addScaledVector(_up, dy / pxPer)
   }
-  return best
+  _camPos.copy(_focus).add(_aim)
+  bounds = contentBounds(samples, _camPos, _focus, width, height)
+  if (!bounds) return null
+  return {
+    bounds,
+    lookAt: [_camPos.x, _camPos.y, _camPos.z, _focus.x, _focus.y, _focus.z],
+    distance,
+  }
 }
 
 /**
- * Phone Orbits camera. The vertical-only home distance fits a desktop-shaped
- * view; on a 390-wide portrait the orbital disk runs off both sides, and on a
- * short landscape the bottom of that disk sits under the topic filter.
- * Frame the whole disk inside the canvas area above that chrome.
+ * Phone Orbits camera. Frame the planets' current positions and their label
+ * boxes inside the canvas area above the topic filter. A modest margin, and
+ * the closest viewpoint that still fits, so the cluster fills that area.
+ * Full orbit extents are not part of the fit.
  */
 export function mobileOrbitHome(extent, frame = {}, options = {}) {
+  const { width, height, box } = usableBox(frame)
+  const samples = (options.samples ?? []).map((sample) => {
+    if (sample.labelWidth && sample.labelHeight) return sample
+    const css = orbitLabelCssBox(sample.name, width)
+    return { ...sample, labelWidth: css.width, labelHeight: css.height }
+  })
   const radius = Math.max(1, Number(extent) || 1)
-  const width = Math.max(40, Number(frame.width) || 390)
-  const height = Math.max(40, Number(frame.height) || 700)
-  const usable = frame.usable ?? { x: 8, y: 8, width: width - 16, height: Math.max(40, height - 140) }
-  const padX = Math.min(
-    Number.isFinite(frame.padX) ? frame.padX : MOBILE_ORBIT_PAD_X,
-    Math.max(8, usable.width * 0.24),
-  )
-  const padY = Math.min(
-    Number.isFinite(frame.padY) ? frame.padY : MOBILE_ORBIT_PAD_Y,
-    Math.max(6, usable.height * 0.16),
-  )
-  const box = {
-    left: usable.x + padX,
-    right: usable.x + usable.width - padX,
-    top: usable.y + padY,
-    bottom: usable.y + usable.height - padY,
-  }
-  if (!(box.right > box.left + 16)) {
-    const mid = usable.x + usable.width / 2
-    box.left = mid - 8
-    box.right = mid + 8
-  }
-  if (!(box.bottom > box.top + 16)) {
-    const mid = usable.y + usable.height / 2
-    box.top = mid - 8
-    box.bottom = mid + 8
-  }
-
-  const samples = orbitSphereSamples(radius)
-  let lo = radius * 0.6
-  let hi = radius * 16
-  let fitting = null
-  for (let step = 0; step < 24; step += 1) {
-    const distance = (lo + hi) / 2
-    const targetY = centerTargetY(distance, samples, width, height, box)
-    const bounds = projectBounds(samples, orbitPose(distance, targetY), width, height)
-    if (boundsFit(bounds, box)) {
-      fitting = distance
-      hi = distance
-    } else {
-      lo = distance
-    }
-  }
-  const distance = (fitting ?? hi) * 1.04
-  const targetY = centerTargetY(distance, samples, width, height, box)
-  const pose = orbitPose(distance, targetY)
-  const lookAt = [...pose.position, ...pose.target]
   const referenceDistance = Number(options.referenceDistance)
   const baseDistanceFactor = Number(options.baseDistanceFactor) || 16
-  const labelDistanceFactor = referenceDistance > 1
-    ? baseDistanceFactor * (distance / referenceDistance)
-    : baseDistanceFactor
-  return { lookAt, labelDistanceFactor, distance }
+  if (samples.length === 0) {
+    const distance = referenceDistance > 1 ? referenceDistance : radius * 2.5
+    const lift = distance * MOBILE_ORBIT_ELEVATION
+    const z = Math.sqrt(Math.max(distance * distance - lift * lift, 1))
+    return {
+      lookAt: [0, lift, z, 0, 0, 0],
+      labelDistanceFactor: baseDistanceFactor,
+      distance,
+    }
+  }
+
+  _centroid.set(0, 0, 0)
+  for (const sample of samples) {
+    _centroid.x += sample.planet[0]
+    _centroid.y += sample.planet[1]
+    _centroid.z += sample.planet[2]
+  }
+  _centroid.multiplyScalar(1 / samples.length)
+
+  let lo = Math.max(6, radius * 0.35)
+  let hi = Math.max(lo + 4, radius * 8)
+  let best = null
+  const steps = 16
+  for (let index = 0; index < steps; index += 1) {
+    const azimuth = (index / steps) * Math.PI * 2
+    let near = lo
+    let far = hi
+    let fitting = null
+    for (let step = 0; step < 14; step += 1) {
+      const distance = (near + far) / 2
+      const framed = frameAt(samples, _centroid, distance, azimuth, width, height, box)
+      if (framed && boundsFit(framed.bounds, box)) {
+        fitting = framed
+        far = distance
+      } else {
+        near = distance
+      }
+    }
+    if (!fitting) continue
+    const spanX = fitting.bounds.maxX - fitting.bounds.minX
+    const spanY = fitting.bounds.maxY - fitting.bounds.minY
+    const area = (spanX / Math.max(box.right - box.left, 1)) * (spanY / Math.max(box.bottom - box.top, 1))
+    if (!best || fitting.distance < best.distance - 0.4 || (Math.abs(fitting.distance - best.distance) <= 0.4 && area > best.area)) {
+      best = { ...fitting, area }
+    }
+  }
+
+  const pose = best ?? frameAt(samples, _centroid, hi, 0, width, height, box)
+  const distance = pose?.distance ?? hi
+  const lookAt = pose?.lookAt ?? [0, distance * MOBILE_ORBIT_ELEVATION, distance, ..._centroid.toArray()]
+  return {
+    lookAt,
+    labelDistanceFactor: baseDistanceFactor,
+    distance,
+    bounds: pose?.bounds ?? null,
+  }
 }
 
 export function readCameraLookAt(controls) {

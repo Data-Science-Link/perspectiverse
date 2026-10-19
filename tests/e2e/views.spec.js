@@ -141,6 +141,44 @@ test.describe('Perspectiverse views', () => {
     }
   })
 
+  test('phone orbit labels each open their planet', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'phone orbits only')
+    test.setTimeout(90_000)
+    await page.addInitScript(() => {
+      window.localStorage.setItem('perspectiverse.hide-welcome', '1')
+    })
+    await page.goto('/')
+    await enterSolarSystem(page)
+    await expect(page.getByRole('button', { name: 'Linear' })).toBeVisible()
+    await expectMobileOrbitLabelsOnScreen(page)
+
+    const labels = page.locator('.orbit-labels .planet-label')
+    await expect(labels).toHaveCount(10)
+    const renderedFont = await labels.first().evaluate((node) => {
+      let scale = 1
+      for (let el = node; el; el = el.parentElement) {
+        const transform = getComputedStyle(el).transform
+        if (transform && transform !== 'none') {
+          scale *= new DOMMatrix(transform).a
+        }
+      }
+      return Number.parseFloat(getComputedStyle(node).fontSize) * scale
+    })
+    expect(renderedFont).toBeGreaterThanOrEqual(10)
+
+    const names = (await labels.allInnerTexts()).map((name) => name.trim())
+    expect(new Set(names).size).toBe(10)
+    for (let index = 0; index < names.length; index += 1) {
+      const name = names[index]
+      await page.locator('.orbit-labels .planet-label').nth(index).click()
+      await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
+      await expect(page.locator('.reading-screen h1').first()).toHaveText(name)
+      await page.getByRole('banner').getByRole('button', { name: 'Universe' }).click()
+      await expect(page.locator('.observatory canvas')).toBeVisible()
+      await expectMobileOrbitLabelsOnScreen(page)
+    }
+  })
+
   test('respects do not show again and still lets the menu reopen welcome', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('perspectiverse.hide-welcome', '1')

@@ -10,12 +10,11 @@ import {
   orbitElements,
   orbitRadius,
   orbitsClear,
-  setOrbitPosition,
   systemExtent,
   topicScale,
 } from '../src/lib/layout.js'
-import { clampSolarView, mobileOrbitHome, projectToCanvas, solarLayoutKey } from '../src/lib/solarCamera.js'
-import { labelCenterIsClear, separateLabelBoxes } from '../src/lib/orbitLabels.js'
+import { clampSolarView, mobileOrbitHome, orbitSamplePoints, projectToCanvas, solarLayoutKey } from '../src/lib/solarCamera.js'
+import { labelCenterIsClear, ORBIT_LABEL_FONT_PX, orbitLabelCssBox, separateLabelBoxes } from '../src/lib/orbitLabels.js'
 import { decorateTopics } from '../src/lib/planets.js'
 
 assert.equal(SITE_TITLE, 'Perspectiverse')
@@ -168,26 +167,39 @@ assert.ok(Math.abs(clamped.target[0]) <= 8 * 0.45 + 1e-6)
 function assertMobileOrbitsFit(frame, chromeInset) {
   const reference = homeLookAt(true, topics.length, layout.extent)
   const referenceDistance = Math.hypot(reference[0], reference[1], reference[2])
-  const fitted = mobileOrbitHome(layout.extent, frame, { referenceDistance, baseDistanceFactor: 16 })
-  assert.ok(fitted.distance > referenceDistance, 'phone orbit camera should step back to fit the disk')
-  assert.ok(fitted.labelDistanceFactor > 16, 'label scale should track the wider camera')
+  const named = topics.map((topic, index) => ({ ...topic, name: topic.name || `Topic ${index + 1}` }))
+  const samples = orbitSamplePoints(named, layout)
+  const fitted = mobileOrbitHome(layout.extent, frame, { samples, referenceDistance, baseDistanceFactor: 16 })
+  assert.equal(fitted.labelDistanceFactor, 16)
+  assert.ok(fitted.distance < referenceDistance * 1.35, `phone camera backed too far: ${fitted.distance} vs ${referenceDistance}`)
+  assert.ok(fitted.distance > referenceDistance * 0.45, `phone camera too close: ${fitted.distance}`)
+  assert.ok(ORBIT_LABEL_FONT_PX >= 10)
   const chromeTop = frame.height - chromeInset
-  const point = { x: 0, y: 0, z: 0, set(x, y, z) { this.x = x; this.y = y; this.z = z; return this } }
-  for (let index = 0; index < topics.length; index += 1) {
-    const orbit = orbitElements(index, index === 0, topics[index].id, layout.radii[index])
-    const labelLift = topicScale(topics[index].total_volume_percent, volumeMax) * 1.32
-    for (let step = 0; step < 24; step += 1) {
-      if (index === 0) point.set(0, labelLift, 0)
-      else {
-        setOrbitPosition(point, orbit.radius, (step / 24) * Math.PI * 2, orbit.inclination, orbit.node)
-        point.y += labelLift
-      }
-      const projected = projectToCanvas([point.x, point.y, point.z], fitted.lookAt, frame.width, frame.height)
-      assert.equal(projected.behind, false, `topic ${index} sits behind the phone camera`)
-      assert.ok(projected.x >= 36 && projected.x <= frame.width - 36, `topic ${index} x ${projected.x} on ${frame.width}`)
-      assert.ok(projected.y >= 8 && projected.y <= chromeTop - 8, `topic ${index} y ${projected.y} chrome ${chromeTop}`)
-    }
+  const boxW = frame.usable.width
+  const boxH = frame.usable.height
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (const sample of samples) {
+    const css = orbitLabelCssBox(sample.name, frame.width)
+    const label = projectToCanvas(sample.label, fitted.lookAt, frame.width, frame.height)
+    const planet = projectToCanvas(sample.planet, fitted.lookAt, frame.width, frame.height)
+    assert.equal(label.behind, false, `${sample.name} label sits behind the phone camera`)
+    assert.equal(planet.behind, false, `${sample.name} sits behind the phone camera`)
+    const left = label.x - css.width / 2
+    const right = label.x + css.width / 2
+    const top = label.y - css.height / 2
+    const bottom = label.y + css.height / 2
+    assert.ok(left >= 2 && right <= frame.width - 2, `${sample.name} label x ${left}..${right}`)
+    assert.ok(top >= 2 && bottom <= chromeTop - 2, `${sample.name} label y ${top}..${bottom} chrome ${chromeTop}`)
+    minX = Math.min(minX, left, planet.x)
+    maxX = Math.max(maxX, right, planet.x)
+    minY = Math.min(minY, top, planet.y)
+    maxY = Math.max(maxY, bottom, planet.y)
   }
+  const fill = Math.max((maxX - minX) / boxW, (maxY - minY) / boxH)
+  assert.ok(fill > 0.62, `cluster should fill the usable area, fill ${fill}`)
 }
 
 assertMobileOrbitsFit(
