@@ -3166,6 +3166,9 @@ def _cluster_sections(
         result.setdefault(dest, []).extend(assigned)
         print(f"Section {dest}: accepted {len(assigned)} planet(s) relocated from Politics.")
 
+    for section_topics in result.values():
+        publish_volumes(section_topics)
+
     return {name: result[name] for name in CATEGORIES if name in result}
 
 
