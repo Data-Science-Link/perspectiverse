@@ -256,9 +256,11 @@ test.describe('Linear grid on phones', () => {
     const entries = await expectAllPlanetsVisible(page, 24)
     for (const entry of entries) {
       const lines = await page.locator(`.observatory .planet-label[data-topic-index="${entry.topicIndex}"]`).evaluate((node) => {
+        const style = getComputedStyle(node)
+        const lineHeight = Number.parseFloat(style.lineHeight) || 14
         const range = document.createRange()
         range.selectNodeContents(node)
-        return [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0).length
+        return Math.round(range.getBoundingClientRect().height / lineHeight)
       })
       expect(lines, entry.name).toBeLessThanOrEqual(2)
     }

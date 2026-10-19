@@ -77,6 +77,7 @@ function gridLabelStyle(aspect, pillMaxWidth) {
     }
   }
   return {
+    width: pillMaxWidth ? `${pillMaxWidth}px` : undefined,
     maxWidth: pillMaxWidth ? `${pillMaxWidth}px` : undefined,
   }
 }
@@ -316,7 +317,6 @@ export default function Observatory({
   )
   const [gridChrome, setGridChrome] = useState(null)
   const [gridPills, setGridPills] = useState(null)
-  const pillMeasureRef = useRef(null)
   const remounts = useRef(0)
   const prevLayoutKey = useRef(null)
   const aspectObserver = useRef(null)
@@ -390,18 +390,25 @@ export default function Observatory({
 
   useLayoutEffect(() => {
     if (!linearGrid) return undefined
-    const root = pillMeasureRef.current
-    if (!root) return undefined
     const read = () => {
-      const nodes = [...root.querySelectorAll('[data-grid-pill]')]
+      const nodes = [...document.querySelectorAll('.linear-grid-labels .planet-label')]
       if (nodes.length === 0) return
       const next = nodes.map((node) => {
         const rect = node.getBoundingClientRect()
         const range = document.createRange()
         range.selectNodeContents(node)
-        const lines = [...range.getClientRects()].filter((item) => item.height > 0 && item.width > 0).length
-        return { width: rect.width, height: rect.height, lines }
-      })
+        const lines = new Set(
+          [...range.getClientRects()]
+            .filter((item) => item.height > 0 && item.width > 0)
+            .map((item) => Math.round(item.top)),
+        ).size
+        return {
+          topicIndex: Number(node.getAttribute('data-topic-index')),
+          width: rect.width,
+          height: rect.height,
+          lines,
+        }
+      }).sort((a, b) => a.topicIndex - b.topicIndex)
       setGridPills((prev) => (pillsChanged(prev, next) ? next : prev))
     }
     read()
@@ -502,22 +509,6 @@ export default function Observatory({
 
   return (
     <>
-    {linearGrid && (
-      <div className="linear-pill-measure" ref={pillMeasureRef} aria-hidden="true">
-        {topics.map((topic) => (
-          <button
-            key={topic.id}
-            type="button"
-            tabIndex={-1}
-            data-grid-pill=""
-            className={`planet-label is-mobile is-linear${landscapeGrid ? ' is-landscape-grid' : ''}`}
-            style={gridLabelStyle(canvasAspect, layout.pillMaxWidth)}
-          >
-            <GridLabelText name={topic.name} landscape={landscapeGrid} />
-          </button>
-        ))}
-      </div>
-    )}
     <section
       className={`observatory${landscapeGrid ? ' is-linear-phone-landscape' : ''}`}
     >

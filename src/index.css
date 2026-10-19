@@ -889,20 +889,6 @@ h3 {
   white-space: nowrap;
 }
 
-.linear-pill-measure {
-  position: fixed;
-  left: -4000px;
-  top: 0;
-  width: 960px;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.linear-pill-measure .planet-label {
-  position: static;
-  transform: none;
-}
-
 .linear-grid-labels {
   position: absolute;
   inset: 0;
