@@ -24,7 +24,7 @@ function estimatePhoneChrome(aspect) {
   const width = typeof window !== 'undefined' ? window.innerWidth : 390
   const height = typeof window !== 'undefined' ? window.innerHeight : 844
   const landscape = aspect > 1.15
-  const filterBlock = landscape ? 108 : 124
+  const filterBlock = landscape ? 136 : 156
   const top = 8
   return {
     viewport: { width, height },
@@ -37,17 +37,26 @@ function estimatePhoneChrome(aspect) {
   }
 }
 
+const FILTER_LABEL_CLEARANCE = 12
+
+function filterChromeTop(canvasRect) {
+  const label = document.querySelector('.observatory .topic-filter span')
+  if (label) return label.getBoundingClientRect().top
+  const filter = document.getElementById('solar-topic-filter')
+  if (filter) return filter.getBoundingClientRect().top
+  return canvasRect.bottom
+}
+
 function measurePhoneChrome() {
   const canvas = document.querySelector('.observatory canvas')
   if (!canvas) return null
   const canvasRect = canvas.getBoundingClientRect()
   if (canvasRect.width < 20 || canvasRect.height < 20) return null
   const header = document.querySelector('header')
-  const filter = document.getElementById('solar-topic-filter')
   const headerBottom = header ? header.getBoundingClientRect().bottom : canvasRect.top
-  const filterTop = filter ? filter.getBoundingClientRect().top : canvasRect.bottom
+  const filterTop = filterChromeTop(canvasRect)
   const top = Math.max(6, headerBottom - canvasRect.top + 4)
-  const limit = Math.min(canvasRect.height - 6, filterTop - canvasRect.top - 14)
+  const limit = Math.min(canvasRect.height - 6, filterTop - canvasRect.top - FILTER_LABEL_CLEARANCE)
   return {
     viewport: { width: canvasRect.width, height: canvasRect.height },
     usable: {
@@ -376,7 +385,7 @@ export default function Observatory({
     measureChrome()
     const observer = new ResizeObserver(measureChrome)
     const canvas = document.querySelector('.observatory canvas')
-    const filter = document.getElementById('solar-topic-filter')
+    const filter = document.querySelector('.observatory .topic-filter')
     const header = document.querySelector('header')
     if (canvas) observer.observe(canvas)
     if (filter) observer.observe(filter)

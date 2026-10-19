@@ -180,13 +180,18 @@ async function expectFullLabelTitles(entries) {
   }
 }
 
-async function expectAboveTopicFilter(page, entries, clearance = 10) {
-  const filter = page.locator('#solar-topic-filter')
-  await expect(filter).toBeVisible()
-  const filterBox = await filter.boundingBox()
-  expect(filterBox).not.toBeNull()
+async function expectAboveTopicFilter(page, entries, clearance = 8) {
+  const select = page.locator('.observatory #solar-topic-filter')
+  const label = page.locator('.observatory .topic-filter span')
+  await expect(select).toBeVisible()
+  await expect(label).toBeVisible()
+  const selectBox = await select.boundingBox()
+  const labelBox = await label.boundingBox()
+  expect(selectBox).not.toBeNull()
+  expect(labelBox).not.toBeNull()
   const bottom = Math.max(...entries.map((entry) => entry.box.y + entry.box.height))
-  expect(bottom).toBeLessThanOrEqual(filterBox.y - clearance)
+  expect(bottom).toBeLessThanOrEqual(labelBox.y - clearance)
+  expect(bottom).toBeLessThanOrEqual(selectBox.y - clearance)
 }
 
 async function expectAllPlanetsVisible(page, minDiameter) {
