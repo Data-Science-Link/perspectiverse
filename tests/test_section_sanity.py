@@ -28,6 +28,7 @@ def test_tax_meme_moves_to_culture_real_policy_stays():
         {"text": "IRS enforcement funding is the real fight in this Congress vote."},
     ]
     assert politics_planet_destination("Tax Movie Titles", meme) == "Culture"
+    assert politics_planet_destination("Tax Purposes", meme) == "Culture"
     assert members_support_politics(policy, name="Tax Bill") is True
 
 

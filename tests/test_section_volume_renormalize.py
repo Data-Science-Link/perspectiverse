@@ -35,7 +35,7 @@ def _politics_topic(name: str, post_count: int, member_uris: list[str], face_id:
 
 
 def test_politics_section_renormalizes_after_tax_purposes_relocated():
-    """Mirrors run 39260526877: Tax Purposes (180 posts) moved to Culture left 93.1%."""
+    """Run 39260526877: #236 post-label sanity moved Tax Purposes → Culture; stale 93.1%."""
     posts = [
         {"uri": "a", "text": "Die Hard for Tax Purposes"},
         {"uri": "b", "text": "Catch Me If You Can for Tax Purposes"},
