@@ -46,6 +46,7 @@ export default function Planet({
   haloDetail = [32, 32],
   labelDistanceFactor,
   planetVisualScale = 1,
+  meshScale = null,
   linearGrid = false,
 }) {
   const group = useRef()
@@ -63,7 +64,8 @@ export default function Planet({
   const spinAxis = useMemo(() => new Vector3(...spin.axis), [spin])
   const angle = useRef(resumeOrbitAngle(topic.id, orbit.phase))
   const placed = useRef(Boolean(anchor))
-  const scale = topicScale(topic.total_volume_percent, volumeMax) * Math.max(0.55, planetVisualScale)
+  const naturalScale = topicScale(topic.total_volume_percent, volumeMax) * Math.max(0.55, planetVisualScale)
+  const scale = Number.isFinite(meshScale) ? meshScale : naturalScale
   const htmlDistanceFactor = labelDistanceFactor ?? (isMobile ? 16 : 18)
   const portrait = useMediaQuery('(orientation: portrait)')
   const labelScale = linearGrid && isMobile ? (portrait ? 1.08 : 1) : 1
@@ -278,6 +280,7 @@ export default function Planet({
           />
         </group>
       </group>
+      {!linearGrid && (
       <Html
         position={[
           0,
@@ -315,6 +318,7 @@ export default function Planet({
           {topic.name}
         </button>
       </Html>
+      )}
       {!isMobile && hovered && (
         <Html position={[0, scale * 1.95, 0]} center distanceFactor={20} zIndexRange={[12, 0]}>
           <div className="planet-hover">

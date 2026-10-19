@@ -114,6 +114,44 @@ const gridLandscape = layoutLinear(topics, volumeMax, { grid: true, viewportAspe
 assert.equal(gridLandscape.mode, 'grid')
 assert.ok(Math.ceil(topics.length / gridLandscape.cols) <= 2, `landscape should use at most 2 rows: ${gridLandscape.cols} columns`)
 assert.ok(gridLandscape.cols >= gridPortrait.cols, 'landscape should not use fewer columns than portrait')
+assert.equal(gridPortrait.planetVisualScale, 0.9)
+assert.equal(gridLandscape.planetVisualScale, 0.9)
+
+function screenFixture(width, height, aspect) {
+  const landscape = aspect > 1.15
+  const filterBlock = landscape ? 108 : 124
+  return {
+    viewport: { width, height },
+    usable: { x: 6, y: 8, width: width - 12, height: height - filterBlock - 8 },
+  }
+}
+
+function assertScreenGrid(aspect, width, height, minDiameter) {
+  const placed = layoutLinear(topics, volumeMax, {
+    grid: true,
+    viewportAspect: aspect,
+    screen: screenFixture(width, height, aspect),
+  })
+  assert.equal(placed.planetVisualScale, 0.9)
+  assert.ok(Math.min(...placed.bodyDiameters) >= minDiameter, `diameters ${placed.bodyDiameters}`)
+  for (let index = 1; index < placed.bodyDiameters.length; index += 1) {
+    assert.ok(placed.bodyDiameters[index] <= placed.bodyDiameters[index - 1] + 1e-6, 'screen diameters stay in size order')
+  }
+  const places = placed.screenPlaces
+  for (let index = 0; index < places.length; index += 1) {
+    const place = places[index]
+    const radius = placed.bodyDiameters[index] / 2
+    const sphere = { x: place.x - radius, y: place.y - radius, width: radius * 2, height: radius * 2 }
+    const pill = { x: place.x - 40, y: place.pillTop, width: 80, height: place.pillHeight }
+    const overlap = Math.min(sphere.x + sphere.width, pill.x + pill.width) - Math.max(sphere.x, pill.x) > 0
+      && Math.min(sphere.y + sphere.height, pill.y + pill.height) - Math.max(sphere.y, pill.y) > 0
+    assert.equal(overlap, false, `sphere ${index} meets its pill`)
+    assert.ok(place.pillTop >= sphere.y + sphere.height - 1e-6, 'pill starts below the sphere')
+  }
+}
+
+assertScreenGrid(390 / 844, 390, 844, 28)
+assertScreenGrid(2.54, 844, 332, 24)
 
 assert.equal(solarLayoutKey('all', false), 'all:orbit')
 assert.equal(solarLayoutKey('World', true, false), 'World:linear')

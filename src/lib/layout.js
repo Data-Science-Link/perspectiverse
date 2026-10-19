@@ -348,14 +348,293 @@ function layoutLinearRow(specs) {
   }
 }
 
+export const GRID_MIN_DIAMETER = { portrait: 28, landscape: 24 }
+const GRID_FOV_DEG = 48
+const GRID_PX_PER_WORLD = 12
+const GRID_PILL_GAP_PX = 8
+const GRID_ROW_GAP_PX = 8
+
+export function gridMinDiameter(viewportAspect = 1) {
+  return viewportAspect > 1.15 ? GRID_MIN_DIAMETER.landscape : GRID_MIN_DIAMETER.portrait
+}
+
+export function splitLabelLines(name) {
+  const text = String(name ?? '').trim()
+  if (!text) return ['']
+  const spaces = []
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === ' ') spaces.push(index)
+  }
+  if (spaces.length === 0) return [text]
+  let best = spaces[0]
+  let bestScore = Infinity
+  for (const index of spaces) {
+    const score = Math.max(index, text.length - index - 1)
+    if (score < bestScore) {
+      bestScore = score
+      best = index
+    }
+  }
+  return [text.slice(0, best), text.slice(best + 1)]
+}
+
+function bodyRadiusFactor(topic, index) {
+  const sun = index === 0 || topic?.body?.key === 'sun'
+  return sun ? SUN_HALO_RADIUS : PLANET_MESH_RADIUS
+}
+
+function visualRadiusFactor(topic, index) {
+  if (topic?.body?.rings) return SATURN_RING_RADIUS
+  return bodyRadiusFactor(topic, index)
+}
+
+export function screenDiametersFromRadii(radii, minPx, maxPx) {
+  const floor = Math.max(1, Math.min(minPx, maxPx))
+  const cap = Math.max(floor, maxPx)
+  const lo = Math.min(...radii)
+  const hi = Math.max(...radii)
+  const raw = radii.map((radius) => {
+    if (!(hi > lo)) return cap
+    const t = (radius - lo) / (hi - lo)
+    return floor + t * (cap - floor)
+  })
+  const diameters = []
+  for (let index = 0; index < raw.length; index += 1) {
+    let value = Math.min(cap, Math.max(floor, raw[index]))
+    if (index > 0) value = Math.min(value, diameters[index - 1])
+    diameters.push(value)
+  }
+  return diameters
+}
+
+function packPhoneRows({ count, cols, visualDiameters, pillHeights, usable, gapPx, rowGapPx }) {
+  const rows = Math.max(1, Math.ceil(count / cols))
+  const rowSphere = Array.from({ length: rows }, () => 0)
+  const rowPill = Array.from({ length: rows }, () => 0)
+  for (let index = 0; index < count; index += 1) {
+    const row = Math.floor(index / cols)
+    rowSphere[row] = Math.max(rowSphere[row], visualDiameters[index] || 0)
+    rowPill[row] = Math.max(rowPill[row], pillHeights[index] || 0)
+  }
+  const cells = rowSphere.map((sphere, row) => sphere + gapPx + rowPill[row])
+  const base = cells.reduce((sum, value) => sum + value, 0) + rowGapPx * Math.max(0, rows - 1)
+  const extra = usable.height - base
+  const edgePad = rows === 1 ? Math.max(0, extra / 2) : Math.max(0, Math.min(10, extra * 0.08))
+  const rowGap = rowGapPx + (rows > 1 ? Math.max(0, (extra - edgePad * 2) / (rows - 1)) : 0)
+  const places = []
+  const colWidth = usable.width / cols
+  let cursor = usable.y + edgePad
+  for (let row = 0; row < rows; row += 1) {
+    const band = rowSphere[row]
+    const centerY = cursor + band / 2
+    const pillTop = cursor + band + gapPx
+    for (let col = 0; col < cols; col += 1) {
+      const index = row * cols + col
+      if (index >= count) break
+      places.push({
+        index,
+        row,
+        col,
+        x: usable.x + colWidth * (col + 0.5),
+        y: centerY,
+        diameter: visualDiameters[index],
+        pillTop,
+        colWidth,
+      })
+    }
+    cursor += band + gapPx + rowPill[row] + (row < rows - 1 ? rowGap : 0)
+  }
+  return {
+    places,
+    colWidth,
+    contentBottom: cursor,
+    overflow: cursor - (usable.y + usable.height),
+  }
+}
+
+function estimatePillHeight(name, maxWidth, { landscape = false, fontSize = 18 } = {}) {
+  const text = String(name ?? '')
+  const padX = 16
+  const padY = 8
+  const charPx = fontSize * (landscape ? 0.58 : 0.56)
+  if (landscape) {
+    const lines = splitLabelLines(text)
+    const lineWidth = Math.max(...lines.map((line) => line.length * charPx))
+    return {
+      width: Math.min(maxWidth, lineWidth + padX),
+      height: lines.length * fontSize * 1.2 + padY,
+    }
+  }
+  const inner = Math.max(24, maxWidth - padX)
+  const perLine = Math.max(4, Math.floor(inner / charPx))
+  const lines = Math.max(1, Math.ceil(Math.max(1, text.length) / perLine))
+  return {
+    width: maxWidth,
+    height: lines * fontSize * 1.46 + padY,
+  }
+}
+
+export function placePhoneGrid({
+  topics = [],
+  volumeMax = 100,
+  cols = 2,
+  usable,
+  viewport,
+  pills = null,
+  viewportAspect = 1,
+}) {
+  const count = topics.length
+  const landscape = viewportAspect > 1.15
+  const minPx = gridMinDiameter(viewportAspect)
+  const rows = Math.max(1, Math.ceil(count / Math.max(cols, 1)))
+  const colWidth = usable.width / Math.max(cols, 1)
+  const hardCap = Math.max(
+    minPx,
+    Math.min(colWidth * 0.8, Math.max(minPx, (usable.height / rows) * 0.7), 96),
+  )
+  const pillMaxWidth = Math.max(72, colWidth - 8)
+  const fontSize = landscape ? 14 : 18
+  const pillHeights = []
+  const radii = []
+  const bodyFactors = []
+  const visualFactors = []
+  for (let index = 0; index < count; index += 1) {
+    const topic = topics[index]
+    const measured = pills?.[index]
+    const estimated = estimatePillHeight(topic?.name, pillMaxWidth, { landscape, fontSize })
+    pillHeights.push(Math.max(18, measured?.height || estimated.height))
+    const natural = topicScale(topic?.total_volume_percent, volumeMax)
+    const bodyFactor = bodyRadiusFactor(topic, index)
+    bodyFactors.push(bodyFactor)
+    visualFactors.push(visualRadiusFactor(topic, index))
+    radii.push(natural * bodyFactor)
+  }
+
+  function solve(floor, gapPx, rowGapPx) {
+    let lo = floor
+    let hi = Math.max(floor, hardCap)
+    let best = null
+    for (let step = 0; step < 16; step += 1) {
+      const mid = step === 0 ? hi : (lo + hi) / 2
+      const bodyD = screenDiametersFromRadii(radii, floor, mid)
+      const visualD = bodyD.map((diameter, index) => diameter * (visualFactors[index] / bodyFactors[index]))
+      const packed = packPhoneRows({
+        count,
+        cols,
+        visualDiameters: visualD,
+        pillHeights,
+        usable,
+        gapPx,
+        rowGapPx,
+      })
+      const fits = packed.overflow <= 0.5
+      if (fits) {
+        best = { bodyD, visualD, packed }
+        lo = mid
+      } else {
+        hi = mid
+      }
+    }
+    return best
+  }
+
+  let placed = null
+  const gapOptions = [
+    [GRID_PILL_GAP_PX, GRID_ROW_GAP_PX],
+    [6, 6],
+    [4, 4],
+  ]
+  const floors = [minPx + 4, minPx]
+  for (const floor of floors) {
+    if (placed) break
+    for (const [gapPx, rowGapPx] of gapOptions) {
+      const solved = solve(floor, gapPx, rowGapPx)
+      if (solved && Math.min(...solved.bodyD) >= minPx - 0.01) {
+        placed = solved
+        break
+      }
+    }
+  }
+  if (!placed) {
+    const bodyD = screenDiametersFromRadii(radii, minPx, minPx)
+    const visualD = bodyD.map((diameter, index) => diameter * (visualFactors[index] / bodyFactors[index]))
+    placed = {
+      bodyD,
+      visualD,
+      packed: packPhoneRows({
+        count,
+        cols,
+        visualDiameters: visualD,
+        pillHeights,
+        usable,
+        gapPx: 4,
+        rowGapPx: 4,
+      }),
+    }
+  }
+
+  const px = GRID_PX_PER_WORLD
+  const width = viewport.width
+  const height = viewport.height
+  const halfFov = (GRID_FOV_DEG * Math.PI) / 360
+  const distance = height / (px * 2 * Math.tan(halfFov))
+  const positions = placed.packed.places.map((place) => ([
+    (place.x - width / 2) / px,
+    (height / 2 - place.y) / px,
+    0,
+  ]))
+  const meshScales = placed.bodyD.map((diameter, index) => (diameter / 2) / px / bodyFactors[index])
+  const screenPlaces = placed.packed.places.map((place, index) => ({
+    ...place,
+    bodyDiameter: placed.bodyD[index],
+    pillHeight: pillHeights[index],
+  }))
+  let maxAbsX = 1
+  let maxAbsY = 1
+  for (const position of positions) {
+    maxAbsX = Math.max(maxAbsX, Math.abs(position[0]))
+    maxAbsY = Math.max(maxAbsY, Math.abs(position[1]))
+  }
+  return {
+    positions,
+    meshScales,
+    screenPlaces,
+    camera: [0, 0, distance, 0, 0, 0],
+    pillMaxWidth,
+    bodyDiameters: placed.bodyD,
+    extentX: maxAbsX + 1,
+    extentY: maxAbsY + 1,
+    extent: Math.max(maxAbsX, maxAbsY) + 1,
+  }
+}
+
 export function layoutLinear(topics = [], volumeMax = 100, options = {}) {
   const grid = Boolean(options.grid)
   const aspect = options.viewportAspect ?? 1
-  const landscapeGrid = grid && aspect > 1.15
-  const visualScale = grid ? GRID_PLANET_SCALE * (landscapeGrid ? 0.85 : 1) : 1
+  const visualScale = grid ? GRID_PLANET_SCALE : 1
   const specs = linearRowSpecs(topics, volumeMax, { visualScale })
   if (grid && specs.length > 0) {
     const gridLayout = layoutLinearGrid(specs, aspect, topics)
+    const screen = options.screen
+    if (screen?.usable && screen?.viewport && topics.length > 0) {
+      const placed = placePhoneGrid({
+        topics,
+        volumeMax,
+        cols: gridLayout.cols,
+        usable: screen.usable,
+        viewport: screen.viewport,
+        pills: screen.pills,
+        viewportAspect: aspect,
+      })
+      return {
+        ...gridLayout,
+        ...placed,
+        mode: 'grid',
+        cols: gridLayout.cols,
+        rows: gridLayout.rows,
+        planetVisualScale: GRID_PLANET_SCALE,
+      }
+    }
     return { ...gridLayout, planetVisualScale: visualScale }
   }
   return { ...layoutLinearRow(specs), planetVisualScale: 1 }
@@ -379,6 +658,9 @@ export function systemExtent(planetCount = 10, layoutExtent = null) {
 }
 
 export function homeLookAt(isMobile = false, planetCount = 10, layoutExtent = null, options = {}) {
+  if (Array.isArray(options.camera) && options.camera.length >= 6) {
+    return options.camera.slice(0, 6)
+  }
   const extent = systemExtent(planetCount, layoutExtent)
   const fov = isMobile ? 48 : 42
   const half = (fov * Math.PI) / 360
