@@ -67,6 +67,7 @@ export default function Planet({
   const naturalScale = topicScale(topic.total_volume_percent, volumeMax) * Math.max(0.55, planetVisualScale)
   const scale = Number.isFinite(meshScale) ? meshScale : naturalScale
   const htmlDistanceFactor = labelDistanceFactor ?? (isMobile ? 16 : 18)
+  const orbitScreenLabel = isMobile && !anchor
   const portrait = useMediaQuery('(orientation: portrait)')
   const labelScale = linearGrid && isMobile ? (portrait ? 1.08 : 1) : 1
   const linearLabelAnchor = Boolean(anchor && isMobile)
@@ -99,9 +100,16 @@ export default function Planet({
         group.current.position.copy(_desired)
         placed.current = true
       } else if (placed.current !== linear) {
-        const blend = 1 - Math.exp(-delta * 4.5)
-        group.current.position.lerp(_desired, blend)
-        if (group.current.position.distanceTo(_desired) < 0.05) placed.current = linear
+        // The phone orbit camera cuts immediately. Lerping out of the grid
+        // leaves labels outside that frustum until the blend finishes.
+        if (isMobile) {
+          group.current.position.copy(_desired)
+          placed.current = false
+        } else {
+          const blend = 1 - Math.exp(-delta * 4.5)
+          group.current.position.lerp(_desired, blend)
+          if (group.current.position.distanceTo(_desired) < 0.05) placed.current = linear
+        }
       } else {
         group.current.position.copy(_desired)
       }
@@ -280,7 +288,7 @@ export default function Planet({
           />
         </group>
       </group>
-      {!linearGrid && (
+      {!linearGrid && !orbitScreenLabel && (
       <Html
         position={[
           0,

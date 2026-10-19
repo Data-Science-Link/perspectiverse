@@ -13,7 +13,8 @@ import {
   systemExtent,
   topicScale,
 } from '../src/lib/layout.js'
-import { clampSolarView, solarLayoutKey } from '../src/lib/solarCamera.js'
+import { clampSolarView, mobileOrbitHome, orbitSamplePoints, projectToCanvas, solarLayoutKey } from '../src/lib/solarCamera.js'
+import { labelCenterIsClear, ORBIT_LABEL_FONT_PX, orbitLabelCssBox, separateLabelBoxes } from '../src/lib/orbitLabels.js'
 import { decorateTopics } from '../src/lib/planets.js'
 
 assert.equal(SITE_TITLE, 'Perspectiverse')
@@ -162,5 +163,103 @@ const clamped = clampSolarView(
 )
 assert.ok(clamped.distance <= 19.2 + 1e-6)
 assert.ok(Math.abs(clamped.target[0]) <= 8 * 0.45 + 1e-6)
+
+function assertMobileOrbitsFit(frame, chromeInset) {
+  const reference = homeLookAt(true, topics.length, layout.extent)
+  const referenceDistance = Math.hypot(reference[0], reference[1], reference[2])
+  const named = topics.map((topic, index) => ({ ...topic, name: topic.name || `Topic ${index + 1}` }))
+  const samples = orbitSamplePoints(named, layout)
+  const fitted = mobileOrbitHome(layout.extent, frame, { samples, referenceDistance, baseDistanceFactor: 16 })
+  assert.equal(fitted.labelDistanceFactor, 16)
+  assert.ok(fitted.distance < referenceDistance * 1.35, `phone camera backed too far: ${fitted.distance} vs ${referenceDistance}`)
+  assert.ok(fitted.distance > referenceDistance * 0.45, `phone camera too close: ${fitted.distance}`)
+  assert.ok(ORBIT_LABEL_FONT_PX >= 10)
+  const chromeTop = frame.height - chromeInset
+  const boxW = frame.usable.width
+  const boxH = frame.usable.height
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (const sample of samples) {
+    const css = orbitLabelCssBox(sample.name, frame.width)
+    const label = projectToCanvas(sample.label, fitted.lookAt, frame.width, frame.height)
+    const planet = projectToCanvas(sample.planet, fitted.lookAt, frame.width, frame.height)
+    assert.equal(label.behind, false, `${sample.name} label sits behind the phone camera`)
+    assert.equal(planet.behind, false, `${sample.name} sits behind the phone camera`)
+    const left = label.x - css.width / 2
+    const right = label.x + css.width / 2
+    const top = label.y - css.height / 2
+    const bottom = label.y + css.height / 2
+    assert.ok(left >= 2 && right <= frame.width - 2, `${sample.name} label x ${left}..${right}`)
+    assert.ok(top >= 2 && bottom <= chromeTop - 2, `${sample.name} label y ${top}..${bottom} chrome ${chromeTop}`)
+    minX = Math.min(minX, left, planet.x)
+    maxX = Math.max(maxX, right, planet.x)
+    minY = Math.min(minY, top, planet.y)
+    maxY = Math.max(maxY, bottom, planet.y)
+  }
+  const fill = Math.max((maxX - minX) / boxW, (maxY - minY) / boxH)
+  assert.ok(fill > 0.62, `cluster should fill the usable area, fill ${fill}`)
+}
+
+assertMobileOrbitsFit(
+  { width: 390, height: 776, usable: { x: 8, y: 8, width: 374, height: 776 - 119 - 8 } },
+  119,
+)
+assertMobileOrbitsFit(
+  { width: 844, height: 332, usable: { x: 8, y: 8, width: 828, height: 332 - 119 - 8 } },
+  119,
+)
+
+function boxesIntersect(a, b) {
+  const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
+  const overlapY = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
+  return overlapX > 0 && overlapY > 0
+}
+
+function placeNudged(boxes, nudges) {
+  return boxes.map((box, index) => ({
+    x: Math.round(box.x) + nudges[index].x,
+    y: Math.round(box.y) + nudges[index].y,
+    w: Math.round(box.w),
+    h: Math.round(box.h),
+  }))
+}
+
+function assertSeparated(boxes, area, label) {
+  const nudges = separateLabelBoxes(boxes, area)
+  const placed = placeNudged(boxes, nudges)
+  assert.equal(labelCenterIsClear(placed), true, label)
+  assert.deepEqual(separateLabelBoxes(boxes, area), nudges, `${label} stable`)
+  for (let i = 0; i < placed.length; i += 1) {
+    const box = placed[i]
+    assert.ok(box.x >= area.left && box.y >= area.top, label)
+    assert.ok(box.x + box.w <= area.right && box.y + box.h <= area.bottom, label)
+    for (let j = i + 1; j < placed.length; j += 1) {
+      assert.equal(boxesIntersect(box, placed[j]), false, `${label} ${i} overlaps ${j}`)
+    }
+  }
+}
+
+const bounds = { left: 0, top: 0, right: 400, bottom: 400 }
+assertSeparated([
+  { x: 100, y: 100, w: 60, h: 12 },
+  { x: 110, y: 102, w: 50, h: 12 },
+], bounds, 'stacked')
+assertSeparated([
+  { x: 40.4, y: 300.2, w: 111, h: 19 },
+  { x: 41.1, y: 301.4, w: 110, h: 19 },
+], { left: 4, top: 4, right: 386, bottom: 640 }, 'coincident pills')
+assertSeparated(
+  Array.from({ length: 10 }, () => ({ x: 180, y: 360, w: 100, h: 19 })),
+  { left: 4, top: 8, right: 386, bottom: 640 },
+  'ten labels on one spot',
+)
+
+const desktopHome = homeLookAt(false, 10, layout.extent)
+assert.equal(desktopHome.length, 6)
+assert.equal(desktopHome[3], 0)
+assert.equal(desktopHome[4], 0)
+assert.equal(desktopHome[5], 0)
 
 console.log('solar system settings, tagline, and texture quality ok')
