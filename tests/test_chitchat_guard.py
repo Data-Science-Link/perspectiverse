@@ -839,6 +839,18 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
     complaint are not wishes. ``Protect Trans Kids`` is not the only slogan
     that should survive a greeting lead-in.
     """
+    must_catch = [
+        "Good morning everyone, have a great day ☀️",
+        "Good morning to you!",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Good morning from Kinmo the cat.",
+        "Good morning from",
+        "Hiya Baron! Good morning to you.",
+        "Every Morning is a Good Morning…",
+    ]
+    for text in must_catch:
+        assert pleasantry_reason({"text": text}) == "greeting", text
     keeps = [
         "Morning Joe said viewers loved the opening interview.",
         "Morning commute was brutal today",

@@ -831,37 +831,307 @@ def _get_well(plain: str) -> bool:
     return True
 
 
-_GOOD_MORNING_RE = re.compile(r"\b(?:good\s+morning|goodmorning)\b", re.IGNORECASE)
-_GOOD_DAYPART_RE = re.compile(
-    r"\b(?:good\s+(?:night|evening|afternoon)|goodnight)\b",
-    re.IGNORECASE,
-)
-_MORNING_NAME_GREET_RE = re.compile(
-    r"^(?:hi(?:ya)?|hey|hello|hiya)?\s*(?:[!,.]?\s*)?morning\s+[a-z]{2,}",
-    re.IGNORECASE,
-)
 _EVERY_MORNING_PLATITUDE_RE = re.compile(
     r"\bevery\s+morning\s+is\s+a\s+good\s+morning\b",
     re.IGNORECASE,
 )
+_LEADING_HAIL_RE = re.compile(
+    r"^(?:hiya|hey|hello|hi)\s+[a-z]{2,}\s+"
+    r"(?=good\s+(?:morning|afternoon|evening|night)|goodmorning|goodnight|morning\b)",
+    re.IGNORECASE,
+)
+_DAYPART_OPEN_RE = re.compile(
+    r"^good\s+(?:morning|afternoon|evening|night)\b|"
+    r"^goodmorning\b|"
+    r"^goodnight\b|"
+    r"^(?:gm|gn)\b",
+    re.IGNORECASE,
+)
+_MORNING_ONLY_OPEN_RE = re.compile(r"^morning\b", re.IGNORECASE)
+_MORNING_NAME_OPEN_RE = re.compile(
+    r"^morning\s+([a-z]{2,})(.*)$",
+    re.IGNORECASE,
+)
+_GOOD_MORNING_TOPIC_TAIL = frozenset(
+    {
+        "america",
+        "world",
+        "news",
+        "run",
+        "routine",
+    }
+)
+_MORNING_FALSE_SECOND = frozenset(
+    {
+        "after",
+        "commute",
+        "joe",
+        "show",
+        "news",
+        "run",
+        "routine",
+        "america",
+        "game",
+        "the",
+        "pill",
+    }
+)
+_GREETING_VOCATIVE = frozenset(
+    {
+        "everyone",
+        "everybody",
+        "all",
+        "folks",
+        "friends",
+        "friend",
+        "world",
+        "yall",
+        "beautiful",
+        "gorgeous",
+        "lovely",
+        "dear",
+        "buddy",
+    }
+)
+_GREETING_PLEASANTRY_RE = re.compile(
+    r"\b(?:"
+    r"to you(?:\s+too)?|to ya|"
+    r"make it a good day|have a (?:good|great|magnificent|wonderful|nice|relaxing|lazy) day|"
+    r"how are you|hope you|i hope you|wishing you|"
+    r"have a great day|happy (?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)|"
+    r"thats the spirit|that s the spirit|"
+    r"xx|xxx|chaggiful"
+    r")\b",
+    re.IGNORECASE,
+)
+_GREETING_SIGNOFF_TAIL_RE = re.compile(
+    r"\bhave a good (?:evening|night|afternoon|day)\s*\.?\s*$",
+    re.IGNORECASE,
+)
+_GREETING_TOPIC_VERB = frozenset(
+    {
+        "said",
+        "won",
+        "held",
+        "resigned",
+        "stalled",
+        "expands",
+        "ban",
+        "loved",
+        "opens",
+        "interview",
+        "matter",
+        "access",
+        "brutal",
+        "runs",
+        "run",
+        "talks",
+    }
+)
+_GREETING_WISH_TAIL_RE = re.compile(
+    r"\b(?:"
+    r"happy\s+(?:sun)?day|happy\s+(?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)|"
+    r"hope you|i hope|hope and pray|hope this|hope you have|hope you enjoy|hope you thoroughly|"
+    r"have a (?:good|great|wonderful|magnificent|nice|relaxing|lazy|easy)|"
+    r"make it a good day|enjoy your|thats the spirit|that s the spirit|"
+    r"peaceful|easy feeling|relaxing day|nice day|great day|wonderful day|blessed day|"
+    r"my dear friend|my friend|nice relaxing|chilly sunday|lazy sunday|sinful sunday|"
+    r"safe travels|have a magnificent"
+    r")\b",
+    re.IGNORECASE,
+)
+_GREETING_HARD_TOPIC_RE = re.compile(
+    r"\b(?:"
+    r"won|held|resigned|stalled|said|interview|ban|expands|access|brutal|"
+    r"lakers|yankees|fed|museum|marathon|rally|pill|coach|exhibit|talks|"
+    r"protect\s+trans|black\s+lives\s+matter|free\s+palestine|"
+    r"see you at the rally"
+    r")\b",
+    re.IGNORECASE,
+)
 _GREETING_WIPE_RE = re.compile(
-    r"\b(?:good\s+morning|goodmorning|good\s+night|good\s+evening|good\s+afternoon|goodnight|"
-    r"gm|gn|hello|hi|hey|howdy|hiya|morning|evening|afternoon|night|"
-    r"to you|to ya|from|dear|everyone|everybody|all|folks|friends|world|"
-    r"make it a good day|have a good day|how are you|hope you|wishing you|"
-    r"beautiful|wonderful|lovely|gorgeous|great|nice|happy|xx|xxx)\b",
+    r"\b(?:"
+    r"good\s+morning|goodmorning|good\s+(?:afternoon|evening|night)|goodnight|"
+    r"gm|gn|morning|afternoon|evening|night|"
+    r"to you(?:\s+too)?|to ya|from|dear|"
+    r"everyone|everybody|all|folks|friends|friend|world|yall|"
+    r"make it a good day|have a (?:good|great|magnificent|wonderful|nice|relaxing|lazy) day|"
+    r"how are you|hope you|i hope you|wishing you|have a great day|"
+    r"happy (?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)|"
+    r"thats the spirit|that s the spirit|"
+    r"beautiful|wonderful|lovely|gorgeous|great|nice|happy|the|a|my|"
+    r"xx|xxx|chaggiful|kinmo|cat|kinmo the cat"
+    r")\b",
     re.IGNORECASE,
 )
 
 
-def _greeting_remainder_substance(plain: str) -> list[str]:
-    text = _GOOD_MORNING_RE.sub(" ", plain or "")
-    text = _GOOD_DAYPART_RE.sub(" ", text)
-    text = _MORNING_NAME_GREET_RE.sub(" ", text)
-    text = _EVERY_MORNING_PLATITUDE_RE.sub(" ", text)
-    text = _GREETING_WIPE_RE.sub(" ", text)
+def _greeting_remainder_tokens(remainder: str) -> list[str]:
+    text = _GREETING_PLEASANTRY_RE.sub(" ", remainder or "")
     text = re.sub(r"[^\w\s]", " ", text)
-    return _substance(" ".join(text.split()))
+    return [t for t in text.split() if t]
+
+
+def _greeting_remainder_substance(remainder: str) -> list[str]:
+    return _substance(" ".join(_greeting_remainder_tokens(remainder)))
+
+
+def _strip_greeting_addressee(remainder: str) -> str:
+    text = (remainder or "").strip()
+    text = re.sub(r"^and\s+", "", text)
+    match = re.match(r"^([a-z]{2,})\s*(?:,|!\.)\s*(.*)$", text)
+    if match and match.group(2).strip():
+        name, tail = match.group(1), match.group(2).strip()
+        if name not in _GREETING_VOCATIVE and name not in _MORNING_FALSE_SECOND:
+            if _GREETING_WISH_TAIL_RE.search(tail) or _GREETING_PLEASANTRY_RE.search(tail):
+                return tail
+    match = re.match(r"^([a-z]{2,})\s+(.+)$", text)
+    if match:
+        name, tail = match.group(1), match.group(2).strip()
+        if name not in _GREETING_VOCATIVE and name not in _MORNING_FALSE_SECOND:
+            if re.match(r"^(?:make it|hope|have a|happy|my)\b", tail):
+                return tail
+    return text
+
+
+def _greeting_remainder_is_topic(remainder: str) -> bool:
+    """True when the tail is more than a name, vocative, or pleasantry."""
+    if not (remainder or "").strip():
+        return False
+    text = _strip_greeting_addressee(remainder)
+    if re.search(r",\s*the\s+\w+", text):
+        return True
+    if re.search(r"\bthe\s+\w+\s+(?:won|held|resigned|opens|stalled)\b", text):
+        return True
+    if _GREETING_HARD_TOPIC_RE.search(text):
+        return True
+    if re.search(r":\s*\S", text):
+        return True
+    tokens = _greeting_remainder_tokens(text)
+    if any(token in _GREETING_TOPIC_VERB for token in tokens):
+        return True
+    if _GREETING_WISH_TAIL_RE.search(text):
+        return False
+    subs = _greeting_remainder_substance(text)
+    if len(subs) >= 2:
+        return True
+    if len(subs) == 1:
+        if subs[0] == "kinmo" or re.match(r"^\s*from\s+", text or ""):
+            return False
+        if _GREETING_WISH_TAIL_RE.search(text):
+            return False
+        return True
+    return False
+
+
+def _morning_name_greeting_tail(rest: str) -> bool:
+    rest = (rest or "").strip()
+    if not rest:
+        return True
+    if rest.startswith(","):
+        rest = rest[1:].strip()
+    if not rest:
+        return True
+    if _GREETING_PLEASANTRY_RE.search(rest):
+        return not _greeting_remainder_is_topic(rest)
+    return False
+
+
+def _greeting_wish_body(plain: str) -> bool:
+    text = plain or ""
+    if _EVERY_MORNING_PLATITUDE_RE.search(text) and _word_count(text) <= 40:
+        tail = _EVERY_MORNING_PLATITUDE_RE.sub(" ", text).strip()
+        return not _greeting_remainder_is_topic(tail)
+
+    if _GREETING_SIGNOFF_TAIL_RE.search(text):
+        before = text[: _GREETING_SIGNOFF_TAIL_RE.search(text).start()].strip()
+        if before and (_word_count(before) > 6 or len(_substance(before)) >= 2):
+            return False
+
+    text = _LEADING_HAIL_RE.sub("", text).strip()
+    if not text:
+        return False
+
+    if re.search(r"\bgood\s+night\s+at\s+the\b", text):
+        return False
+    if re.match(r"^a\s+good\s+morning\b", text):
+        return False
+
+    if not _DAYPART_OPEN_RE.match(text) and not _MORNING_ONLY_OPEN_RE.match(text):
+        lead = re.search(r"\bgood\s+(?:morning|afternoon|evening|night)\b", text)
+        if lead and lead.start() <= 10 and _word_count(text[: lead.start()]) <= 2:
+            text = text[lead.start() :].strip()
+
+    remainder = ""
+    if _DAYPART_OPEN_RE.match(text):
+        m = re.match(
+            r"^(?:good\s+(?:morning|afternoon|evening|night)|goodmorning|goodnight|gm|gn)\s*"
+            r"(?:[!.,:]\s*)?(.*)$",
+            text,
+            flags=re.I,
+        )
+        if not m:
+            return False
+        remainder = (m.group(1) or "").strip()
+        head = text[: m.start(1)].lower()
+        if "good morning" in head or "goodmorning" in head.replace(" ", ""):
+            first = remainder.split(None, 1)[0] if remainder else ""
+            if first in _GOOD_MORNING_TOPIC_TAIL:
+                return False
+    elif _MORNING_ONLY_OPEN_RE.match(text):
+        m = re.match(r"^morning\s*(?:[!.,]\s*)?(.*)$", text, flags=re.I)
+        remainder = (m.group(1) or "").strip() if m else ""
+        if not remainder:
+            return _word_count(text) <= 4
+        mname = _MORNING_NAME_OPEN_RE.match(text)
+        if not mname:
+            return False
+        second = mname.group(1).lower()
+        if second in _MORNING_FALSE_SECOND:
+            return False
+        return _morning_name_greeting_tail(mname.group(2) or "")
+    else:
+        return False
+
+    if _greeting_remainder_is_topic(remainder):
+        return False
+
+    if re.match(r"^to you(?:\s+too)?\s*$", remainder.strip()):
+        return True
+
+    if _GREETING_WISH_TAIL_RE.search(_strip_greeting_addressee(remainder)):
+        return True
+
+    rem_tokens = _greeting_remainder_tokens(remainder)
+    if not rem_tokens:
+        return True
+
+    if rem_tokens[0] == "from":
+        return not _greeting_remainder_is_topic(remainder)
+
+    # Optional vocative then pleasantries only.
+    idx = 0
+    if rem_tokens[0] in _GREETING_VOCATIVE or (
+        len(rem_tokens[0]) >= 2
+        and rem_tokens[0] not in _MORNING_FALSE_SECOND
+        and rem_tokens[0] != "from"
+    ):
+        if rem_tokens[0] in _MORNING_FALSE_SECOND:
+            return False
+        idx = 1
+        if idx < len(rem_tokens) and rem_tokens[idx] in _GREETING_VOCATIVE:
+            idx += 1
+    tail = " ".join(rem_tokens[idx:])
+    if not tail:
+        return True
+    if tail.startswith("from"):
+        return not _greeting_remainder_is_topic(tail)
+    if _GREETING_PLEASANTRY_RE.search(tail):
+        return not _greeting_remainder_is_topic(tail)
+    # A single addressee name (Susan, Richard, Jim) then pleasantry clause.
+    if idx >= 1 and _GREETING_PLEASANTRY_RE.search(remainder):
+        return not _greeting_remainder_is_topic(remainder)
+    return False
 
 
 def _greeting(plain: str) -> bool:
@@ -876,23 +1146,13 @@ def _greeting(plain: str) -> bool:
         "good night",
         "good evening",
         "good afternoon",
+        "morning",
     }
     if plain in exact:
         return True
-    if _news(plain) or _work_topic(plain):
+    if _word_count(plain) > 60:
         return False
-    # A rights slogan with a greeting lead-in stays (#208 live Good Morning sample).
-    if re.search(r"\bprotect\s+trans\b", plain or ""):
-        return False
-    if _EVERY_MORNING_PLATITUDE_RE.search(plain or ""):
-        return _word_count(plain) <= 36 and len(_greeting_remainder_substance(plain)) <= 2
-    if _GOOD_MORNING_RE.search(plain or "") or _GOOD_DAYPART_RE.search(plain or ""):
-        if _word_count(plain) <= 55 and len(_greeting_remainder_substance(plain)) <= 3:
-            return True
-    if _MORNING_NAME_GREET_RE.search(plain or ""):
-        if _word_count(plain) <= 40 and len(_greeting_remainder_substance(plain)) <= 3:
-            return True
-    return False
+    return _greeting_wish_body(plain)
 
 
 def pleasantry_reason(post: dict) -> str | None:
