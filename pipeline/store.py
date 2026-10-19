@@ -156,14 +156,19 @@ def _kept_stored_non_claim(post: dict, verdict_row: tuple | None) -> bool:
 def should_drop_stored_post(post: dict, verdict_row: tuple | None = None) -> bool:
     """Whether ``drop_non_quality_posts`` removes a row already in the corpus.
 
-    Non-spam non-claims stay (#217). Spam and free ingest blocks leave.
-    Cached Jev spam counts even when the row has no ``spam_score``.
+    Non-spam non-claims stay (#217). Cached Jev spam always leaves.
+    Other ingest blocks use ``should_purge_stored_for_ingest_reason`` (see
+    ``pipeline/stored_purge.py``).
     """
     if _stored_spam(post, verdict_row):
         return True
     from pipeline.chitchat_guard import ingest_block_reason
+    from pipeline.stored_purge import should_purge_stored_for_ingest_reason
 
-    return ingest_block_reason(post) is not None
+    reason = ingest_block_reason(post)
+    if reason is None:
+        return False
+    return should_purge_stored_for_ingest_reason(reason)
 
 
 def count_quality_posts(connection: sqlite3.Connection) -> int:
