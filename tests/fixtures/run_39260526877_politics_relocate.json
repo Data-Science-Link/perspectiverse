@@ -1,0 +1,26 @@
+{
+  "github_actions_run_id": 39260526877,
+  "commit": "831d218",
+  "failure": "Section 'Politics' topic volumes sum to 93.1, not 100",
+  "relocate_log": "Section Politics: moved planet Tax Purposes (180 posts) to Culture (post-label sanity).",
+  "stale_politics_sum_after_relocate": 93.1,
+  "politics_post_counts": [
+    {"name": "Tax Purposes", "post_count": 180, "relocate_to": "Culture"},
+    {"name": "Maga", "post_count": 270},
+    {"name": "No Kings Protests", "post_count": 270},
+    {"name": "Israel Condemned", "post_count": 270},
+    {"name": "Musk Interference", "post_count": 270},
+    {"name": "Trans Rights Debate", "post_count": 270},
+    {"name": "Early Voting", "post_count": 270},
+    {"name": "Trump Gas Prices", "post_count": 270},
+    {"name": "Jeremiah Smith", "post_count": 270},
+    {"name": "Debt Impact", "post_count": 269}
+  ],
+  "tax_member_texts": [
+    "Add \"for Tax Purposes\" to a movie: Just One of the Guys for Tax Purposes",
+    "Add \"for Tax Purposes\" to a movie: They Will Kill You for Tax Purposes",
+    "add \"for tax purposes\" to a movie: annihilation for tax purposes",
+    "Add \"for Tax Purposes\" to a movie: The Force Awakens for Tax Purposes.",
+    "Add \"for Tax Purposes\" to a movie: Groundhog Day for Tax Purposes"
+  ]
+}
