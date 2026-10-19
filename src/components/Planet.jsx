@@ -4,7 +4,18 @@ import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, CatmullRomCurve3, DoubleSide, Quaternion, TubeGeometry, Vector3 } from 'three'
 import { hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { faceLayout } from '../lib/faces'
-import { bodySpin, formatPercent, orbitElements, resumeOrbitAngle, saveOrbitAngle, setOrbitPosition, topicScale } from '../lib/layout'
+import {
+  bodySpin,
+  formatPercent,
+  orbitElements,
+  GRID_LABEL_GAP,
+  PLANET_MESH_RADIUS,
+  resumeOrbitAngle,
+  saveOrbitAngle,
+  setOrbitPosition,
+  topicScale,
+} from '../lib/layout'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import SpikyCube from './SpikyCube'
 
 const _desired = new Vector3()
@@ -33,6 +44,10 @@ export default function Planet({
   quality = 'high',
   sphereDetail = [48, 36],
   haloDetail = [32, 32],
+  labelDistanceFactor,
+  planetVisualScale = 1,
+  meshScale = null,
+  linearGrid = false,
 }) {
   const group = useRef()
   const cube = useRef()
@@ -49,7 +64,12 @@ export default function Planet({
   const spinAxis = useMemo(() => new Vector3(...spin.axis), [spin])
   const angle = useRef(resumeOrbitAngle(topic.id, orbit.phase))
   const placed = useRef(Boolean(anchor))
-  const scale = topicScale(topic.total_volume_percent, volumeMax)
+  const naturalScale = topicScale(topic.total_volume_percent, volumeMax) * Math.max(0.55, planetVisualScale)
+  const scale = Number.isFinite(meshScale) ? meshScale : naturalScale
+  const htmlDistanceFactor = labelDistanceFactor ?? (isMobile ? 16 : 18)
+  const portrait = useMediaQuery('(orientation: portrait)')
+  const labelScale = linearGrid && isMobile ? (portrait ? 1.08 : 1) : 1
+  const linearLabelAnchor = Boolean(anchor && isMobile)
   const color = topicColor(topic.id, body)
   const ranked = useMemo(
     () => rankPerspectives(topic.perspectives),
@@ -75,7 +95,10 @@ export default function Planet({
       } else {
         setOrbitPosition(_desired, orbit.radius, angle.current, orbit.inclination, orbit.node)
       }
-      if (placed.current !== linear) {
+      if (linear) {
+        group.current.position.copy(_desired)
+        placed.current = true
+      } else if (placed.current !== linear) {
         const blend = 1 - Math.exp(-delta * 4.5)
         group.current.position.lerp(_desired, blend)
         if (group.current.position.distanceTo(_desired) < 0.05) placed.current = linear
@@ -84,6 +107,38 @@ export default function Planet({
       }
       if (anchors?.current) {
         anchors.current[topic.id] = group.current.position.clone()
+      }
+
+      if (linearGrid && isMobile && group.current && typeof window !== 'undefined') {
+        const canvas = state.gl.domElement
+        const rect = canvas.getBoundingClientRect()
+        group.current.getWorldPosition(_world)
+        const bodyRadius = isSun ? scale * 1.28 : scale * PLANET_MESH_RADIUS
+        _desired.copy(_world)
+        _desired.y += bodyRadius
+        _desired.project(state.camera)
+        const top = (1 - _desired.y) * 0.5 * rect.height + rect.top
+        _desired.copy(_world)
+        _desired.y -= bodyRadius
+        _desired.project(state.camera)
+        const bottom = (1 - _desired.y) * 0.5 * rect.height + rect.top
+        _desired.copy(_world)
+        _desired.x += bodyRadius
+        _desired.project(state.camera)
+        const right = (_desired.x * 0.5 + 0.5) * rect.width + rect.left
+        _desired.copy(_world)
+        _desired.x -= bodyRadius
+        _desired.project(state.camera)
+        const left = (_desired.x * 0.5 + 0.5) * rect.width + rect.left
+        const sphereRect = {
+          topicIndex: index,
+          x: left,
+          y: top,
+          width: Math.max(right - left, 1),
+          height: Math.max(bottom - top, 1),
+        }
+        if (!window.__perspectiverseSphereRects) window.__perspectiverseSphereRects = {}
+        window.__perspectiverseSphereRects[topic.id] = sphereRect
       }
     }
 
@@ -225,19 +280,35 @@ export default function Planet({
           />
         </group>
       </group>
+      {!linearGrid && (
       <Html
-        position={[0, scale * (isMobile ? 1.32 : 1.45), 0]}
-        center
-        distanceFactor={isMobile ? 16 : 18}
+        position={[
+          0,
+          (() => {
+            if (!anchor) return scale * (isMobile ? 1.32 : 1.45)
+            if (!isMobile) return scale * 1.2
+            const bodyReach = isSun ? scale * 1.58 : scale * PLANET_MESH_RADIUS + scale * 0.08
+            const labelGap = GRID_LABEL_GAP
+            return -(bodyReach + labelGap)
+          })(),
+          0,
+        ]}
+        center={!linearLabelAnchor}
+        distanceFactor={htmlDistanceFactor}
         zIndexRange={[10, 0]}
         style={{ pointerEvents: 'none' }}
       >
         <button
           type="button"
-          className={`planet-label ${dimmed ? 'is-dimmed' : ''} ${isMobile ? 'is-mobile' : ''}`}
+          data-topic-index={index}
+          className={`planet-label ${dimmed ? 'is-dimmed' : ''} ${isMobile ? 'is-mobile' : ''} ${anchor ? 'is-linear' : ''}`}
           style={{
             borderColor: hexToRgba(color, dimmed ? 0.12 : 0.55),
             pointerEvents: 'auto',
+            transform: linearLabelAnchor
+              ? `translateX(-50%)${labelScale === 1 ? '' : ` scale(${labelScale})`}`
+              : labelScale === 1 ? undefined : `scale(${labelScale})`,
+            transformOrigin: linearLabelAnchor ? 'top center' : 'center center',
           }}
           onClick={(event) => {
             event.stopPropagation()
@@ -247,6 +318,7 @@ export default function Planet({
           {topic.name}
         </button>
       </Html>
+      )}
       {!isMobile && hovered && (
         <Html position={[0, scale * 1.95, 0]} center distanceFactor={20} zIndexRange={[12, 0]}>
           <div className="planet-hover">
