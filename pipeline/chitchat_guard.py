@@ -931,12 +931,16 @@ _GREETING_TOPIC_VERB = frozenset(
 _GREETING_WISH_TAIL_RE = re.compile(
     r"\b(?:"
     r"happy\s+(?:sun)?day|happy\s+(?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)|"
-    r"hope you|i hope|hope and pray|hope this|hope you have|hope you enjoy|hope you thoroughly|"
-    r"have a (?:good|great|wonderful|magnificent|nice|relaxing|lazy|easy)|"
-    r"make it a good day|enjoy your|thats the spirit|that s the spirit|"
-    r"peaceful|easy feeling|relaxing day|nice day|great day|wonderful day|blessed day|"
-    r"my dear friend|my friend|nice relaxing|chilly sunday|lazy sunday|sinful sunday|"
-    r"safe travels|have a magnificent"
+    r"happy\s+chilly\s+sunday|"
+    r"hope you|i hope you|i hope this day|hope this day|hope and pray|hope you have|"
+    r"hope you enjoy|hope you thoroughly|hope you are all doing great|"
+    r"have a (?:good|great|wonderful|magnificent|nice|relaxing|lazy|easy) day|"
+    r"make it a good day|thats the spirit|that s the spirit|"
+    r"peaceful easy feeling|easy feeling|relaxing day|nice relaxing day|"
+    r"going to be a relaxing day|nice day|great day|wonderful day|blessed day|"
+    r"my dear friend|my friend(?!\s+the\b)|nice relaxing|chilly sunday|lazy sunday|sinful sunday|"
+    r"awesome sunday|safe travels|have a magnificent day|enjoy your lazy sunday|"
+    r"enjoy the matches|pray everyone"
     r")\b",
     re.IGNORECASE,
 )
@@ -999,6 +1003,12 @@ def _greeting_remainder_is_topic(remainder: str) -> bool:
     if not (remainder or "").strip():
         return False
     text = _strip_greeting_addressee(remainder)
+    if _news(text) or _work_topic(text):
+        return True
+    if re.search(r"\bi hope\b", text) and not re.search(
+        r"\bi hope (?:you|this day|your day|everyone)\b", text
+    ):
+        return True
     if re.search(r",\s*the\s+\w+", text):
         return True
     if re.search(r"\bthe\s+\w+\s+(?:won|held|resigned|opens|stalled)\b", text):
@@ -1010,7 +1020,7 @@ def _greeting_remainder_is_topic(remainder: str) -> bool:
     tokens = _greeting_remainder_tokens(text)
     if any(token in _GREETING_TOPIC_VERB for token in tokens):
         return True
-    if _GREETING_WISH_TAIL_RE.search(text):
+    if _GREETING_WISH_TAIL_RE.search(text) and not (_news(text) or _work_topic(text)):
         return False
     subs = _greeting_remainder_substance(text)
     if len(subs) >= 2:
@@ -1039,6 +1049,8 @@ def _morning_name_greeting_tail(rest: str) -> bool:
 
 def _greeting_wish_body(plain: str) -> bool:
     text = plain or ""
+    if _news(text) or _work_topic(text):
+        return False
     if _EVERY_MORNING_PLATITUDE_RE.search(text) and _word_count(text) <= 40:
         tail = _EVERY_MORNING_PLATITUDE_RE.sub(" ", text).strip()
         return not _greeting_remainder_is_topic(tail)
@@ -1150,6 +1162,8 @@ def _greeting(plain: str) -> bool:
     }
     if plain in exact:
         return True
+    if _news(plain) or _work_topic(plain):
+        return False
     if _word_count(plain) > 60:
         return False
     return _greeting_wish_body(plain)

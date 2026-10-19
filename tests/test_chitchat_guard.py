@@ -868,6 +868,15 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
         "A good morning run before the marathon",
         "Morning after the game the coach resigned",
         "Good night folks, see you at the rally tomorrow",
+        "Good morning, I hope the bill passes",
+        "Good morning, I hope the strike ends",
+        "Good evening, I hope the senate confirms the judge",
+        "Good afternoon, I hope the hurricane turns offshore",
+        "Good morning, the peaceful protest grew overnight",
+        "Good morning, my friend the senator spoke",
+        "Good morning, enjoy your indictment",
+        "Good morning, I hope Congress votes tonight",
+        "Good morning, I hope Ukraine holds the line",
     ]
     misclassified = []
     for text in keeps:
