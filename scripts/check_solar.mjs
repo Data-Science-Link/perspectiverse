@@ -13,6 +13,7 @@ import {
   systemExtent,
   topicScale,
 } from '../src/lib/layout.js'
+import { clampSolarView, solarLayoutKey } from '../src/lib/solarCamera.js'
 import { decorateTopics } from '../src/lib/planets.js'
 
 assert.equal(SITE_TITLE, 'Perspectiverse')
@@ -88,9 +89,78 @@ for (let index = 1; index < line.positions.length; index += 1) {
 }
 assert.ok(line.positions[0][0] < 0 && line.positions[line.positions.length - 1][0] > 0, 'the line is centered on the origin')
 for (const isMobile of [false, true]) {
-  const framed = homeLookAt(isMobile, topics.length, line.extent, { linear: true })
+  const framed = homeLookAt(isMobile, topics.length, line.extent, { linear: true, extentX: line.extentX, extentY: line.extentY })
   const distance = Math.hypot(framed[0], framed[1], framed[2])
   assert.ok(distance > line.extent * 0.8, `linear camera too close on ${isMobile}`)
 }
+
+const gridPortrait = layoutLinear(topics, volumeMax, { grid: true, viewportAspect: 390 / 844 })
+assert.equal(gridPortrait.mode, 'grid')
+assert.ok(gridPortrait.cols >= 2 && gridPortrait.cols <= 5, `unexpected grid columns: ${gridPortrait.cols}`)
+for (let index = 1; index < gridPortrait.positions.length; index += 1) {
+  const prev = gridPortrait.positions[index - 1]
+  const next = gridPortrait.positions[index]
+  const prevRow = Math.floor((index - 1) / gridPortrait.cols)
+  const nextRow = Math.floor(index / gridPortrait.cols)
+  if (prevRow === nextRow) {
+    assert.ok(next[0] > prev[0], 'grid row reads left to right')
+    assert.ok(Math.abs(next[1] - prev[1]) < 0.2, 'grid row stays level')
+  } else {
+    assert.ok(next[1] < prev[1], 'later rows sit below earlier rows')
+    assert.ok(next[0] < prev[0], 'each row starts on the left')
+  }
+}
+const gridLandscape = layoutLinear(topics, volumeMax, { grid: true, viewportAspect: 2.54 })
+assert.equal(gridLandscape.mode, 'grid')
+assert.ok(Math.ceil(topics.length / gridLandscape.cols) <= 2, `landscape should use at most 2 rows: ${gridLandscape.cols} columns`)
+assert.ok(gridLandscape.cols >= gridPortrait.cols, 'landscape should not use fewer columns than portrait')
+assert.equal(gridPortrait.planetVisualScale, 0.9)
+assert.equal(gridLandscape.planetVisualScale, 0.9)
+
+function screenFixture(width, height, aspect) {
+  const landscape = aspect > 1.15
+  const filterBlock = landscape ? 108 : 124
+  return {
+    viewport: { width, height },
+    usable: { x: 6, y: 8, width: width - 12, height: height - filterBlock - 8 },
+  }
+}
+
+function assertScreenGrid(aspect, width, height, minDiameter) {
+  const placed = layoutLinear(topics, volumeMax, {
+    grid: true,
+    viewportAspect: aspect,
+    screen: screenFixture(width, height, aspect),
+  })
+  assert.equal(placed.planetVisualScale, 0.9)
+  assert.ok(Math.min(...placed.bodyDiameters) >= minDiameter, `diameters ${placed.bodyDiameters}`)
+  for (let index = 1; index < placed.bodyDiameters.length; index += 1) {
+    assert.ok(placed.bodyDiameters[index] <= placed.bodyDiameters[index - 1] + 1e-6, 'screen diameters stay in size order')
+  }
+  const places = placed.screenPlaces
+  for (let index = 0; index < places.length; index += 1) {
+    const place = places[index]
+    const radius = placed.bodyDiameters[index] / 2
+    const sphere = { x: place.x - radius, y: place.y - radius, width: radius * 2, height: radius * 2 }
+    const pill = { x: place.x - 40, y: place.pillTop, width: 80, height: place.pillHeight }
+    const overlap = Math.min(sphere.x + sphere.width, pill.x + pill.width) - Math.max(sphere.x, pill.x) > 0
+      && Math.min(sphere.y + sphere.height, pill.y + pill.height) - Math.max(sphere.y, pill.y) > 0
+    assert.equal(overlap, false, `sphere ${index} meets its pill`)
+    assert.ok(place.pillTop >= sphere.y + sphere.height - 1e-6, 'pill starts below the sphere')
+  }
+}
+
+assertScreenGrid(390 / 844, 390, 844, 28)
+assertScreenGrid(2.54, 844, 332, 24)
+
+assert.equal(solarLayoutKey('all', false), 'all:orbit')
+assert.equal(solarLayoutKey('World', true, false), 'World:linear')
+assert.equal(solarLayoutKey('all', true, true), 'all:grid')
+const clamped = clampSolarView(
+  { position: [40, 10, 40], target: [30, 0, 0], distance: 50 },
+  { minDistance: 3.2, maxDistance: 19.2, extent: 8, linear: false },
+)
+assert.ok(clamped.distance <= 19.2 + 1e-6)
+assert.ok(Math.abs(clamped.target[0]) <= 8 * 0.45 + 1e-6)
 
 console.log('solar system settings, tagline, and texture quality ok')
