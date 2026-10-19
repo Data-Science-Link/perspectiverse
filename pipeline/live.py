@@ -3166,6 +3166,8 @@ def _cluster_sections(
         result.setdefault(dest, []).extend(assigned)
         print(f"Section {dest}: accepted {len(assigned)} planet(s) relocated from Politics.")
 
+    # Post-label sanity (#228) moves planets between sections without changing
+    # post_count; shares must be recomputed so validate_payload sees 100 per section.
     for section_topics in result.values():
         publish_volumes(section_topics)
 

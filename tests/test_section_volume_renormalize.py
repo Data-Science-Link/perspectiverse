@@ -1,4 +1,4 @@
-"""Section topic volumes must sum to 100 after planets are relocated (#257)."""
+"""Section topic volumes must sum to 100 after post-label relocation (#258, #257)."""
 
 from pipeline.assemble import assemble_payload
 from pipeline.live import _assign_section_topic_ids, publish_volumes
@@ -34,20 +34,22 @@ def _politics_topic(name: str, post_count: int, member_uris: list[str], face_id:
     }
 
 
-def test_politics_section_renormalizes_after_planets_relocated():
+def test_politics_section_renormalizes_after_tax_purposes_relocated():
+    """Mirrors run 39260526877: Tax Purposes (180 posts) moved to Culture left 93.1%."""
     posts = [
-        {"uri": "a", "text": "youtu.be/x #musicsky"},
-        {"uri": "b", "text": "youtu.be/y #musicsky"},
+        {"uri": "a", "text": "Die Hard for Tax Purposes"},
+        {"uri": "b", "text": "Catch Me If You Can for Tax Purposes"},
     ]
     topics = [
-        _politics_topic("Senate Vote", 93, [], "1A"),
-        _politics_topic("Music Videos", 7, ["a", "b"], "2A"),
+        _politics_topic("Senate Vote", 2426, [], "1A"),
+        _politics_topic("Tax Purposes", 180, ["a", "b"], "2A"),
     ]
     publish_volumes(topics)
     kept, moved = partition_politics_planets(topics, posts)
     assert moved.get("Culture")
+    assert moved["Culture"][0]["name"] == "Tax Purposes"
     stale_sum = sum(float(topic["total_volume_percent"]) for topic in kept)
-    assert 92.0 < stale_sum < 94.0
+    assert 92.9 < stale_sum < 93.3
 
     publish_volumes(kept)
     politics = _assign_section_topic_ids("Politics", kept)
@@ -65,7 +67,7 @@ def test_politics_section_renormalizes_after_planets_relocated():
         [global_topic],
         mode="live",
         source="fixture",
-        total_posts=100,
+        total_posts=2606,
         last_updated="2026-10-19",
         sections={"Politics": politics},
     )
