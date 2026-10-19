@@ -783,3 +783,49 @@ def _planet_texts(payload: dict, section: str, name: str) -> list[str]:
         if planet["section"] == section and planet["name"] == name:
             return list(planet["texts"])
     raise AssertionError(f"missing {section}:{name}")
+
+
+def test_issue_208_good_morning_greeting_variants():
+    """Live miss 2026-10-19: Good Morning planet (#208 comment)."""
+    greetings = [
+        "Good morning to you!",
+        "Good morning from",
+        "Good morning from Kinmo the cat.",
+        "Hiya Baron! Good morning to you.",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Every Morning is a Good Morning…",
+    ]
+    for text in greetings:
+        assert pleasantry_reason({"text": text}) == "greeting", text
+    keeps = [
+        "The Senate met this morning to debate the healthcare bill.",
+        "Good morning! Protect Trans Kids",
+    ]
+    for text in keeps:
+        assert pleasantry_reason({"text": text}) is None, text
+
+
+def test_issue_208_good_morning_planet_representatives_drop():
+    """Fifteen published Good Morning representatives must hit the planet guard."""
+    reps = [
+        "Good morning to you!",
+        "Good morning from Kinmo the cat.",
+        "Hiya Baron! Good morning to you.",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Every Morning is a Good Morning…",
+        "Good morning to you!",
+        "Good morning from",
+        "Good morning!",
+        "Morning!",
+        "Good morning friend!",
+        "Good morning everyone!",
+        "Good morning beautiful!",
+        "Good morning to you too!",
+        "Good morning! Protect Trans Kids",
+    ]
+    members = _members(reps)
+    share = sum(1 for m in members if pleasantry_reason(m)) / len(members)
+    assert share >= PLEASANTRY_SHARE_DROP
+    assert planet_chitchat_reason(members, [], name="Good Morning") is not None

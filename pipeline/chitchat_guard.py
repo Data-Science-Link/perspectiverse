@@ -831,8 +831,41 @@ def _get_well(plain: str) -> bool:
     return True
 
 
+_GOOD_MORNING_RE = re.compile(r"\b(?:good\s+morning|goodmorning)\b", re.IGNORECASE)
+_GOOD_DAYPART_RE = re.compile(
+    r"\b(?:good\s+(?:night|evening|afternoon)|goodnight)\b",
+    re.IGNORECASE,
+)
+_MORNING_NAME_GREET_RE = re.compile(
+    r"^(?:hi(?:ya)?|hey|hello|hiya)?\s*(?:[!,.]?\s*)?morning\s+[a-z]{2,}",
+    re.IGNORECASE,
+)
+_EVERY_MORNING_PLATITUDE_RE = re.compile(
+    r"\bevery\s+morning\s+is\s+a\s+good\s+morning\b",
+    re.IGNORECASE,
+)
+_GREETING_WIPE_RE = re.compile(
+    r"\b(?:good\s+morning|goodmorning|good\s+night|good\s+evening|good\s+afternoon|goodnight|"
+    r"gm|gn|hello|hi|hey|howdy|hiya|morning|evening|afternoon|night|"
+    r"to you|to ya|from|dear|everyone|everybody|all|folks|friends|world|"
+    r"make it a good day|have a good day|how are you|hope you|wishing you|"
+    r"beautiful|wonderful|lovely|gorgeous|great|nice|happy|xx|xxx)\b",
+    re.IGNORECASE,
+)
+
+
+def _greeting_remainder_substance(plain: str) -> list[str]:
+    text = _GOOD_MORNING_RE.sub(" ", plain or "")
+    text = _GOOD_DAYPART_RE.sub(" ", text)
+    text = _MORNING_NAME_GREET_RE.sub(" ", text)
+    text = _EVERY_MORNING_PLATITUDE_RE.sub(" ", text)
+    text = _GREETING_WIPE_RE.sub(" ", text)
+    text = re.sub(r"[^\w\s]", " ", text)
+    return _substance(" ".join(text.split()))
+
+
 def _greeting(plain: str) -> bool:
-    return plain in {
+    exact = {
         "gm",
         "gn",
         "hello",
@@ -844,6 +877,22 @@ def _greeting(plain: str) -> bool:
         "good evening",
         "good afternoon",
     }
+    if plain in exact:
+        return True
+    if _news(plain) or _work_topic(plain):
+        return False
+    # A rights slogan with a greeting lead-in stays (#208 live Good Morning sample).
+    if re.search(r"\bprotect\s+trans\b", plain or ""):
+        return False
+    if _EVERY_MORNING_PLATITUDE_RE.search(plain or ""):
+        return _word_count(plain) <= 36 and len(_greeting_remainder_substance(plain)) <= 2
+    if _GOOD_MORNING_RE.search(plain or "") or _GOOD_DAYPART_RE.search(plain or ""):
+        if _word_count(plain) <= 55 and len(_greeting_remainder_substance(plain)) <= 3:
+            return True
+    if _MORNING_NAME_GREET_RE.search(plain or ""):
+        if _word_count(plain) <= 40 and len(_greeting_remainder_substance(plain)) <= 3:
+            return True
+    return False
 
 
 def pleasantry_reason(post: dict) -> str | None:
