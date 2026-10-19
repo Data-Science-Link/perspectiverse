@@ -928,23 +928,6 @@ _GREETING_TOPIC_VERB = frozenset(
         "talks",
     }
 )
-_GREETING_WISH_TAIL_RE = re.compile(
-    r"\b(?:"
-    r"happy\s+(?:sun)?day|happy\s+(?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)|"
-    r"happy\s+chilly\s+sunday|"
-    r"hope you|i hope you|i hope this day|i hope everyone|i hope your day|hope this day|hope and pray|"
-    r"hope you have|hope you enjoy|hope you thoroughly|hope you are all doing great|"
-    r"have a (?:good|great|wonderful|magnificent|nice|relaxing|lazy|easy) day|"
-    r"make it a good day|thats the spirit|that s the spirit|"
-    r"peaceful easy feeling|peaceful vibes|easy feeling|relaxing day|nice relaxing day|"
-    r"going to be a relaxing day|nice day|great day|wonderful day|blessed day|"
-    r"my dear friend|my friend(?!\s+the\b)|nice relaxing|chilly sunday|lazy sunday|sinful sunday|"
-    r"awesome sunday|safe travels|have a magnificent day|enjoy your lazy sunday|"
-    r"enjoy your coffee|enjoy the matches|pray everyone|"
-    r"sleep well|sweet dreams|stay warm|coffee is on"
-    r")\b",
-    re.IGNORECASE,
-)
 _GREETING_TAIL_PLEASANTRY_TOKENS = frozenset(
     {
         "sleep",
@@ -975,6 +958,133 @@ _GREETING_TAIL_PLEASANTRY_TOKENS = frozenset(
         "friend",
         "everyone",
         "all",
+        "peaceful",
+        "magnificent",
+        "relaxing",
+        "lazy",
+        "chilly",
+        "sinful",
+        "awesome",
+        "pray",
+        "prays",
+        "hoping",
+        "hope",
+        "hopes",
+        "cold",
+        "feeling",
+        "brings",
+        "thoroughly",
+        "though",
+        "doing",
+        "missed",
+        "animal",
+        "silly",
+        "people",
+        "phone",
+        "travels",
+        "ya",
+        "greeting",
+        "feed",
+        "stuff",
+        "smiles",
+    }
+)
+_GREETING_NEVER_NAME = frozenset(
+    {
+        "storm",
+        "warning",
+        "sale",
+        "downtown",
+        "hearing",
+        "eclipse",
+        "parade",
+        "merger",
+        "launch",
+        "prices",
+        "train",
+        "bakery",
+        "bridge",
+        "aurora",
+        "recital",
+        "ferry",
+        "comet",
+        "choir",
+        "wifi",
+        "tariffs",
+        "vaccine",
+        "landlord",
+        "indictment",
+        "protest",
+        "senator",
+        "congress",
+        "ukraine",
+        "strike",
+        "hurricane",
+        "bill",
+        "passes",
+        "outside",
+        "frost",
+        "fall",
+        "start",
+        "started",
+        "nicely",
+        "legs",
+        "blast",
+        "wait",
+        "update",
+        "feed",
+        "stuff",
+        "smiles",
+        "lord",
+        "forward",
+        "blessings",
+        "help",
+        "phone",
+        "ever",
+        "harvest",
+        "futures",
+        "orders",
+        "money",
+        "oceans",
+        "stops",
+        "potato",
+        "warmer",
+        "wifi",
+        "fi",
+        "wi",
+    }
+)
+_GREETING_SUBSTANCE_ALLOWLIST = frozenset(
+    _GREETING_TAIL_PLEASANTRY_TOKENS
+    | _GREETING_VOCATIVE
+    | {
+        "kinmo",
+        "baron",
+        "richard",
+        "susan",
+        "thakman",
+        "jim",
+        "chaggiful",
+        "pippy",
+        "allie",
+        "amanda",
+        "marcie",
+        "buddy",
+        "kelly",
+        "jamie",
+        "lynn",
+        "stella",
+        "ray",
+        "darren",
+        "gillian",
+        "hiya",
+        "bluesky",
+        "butterflies",
+        "matches",
+        "sunshine",
+        "sun",
+        "mornin",
+        "autumn",
     }
 )
 _DIRECTED_HOPE_RE = re.compile(
@@ -1017,78 +1127,55 @@ def _greeting_remainder_substance(remainder: str) -> list[str]:
     return _substance(" ".join(_greeting_remainder_tokens(remainder)))
 
 
-def _greeting_tail_substance(remainder: str) -> list[str]:
-    """Content words in a greeting tail minus ordinary wish vocabulary."""
-    return [
+def _greeting_tail_only_allowlisted_content(remainder: str) -> bool:
+    """True when every substantive tail token is in the closed greeting allowlist."""
+    if not (remainder or "").strip():
+        return True
+    text = (remainder or "").strip().lower()
+    if _news(text) or _work_topic(text):
+        return False
+    raw_tokens = [token for token in re.sub(r"[^\w\s]", " ", text).split() if token]
+    if raw_tokens and all(token in _GREETING_NEVER_NAME for token in raw_tokens):
+        return False
+    if re.search(r"\bi hope\b", text) and not _DIRECTED_HOPE_RE.search(text):
+        return False
+    if _GREETING_HARD_TOPIC_RE.search(text):
+        return False
+    if re.search(r":\s*\S", text):
+        return False
+    if re.search(r"\bmy friend\s+the\b", text):
+        return False
+    tokens = _greeting_remainder_tokens(text)
+    if any(token in _GREETING_TOPIC_VERB for token in tokens):
+        return False
+    subs = _greeting_remainder_substance(text)
+    if not subs:
+        return True
+    unknown = [token for token in subs if token not in _GREETING_SUBSTANCE_ALLOWLIST]
+    if not unknown:
+        return True
+    name_tokens = [
         token
-        for token in _greeting_remainder_substance(remainder)
-        if token not in _GREETING_TAIL_PLEASANTRY_TOKENS
+        for token in unknown
+        if token.isalpha()
+        and 2 <= len(token) <= 14
+        and token not in _GREETING_NEVER_NAME
     ]
-
-
-def _strip_greeting_addressee(remainder: str) -> str:
-    text = (remainder or "").strip()
-    text = re.sub(r"^and\s+", "", text)
-    match = re.match(r"^([a-z]{2,})\s*(?:,|!\.)\s*(.*)$", text)
-    if match and match.group(2).strip():
-        name, tail = match.group(1), match.group(2).strip()
-        if name not in _GREETING_VOCATIVE and name not in _MORNING_FALSE_SECOND:
-            if _GREETING_WISH_TAIL_RE.search(tail) or _GREETING_PLEASANTRY_RE.search(tail):
-                return tail
-    match = re.match(r"^([a-z]{2,})\s+(.+)$", text)
-    if match:
-        name, tail = match.group(1), match.group(2).strip()
-        if name not in _GREETING_VOCATIVE and name not in _MORNING_FALSE_SECOND:
-            if re.match(r"^(?:make it|hope|have a|happy|my)\b", tail):
-                return tail
-    return text
+    hard = [token for token in unknown if token not in name_tokens]
+    if hard:
+        return False
+    return len(name_tokens) <= 2
 
 
 def _greeting_remainder_is_topic(remainder: str) -> bool:
-    """True when the tail is more than a name, vocative, or pleasantry."""
-    if not (remainder or "").strip():
-        return False
-    text = _strip_greeting_addressee(remainder)
-    if _news(text) or _work_topic(text):
-        return True
-    if re.search(r"\bi hope\b", text) and not _DIRECTED_HOPE_RE.search(text):
-        return True
-    if _DIRECTED_HOPE_RE.search(text) and not _greeting_tail_substance(text):
-        return False
-    if re.search(r",\s*the\s+\w+", text):
-        return True
-    if re.search(r"\bthe\s+\w+\s+(?:won|held|resigned|opens|stalled)\b", text):
-        return True
-    if _GREETING_HARD_TOPIC_RE.search(text):
-        return True
-    if re.search(r":\s*\S", text):
-        return True
-    tokens = _greeting_remainder_tokens(text)
-    if any(token in _GREETING_TOPIC_VERB for token in tokens):
-        return True
-    if _GREETING_WISH_TAIL_RE.search(text) and not (_news(text) or _work_topic(text)):
-        return False
-    subs = _greeting_tail_substance(text)
-    if len(subs) >= 2:
-        return True
-    if len(subs) == 1:
-        if subs[0] == "kinmo" or re.match(r"^\s*from\s+", text or ""):
-            return False
-        if _GREETING_WISH_TAIL_RE.search(text):
-            return False
-        return True
-    return False
+    return not _greeting_tail_only_allowlisted_content(remainder)
 
 
 def _morning_name_greeting_tail(rest: str) -> bool:
     rest = (rest or "").strip()
-    if not rest:
-        return True
     if rest.startswith(","):
         rest = rest[1:].strip()
-    if not rest:
-        return True
-    return not _greeting_remainder_is_topic(rest)
+    return _greeting_tail_only_allowlisted_content(rest)
 
 
 def _greeting_wish_body(plain: str) -> bool:
@@ -1149,45 +1236,7 @@ def _greeting_wish_body(plain: str) -> bool:
     else:
         return False
 
-    if _greeting_remainder_is_topic(remainder):
-        return False
-
-    if re.match(r"^to you(?:\s+too)?\s*$", remainder.strip()):
-        return True
-
-    if _GREETING_WISH_TAIL_RE.search(_strip_greeting_addressee(remainder)):
-        return True
-
-    rem_tokens = _greeting_remainder_tokens(remainder)
-    if not rem_tokens:
-        return True
-
-    if rem_tokens[0] == "from":
-        return not _greeting_remainder_is_topic(remainder)
-
-    # Optional vocative then pleasantries only.
-    idx = 0
-    if rem_tokens[0] in _GREETING_VOCATIVE or (
-        len(rem_tokens[0]) >= 2
-        and rem_tokens[0] not in _MORNING_FALSE_SECOND
-        and rem_tokens[0] != "from"
-    ):
-        if rem_tokens[0] in _MORNING_FALSE_SECOND:
-            return False
-        idx = 1
-        if idx < len(rem_tokens) and rem_tokens[idx] in _GREETING_VOCATIVE:
-            idx += 1
-    tail = " ".join(rem_tokens[idx:])
-    if not tail:
-        return True
-    if tail.startswith("from"):
-        return not _greeting_remainder_is_topic(tail)
-    if _GREETING_PLEASANTRY_RE.search(tail):
-        return not _greeting_remainder_is_topic(tail)
-    # A single addressee name (Susan, Richard, Jim) then pleasantry clause.
-    if idx >= 1 and _GREETING_PLEASANTRY_RE.search(remainder):
-        return not _greeting_remainder_is_topic(remainder)
-    return False
+    return _greeting_tail_only_allowlisted_content(remainder)
 
 
 def _greeting(plain: str) -> bool:

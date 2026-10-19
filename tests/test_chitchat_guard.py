@@ -832,13 +832,7 @@ def test_issue_208_good_morning_planet_representatives_drop():
 
 
 def test_issue_208_morning_patterns_do_not_swallow_topics():
-    """Short real-topic posts must stay, including ones that miss ``_NEWS_RE``.
-
-    ``good morning`` inside a sentence, a ``morning <word>`` prefix such as
-    "morning after" or "Morning Joe", and a daypart plug at the end of a
-    complaint are not wishes. ``Protect Trans Kids`` is not the only slogan
-    that should survive a greeting lead-in.
-    """
+    """Reviewer strings (bc-44865100) for #208 greeting guard, verbatim."""
     must_catch = [
         "Good morning everyone, have a great day ☀️",
         "Good morning to you!",
@@ -860,6 +854,7 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
     for text in must_catch:
         assert pleasantry_reason({"text": text}) == "greeting", text
     keeps = [
+        # Original 16 (a31e73d)
         "Morning Joe said viewers loved the opening interview.",
         "Morning commute was brutal today",
         "good morning america interview with the coach",
@@ -876,6 +871,7 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
         "A good morning run before the marathon",
         "Morning after the game the coach resigned",
         "Good night folks, see you at the rally tomorrow",
+        # Nine news-tail keeps (77ed247)
         "Good morning, I hope the bill passes",
         "Good morning, I hope the strike ends",
         "Good evening, I hope the senate confirms the judge",
@@ -885,20 +881,41 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
         "Good morning, enjoy your indictment",
         "Good morning, I hope Congress votes tonight",
         "Good morning, I hope Ukraine holds the line",
+        # Fourteen fresh topic probes (bc-44865100, exact wording)
         "Good morning, I hope my landlord fixes the heat",
         "Good morning, enjoy the eclipse today",
-        "Good morning, the parade starts at noon",
-        "Good morning, the train is delayed again",
-        "Good morning, the bakery opens late today",
-        "Good morning, the bridge is closed for repairs",
-        "Good morning, aurora season is starting up north",
-        "Good morning, the recital starts at six",
-        "Good morning, the ferry is cancelled again",
-        "Good morning, the comet is visible tonight",
-        "Good morning, choir practice moved to Sunday",
-        "Good morning, the Wi-Fi is down again",
-        "Good morning, the vaccine clinic opens at nine",
-        "Good morning, tariffs are back in the headlines",
+        "Good morning, parade",
+        "Good morning, train",
+        "Good morning, the bakery on Main burned",
+        "Good morning, bridge",
+        "Good morning, aurora",
+        "Good morning, recital",
+        "Good morning, ferry",
+        "Good morning, comet",
+        "Good morning, choir",
+        "Good morning, Wi-Fi",
+        "Good morning, vaccine",
+        "Good morning, tariffs",
+        # Eleven vocabulary probes kept (b66dc85)
+        "Good morning, coffee prices doubled",
+        "Good morning, warm weather records broken in Texas",
+        "Morning friends, the coffee shop union won",
+        "Good night, the heat wave continues",
+        "Good morning, tea harvest",
+        "Good morning, warmer oceans",
+        "Good morning, rest stops",
+        "Good morning, coffee futures",
+        "Good morning, stay orders",
+        "Good morning, easy money",
+        "Good morning, sweet potato harvest",
+        # Seven wish-phrase + topic tails (b66dc85 re-review)
+        "Good morning, I hope everyone sleeps through the storm warning",
+        "Good morning, coffee is on sale downtown",
+        "Good morning, enjoy your coffee before the hearing",
+        "Good morning, I hope everyone sleeps through the eclipse",
+        "Good morning, peaceful vibes before the parade",
+        "Good night, sweet dreams about the merger",
+        "Good morning, sleep well before the launch",
     ]
     misclassified = []
     for text in keeps:
