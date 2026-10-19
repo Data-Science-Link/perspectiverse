@@ -6,6 +6,7 @@ from pipeline.corpus_persist import persist_paid_corpus
 from pipeline.jev import apply_jev, known_scored_uris, reset_jev_state
 from pipeline.costs import reset_meter
 from pipeline.free_ingest import prepare_post, refresh_carried_posts
+from pipeline.chitchat_guard import edition_posts_for_clustering, ingest_block_reason
 from pipeline.store import (
     connect,
     drop_non_quality_posts,
@@ -15,6 +16,7 @@ from pipeline.store import (
     should_drop_stored_post,
     write_quality_posts,
 )
+from pipeline.stored_purge import purge_stored_reasons_list, should_purge_stored_for_ingest_reason
 
 
 def _post(uri: str, *, claim: bool | None, spam: float | None = None, text: str | None = None) -> dict:
@@ -50,6 +52,52 @@ def test_write_quality_posts_skips_spam_and_non_claims(tmp_path):
             _post("at://unscored", claim=None),
         ],
     )
+    assert _uris(connection) == {"at://claim"}
+    connection.close()
+
+
+def test_stored_link_and_language_purge_switch(tmp_path, monkeypatch):
+    link_post = {
+        "uri": "at://stored-bare-link",
+        "author": "ada",
+        "text": "youtu.be/VAWjsVoDpm0",
+        "clean_text": "#musicsky",
+        "likes": 1,
+        "created_at": "2026-10-16T12:00:00Z",
+        "is_claim": True,
+    }
+    lang_post = {
+        "uri": "at://stored-pt",
+        "author": "ada",
+        "text": "O governo do Brasil anunciou novas medidas econômicas hoje",
+        "clean_text": "O governo do Brasil anunciou novas medidas econômicas hoje",
+        "likes": 1,
+        "created_at": "2026-10-16T12:00:00Z",
+        "is_claim": True,
+    }
+    keep_post = _post("at://claim", claim=True, spam=0.1)
+    connection = connect(tmp_path / "corpus.db")
+    replace_posts(connection, [keep_post, link_post, lang_post])
+
+    monkeypatch.delenv("PERSPECTIVERSE_PURGE_STORED_REASONS", raising=False)
+    assert purge_stored_reasons_list() == frozenset()
+    assert should_purge_stored_for_ingest_reason("link_only") is False
+    assert ingest_block_reason(link_post) == "link_only"
+    assert ingest_block_reason(lang_post) == "language"
+    assert should_drop_stored_post(link_post) is False
+    assert should_drop_stored_post(lang_post) is False
+    assert drop_non_quality_posts(connection) == 0
+    assert _uris(connection) == {"at://claim", "at://stored-bare-link", "at://stored-pt"}
+    kept, language, links, chitchat = edition_posts_for_clustering(load_posts(connection))
+    assert [post["uri"] for post in kept] == ["at://claim"]
+    assert (language, links, chitchat) == (1, 1, 0)
+
+    monkeypatch.setenv("PERSPECTIVERSE_PURGE_STORED_REASONS", "link_only,language")
+    assert purge_stored_reasons_list() == frozenset({"link_only", "language"})
+    assert should_drop_stored_post(link_post) is True
+    assert should_drop_stored_post(lang_post) is True
+    dropped = drop_non_quality_posts(connection)
+    assert dropped == 2
     assert _uris(connection) == {"at://claim"}
     connection.close()
 
