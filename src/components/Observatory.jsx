@@ -193,49 +193,64 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
       })
     }
 
-    if (nudgeKey.current !== fitKey || !nudges.current) {
-      const home = fitKey.split(',').map(Number)
-      if (home.length >= 6) {
-        const dx = camera.position.x - home[0]
-        const dy = camera.position.y - home[1]
-        const dz = camera.position.z - home[2]
-        _labelPoint.set(home[3], home[4], home[5]).project(camera)
-        const aimed = dx * dx + dy * dy + dz * dz < 0.64
-          && Math.abs(_labelPoint.x) < 0.08
-          && Math.abs(_labelPoint.y) < 0.08
-          && _labelPoint.z < 1
-        if (!aimed) return
+    const home = fitKey.split(',').map(Number)
+    if (home.length >= 6) {
+      const dx = camera.position.x - home[0]
+      const dy = camera.position.y - home[1]
+      const dz = camera.position.z - home[2]
+      _labelPoint.set(home[3], home[4], home[5]).project(camera)
+      const aimed = dx * dx + dy * dy + dz * dz < 0.64
+        && Math.abs(_labelPoint.x) < 0.08
+        && Math.abs(_labelPoint.y) < 0.08
+        && _labelPoint.z < 1
+      if (!aimed) return
+    }
+    if (nodes.some((node) => node.offsetWidth < 2)) return
+    const header = document.querySelector('header')?.getBoundingClientRect()
+    const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
+    const bounds = {
+      left: 4,
+      top: Math.max(4, (header ? header.bottom - overlayRect.top : 0) + 4),
+      right: Math.max(40, overlayRect.width - 4),
+      bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
+    }
+    if (!(bounds.bottom > bounds.top + 24) || !(bounds.right > bounds.left + 24)) return
+    const boxes = nodes.map((node, index) => ({
+      x: bases[index].x - node.offsetWidth / 2,
+      y: bases[index].y - node.offsetHeight / 2,
+      w: node.offsetWidth,
+      h: node.offsetHeight,
+    }))
+    const signature = `${fitKey}|${boxes.map((box) => `${Math.round(box.x)},${Math.round(box.y)},${box.w},${box.h}`).join(';')}`
+    if (nudgeKey.current !== signature || !nudges.current) {
+      nudges.current = separateLabelBoxes(boxes, bounds)
+      nudgeKey.current = signature
+    }
+
+    let overlapping = nodes.some((node) => node._orbitLeft == null)
+    if (!overlapping) {
+      for (let i = 0; i < nodes.length; i += 1) {
+        for (let j = i + 1; j < nodes.length; j += 1) {
+          const a = nodes[i]
+          const b = nodes[j]
+          const ax = a._orbitLeft
+          const ay = a._orbitTop
+          const bx = b._orbitLeft
+          const by = b._orbitTop
+          const overlapX = Math.min(ax + a.offsetWidth, bx + b.offsetWidth) - Math.max(ax, bx)
+          const overlapY = Math.min(ay + a.offsetHeight, by + b.offsetHeight) - Math.max(ay, by)
+          if (overlapX > 0 && overlapY > 0) overlapping = true
+        }
       }
-      if (nodes.some((node) => node.offsetWidth < 2)) return
-      const header = document.querySelector('header')?.getBoundingClientRect()
-      const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
-      const bounds = {
-        left: 4,
-        top: Math.max(4, (header ? header.bottom - overlayRect.top : 0) + 4),
-        right: Math.max(40, overlayRect.width - 4),
-        bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
-      }
-      if (!(bounds.bottom > bounds.top + 24) || !(bounds.right > bounds.left + 24)) return
-      const boxes = nodes.map((node, index) => ({
-        x: bases[index].x - node.offsetWidth / 2,
-        y: bases[index].y - node.offsetHeight / 2,
-        w: node.offsetWidth,
-        h: node.offsetHeight,
-      }))
-      nudges.current = separateLabelBoxes(boxes, bounds, { gap: 4, iterations: 48 })
-      nudgeKey.current = fitKey
-      nodes.forEach((node) => {
-        node._orbitHold = 0
-      })
     }
 
     const now = performance.now()
     nodes.forEach((node, index) => {
       const nudge = nudges.current[index] || { x: 0, y: 0 }
-      const left = Math.round(bases[index].x - node.offsetWidth / 2 + nudge.x)
-      const top = Math.round(bases[index].y - node.offsetHeight / 2 + nudge.y)
+      const left = Math.round(boxes[index].x) + nudge.x
+      const top = Math.round(boxes[index].y) + nudge.y
       if (node._orbitLeft === left && node._orbitTop === top) return
-      if (node._orbitLeft != null && now < (node._orbitHold || 0)) return
+      if (node._orbitLeft != null && !overlapping && now < (node._orbitHold || 0)) return
       node._orbitLeft = left
       node._orbitTop = top
       node._orbitHold = now + LABEL_HOLD_MS

@@ -211,24 +211,50 @@ assertMobileOrbitsFit(
   119,
 )
 
-const stacked = [
+function boxesIntersect(a, b) {
+  const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
+  const overlapY = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
+  return overlapX > 0 && overlapY > 0
+}
+
+function placeNudged(boxes, nudges) {
+  return boxes.map((box, index) => ({
+    x: Math.round(box.x) + nudges[index].x,
+    y: Math.round(box.y) + nudges[index].y,
+    w: Math.round(box.w),
+    h: Math.round(box.h),
+  }))
+}
+
+function assertSeparated(boxes, area, label) {
+  const nudges = separateLabelBoxes(boxes, area)
+  const placed = placeNudged(boxes, nudges)
+  assert.equal(labelCenterIsClear(placed), true, label)
+  assert.deepEqual(separateLabelBoxes(boxes, area), nudges, `${label} stable`)
+  for (let i = 0; i < placed.length; i += 1) {
+    const box = placed[i]
+    assert.ok(box.x >= area.left && box.y >= area.top, label)
+    assert.ok(box.x + box.w <= area.right && box.y + box.h <= area.bottom, label)
+    for (let j = i + 1; j < placed.length; j += 1) {
+      assert.equal(boxesIntersect(box, placed[j]), false, `${label} ${i} overlaps ${j}`)
+    }
+  }
+}
+
+const bounds = { left: 0, top: 0, right: 400, bottom: 400 }
+assertSeparated([
   { x: 100, y: 100, w: 60, h: 12 },
   { x: 110, y: 102, w: 50, h: 12 },
-]
-const bounds = { left: 0, top: 0, right: 400, bottom: 400 }
-const nudges = separateLabelBoxes(stacked, bounds)
-const placed = stacked.map((box, index) => ({
-  ...box,
-  x: box.x + nudges[index].x,
-  y: box.y + nudges[index].y,
-}))
-assert.equal(labelCenterIsClear(placed), true)
-const again = separateLabelBoxes(stacked, bounds)
-assert.deepEqual(again, nudges)
-for (const box of placed) {
-  assert.ok(box.x >= bounds.left && box.y >= bounds.top)
-  assert.ok(box.x + box.w <= bounds.right && box.y + box.h <= bounds.bottom)
-}
+], bounds, 'stacked')
+assertSeparated([
+  { x: 40.4, y: 300.2, w: 111, h: 19 },
+  { x: 41.1, y: 301.4, w: 110, h: 19 },
+], { left: 4, top: 4, right: 386, bottom: 640 }, 'coincident pills')
+assertSeparated(
+  Array.from({ length: 10 }, () => ({ x: 180, y: 360, w: 100, h: 19 })),
+  { left: 4, top: 8, right: 386, bottom: 640 },
+  'ten labels on one spot',
+)
 
 const desktopHome = homeLookAt(false, 10, layout.extent)
 assert.equal(desktopHome.length, 6)
