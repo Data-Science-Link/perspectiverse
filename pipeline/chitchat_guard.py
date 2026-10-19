@@ -1127,6 +1127,29 @@ def _greeting_remainder_substance(remainder: str) -> list[str]:
     return _substance(" ".join(_greeting_remainder_tokens(remainder)))
 
 
+def _greeting_tail_has_pleasantry_or_wish(remainder: str) -> bool:
+    """True when the tail is more than a bare addressee (unknown or known)."""
+    text = (remainder or "").strip().lower()
+    if not text:
+        return False
+    if _GREETING_PLEASANTRY_RE.search(text):
+        return True
+    if _DIRECTED_HOPE_RE.search(text):
+        return True
+    if re.search(
+        r"\b(?:"
+        r"sleep well|sweet dreams|peaceful vibes|stay warm|coffee is on|"
+        r"make it a good day|how are you|enjoy your coffee|have a great day"
+        r")\b",
+        text,
+        re.I,
+    ):
+        return True
+    wiped = _greeting_remainder_tokens(text)
+    subs = _substance(" ".join(wiped))
+    return any(token in _GREETING_TAIL_PLEASANTRY_TOKENS for token in subs)
+
+
 def _greeting_tail_only_allowlisted_content(remainder: str) -> bool:
     """True when every substantive tail token is in the closed greeting allowlist."""
     if not (remainder or "").strip():
@@ -1164,7 +1187,11 @@ def _greeting_tail_only_allowlisted_content(remainder: str) -> bool:
     hard = [token for token in unknown if token not in name_tokens]
     if hard:
         return False
-    return len(name_tokens) <= 2
+    if not name_tokens:
+        return True
+    if len(name_tokens) > 1:
+        return False
+    return _greeting_tail_has_pleasantry_or_wish(text)
 
 
 def _greeting_remainder_is_topic(remainder: str) -> bool:
