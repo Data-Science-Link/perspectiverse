@@ -20,6 +20,8 @@ from pipeline.chitchat_guard import (
 )
 from scripts.replay_planet_guard import classify_planet
 from pipeline.free_ingest import keep_edition_quality
+from pipeline.language import edition_filter_reason
+from pipeline.store import should_drop_stored_post
 from pipeline.label import (
     build_planet_name_prompt,
     build_topic_prompt,
@@ -618,11 +620,47 @@ def test_bare_youtube_link_counts_in_the_planet_share_only():
     bare = {"text": "youtu.be/VAWjsVoDpm0 #musicsky"}
     assert pleasantry_reason(bare) is None
     assert is_bare_link_post(bare)
-    assert ingest_block_reason(bare) is None
+    assert ingest_block_reason(bare) == "link_only"
     assert planet_chitchat_reason([bare] * 8, [], name="Music Videos")
     sentence = {"text": "You might find this video heartening. youtu.be/SOSOyr1yPao"}
     assert not is_bare_link_post(sentence)
     assert planet_chitchat_reason([sentence] * 8, [], name="Music Videos") is None
+
+
+def test_stored_drop_and_clustering_agree_on_raw_text_not_stale_clean_text(monkeypatch):
+    """#219 stored rows may have ``clean_text`` without the URL; clustering must match ingest."""
+
+    monkeypatch.delenv("PERSPECTIVERSE_PURGE_STORED_REASONS", raising=False)
+
+    def assert_edition_matches_ingest(post: dict) -> None:
+        block = ingest_block_reason(post)
+        edition = edition_filter_reason(post)
+        assert edition == block
+        kept, language, links, chitchat = edition_posts_for_clustering([post])
+        if block in {"link_only", "language"}:
+            assert len(kept) == 0
+            assert should_drop_stored_post(post) is False
+        elif block is None:
+            assert len(kept) == 1
+        else:
+            assert len(kept) == 0
+
+    commentary = {
+        "uri": "at://stored/commentary-link",
+        "text": "There it is!! bsky.app/profile/example.bsky.social/post/abc",
+        "clean_text": "There it is!!",
+    }
+    assert edition_filter_reason(commentary) is None
+    assert_edition_matches_ingest(commentary)
+
+    stale_bare = {
+        "uri": "at://stored/bare-youtube",
+        "text": "youtu.be/VAWjsVoDpm0 #musicsky",
+        "clean_text": "#musicsky",
+    }
+    assert edition_filter_reason(stale_bare) == "link_only"
+    assert ingest_block_reason(stale_bare) == "link_only"
+    assert_edition_matches_ingest(stale_bare)
 
 
 def test_clustering_pass_counts_carried_over_skips():

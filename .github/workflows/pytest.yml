@@ -28,7 +28,7 @@ jobs:
           uv venv
           # Skip the BERTopic/torch stack. Tests use the lexical backend only.
           uv pip install -e . --no-deps
-          uv pip install pytest pyyaml "numpy>=1.24,<2"
+          uv pip install pytest pyyaml "numpy>=1.24,<2" langid==1.1.6
 
       - name: Pytest
         run: |

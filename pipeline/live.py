@@ -16,7 +16,7 @@ from pathlib import Path
 
 from pipeline.assemble import FACE_LETTERS, assemble_payload, face_id, topic_name, write_payload
 from pipeline.briefs import apply_level_summaries
-from pipeline.cleaning import clean_posts, drop_near_duplicates
+from pipeline.cleaning import clean_posts, clean_text, drop_near_duplicates
 from pipeline.corpus import (
     TARGET_POSTS,
     claim_count,
@@ -341,7 +341,10 @@ def run_live(
             f"Reclustering {len(planet_posts)} edition-quality posts from scratch "
             f"({len(cleaned)} stored in corpus)."
         )
-        texts = [post["clean_text"] for post in planet_posts]
+        texts = [
+            clean_text(str(post.get("text") or post.get("clean_text") or ""))
+            for post in planet_posts
+        ]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
         # Fixed floor. The corpus size does not raise it, and the group count
         # is not n // floor. Density clustering decides how many groups exist.

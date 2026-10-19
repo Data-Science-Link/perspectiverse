@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 
 from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, URL_RE
-from pipeline.language import is_link_only, looks_english, partition_posts
+from pipeline.language import edition_filter_reason, is_link_only, partition_posts
 from pipeline.spam_guard import guard_reason, post_body
 
 # Majority of member posts. Titles are not consulted.
@@ -253,10 +253,6 @@ _PERSONAL_HEALTH_CONDITION_RE = re.compile(
 _PERSONAL_HEALTH_AUTHOR_TOKEN_RE = re.compile(r"\b(?:i|im|ive|id|my|me)\b")
 _SPORTS_RESULT_RE = re.compile(
     r"\b(?:games?|seasons?|innings?|quarters?|overtime|playoffs?|touchdowns?|goals?|scored|defeated)\b",
-    re.IGNORECASE,
-)
-_BARE_LINK_RE = re.compile(
-    r"https?://\S+|www\.\S+|(?:https?://)?(?:www\.)?(?:youtu\.be|youtube\.com)/\S+",
     re.IGNORECASE,
 )
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -926,11 +922,9 @@ def ingest_block_reason(post: dict) -> str | None:
         return f"chitchat:{chit}"
     if not drop_link_and_language_at_ingest():
         return None
-    text = str(post.get("clean_text") or post.get("text") or "")
-    if is_link_only(text):
-        return "link_only"
-    if not looks_english(text):
-        return "language"
+    reason = edition_filter_reason(post)
+    if reason:
+        return reason
     return None
 
 
@@ -960,13 +954,13 @@ def edition_posts_for_clustering(
     links = 0
     for post in posts:
         uri = str(post.get("uri") or "")
-        text = str(post.get("clean_text") or post.get("text") or "")
-        if is_link_only(text):
+        reason = edition_filter_reason(post)
+        if reason == "link_only":
             links += 1
             if carried_skips is not None and uri in carried:
                 carried_skips["link_only"] = carried_skips.get("link_only", 0) + 1
             continue
-        if not looks_english(text):
+        if reason == "language":
             language += 1
             if carried_skips is not None and uri in carried:
                 carried_skips["language"] = carried_skips.get("language", 0) + 1
@@ -1054,18 +1048,9 @@ def is_bare_stream_domain_link(post: dict) -> bool:
 def is_bare_link_post(post: dict) -> bool:
     """A URL, including youtu.be, with fewer than four words left.
 
-    Planet share counts these. Ingest does not treat them as chit-chat:
-    ``is_link_only`` still misses youtu.be, and #208 does not require a bare
-    video link to miss the 100K.
+    Planet share counts these. Ingest uses the same ``is_link_only`` rule.
     """
-    raw = post_body(post)
-    if not _BARE_LINK_RE.search(raw or ""):
-        return False
-    text = HASHTAG_RE.sub(" ", raw)
-    text = HANDLE_RE.sub(" ", text)
-    text = _BARE_LINK_RE.sub(" ", text)
-    words = re.findall(r"[A-Za-z]{3,}", text)
-    return len(words) < 4
+    return is_link_only(post_body(post))
 
 
 def planet_content_share(members: list[dict]) -> float:
