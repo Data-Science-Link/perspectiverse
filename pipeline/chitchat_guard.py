@@ -96,7 +96,7 @@ _FILLER = frozenset(
 _NEWS_RE = re.compile(
     r"\b(?:veterans?|congress|senate|senators?|court|rulings?|(?<!\bin )laws?|bills?|council|"
     r"impeach(?:ed|ment|ments)?|"
-    r"votes?|voting|voters?|polic(?:y|ies)|wages?|reports?|invasion|ukrain\w*|housing|"
+    r"votes?|voting|voters?|voted|polic(?:y|ies)|wages?|reports?|invasion|ukrain\w*|housing|"
     r"gambling|elections?|presidents?|tax(?:es)?|tariffs?|military|police|hospitals?|"
     r"vaccines?|climate|schools?|students?|universit\w*|inflation|strikes?|unions?|"
     r"protests?|refugees?|treat(?:y|ies)|sanctions?|parliament|ministers?|governors?|"
@@ -114,6 +114,54 @@ _NEWS_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Political or argumentative posts that open with thanks or “great”.
+_DISCUSSION_RE = re.compile(
+    r"\b(?:nazis?|fascists?|never forget|scumbag|stolen|destroying|communities|"
+    r"environment|screenplay|studios?|webtoon|comicfury|itch|tumblr|organizations?|"
+    r"audience|ebooks?|treatments?|hires?|industry|platforms?)\b",
+    re.IGNORECASE,
+)
+
+_CIVIC_TAG_RE = re.compile(
+    r"#(?:ivoted|voteblue|votered|nokings|resist|fbr|vote)\b",
+    re.IGNORECASE,
+)
+
+_GESTURE_WIPE_RE = re.compile(
+    r"\b(?:thank you|thanks|thankyou|thx|ty|my pleasure|youre welcome|you are welcome|"
+    r"happy to help|glad to help|no problem|dont mention it|of course|"
+    r"incredible|awesome|amazing|beautiful|gorgeous|stunning|lovely|fantastic|wonderful|"
+    r"great|best|photogenic|cute|hot|sexy|adorable|delightful|so good|so pretty|"
+    r"love it|love this|love you|thankful|grateful|appreciate|pleasure|welcome|"
+    r"photogenic|wonderful design|lovely work|nice work|amazing work|great work)\b",
+    re.IGNORECASE,
+)
+
+# Thanks-heavy courtesy clusters (#227). Independent of a single anchor post.
+THANK_PLANET_MIN_MEMBERS = 15
+THANK_PLANET_SHARE_DROP = 0.25
+THANK_PLANET_MIN_THANKS = 5
+# Mention-based thanks balls can be mostly long-form gratitude, not ingest thanks.
+THANK_PLANET_MENTION_SHARE_DROP = 0.30
+# Reaction / stream balls sized like published chit-chat planets.
+GESTURE_CLUSTER_MIN_MEMBERS = 40
+GESTURE_CLUSTER_SHARE_DROP = 0.38
+STREAM_CLUSTER_MIN_MEMBERS = 50
+STREAM_CLUSTER_SHARE_DROP = 0.30
+
+_STREAMING_PLATFORM_SALIENT_TERMS = frozenset(
+    {
+        "twitch",
+        "kick",
+        "youtube",
+        "youtu",
+        "rumble",
+        "mixer",
+        "joystick",
+    }
+)
+_STREAM_PLATFORM_DROP_REASON = "Mostly about a streaming platform, not a topic"
+
 _WORK_RE = re.compile(
     r"\b(?:songs?|albums?|movies?|films?|books?|novels?|poems?|goals?|scored|assists?|podcasts?)\b",
     re.IGNORECASE,
@@ -124,6 +172,13 @@ _STREAM_URL_RE = re.compile(
     r"(?:https?://)?(?:www\.)?(?:twitch\.tv/|kick\.com/)",
     re.IGNORECASE,
 )
+# Stream hosts for planet stream-share (includes subdomains and YouTube /live).
+_STREAM_DOMAIN_URL_RE = re.compile(
+    r"(?:https?://)?(?:[\w-]+\.)*twitch\.tv(?:/\S*)?|"
+    r"(?:https?://)?(?:[\w-]+\.)*kick\.com(?:/\S*)?|"
+    r"(?:https?://)?(?:www\.)?youtube\.com/live(?:/\S*)?",
+    re.IGNORECASE,
+)
 _STREAM_PHRASE_RE = re.compile(
     r"\b(?:live now|going live|go live|im live|i am live|were live|we are live|"
     r"stream is starting|stream starting|streams starting|stream starts|streams start|stream time|"
@@ -132,6 +187,7 @@ _STREAM_PHRASE_RE = re.compile(
     r"come watch|come join|come hang out|starting now|surprise stream|"
     r"we are streaming|were streaming|ready to stream|impromptu stream|"
     r"gonna start stream|start stream|final stream|"
+    r"karaoke stream|"
     r"now live(?!\s+in\b)|bonus stream|come hop in|hop in|live right now)\b",
     re.IGNORECASE,
 )
@@ -406,6 +462,30 @@ def _news(plain: str) -> bool:
     return bool(_NEWS_RE.search(plain or ""))
 
 
+def _discussion_topic(raw: str, plain: str) -> bool:
+    if _CIVIC_TAG_RE.search(raw or ""):
+        return True
+    return bool(_DISCUSSION_RE.search(plain or ""))
+
+
+def _gesture_remainder_substance(plain: str) -> list[str]:
+    text = _GESTURE_WIPE_RE.sub(" ", plain or "")
+    text = re.sub(r"[^\w\s]", " ", text)
+    return _substance(" ".join(text.split()))
+
+
+def _gesture_is_the_post(raw: str, plain: str, *, creator: bool = False) -> bool:
+    """True when gratitude or praise is the whole post, not a lead-in to a topic."""
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain):
+        return False
+    subs = _gesture_remainder_substance(plain)
+    if re.search(r"^(?:thank you|thanks|ty|thx)\b", plain or ""):
+        return len(subs) <= 3 and _word_count(plain) <= 60
+    if creator:
+        return len(subs) <= 2 and _word_count(plain) <= 55
+    return len(subs) <= 1 and _word_count(" ".join(subs)) <= 6
+
+
 def _work_topic(plain: str) -> bool:
     return bool(_WORK_RE.search(plain or ""))
 
@@ -475,6 +555,19 @@ def _stream_promo(raw: str, plain: str) -> bool:
         return False
     if phrase:
         return True
+    if (
+        re.search(r"\bjoin me\b", plain or "")
+        and re.search(r"\b(?:stream|streams|karaoke|twitch|live)\b", plain or "")
+        and not _news(plain)
+        and _word_count(plain) <= 24
+    ):
+        return True
+    if (
+        re.search(r"\b(?:karaoke|bonus|surprise) stream\b", plain or "")
+        and not _news(plain)
+        and _word_count(plain) <= 20
+    ):
+        return True
     if not url or _news(plain):
         return False
     if _word_count(plain) <= 30:
@@ -485,36 +578,120 @@ def _stream_promo(raw: str, plain: str) -> bool:
 def _person_directed(plain: str) -> bool:
     return bool(
         re.search(r"\b(?:you|your|youre|youve)\b", plain or "")
-        or re.search(r"\blove (?:her|him|them)\b", plain or "")
+        or re.search(r"\blove (?:her|him|them|his|hers)\b", plain or "")
     )
 
 
-def _thanks(plain: str) -> bool:
-    if not (
-        re.search(r"\b(?:thank you|thanks|thankyou|thx)\b", plain or "")
-        or plain in {"ty", "thx"}
-        or re.search(r"\byoure welcome\b", plain or "")
-    ):
+def _courtesy_reply(raw: str, plain: str) -> bool:
+    """Short “my pleasure” / “happy to help” replies, not policy."""
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain):
         return False
-    if _news(plain) or _work_topic(plain) or _sports_play(plain):
-        return False
-    return len(_substance(plain)) <= 1
-
-
-def _compliment(raw: str, plain: str) -> bool:
     if not re.search(
-        r"\b(?:cute|beautiful|gorgeous|stunning|lovely|sexy|adorable|delightful|"
-        r"so pretty|love this|love it|love her|love him|love you|love that you|so hot)\b",
+        r"\b(?:my pleasure|youre welcome|you are welcome|happy to help|glad to help|"
+        r"no problem|dont mention it|do not mention it)\b",
         plain or "",
     ):
         return False
-    if _news(plain) or _work_topic(plain) or _sports_play(raw):
+    subs = _gesture_remainder_substance(plain)
+    return _word_count(plain) <= 40 and len(subs) <= 3
+
+
+def _creator_compliment(raw: str, plain: str) -> bool:
+    """Praise for someone's art, WIP pics, shirt, etc."""
+    if re.search(r"^great\s*[-–—]", plain or ""):
         return False
-    subs = _substance(plain)
+    if _discussion_topic(raw, plain) or _news(plain) or _sports_play(plain):
+        return False
+    if not re.search(r"\byour\b", plain or ""):
+        return False
+    if not re.search(
+        r"\b(?:work|wip|progress|pics?|art|shirt|photo|photos|drawing|sketch|rendering|"
+        r"piece|creation|design|comic|animation|video|stream|channel)\b",
+        plain or "",
+    ):
+        return False
+    if not re.search(
+        r"\b(?:incredible|awesome|amazing|beautiful|stunning|gorgeous|lovely|fantastic|"
+        r"wonderful|great|best|favorite|favourite|talented|skilled)\b",
+        plain or "",
+    ):
+        return False
+    return _word_count(plain) <= 55 and _gesture_is_the_post(raw, plain, creator=True)
+
+
+def _thanks(raw: str, plain: str) -> bool:
+    if _courtesy_reply(raw, plain):
+        return True
+    thanked = bool(
+        re.search(r"\b(?:thank you|thanks|thankyou|thx)\b", plain or "")
+        or plain in {"ty", "thx"}
+        or re.search(r"\byoure welcome\b", plain or "")
+    )
+    grateful = bool(
+        re.search(r"\b(?:appreciate|grateful|thankful)\b", plain or "")
+        and _word_count(plain) <= 28
+        and len(_substance(plain)) <= 3
+    )
+    if not (thanked or grateful):
+        return False
+    if HASHTAG_RE.search(raw or ""):
+        tag_plain = _plain(" ".join(HASHTAG_RE.findall(raw or "")))
+        if _news(tag_plain) or _discussion_topic(raw, tag_plain) or len(_substance(tag_plain)) >= 1:
+            return False
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain) or _sports_play(plain):
+        return False
+    return _gesture_is_the_post(raw, plain)
+
+
+def _enthusiasm_reaction(raw: str, plain: str) -> bool:
+    """Short “so good” reactions, not a sports or policy argument."""
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain):
+        return False
+    if re.search(r"\bso good at\b", plain or ""):
+        return False
+    if re.search(r"\b(?:comment section|press conference|hearing|vote|voted|bill)\b", plain or ""):
+        return False
+    if not re.search(
+        r"\b(?:(?:this|that|it) is )?so good\b|^(?:this|that) is so good\b|\blooks so good\b",
+        plain or "",
+    ):
+        return False
+    if not _word_count(plain) <= 14:
+        return False
+    return _gesture_is_the_post(raw, plain)
+
+
+def _art_praise(raw: str, plain: str) -> bool:
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain):
+        return False
+    if re.search(r"\bhow can i\b", plain or ""):
+        return False
+    if not re.search(
+        r"\b(?:look how cute|how cute (?:this|it)|wonderful design|lovely work|"
+        r"nice work|amazing work|beautiful (?:design|rendering|art))\b",
+        plain or "",
+    ):
+        return False
+    subs = _gesture_remainder_substance(plain)
+    return _word_count(plain) <= 48 and len(subs) <= 4
+
+
+def _compliment(raw: str, plain: str) -> bool:
+    if _enthusiasm_reaction(raw, plain) or _art_praise(raw, plain) or _creator_compliment(raw, plain):
+        return True
+    if not re.search(
+        r"\b(?:cute|beautiful|gorgeous|stunning|lovely|sexy|adorable|delightful|"
+        r"so pretty|love this|love it|love her|love him|love you|love that you|so hot|"
+        r"extremely cute|incredibly cute|incredible|awesome|photogenic)\b",
+        plain or "",
+    ):
+        return False
+    if _discussion_topic(raw, plain) or _news(plain) or _work_topic(plain) or _sports_play(raw):
+        return False
+    subs = _gesture_remainder_substance(plain)
     if _person_directed(plain):
-        return len(subs) <= 2 and _word_count(plain) <= 40
-    # A bare "so cute" / "beautiful!" with no topic noun. One real noun keeps it.
-    return len(subs) == 0 and _word_count(plain) <= 24
+        return _word_count(plain) <= 48 and len(subs) <= 5
+    return _word_count(plain) <= 24 and len(subs) <= 1
 
 
 def _wish(plain: str) -> str | None:
@@ -700,8 +877,10 @@ def pleasantry_reason(post: dict) -> str | None:
     kind = _wish(plain)
     if kind:
         return kind
-    if _thanks(plain):
+    if _thanks(raw, plain):
         return "thanks"
+    if _creator_compliment(raw, plain):
+        return "compliment"
     if _compliment(raw, plain):
         return "compliment"
     if _greeting(plain):
@@ -854,6 +1033,28 @@ def pleasantry_share(members: list[dict]) -> float:
     return hits / len(members)
 
 
+def _post_text_surfaces(post: dict) -> str:
+    """Text and clean_text combined. Link cards often leave ``text`` blank."""
+    return " ".join(
+        part.strip()
+        for part in (str(post.get("text") or ""), str(post.get("clean_text") or ""))
+        if part and part.strip()
+    )
+
+
+def is_bare_stream_domain_link(post: dict) -> bool:
+    """A Twitch, Kick, or YouTube /live URL with almost no other words."""
+    raw = _post_text_surfaces(post)
+    if not _STREAM_DOMAIN_URL_RE.search(raw):
+        return False
+    text = HASHTAG_RE.sub(" ", raw)
+    text = HANDLE_RE.sub(" ", text)
+    text = _STREAM_DOMAIN_URL_RE.sub(" ", text)
+    text = URL_RE.sub(" ", text)
+    words = re.findall(r"[A-Za-z]{3,}", text)
+    return len(words) < 4
+
+
 def is_bare_link_post(post: dict) -> bool:
     """A URL, including youtu.be, with fewer than four words left.
 
@@ -874,6 +1075,63 @@ def planet_content_share(members: list[dict]) -> float:
     return hits / len(members)
 
 
+_GESTURE_KINDS = frozenset(
+    {
+        "thanks",
+        "compliment",
+        "wish",
+        "greeting",
+        "stream_announce",
+        "agreement",
+        "reply",
+        "reaction",
+        "luck",
+        "weekend",
+    }
+)
+
+
+def _streaming_platform_salient_reason(members: list[dict]) -> str | None:
+    """Drop when salient terms are only streaming-platform tokens (#227)."""
+    from pipeline.cluster_math import salient_terms, tokenize
+
+    texts = [
+        (_post_text_surfaces(member) or post_body(member)).strip()
+        for member in members
+        if (_post_text_surfaces(member) or post_body(member)).strip()
+    ]
+    if not texts:
+        return None
+    counts: dict[str, int] = {}
+    for text in texts:
+        for token in set(tokenize(text)):
+            counts[token] = counts.get(token, 0) + 1
+    if not counts:
+        return None
+    threshold = max(2, int(len(texts) * 0.3))
+    top_terms = salient_terms(texts, limit=1)
+    if not top_terms:
+        return None
+    top = top_terms[0]
+    if top not in _STREAMING_PLATFORM_SALIENT_TERMS:
+        return None
+    for term, weight in counts.items():
+        if weight >= threshold and term not in _STREAMING_PLATFORM_SALIENT_TERMS:
+            return None
+    return _STREAM_PLATFORM_DROP_REASON
+
+
+def _gesture_share(members: list[dict]) -> float:
+    if not members:
+        return 0.0
+    hits = sum(
+        1
+        for member in members
+        if (pleasantry_reason(member) or "") in _GESTURE_KINDS
+    )
+    return hits / len(members)
+
+
 def planet_chitchat_reason(
     members: list[dict],
     terms: list[str],
@@ -883,19 +1141,64 @@ def planet_chitchat_reason(
 ) -> str | None:
     """Drop a planet from its posts, never from its title.
 
-    ``name`` and ``terms`` are ignored. Callers still pass the label so logs
-    can name the planet; a rename cannot keep or drop it. ``model_chitchat``
+    ``name`` is ignored. Callers still pass the label so logs can name the
+    planet; a rename cannot keep or drop it. ``terms`` is unused except for
+    API compatibility with the labeler. ``model_chitchat``
     is the yes/no field on the existing planet-naming response. Yes alone
     does not drop a planet. The posts have to be at least 55% chit-chat, or
-    the model has to say yes and at least 30% of the posts agree. Bare video
-    links count toward that share. The planet title does not.
+    the model has to say yes and at least 30% of the posts agree, or at least
+    35% are thanks / compliments / wishes with no topical anchor post. Bare
+    video links count toward that share. The planet title does not.
     """
-    del terms, name
+    del name, terms
     if not members:
         return None
+    platform = _streaming_platform_salient_reason(members)
+    if platform:
+        return platform
     share = planet_content_share(members)
     if share >= PLEASANTRY_SHARE_DROP:
         return f"{share:.0%} of the posts are chit-chat"
     if model_chitchat is True and share >= MODEL_CHITCHAT_SHARE_FLOOR:
         return f"naming prompt marked the posts as chit-chat and {share:.0%} of the posts agree"
+    thanks_count = sum(1 for member in members if pleasantry_reason(member) == "thanks")
+    thanks_share = thanks_count / len(members)
+    if (
+        len(members) >= THANK_PLANET_MIN_MEMBERS
+        and thanks_share >= THANK_PLANET_SHARE_DROP
+        and thanks_count >= THANK_PLANET_MIN_THANKS
+    ):
+        return f"{thanks_share:.0%} of the posts are thanks ({thanks_count} posts)"
+    thanks_mentions = sum(
+        1
+        for member in members
+        if re.search(r"\b(?:thank you|thanks|thank)\b", _plain(post_body(member)) or "")
+    )
+    mention_share = thanks_mentions / len(members)
+    if (
+        len(members) >= THANK_PLANET_MIN_MEMBERS
+        and thanks_mentions >= THANK_PLANET_MIN_THANKS
+        and mention_share >= THANK_PLANET_MENTION_SHARE_DROP
+    ):
+        return f"{mention_share:.0%} of the posts mention thanks ({thanks_mentions} posts)"
+    gesture = _gesture_share(members)
+    if len(members) >= GESTURE_CLUSTER_MIN_MEMBERS and gesture >= GESTURE_CLUSTER_SHARE_DROP:
+        return f"{gesture:.0%} of the posts are social gestures in a large cluster"
+    streamish = 0
+    for member in members:
+        surfaces = _post_text_surfaces(member)
+        plain = _plain(surfaces or post_body(member))
+        if pleasantry_reason(member) == "stream_announce":
+            streamish += 1
+        elif is_bare_stream_domain_link(member):
+            streamish += 1
+        elif _STREAM_URL_RE.search(surfaces or ""):
+            streamish += 1
+        elif _STREAM_URL_RE.search(plain or ""):
+            streamish += 1
+        elif re.search(r"\b(?:twitch|kick)\b", plain or "") and _word_count(plain) <= 40:
+            streamish += 1
+    stream_share = streamish / len(members)
+    if len(members) >= STREAM_CLUSTER_MIN_MEMBERS and stream_share >= STREAM_CLUSTER_SHARE_DROP:
+        return f"{stream_share:.0%} of the posts are stream promos or Twitch plugs"
     return None
