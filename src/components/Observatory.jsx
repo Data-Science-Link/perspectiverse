@@ -4,9 +4,11 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { hexToRgba, topicColor } from '../lib/colors'
 import { cameraOffsetForScale, homeLookAt, homeMaxDistance, layoutLinear, layoutSolarSystem, orbitElements, splitLabelLines, topicScale } from '../lib/layout'
+import { applyOrbitLabelNudges, clearOrbitLabelNudges } from '../lib/orbitLabels'
 import {
   clearSolarView,
   installSolarCameraTestHooks,
+  mobileOrbitHome,
   restoreSolarView,
   solarLayoutKey,
   stashSolarView,
@@ -18,6 +20,58 @@ import TwinklingStars from './TwinklingStars'
 
 function homeView(isMobile, planetCount = 10, layoutExtent = null, homeFrame = {}) {
   return homeLookAt(isMobile, planetCount, layoutExtent, homeFrame)
+}
+
+function estimateOrbitFrame(aspect) {
+  const width = typeof window !== 'undefined' ? window.innerWidth : 390
+  const height = typeof window !== 'undefined' ? window.innerHeight : 844
+  const header = aspect > 1.15 ? 58 : 68
+  const chrome = 120
+  const canvasHeight = Math.max(80, height - header)
+  return {
+    width,
+    height: canvasHeight,
+    usable: {
+      x: 8,
+      y: 8,
+      width: Math.max(40, width - 16),
+      height: Math.max(40, canvasHeight - chrome - 8),
+    },
+  }
+}
+
+function measureOrbitFrame() {
+  const canvas = document.querySelector('.observatory canvas')
+  if (!canvas) return null
+  const canvasRect = canvas.getBoundingClientRect()
+  if (canvasRect.width < 40 || canvasRect.height < 40) return null
+  const chrome = document.querySelector('.observatory-chrome')
+  const chromeTop = chrome ? chrome.getBoundingClientRect().top : canvasRect.bottom
+  const top = 8
+  const bottom = Math.min(canvasRect.height - 8, chromeTop - canvasRect.top - 8)
+  return {
+    width: canvasRect.width,
+    height: canvasRect.height,
+    usable: {
+      x: 8,
+      y: top,
+      width: Math.max(40, canvasRect.width - 16),
+      height: Math.max(40, bottom - top),
+    },
+  }
+}
+
+function sameOrbitFrame(prev, next) {
+  if (!prev || !next) return false
+  const fields = [
+    [prev.width, next.width],
+    [prev.height, next.height],
+    [prev.usable.x, next.usable.x],
+    [prev.usable.y, next.usable.y],
+    [prev.usable.width, next.usable.width],
+    [prev.usable.height, next.usable.height],
+  ]
+  return fields.every(([left, right]) => Math.abs(left - right) < 1)
 }
 
 function estimatePhoneChrome(aspect) {
@@ -106,6 +160,18 @@ const ORBIT_MOUSE = { left: 1, middle: 16, right: 2, wheel: 16 }
 const INSPECT_MOUSE = { left: 0, middle: 0, right: 0, wheel: 16 }
 const ORBIT_TOUCH = { one: 64, two: 4096, three: 128 }
 const INSPECT_TOUCH = { one: 0, two: 1024, three: 0 }
+
+function OrbitLabelNudger({ enabled }) {
+  useEffect(() => {
+    if (!enabled) clearOrbitLabelNudges()
+  }, [enabled])
+
+  useFrame(() => {
+    if (enabled) applyOrbitLabelNudges()
+  })
+
+  return null
+}
 
 function FocusCamera({
   controlsRef,
@@ -264,7 +330,7 @@ function Universe({
           volumeMax={volumeMax}
           orbitRadius={linear ? null : layout.radii[index]}
           anchor={linear ? layout.positions[index] : null}
-          labelDistanceFactor={linear ? labelDistanceFactor : undefined}
+          labelDistanceFactor={labelDistanceFactor}
           planetVisualScale={linear ? (layout.planetVisualScale ?? 1) : 1}
           meshScale={linear && layout.meshScales ? layout.meshScales[index] : null}
           linearGrid={linear && layout.mode === 'grid'}
@@ -283,6 +349,7 @@ function Universe({
         mouseButtons={inspecting ? INSPECT_MOUSE : ORBIT_MOUSE}
         touches={inspecting ? INSPECT_TOUCH : ORBIT_TOUCH}
       />
+      <OrbitLabelNudger enabled={isMobile && !linear} />
       <FocusCamera
         controlsRef={controlsRef}
         anchors={anchors}
@@ -326,6 +393,7 @@ export default function Observatory({
   )
   const [gridChrome, setGridChrome] = useState(null)
   const [gridPills, setGridPills] = useState(null)
+  const [orbitFrame, setOrbitFrame] = useState(null)
   const remounts = useRef(0)
   const prevLayoutKey = useRef(null)
   const aspectObserver = useRef(null)
@@ -360,6 +428,31 @@ export default function Observatory({
     [linear, topics, volumeMax, isMobile, canvasAspect, gridChrome, gridPills],
   )
   const linearGrid = linear && layout.mode === 'grid'
+
+  useLayoutEffect(() => {
+    if (linear || !isMobile) {
+      setOrbitFrame(null)
+      return undefined
+    }
+    const measure = () => {
+      const next = measureOrbitFrame()
+      if (!next) return
+      setOrbitFrame((prev) => (sameOrbitFrame(prev, next) ? prev : next))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    const canvas = document.querySelector('.observatory canvas')
+    const chrome = document.querySelector('.observatory-chrome')
+    const header = document.querySelector('header')
+    if (canvas) observer.observe(canvas)
+    if (chrome) observer.observe(chrome)
+    if (header) observer.observe(header)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [linear, isMobile, canvasAspect])
 
   useLayoutEffect(() => {
     if (!linearGrid) {
@@ -432,6 +525,14 @@ export default function Observatory({
     }
   }, [linearGrid, topics, layout.pillMaxWidth, canvasAspect])
 
+  const orbitHome = useMemo(() => {
+    if (!isMobile || linear) return null
+    const frame = orbitFrame ?? estimateOrbitFrame(canvasAspect)
+    const reference = homeLookAt(true, topics.length, layout.extent)
+    const referenceDistance = Math.hypot(reference[0], reference[1], reference[2])
+    return mobileOrbitHome(layout.extent ?? 12, frame, { referenceDistance })
+  }, [isMobile, linear, orbitFrame, canvasAspect, topics.length, layout.extent])
+
   const homeFrame = useMemo(
     () => ({
       linear,
@@ -439,9 +540,9 @@ export default function Observatory({
       viewportAspect: canvasAspect,
       extentX: layout.extentX ?? layout.extent,
       extentY: layout.extentY ?? layout.extent,
-      camera: layout.camera,
+      camera: linear ? layout.camera : orbitHome?.lookAt,
     }),
-    [linear, linearGrid, canvasAspect, layout.extent, layout.extentX, layout.extentY, layout.camera],
+    [linear, linearGrid, canvasAspect, layout.extent, layout.extentX, layout.extentY, layout.camera, orbitHome],
   )
   const home = useMemo(
     () => homeLookAt(isMobile, topics.length, layout.extent, homeFrame),
@@ -463,7 +564,7 @@ export default function Observatory({
     [isMobile, topics.length, layout.extent, linear, linearGrid, home, homeFrame],
   )
   const labelDistanceFactor = useMemo(() => {
-    if (!linear) return isMobile ? 16 : 18
+    if (!linear) return isMobile ? (orbitHome?.labelDistanceFactor ?? 16) : 18
     if (isMobile) {
       const homeDistance = Math.hypot(home[0], home[1], home[2])
       const portrait = canvasAspect < 0.9
@@ -474,7 +575,7 @@ export default function Observatory({
       return Math.min(42, Math.max(20, homeDistance * factor))
     }
     return 18
-  }, [linear, isMobile, home, canvasAspect])
+  }, [linear, isMobile, home, canvasAspect, orbitHome])
 
   useLayoutEffect(() => {
     if (prevLayoutKey.current != null && prevLayoutKey.current !== layoutKey) {

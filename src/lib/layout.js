@@ -689,8 +689,11 @@ export function homeLookAt(isMobile = false, planetCount = 10, layoutExtent = nu
 }
 
 export function homeMaxDistance(isMobile = false, planetCount = 10, layoutExtent = null, options = {}) {
-  const [x, y, z] = homeLookAt(isMobile, planetCount, layoutExtent, options)
-  return Math.hypot(x, y, z) * 1.35
+  const home = homeLookAt(isMobile, planetCount, layoutExtent, options)
+  const distance = home.length >= 6
+    ? Math.hypot(home[0] - home[3], home[1] - home[4], home[2] - home[5])
+    : Math.hypot(home[0], home[1], home[2])
+  return distance * 1.35
 }
 
 function unitHash(seed) {

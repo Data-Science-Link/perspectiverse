@@ -1,5 +1,26 @@
 import { expect, test } from '@playwright/test'
 
+async function expectMobileOrbitLabelsOnScreen(page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const labels = [...document.querySelectorAll('.observatory .planet-label')]
+    if (labels.length < 10) return false
+    const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
+    const header = document.querySelector('header')?.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    return labels.every((node) => {
+      const rect = node.getBoundingClientRect()
+      if (rect.width < 8 || rect.height < 8) return false
+      if (rect.left < 1 || rect.top < 1) return false
+      if (rect.right > viewportWidth - 1 || rect.bottom > viewportHeight - 1) return false
+      if (header && rect.top < header.bottom - 1) return false
+      if (chrome && rect.bottom > chrome.top + 1) return false
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      return Boolean(hit && (hit === node || node.contains(hit)))
+    })
+  })).toBe(true)
+}
+
 async function enterSolarSystem(page) {
   const welcome = page.getByRole('dialog', { name: 'Perspectiverse' })
   if (await welcome.isVisible().catch(() => false)) {
@@ -66,7 +87,7 @@ test.describe('Perspectiverse views', () => {
     const observatoryCanvas = page.locator('.observatory canvas')
     await expect(observatoryCanvas).toBeVisible()
     if (testInfo.project.name === 'mobile') {
-      await expect(page.locator('.observatory .planet-label').first()).toBeVisible()
+      await expectMobileOrbitLabelsOnScreen(page)
     }
 
     if (testInfo.project.name !== 'mobile') {
@@ -110,7 +131,8 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('button', { name: 'Linear' })).toBeVisible()
 
     if (testInfo.project.name === 'mobile') {
-      await page.locator('.observatory .planet-label').first().click({ force: true })
+      await expectMobileOrbitLabelsOnScreen(page)
+      await page.locator('.observatory .planet-label').first().click()
     }
     await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()

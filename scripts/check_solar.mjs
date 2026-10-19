@@ -10,10 +10,12 @@ import {
   orbitElements,
   orbitRadius,
   orbitsClear,
+  setOrbitPosition,
   systemExtent,
   topicScale,
 } from '../src/lib/layout.js'
-import { clampSolarView, solarLayoutKey } from '../src/lib/solarCamera.js'
+import { clampSolarView, mobileOrbitHome, projectToCanvas, solarLayoutKey } from '../src/lib/solarCamera.js'
+import { labelCenterIsClear, separateLabelBoxes } from '../src/lib/orbitLabels.js'
 import { decorateTopics } from '../src/lib/planets.js'
 
 assert.equal(SITE_TITLE, 'Perspectiverse')
@@ -162,5 +164,64 @@ const clamped = clampSolarView(
 )
 assert.ok(clamped.distance <= 19.2 + 1e-6)
 assert.ok(Math.abs(clamped.target[0]) <= 8 * 0.45 + 1e-6)
+
+function assertMobileOrbitsFit(frame, chromeInset) {
+  const reference = homeLookAt(true, topics.length, layout.extent)
+  const referenceDistance = Math.hypot(reference[0], reference[1], reference[2])
+  const fitted = mobileOrbitHome(layout.extent, frame, { referenceDistance, baseDistanceFactor: 16 })
+  assert.ok(fitted.distance > referenceDistance, 'phone orbit camera should step back to fit the disk')
+  assert.ok(fitted.labelDistanceFactor > 16, 'label scale should track the wider camera')
+  const chromeTop = frame.height - chromeInset
+  const point = { x: 0, y: 0, z: 0, set(x, y, z) { this.x = x; this.y = y; this.z = z; return this } }
+  for (let index = 0; index < topics.length; index += 1) {
+    const orbit = orbitElements(index, index === 0, topics[index].id, layout.radii[index])
+    const labelLift = topicScale(topics[index].total_volume_percent, volumeMax) * 1.32
+    for (let step = 0; step < 24; step += 1) {
+      if (index === 0) point.set(0, labelLift, 0)
+      else {
+        setOrbitPosition(point, orbit.radius, (step / 24) * Math.PI * 2, orbit.inclination, orbit.node)
+        point.y += labelLift
+      }
+      const projected = projectToCanvas([point.x, point.y, point.z], fitted.lookAt, frame.width, frame.height)
+      assert.equal(projected.behind, false, `topic ${index} sits behind the phone camera`)
+      assert.ok(projected.x >= 36 && projected.x <= frame.width - 36, `topic ${index} x ${projected.x} on ${frame.width}`)
+      assert.ok(projected.y >= 8 && projected.y <= chromeTop - 8, `topic ${index} y ${projected.y} chrome ${chromeTop}`)
+    }
+  }
+}
+
+assertMobileOrbitsFit(
+  { width: 390, height: 776, usable: { x: 8, y: 8, width: 374, height: 776 - 119 - 8 } },
+  119,
+)
+assertMobileOrbitsFit(
+  { width: 844, height: 332, usable: { x: 8, y: 8, width: 828, height: 332 - 119 - 8 } },
+  119,
+)
+
+const stacked = [
+  { x: 100, y: 100, w: 60, h: 12 },
+  { x: 110, y: 102, w: 50, h: 12 },
+]
+const bounds = { left: 0, top: 0, right: 400, bottom: 400 }
+const nudges = separateLabelBoxes(stacked, bounds)
+const placed = stacked.map((box, index) => ({
+  ...box,
+  x: box.x + nudges[index].x,
+  y: box.y + nudges[index].y,
+}))
+assert.equal(labelCenterIsClear(placed), true)
+const again = separateLabelBoxes(stacked, bounds)
+assert.deepEqual(again, nudges)
+for (const box of placed) {
+  assert.ok(box.x >= bounds.left && box.y >= bounds.top)
+  assert.ok(box.x + box.w <= bounds.right && box.y + box.h <= bounds.bottom)
+}
+
+const desktopHome = homeLookAt(false, 10, layout.extent)
+assert.equal(desktopHome.length, 6)
+assert.equal(desktopHome[3], 0)
+assert.equal(desktopHome[4], 0)
+assert.equal(desktopHome[5], 0)
 
 console.log('solar system settings, tagline, and texture quality ok')
