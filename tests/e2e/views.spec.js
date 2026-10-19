@@ -199,6 +199,7 @@ test.describe('Perspectiverse views', () => {
     await enterSolarSystem(page)
 
     if (testInfo.project.name === 'mobile') {
+      await expectMobileOrbitLabelsOnScreen(page)
       await page.locator('.observatory .planet-label').first().click({ force: true })
     } else {
       await page.getByRole('button', { name: 'Perspectives' }).click()
@@ -305,7 +306,7 @@ test.describe('Perspectiverse views', () => {
     await expect(page.locator('.observatory canvas')).toBeVisible()
   })
 
-  test('each planet shows its own post count and Universe returns to the solar system', async ({ page }) => {
+  test('each planet shows its own post count and Universe returns to the solar system', async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('perspectiverse.hide-welcome', '1')
     })
@@ -318,6 +319,7 @@ test.describe('Perspectiverse views', () => {
     await expect(labels.nth(1)).toBeVisible()
     const secondName = (await labels.nth(1).innerText()).trim()
 
+    if (testInfo.project.name === 'mobile') await expectMobileOrbitLabelsOnScreen(page)
     await labels.nth(0).click({ force: true })
     const eyebrow = page.locator('.reading-screen .eyebrow')
     await expect(eyebrow).toBeVisible()
@@ -329,6 +331,7 @@ test.describe('Perspectiverse views', () => {
     await expect(page).not.toHaveURL(/topic=/)
     await expect(page.locator('.observatory canvas')).toBeVisible()
 
+    if (testInfo.project.name === 'mobile') await expectMobileOrbitLabelsOnScreen(page)
     await page.locator('.observatory .planet-label', { hasText: secondName }).first().click({ force: true })
     const secondCount = (await page.locator('.reading-screen .eyebrow').innerText()).trim()
     expect(secondCount).toMatch(/\d[\d,]* posts/i)
