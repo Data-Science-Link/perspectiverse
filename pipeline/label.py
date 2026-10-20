@@ -1764,17 +1764,27 @@ def resolve_openai_model(explicit: str | None = None) -> str:
 # Planets are labeled concurrently (pipeline.live), so a rate limit, a
 # gateway blip, or a timeout is retried with a short bounded backoff instead
 # of becoming a fallback label (which drops the face). 429 and 5xx get two
-# retries, 2s then 6s. A timeout gets one retry: run 39038944044's second
-# timeout retry of the same read never succeeded, and each one held a worker
-# for the full request timeout. A retry that would run past the section
-# deadline is not started. A timeout retry needs another full request timeout
-# still inside the ceiling. 90s: prompts are capped at 40 posts. The old 120s
-# timeout was for a 100-post stance sample that took 83s and, under 12-way
-# concurrency, still read-timed out.
-OPENAI_REQUEST_TIMEOUT = 90.0
+# retries, 2s then 6s. A timeout is retried up to four times (2s, 4s, 8s,
+# 16s) with a shorter read timeout so a slow provider night can fit more
+# attempts inside the section ceiling. Run 39072480258 held 20 timeout retries
+# because each needed another 92s at the old 90s read cap. The read timeout
+# is sized from recent successful-call latency (p95 × margin, clamped 30–45s;
+# default 40s until enough samples). A retry that would run past the section
+# deadline is not started.
+LABEL_READ_TIMEOUT_MIN = 30.0
+LABEL_READ_TIMEOUT_MAX = 45.0
+LABEL_READ_TIMEOUT_DEFAULT = 40.0
+LABEL_READ_TIMEOUT_PCTL = 0.95
+LABEL_READ_TIMEOUT_MARGIN = 1.5
+_LABEL_LATENCY_MIN_SAMPLES = 8
+_LABEL_LATENCY_MAX_SAMPLES = 256
+OPENAI_REQUEST_TIMEOUT = LABEL_READ_TIMEOUT_MAX
 _RETRY_CLASSES = frozenset({"429", "5xx", "timeout"})
 _RETRY_DELAYS = (2.0, 6.0)
-_TIMEOUT_RETRY_DELAYS = (2.0,)
+_TIMEOUT_RETRY_DELAYS = (2.0, 4.0, 8.0, 16.0)
+
+_latency_lock = threading.Lock()
+_latency_samples: list[float] = []
 
 _label_deadline_lock = threading.Lock()
 _label_deadline_monotonic: float | None = None
@@ -1795,6 +1805,81 @@ def set_label_deadline(deadline: float | None) -> None:
 def get_label_deadline() -> float | None:
     with _label_deadline_lock:
         return _label_deadline_monotonic
+
+
+def reset_label_latency_samples() -> None:
+    """Clear in-run success latency samples (global and section labeling)."""
+    with _latency_lock:
+        _latency_samples.clear()
+
+
+def record_label_latency(seconds: float) -> None:
+    """Track one successful OpenAI-compatible labeling round-trip."""
+    elapsed = float(seconds)
+    if elapsed <= 0:
+        return
+    with _latency_lock:
+        _latency_samples.append(elapsed)
+        if len(_latency_samples) > _LABEL_LATENCY_MAX_SAMPLES:
+            del _latency_samples[: len(_latency_samples) - _LABEL_LATENCY_MAX_SAMPLES]
+
+
+def compute_read_timeout(samples: list[float] | None = None) -> float:
+    """Return the per-request read timeout from recent successful-call latency.
+
+    Clean run 39065623599 averaged well under 20s per successful call at
+    12-way concurrency; preview 39072480258 spent 90s on each timeout. The
+    cap stays at 45s so a normal night does not time out healthy calls.
+    """
+    data = [float(item) for item in (samples or []) if float(item) > 0]
+    if len(data) < _LABEL_LATENCY_MIN_SAMPLES:
+        return LABEL_READ_TIMEOUT_DEFAULT
+    ordered = sorted(data)
+    index = min(len(ordered) - 1, int((len(ordered) - 1) * LABEL_READ_TIMEOUT_PCTL))
+    p95 = ordered[index]
+    target = p95 * LABEL_READ_TIMEOUT_MARGIN + 5.0
+    return max(LABEL_READ_TIMEOUT_MIN, min(LABEL_READ_TIMEOUT_MAX, target))
+
+
+def label_read_timeout() -> float:
+    with _latency_lock:
+        return compute_read_timeout(_latency_samples)
+
+
+def retry_budget_seconds(delay: float, error_class: str, *, read_timeout: float) -> float:
+    """Wall time a retry needs: backoff plus another read when the error is a timeout."""
+    needed = float(delay)
+    if error_class == "timeout":
+        needed += float(read_timeout)
+    return needed
+
+
+def format_label_latency_summary() -> str | None:
+    """One line with success-call latency percentiles and the active read timeout."""
+    with _latency_lock:
+        samples = list(_latency_samples)
+    if not samples:
+        return None
+    ordered = sorted(samples)
+    count = len(ordered)
+
+    def percentile(p: float) -> float:
+        index = min(count - 1, int((count - 1) * p))
+        return ordered[index]
+
+    timeout = compute_read_timeout(samples)
+    return (
+        f"DeepInfra labeling latency (successful calls, n={count}): "
+        f"p50={percentile(0.50):.1f}s, p90={percentile(0.90):.1f}s, "
+        f"p95={percentile(0.95):.1f}s, max={ordered[-1]:.1f}s; "
+        f"read_timeout={timeout:.0f}s."
+    )
+
+
+def log_label_latency_summary() -> None:
+    line = format_label_latency_summary()
+    if line:
+        print(line)
 
 
 def classify_label_error(exc: BaseException) -> str:
@@ -1838,9 +1923,8 @@ def _retry_fits_budget(delay: float, error_class: str) -> tuple[bool, str]:
     if deadline is None:
         return True, ""
     remaining = deadline - time.monotonic()
-    needed = float(delay)
-    if error_class == "timeout":
-        needed += OPENAI_REQUEST_TIMEOUT
+    read_timeout = label_read_timeout()
+    needed = retry_budget_seconds(delay, error_class, read_timeout=read_timeout)
     if remaining >= needed:
         return True, ""
     return False, (
@@ -1878,10 +1962,12 @@ def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str
     timeout_retries = 0
     other_retries = 0
     while True:
+        read_timeout = label_read_timeout()
+        started = time.monotonic()
         try:
             payload = read_json(
                 f"{base}/chat/completions",
-                timeout=OPENAI_REQUEST_TIMEOUT,
+                timeout=read_timeout,
                 data=body,
                 headers=headers,
             )
@@ -1917,6 +2003,7 @@ def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str
                 other_retries += 1
             time.sleep(float(delay))
             continue
+        record_label_latency(time.monotonic() - started)
         _remember_label_cost(model, payload, "success")
         break
     assert payload is not None

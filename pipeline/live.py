@@ -60,6 +60,7 @@ from pipeline.label import (
     label_perspective,
     label_topic,
     name_from_perspectives,
+    reset_label_latency_samples,
     set_label_deadline,
     shares_claim_word,
     specific_shared_words,
@@ -2701,6 +2702,10 @@ def _section_pool_size(context: dict) -> int:
     return workers
 
 
+def _draft_timed_out(log: list[str]) -> bool:
+    return any("timed out" in line.lower() for line in log)
+
+
 def _safe_draft(posts: list[dict], clustered: dict, topic: dict, context: dict):
     """Draft one candidate. A raised error is a log line, not a failed snapshot.
 
@@ -2712,6 +2717,22 @@ def _safe_draft(posts: list[dict], clustered: dict, topic: dict, context: dict):
         raise
     except Exception as exc:  # noqa: BLE001 - one bad planet must not block the snapshot
         return None, [f"Dropping candidate {topic.get('id')}: drafting failed ({type(exc).__name__}: {exc})."]
+
+
+def _reset_section_job_for_retry(job: "_SectionLabelJob") -> None:
+    job.skipped_budget = False
+    job.done = False
+    job.budget_hit = False
+    job.cursor = 0
+    job.built = []
+    job.seen = set()
+    job.pending = {}
+    job.order = []
+    job.applied = 0
+    job.inflight = 0
+    job.wave_left = 0
+    job.wave_open = False
+    job.timeout_candidates = []
 
 
 def _stage_planet(built: list[dict], seen_names: set[str], result: dict) -> dict:
@@ -2744,6 +2765,7 @@ def _build_topics(
     candidate. Those children fill a slot only when the catalog is not already
     full of the candidates that outrank the scraps.
     """
+    reset_label_latency_samples()
     context = dict(context or _label_context(settings))
     context.setdefault("section", "All topics")
     context.setdefault("min_planet_posts", _planet_post_floor(settings))
@@ -2876,6 +2898,7 @@ class _SectionLabelJob:
         self.budget_hit = False
         self.skipped_budget = False
         self.done = False
+        self.timeout_candidates: list[tuple[int, dict]] = []
 
     def can_submit(self) -> bool:
         if self.done or self.budget_hit or self.skipped_budget:
@@ -2910,6 +2933,8 @@ class _SectionLabelJob:
         return index, topic
 
     def accept(self, index: int, result, log: list[str]) -> None:
+        if result is None and _draft_timed_out(log):
+            self.timeout_candidates.append((index, self.candidates[index]))
         self.pending[index] = (result, log)
         self.inflight -= 1
         self._drain()
@@ -2978,6 +3003,61 @@ def _submit_section_drafts(jobs: list[_SectionLabelJob], inflight: dict, executo
         index, topic = job.take()
         future = executor.submit(_safe_draft, job.posts, job.clustered, topic, job.context)
         inflight[future] = (job, index)
+
+
+def _retry_section_labeling(jobs: list[_SectionLabelJob], workers: int, deadline: float | None) -> None:
+    """Retry skipped sections and timed-out planet drafts when the draft ceiling allows."""
+    from pipeline.label import _TIMEOUT_RETRY_DELAYS, label_read_timeout, retry_budget_seconds
+
+    if deadline is None or time.monotonic() >= deadline:
+        return
+
+    skipped = [job for job in jobs if job.skipped_budget]
+    if skipped:
+        remaining = deadline - time.monotonic()
+        print(
+            f"Section labeling retry: {len(skipped)} section(s) skipped earlier; "
+            f"{remaining:.0f}s left before the draft ceiling."
+        )
+        for job in skipped:
+            _reset_section_job_for_retry(job)
+        _label_section_jobs(skipped, workers, deadline)
+
+    min_retry = retry_budget_seconds(
+        _TIMEOUT_RETRY_DELAYS[0], "timeout", read_timeout=label_read_timeout()
+    )
+    if deadline - time.monotonic() < min_retry:
+        return
+
+    work: list[tuple[_SectionLabelJob, dict]] = []
+    for job in jobs:
+        if job.skipped_budget or len(job.built) >= job.keep:
+            job.timeout_candidates.clear()
+            continue
+        for _index, topic in job.timeout_candidates:
+            work.append((job, topic))
+        job.timeout_candidates.clear()
+
+    if not work:
+        return
+
+    print(f"Section labeling retry: {len(work)} timed-out planet draft(s).")
+    for job, topic in work:
+        if time.monotonic() >= deadline or len(job.built) >= job.keep:
+            break
+        result, log = _safe_draft(job.posts, job.clustered, topic, job.context)
+        for line in log:
+            print(line)
+        if result is None:
+            if _draft_timed_out(log):
+                job.timeout_candidates.append((-1, topic))
+            continue
+        for bundle in _bundles_from(result):
+            if len(job.built) >= job.keep:
+                name = str((bundle.get("planet") or {}).get("name") or "story")
+                print(f"Not publishing {name}: the catalog already has {job.keep} planets.")
+                continue
+            _stage_planet(job.built, job.seen, bundle)
 
 
 def _label_section_jobs(jobs: list[_SectionLabelJob], workers: int, deadline) -> None:
@@ -3126,7 +3206,9 @@ def _cluster_sections(
         )
     set_label_deadline(draft_deadline)
     try:
-        _label_section_jobs(jobs, _section_pool_size(context), draft_deadline)
+        pool_workers = _section_pool_size(context)
+        _label_section_jobs(jobs, pool_workers, draft_deadline)
+        _retry_section_labeling(jobs, pool_workers, draft_deadline)
         active_jobs = [job for job in jobs if not job.skipped_budget]
         for job in active_jobs:
             job.built = _drop_unshared_planets(job.built)

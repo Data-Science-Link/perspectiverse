@@ -5,18 +5,27 @@ import pytest
 
 from pipeline.label import (
     FALLBACK_TITLE,
+    LABEL_READ_TIMEOUT_DEFAULT,
+    LABEL_READ_TIMEOUT_MAX,
+    LABEL_READ_TIMEOUT_MIN,
     build_perspective_prompt,
     build_planet_name_prompt,
     build_prompt,
     build_topic_prompt,
     classify_label_error,
+    compute_read_timeout,
+    format_label_latency_summary,
     label_perspective,
     label_topic,
     parse_label,
+    record_label_latency,
+    reset_label_latency_samples,
     resolve_openai_base_url,
     resolve_openai_model,
+    retry_budget_seconds,
     set_label_deadline,
     _openai_generate,
+    _retry_fits_budget,
 )
 from pipeline.settings import MAX_PROMPT_POSTS
 
@@ -541,7 +550,7 @@ def test_openai_generate_stops_after_bounded_retries(monkeypatch):
 
 
 def test_openai_generate_retries_timeouts_with_bounded_backoff(monkeypatch):
-    """A timeout is retried once. A second full read of the same prompt is not started."""
+    """A timeout is retried with backoff until the cap (four retries after the first read)."""
     calls = []
     slept = []
 
@@ -552,15 +561,60 @@ def test_openai_generate_retries_timeouts_with_bounded_backoff(monkeypatch):
     monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
     monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: slept.append(seconds))
     monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    reset_label_latency_samples()
     set_label_deadline(None)
     with pytest.raises(RuntimeError, match="timed out"):
         _openai_generate("hello", "model")
-    assert calls == [90.0, 90.0]
-    assert slept == [2.0]
+    assert calls == [LABEL_READ_TIMEOUT_DEFAULT] * 5
+    assert slept == [2.0, 4.0, 8.0, 16.0]
+
+
+def test_compute_read_timeout_uses_p95_and_clamps():
+    assert compute_read_timeout([8.0] * 7) == LABEL_READ_TIMEOUT_DEFAULT
+    # p95 is 20s -> 20 * 1.5 + 5 = 35
+    assert compute_read_timeout([20.0] * 10) == 35.0
+    assert compute_read_timeout([100.0] * 10) == LABEL_READ_TIMEOUT_MAX
+    assert compute_read_timeout([1.0] * 10) == LABEL_READ_TIMEOUT_MIN
+
+
+def test_retry_budget_seconds_counts_read_timeout_only_for_timeouts():
+    assert retry_budget_seconds(2.0, "429", read_timeout=40.0) == 2.0
+    assert retry_budget_seconds(2.0, "timeout", read_timeout=40.0) == 42.0
+
+
+def test_retry_fits_budget_uses_shorter_read_timeout():
+    reset_label_latency_samples()
+    needed = retry_budget_seconds(2.0, "timeout", read_timeout=LABEL_READ_TIMEOUT_DEFAULT)
+    set_label_deadline(time.monotonic() + needed - 0.5)
+    try:
+        fits, reason = _retry_fits_budget(2.0, "timeout")
+        assert not fits
+        assert f"{needed:.1f}" in reason
+        set_label_deadline(time.monotonic() + needed + 1.0)
+        fits, _reason = _retry_fits_budget(2.0, "timeout")
+        assert fits
+    finally:
+        set_label_deadline(None)
+
+
+def test_label_latency_summary_after_successes(monkeypatch):
+    reset_label_latency_samples()
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        return {"choices": [{"message": {"content": "{}"}}]}
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    for _ in range(3):
+        record_label_latency(10.0)
+    line = format_label_latency_summary()
+    assert line is not None
+    assert "p50=10.0s" in line
+    assert f"read_timeout={LABEL_READ_TIMEOUT_DEFAULT:.0f}s" in line
 
 
 def test_openai_generate_skips_timeout_retry_that_would_pass_the_deadline(monkeypatch):
-    """A timeout already costs the full request timeout. Do not start another one past the section ceiling."""
+    """Do not start another read past the section ceiling when backoff + timeout do not fit."""
     calls = []
     slept = []
 
@@ -571,6 +625,7 @@ def test_openai_generate_skips_timeout_retry_that_would_pass_the_deadline(monkey
     monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
     monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: slept.append(seconds))
     monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    reset_label_latency_samples()
     set_label_deadline(time.monotonic() + 30)
     try:
         with pytest.raises(RuntimeError, match="timed out"):
