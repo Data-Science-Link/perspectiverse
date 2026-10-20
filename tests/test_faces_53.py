@@ -797,7 +797,7 @@ def test_split_child_at_the_floor_is_kept(monkeypatch):
     members, clustered, topic, drafted = _drafted_stories(
         [
             _story_blob("diesel", 16, seed=4),
-            _story_blob("measles", 5, seed=9),
+            _story_blob("measles", 8, seed=9),
         ]
     )
     handled, result, log = live._split_different_stories(
@@ -818,7 +818,7 @@ def test_min_planet_posts_override_excludes_a_child_the_default_keeps(monkeypatc
     members, clustered, topic, drafted = _drafted_stories(
         [
             _story_blob("diesel", 16, seed=4),
-            _story_blob("measles", 6, seed=9),
+            _story_blob("measles", 8, seed=9),
         ]
     )
     default_handled, default_result, _default_log = live._split_different_stories(
@@ -828,7 +828,7 @@ def test_min_planet_posts_override_excludes_a_child_the_default_keeps(monkeypatc
     assert len(default_result["planets"]) == 2
 
     seen = _spy_labelers(monkeypatch)
-    overridden = live._label_context({**SETTINGS, "min_planet_posts": 8})
+    overridden = live._label_context({**SETTINGS, "min_planet_posts": 10})
     overridden["section"] = "Health"
     handled, result, log = live._split_different_stories(
         members, clustered, topic, overridden, members, drafted, []
@@ -838,7 +838,7 @@ def test_min_planet_posts_override_excludes_a_child_the_default_keeps(monkeypatc
     assert len(result["planets"]) == 1
     assert "measles" not in result["planets"][0]["planet"]["name"].lower()
     assert result["floor_excluded"] == 1
-    assert any(line.startswith("INFO Health:") and "6 posts" in line for line in log)
+    assert any(line.startswith("INFO Health:") and "8 posts" in line for line in log)
     assert all("measles" not in blob for _name, blob in seen)
 
 
