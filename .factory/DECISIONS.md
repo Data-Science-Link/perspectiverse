@@ -690,3 +690,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Why:** On Oct 19 the morning Politics 93.1% failure was filed twice (#257 and #258). That split the evidence and forced a duplicate close. Michael (Factory room, 2026-10-20 5:43 AM CT): "For #2 I am good with that proposed rule".
 **Alternatives:** Keep filing per run and close duplicates later (rejected because it creates noise and splits evidence). Have a human dedupe (rejected because it adds a human step for mechanical work).
 **Revisit:** If a real new failure ever gets folded into an old issue by mistake, or if the search misses a duplicate again.
+
+### 2026-10-20: A failed agent review counts as a failed attempt for model escalation
+**Decision:** When an agent review FAILs a build, that counts as one failed attempt under `MODEL_ROUTING.md`. A `composer-2.5` build that fails review once gets its rework on `grok-4.7` instead of more rounds on the same model.
+**Why:** #260 took 6 review rounds on `composer-2.5` (Oct 19) while the table already said to escalate after one failed attempt. Michael (Factory room, 2026-10-20 5:48 AM CT): "moving off basic model after failed attempt sounds good".
+**Alternatives:** Count only crashed or abandoned runs as failed attempts (the reading that let #260 loop). Leave it to the Manager's judgment (rejected because it didn't happen).
+**Revisit:** If grok-4.7 reworks start costing noticeably more without fewer review rounds.
