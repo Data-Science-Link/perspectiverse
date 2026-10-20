@@ -81,6 +81,8 @@ EXPECTED_IF = {
     ),
     "Upload corpus to R2": f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_PREVIEW}",
     "Upload data.json": f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_PREVIEW}",
+    "Edition self-check": f"({WORK_GATE}) && steps.live.outcome == 'success'",
+    "Upload edition self-check": f"({WORK_GATE}) && steps.live.outcome == 'success'",
     "Write free-ingest preview": FREE_PREVIEW,
     "Upload free-ingest preview": FREE_PREVIEW,
     "Record free-ingest spend": f"always() && {FREE_PREVIEW}",
@@ -207,6 +209,8 @@ def step_runs(expr: str | None, ctx: Ctx) -> bool:
         )
     if expr == f"({WORK_GATE}) && steps.live.outcome == 'success' && {NOT_PREVIEW}":
         return _work(ctx) and ctx.live == "success" and _not_preview(ctx)
+    if expr == f"({WORK_GATE}) && steps.live.outcome == 'success'":
+        return _work(ctx) and ctx.live == "success"
     publish = (
         f"({WORK_GATE}) && steps.live.outcome == 'success' && "
         f"steps.r2upload.outcome == 'success' && {NOT_PREVIEW}"

@@ -356,6 +356,35 @@ jobs:
             pipeline/data/live_corpus.db
           retention-days: 14
 
+      # Free detector only. --report-only keeps a failing edition from marking
+      # this job failed, which would otherwise schedule another paid run.
+      # The check does not rewrite or drop planets and does not hold the snapshot.
+      - name: Edition self-check
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success'
+        run: |
+          source .venv/bin/activate
+          mkdir -p edition-check-out
+          if git fetch --depth 1 origin data-snapshot; then
+            git show FETCH_HEAD:public/data.json > edition-check-out/previous.json || true
+          fi
+          PREV=()
+          if [ -s edition-check-out/previous.json ]; then
+            PREV=(--previous edition-check-out/previous.json)
+          fi
+          python -m pipeline.edition_check public/data.json \
+            --json edition-check-out/edition-check.json \
+            --markdown edition-check-out/edition-check.md \
+            --report-only \
+            "${PREV[@]}"
+
+      - name: Upload edition self-check
+        if: (github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true') && steps.live.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: edition-check
+          path: edition-check-out
+          retention-days: 14
+
       - name: Write free-ingest preview
         if: github.event_name == 'workflow_dispatch' && (inputs.preview_only == true || inputs.free_ingest == true) && steps.live.outcome == 'success'
         run: |
