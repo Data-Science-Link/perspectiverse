@@ -1,0 +1,33 @@
+{
+  "guards": "off",
+  "paid_calls": 0,
+  "workflow_dispatch": false,
+  "oct19": {
+    "edition": "2026-10-19",
+    "faces_before": 133,
+    "faces_after": 128,
+    "posts_before": 12201,
+    "posts_after": 12201,
+    "posts_dropped": 0,
+    "posts_moved_to_other": 0,
+    "posts_kept_on_survivor": 200,
+    "labels_present": true,
+    "label_rows_unmatched_or_extra": 0
+  },
+  "later": {
+    "edition": "2026-10-20",
+    "faces_before": 146,
+    "faces_after": 140,
+    "posts_before": 12163,
+    "posts_after": 12163,
+    "posts_dropped": 0,
+    "posts_moved_to_other": 0,
+    "posts_kept_on_survivor": 375,
+    "labels_present": false,
+    "label_rows_unmatched_or_extra": 0
+  },
+  "later_last_updated": "2026-10-20",
+  "oct19_last_updated": "2026-10-19",
+  "blind_sheet": "docs/evidence/286/oct20-face-pairs-unlabeled.csv",
+  "note": "Cosines are MiniLM centroids of published representative posts, not the full-membership vectors the live split scored. is_duplicate on the later edition is empty."
+}

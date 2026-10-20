@@ -373,6 +373,13 @@ def _write_csv(path: Path, columns: list[str], rows: list[dict]) -> None:
             writer.writerow({column: row.get(column, "") for column in columns})
 
 
+def _relative(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _edition_date(edition: dict, fallback: str) -> str:
     stamp = str(edition.get("last_updated") or "").strip()
     return stamp or fallback
@@ -431,7 +438,7 @@ def main() -> int:
         "later": summary_later,
         "later_last_updated": date_later,
         "oct19_last_updated": date19,
-        "blind_sheet": str(out / "oct20-face-pairs-unlabeled.csv"),
+        "blind_sheet": _relative(out / "oct20-face-pairs-unlabeled.csv"),
         "note": (
             "Cosines are MiniLM centroids of published representative posts, "
             "not the full-membership vectors the live split scored. "
