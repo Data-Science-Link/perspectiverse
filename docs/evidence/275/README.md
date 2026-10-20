@@ -1,12 +1,26 @@
-# Oct 19 blind pair sheet
+# Pair sheets for issue #275
 
-`oct19-pairs.csv` is the yardstick for issue #275. It was cut from the published Oct 19 edition (`data-snapshot` `44a537b`, `last_updated` 2026-10-19, 100,000 posts) before any method change in `docs/specs/275-root-cause-duplicates.md`.
+Two days, same draw. `is_duplicate` on a sheet handed to a labeler is empty. The sheet has no cosine, no band, and no similarity column. Those live in the design JSON.
 
-`is_duplicate` is empty on every row. A reviewer on a different model fills that column from the titles and the sample posts. Those labels are the before/after measure. The sheet has no cosine, no band, and no similarity column.
+## Oct 19
+
+`oct19-pairs.csv` is the planet yardstick. Seed 275, 60 planet pairs and 60 face rows, cut from `data-snapshot` `44a537b` (`last_updated` 2026-10-19) before any method change. Do not regenerate it. The planet pair ids are the labeled yardstick.
+
+The face rows in that file leaked. 51 of 60 are cross-planet pairs, and six copy a planet row (`f008`=`p023`, `f018`=`p001`, `f019`=`p016`, `f025`=`p004`, `f038`=`p017`, `f042`=`p010`). Face numbers use `oct19-face-census.csv`, the 27 within-planet pairs. See `label-definitions.md`.
+
+The labels on `oct19-pairs-labeled.csv` and `oct19-face-census.csv` are composer-2.5 only. Michael is not spot-checking them. The merge bar waits for a blind grok-4.7 re-label.
+
+## Oct 20
+
+`oct20-pairs.csv` is the out-of-sample sheet: seed 275, the same bands, guards off, from `data-snapshot` `b049731` (`last_updated` 2026-10-20). 60 planet pairs and 36 within-planet face pairs. `is_duplicate` is empty.
+
+`oct20-face-census.csv` is every within-planet pair with two distinct face titles (38 rows), also unlabeled. The face sample is a subset. #278 and #279 stay in the census and are left out of the 36-row draw. Business Stock Market has two faces that share the title Market Volatility (10 and 4 posts). The pre-label check rejects a row whose titles match, so that pair is not on the census. It is recorded on `oct20-sample-design.json` as `held_out_same_title`.
+
+`validate_label_sheet` in `scripts/replay_275_oct19.py` runs before either Oct 20 CSV is written. A face row must have `same_planet` true and two distinct faces of one planet. A planet row must be two different planets in one section. No row may repeat another row's endpoints. Tests live in `tests/test_replay_275_sample.py`.
 
 ## Draw
 
-Seed `275`. Each level starts its own `random.Random(275)`. Bands are fixed cosine cuts on MiniLM (`all-MiniLM-L6-v2`) centroids of representative posts:
+Seed `275`. Each level starts its own `random.Random(275)`. Bands:
 
 | Band | Cosine |
 | --- | --- |
@@ -16,30 +30,14 @@ Seed `275`. Each level starts its own `random.Random(275)`. Bands are fixed cosi
 | B3 | 0.70 ≤ cosine < 0.85 |
 | B4 | 0.85 ≤ cosine < 1.01 |
 
-Planet rows are pairs of planets inside one solar system (global is one scope). Face rows are pairs of faces inside one solar system, including faces on different planets. The draw takes about 60 rows at each level. Oct 19 planet pairs named in the #272 trace are removed before the planet draw. They are only on `handpicked-pairs.csv`.
+Planet rows are two planets in one solar system (global is one scope). Face rows are two faces of one planet. Hand-picked pairs stay on `handpicked-pairs.csv` and out of the stratified draw. Band shares still count the full population.
 
-`oct19-sample-design.json` records the seed, the band boundaries, each band's share of every same-section pair, the allocation, and the pair id joined back to its cosine. The labeler does not need that file.
+## Headline and merge bar
 
-## Headline
+`headline = Σ (labeled rate in band b) × (band b's share of that population)`. The unweighted mean of the sample is not the headline. `unsure` is its own count, held out of yes, and included in yes-or-unsure.
 
-The sample over-represents rare bands. The duplicate rate is not the share of the 60 rows.
+Planet pairs per section use the 480 Oct 19 same-section pairs and 11 sections. Face pairs per planet on Oct 19 use the 27-row census and 107 planets.
 
-For a population (all same-section planet pairs, or all within-planet face pairs):
+The merge bar is `merge-bar.csv`. For each fix and each day it has (a) labeled duplicates removed or joined, (b) labeled-different pairs joined or removed, and (c) posts or planets moved to Other or dropped, per section. (a) and (b) are empty until grok-4.7 labels them. A fix fails if (b) or (c) rises. Guards stay off.
 
-`headline = Σ (near-dup rate inside band b) × (band b's share of that population)`
-
-Planet pairs per section divide that reweighted pair count by the 11 solar systems. Face pairs per planet divide the within-planet reweighted pair count by the 107 planets. Cross-planet face pairs stay in the face sample and stay out of the faces-per-planet rate.
-
-Until `is_duplicate` is labeled, the similarity stand-in is representative-centroid cosine ≥ 0.70, applied to the full census and then reweighted. That figure is secondary. Guards-on numbers (30-post floor or `planet_chitchat_reason` on representative posts) are secondary too. The 30-post floor, the junk filter, the stance gate, and the exact-title fold are off for the sample and for the headline.
-
-`handpicked-pairs.csv` is the #272 pairs plus the Oct 20 examples. It is scored on its own. It is not added into the baseline rate. #277 Good Sunday is one planet, so it is in the trace only.
-
-Rebuild:
-
-```bash
-python scripts/replay_275_oct19.py \
-  --edition /path/to/data_2026-10-19.json \
-  --oct20 /path/to/data_2026-10-20.json
-```
-
-The script does not call Jev or a label model and does not dispatch a workflow.
+`handpicked-pairs.csv` is scored on its own. It is not added to the baseline rate.

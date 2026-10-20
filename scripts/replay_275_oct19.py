@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Oct 19 baseline pair sample for issue #275.
 
-Draws a seeded stratified sample of same-section planet pairs and same-section
-face pairs from the published edition. Similarity bands are fixed cosine cuts
-on MiniLM centroids of representative posts. The sample over-represents rare
-bands; the duplicate rate is the band rate times that band's share of every
-same-section pair, not the unweighted sample mean.
+Draws a seeded stratified sample of same-section planet pairs and
+within-planet face pairs from the published edition. A face pair is two
+faces of one planet. Cross-planet face pairs are not sampled. Similarity
+bands are fixed cosine cuts on MiniLM centroids of representative posts.
+The sample over-represents rare bands; the duplicate rate is the band rate
+times that band's share of every pair in that population, not the
+unweighted sample mean.
+
+``validate_label_sheet`` runs before either CSV is written. It refuses a
+sheet a labeler should not see.
 
 ``is_duplicate`` is left empty. Hand-picked examples are not in this sample.
 They can be written to a separate sheet with ``--handpicked-out``.
@@ -304,18 +309,165 @@ def _allocate(groups: dict[str, list[dict]], target: int) -> dict[str, int]:
     return alloc
 
 
-def _trace_planet_keys() -> set[tuple[str, str, str]]:
+# The labeled Oct 19 planet ids live on these paths. A later edition must not overwrite them.
+OCT19_PAIRS = ROOT / "docs" / "evidence" / "275" / "oct19-pairs.csv"
+OCT19_DESIGN = ROOT / "docs" / "evidence" / "275" / "oct19-sample-design.json"
+SNAPSHOTS = {"2026-10-19": "44a537b", "2026-10-20": "b049731"}
+
+
+def _trace_planet_specs(edition_day: str) -> list[tuple]:
+    if edition_day == "2026-10-19":
+        return list(HAND_PLANETS_OCT19)
+    if edition_day == "2026-10-20":
+        return list(HAND_PLANETS_OCT20)
+    return []
+
+
+def _trace_planet_keys(edition_day: str = "2026-10-19") -> set[tuple[str, str, str]]:
     """Title pairs that belong on the hand-picked sheet, either order."""
     keys: set[tuple[str, str, str]] = set()
-    for _source, section, left, right in HAND_PLANETS_OCT19:
+    for _source, section, left, right in _trace_planet_specs(edition_day):
         keys.add((section, left, right))
         keys.add((section, right, left))
     return keys
 
 
-def _draw(pairs: list[dict], *, prefix: str) -> list[dict]:
+def _trace_face_keys(edition_day: str) -> set[tuple[str, str, str, str]]:
+    """Within-planet face pairs that stay on the hand-picked sheet, either order."""
+    if edition_day != "2026-10-20":
+        return set()
+    keys: set[tuple[str, str, str, str]] = set()
+    for _source, scope_a, planet_a, title_a, _scope_b, planet_b, title_b in HAND_FACES_OCT20:
+        if scope_a == _scope_b and planet_a == planet_b:
+            keys.add((scope_a, planet_a, title_a, title_b))
+            keys.add((scope_a, planet_a, title_b, title_a))
+    return keys
+
+
+def _guard_edition_outputs(last_updated: str, out: Path, design_out: Path) -> str | None:
+    """Block a run that would replace the Oct 19 labeled yardstick."""
+    if not last_updated:
+        return "edition has no last_updated"
+    protected = {OCT19_PAIRS.resolve(), OCT19_DESIGN.resolve()}
+    targets = {Path(out).resolve(), Path(design_out).resolve()}
+    if last_updated != "2026-10-19" and targets & protected:
+        return (
+            f"Refusing to write the Oct 19 yardstick from edition {last_updated}. "
+            "Pass --out and --design-out for the other day."
+        )
+    if OCT19_PAIRS.resolve() in targets and OCT19_PAIRS.exists():
+        return "Refusing to overwrite docs/evidence/275/oct19-pairs.csv (the labeled yardstick)."
+    if OCT19_DESIGN.resolve() in targets and OCT19_DESIGN.exists():
+        return "Refusing to overwrite docs/evidence/275/oct19-sample-design.json."
+    return None
+
+
+def _census_sheet(within_faces: list[dict]) -> list[dict]:
+    """Every within-planet face pair, in a stable order, unlabeled."""
+    ordered = sorted(
+        (
+            pair
+            for pair in within_faces
+            if pair.get("same_planet") is True
+            and pair.get("planet_a")
+            and pair.get("planet_a") == pair.get("planet_b")
+            and pair.get("title_a")
+            and pair.get("title_a") != pair.get("title_b")
+        ),
+        key=lambda pair: (
+            pair.get("section") or "",
+            pair.get("planet_a") or "",
+            pair.get("title_a") or "",
+            pair.get("title_b") or "",
+        ),
+    )
+    rows = []
+    for index, pair in enumerate(ordered, start=1):
+        row = dict(pair)
+        row["pair_id"] = f"c{index:03d}"
+        row["level"] = "face"
+        row["is_duplicate"] = ""
+        rows.append(row)
+    return rows
+
+
+class SampleSheetError(ValueError):
+    """The sheet about to be labeled does not match its buckets."""
+
+
+def _endpoint(row: dict) -> tuple:
+    section = str(row.get("section") or "")
+    ends = [
+        (section, str(row.get("planet_a") or ""), str(row.get("title_a") or "")),
+        (section, str(row.get("planet_b") or ""), str(row.get("title_b") or "")),
+    ]
+    return tuple(sorted(ends))
+
+
+def validate_label_sheet(rows: list[dict]) -> None:
+    """Fail before a CSV is handed to a labeler.
+
+    Face rows are two distinct faces of one planet (``same_planet`` true).
+    Planet rows are two different planets in one section. No row may repeat
+    another row's endpoints, in either order, including a face row that
+    copies a planet row.
+    """
+    errors: list[str] = []
+    seen: dict[tuple, str] = {}
+    seen_ids: set[str] = set()
+    for row in rows:
+        pair_id = str(row.get("pair_id") or "?")
+        level = row.get("level")
+        section = str(row.get("section") or "")
+        planet_a = str(row.get("planet_a") or "")
+        planet_b = str(row.get("planet_b") or "")
+        title_a = str(row.get("title_a") or "")
+        title_b = str(row.get("title_b") or "")
+        if level == "face":
+            if row.get("same_planet") is not True:
+                errors.append(f"{pair_id}: face row requires same_planet true")
+            if not planet_a or planet_a != planet_b:
+                errors.append(f"{pair_id}: face row must be two faces of one planet")
+            if not title_a or not title_b or title_a == title_b:
+                errors.append(f"{pair_id}: face row must be two distinct faces")
+            if not section or "|" in section:
+                errors.append(f"{pair_id}: face row must name one section")
+        elif level == "planet":
+            if row.get("same_planet") is True:
+                errors.append(f"{pair_id}: planet row cannot have same_planet true")
+            if not planet_a or not planet_b or planet_a == planet_b:
+                errors.append(f"{pair_id}: planet row must be two different planets")
+            if not section or "|" in section:
+                errors.append(f"{pair_id}: planet row must be one section")
+        else:
+            errors.append(f"{pair_id}: level must be planet or face, got {level!r}")
+        key = _endpoint(row)
+        if key in seen:
+            errors.append(f"{pair_id}: duplicates {seen[key]}")
+        else:
+            seen[key] = pair_id
+        if pair_id in seen_ids:
+            errors.append(f"{pair_id}: duplicate pair id")
+        else:
+            seen_ids.add(pair_id)
+    if errors:
+        raise SampleSheetError("label sheet failed validation:\n" + "\n".join(errors))
+
+
+def _draw(pairs: list[dict], *, prefix: str, require_same_planet: bool = False) -> list[dict]:
+    pool = pairs
+    if require_same_planet:
+        pool = [
+            pair
+            for pair in pairs
+            if pair.get("same_planet") is True
+            and pair.get("planet_a")
+            and pair.get("planet_a") == pair.get("planet_b")
+            and pair.get("title_a")
+            and pair.get("title_a") != pair.get("title_b")
+        ]
     groups: dict[str, list[dict]] = {name: [] for name, _lo, _hi in BANDS}
-    for pair in pairs:
+    for pair in pool:
         groups[pair["band"]].append(pair)
     alloc = _allocate(groups, SAMPLE_SIZE)
     rng = random.Random(SEED)
@@ -508,6 +660,7 @@ def _hand_rows(edition: dict, edition_name: str, planet_specs, face_specs) -> li
                 "post_count_b": int(right.get("post_count") or 0),
                 "sample_texts_a": _samples(_planet_posts(left)),
                 "sample_texts_b": _samples(_planet_posts(right)),
+                "same_planet": False,
                 "is_duplicate": "",
             }
         )
@@ -532,6 +685,7 @@ def _hand_rows(edition: dict, edition_name: str, planet_specs, face_specs) -> li
                 "post_count_b": int(face_b.get("post_count") or 0),
                 "sample_texts_a": _samples(list(face_a.get("representative_posts") or [])),
                 "sample_texts_b": _samples(list(face_b.get("representative_posts") or [])),
+                "same_planet": scope_a == scope_b and planet_a == planet_b,
                 "is_duplicate": "",
             }
         )
@@ -578,10 +732,14 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=ROOT / "docs" / "evidence" / "275" / "handpicked-pairs.csv",
     )
+    parser.add_argument("--census-out", type=Path, default=None)
+    parser.add_argument("--skip-handpicked", action="store_true")
     args = parser.parse_args(argv)
     edition = json.loads(args.edition.read_text(encoding="utf-8"))
-    if str(edition.get("last_updated")) != "2026-10-19":
-        print(f"Refusing edition {edition.get('last_updated')}", file=sys.stderr)
+    edition_day = str(edition.get("last_updated") or "")
+    blocked = _guard_edition_outputs(edition_day, args.out, args.design_out)
+    if blocked:
+        print(blocked, file=sys.stderr)
         return 2
     texts: list[str] = []
     for _scope, group in _catalogs(edition):
@@ -593,14 +751,28 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Embedding {len(set(texts))} representative posts...", flush=True)
     vectors = _embed_map(texts)
     planet_pairs, face_pairs = _enumerate(edition, vectors)
-    trace_keys = _trace_planet_keys()
+    trace_keys = _trace_planet_keys(edition_day)
+    face_trace_keys = _trace_face_keys(edition_day)
     drawable_planets = [
         pair
         for pair in planet_pairs
         if (pair["section"], pair["title_a"], pair["title_b"]) not in trace_keys
     ]
-    planet_sample = _draw(drawable_planets, prefix="p")
-    face_sample = _draw(face_pairs, prefix="f")
+    planet_sample = _draw([dict(pair) for pair in drawable_planets], prefix="p")
+    within_planet = [
+        pair
+        for pair in face_pairs
+        if pair.get("same_planet") is True and pair.get("planet_a") == pair.get("planet_b")
+    ]
+    held_same_title = [pair for pair in within_planet if pair.get("title_a") == pair.get("title_b")]
+    within_faces = [pair for pair in within_planet if pair.get("title_a") != pair.get("title_b")]
+    drawable_faces = [
+        pair
+        for pair in within_faces
+        if (pair["section"], pair["planet_a"], pair["title_a"], pair["title_b"]) not in face_trace_keys
+    ]
+    face_sample = _draw([dict(pair) for pair in drawable_faces], prefix="f", require_same_planet=True)
+    census = _census_sheet(within_faces)
     leaked = [
         pair["pair_id"]
         for pair in planet_sample
@@ -619,16 +791,19 @@ def main(argv: list[str] | None = None) -> int:
     guarded_planets, guarded_faces = _filter_guards(planet_pairs, face_pairs, dropped)
     guarded_n = n_planets - len({name for _scope, name in dropped})
     design = {
-        "edition": "2026-10-19",
-        "snapshot": "44a537b",
+        "edition": edition_day,
+        "snapshot": SNAPSHOTS.get(edition_day),
         "seed": SEED,
         "rng": (
             "Each level starts its own random.Random(275). For each band in "
             "B0..B4 order, shuffle that band's pairs and take the allocation. "
-            "Then shuffle the chosen rows and number them. Oct 19 planet pairs "
-            "named in the #272 trace are removed before the draw and written "
-            "only to handpicked-pairs.csv. Band shares and the similarity "
-            "headline still count every same-section pair."
+            "Then shuffle the chosen rows and number them. Face rows are drawn "
+            "only from pairs with same_planet true. Hand-picked planet pairs for "
+            "this edition are removed before the planet draw. On 2026-10-20 the "
+            "hand-picked face pairs are removed before the face draw and stay "
+            "in the face census. Band shares and the similarity headline still "
+            "count every pair in that population. validate_label_sheet runs "
+            "before any CSV is written."
         ),
         "similarity": (
             "Cosine of MiniLM (all-MiniLM-L6-v2) centroids of representative "
@@ -649,7 +824,35 @@ def main(argv: list[str] | None = None) -> int:
             "excluded_trace_pairs": len(planet_pairs) - len(drawable_planets),
             "sample_pool_pairs": len(drawable_planets),
         },
-        "faces": _design("face", face_pairs, face_sample, face_head),
+        "faces": {
+            **_design("face", within_faces, face_sample, face_head),
+            "excluded_trace_pairs": len(within_faces) - len(drawable_faces),
+            "census_pairs": len(census),
+            "held_out_same_title": [
+                {
+                    "section": pair["section"],
+                    "planet": pair["planet_a"],
+                    "title": pair["title_a"],
+                    "post_count_a": pair["post_count_a"],
+                    "post_count_b": pair["post_count_b"],
+                }
+                for pair in held_same_title
+            ],
+        },
+        "face_census": [
+            {
+                "pair_id": row["pair_id"],
+                "section": row["section"],
+                "planet": row["planet_a"],
+                "title_a": row["title_a"],
+                "title_b": row["title_b"],
+                "band": row["band"],
+                "cosine": round(row["cosine"], 4),
+                "post_count_a": row["post_count_a"],
+                "post_count_b": row["post_count_b"],
+            }
+            for row in census
+        ],
         "headline_guards_off": {
             "near_duplicate_planet_pairs_per_section": planet_head["near_duplicate_planet_pairs_per_section"],
             "planets_in_a_near_dup_pair_per_section": planet_head["planets_in_a_near_dup_pair_per_section"],
@@ -676,7 +879,23 @@ def main(argv: list[str] | None = None) -> int:
         },
         "per_section_guards_off": planet_head["per_section"],
     }
-    _write_csv(args.out, [_csv_row(pair) for pair in planet_sample + face_sample], COLUMNS)
+    sheet = planet_sample + face_sample
+    census_endpoints = {_endpoint(row) for row in census}
+    missing = [row["pair_id"] for row in face_sample if _endpoint(row) not in census_endpoints]
+    if missing:
+        print(f"face sample is not inside the census: {missing}", file=sys.stderr)
+        return 2
+    try:
+        validate_label_sheet(sheet)
+        validate_label_sheet(census)
+        validate_label_sheet(planet_sample + census)
+    except SampleSheetError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    _write_csv(args.out, [_csv_row(pair) for pair in sheet], COLUMNS)
+    if args.census_out:
+        _write_csv(args.census_out, [_csv_row(pair) for pair in census], COLUMNS)
+        print(f"Face census {len(census)} within-planet pairs.")
     args.design_out.parent.mkdir(parents=True, exist_ok=True)
     args.design_out.write_text(json.dumps(design, indent=2), encoding="utf-8")
     print(
@@ -684,7 +903,7 @@ def main(argv: list[str] | None = None) -> int:
         f"Planet pairs/section {planet_head['near_duplicate_planet_pairs_per_section']}. "
         f"Face pairs/planet {face_head['near_duplicate_face_pairs_per_planet']}."
     )
-    if args.handpicked_out and args.oct20:
+    if args.handpicked_out and args.oct20 and not args.skip_handpicked:
         oct20 = json.loads(args.oct20.read_text(encoding="utf-8"))
         rows = _hand_rows(edition, "2026-10-19", HAND_PLANETS_OCT19, [])
         rows.extend(_hand_rows(oct20, "2026-10-20", HAND_PLANETS_OCT20, HAND_FACES_OCT20))
@@ -692,6 +911,11 @@ def main(argv: list[str] | None = None) -> int:
         for index, row in enumerate(rows, start=1):
             row["pair_id"] = f"h{index:03d}"
             row["is_duplicate"] = ""
+        try:
+            validate_label_sheet(rows)
+        except SampleSheetError as exc:
+            print(exc, file=sys.stderr)
+            return 2
         _write_csv(args.handpicked_out, rows, HAND_COLUMNS)
         print(f"Hand-picked sheet {len(rows)} rows (not in the baseline sample).")
     return 0

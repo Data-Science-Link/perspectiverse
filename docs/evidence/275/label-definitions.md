@@ -30,3 +30,13 @@ Face rows that duplicate a planet row exactly (same section, planets, titles, an
 | f042 | p010 |
 
 Only **nine** of sixty face sample rows have `same_planet: true` (`f009`, `f024`, `f026`, `f028`, `f032`, `f035`, `f037`, `f047`, `f060`). The stratified face **sample** is not used for face measurement. The full **within-planet census** is in `oct19-face-census.csv` (every `same_planet` face pair on planets with two or more faces on the Oct 19 edition). Rows marked `planet_leak` in `oct19-pairs-labeled.csv` are the other fifty-one face-sample rows.
+
+The labels already on those Oct 19 files are composer-2.5 only. Michael is not spot-checking them. They are not the merge bar.
+
+## Out-of-sample sheets (unlabeled)
+
+`oct20-pairs.csv` and `oct20-face-census.csv` are a fresh seed-275 draw from the Oct 20 edition. `is_duplicate` is empty. Do not copy the Oct 19 labels onto them. Cosine and band are in `oct20-sample-design.json`, not on the sheets.
+
+`scripts/replay_275_oct19.py` runs `validate_label_sheet` before it writes either file. A face row must be two distinct faces of one planet. A planet row must be two different planets in one section. A row that repeats another row, including a face row that copies a planet row, fails the run. The Oct 19 sheet was already labeled, so it was not regenerated.
+
+The scorer for the merge bar is a blind grok-4.7 pass, a different model from composer-2.5. That pass re-labels the Oct 19 planet rows and `oct19-face-census.csv`, and labels both Oct 20 sheets.

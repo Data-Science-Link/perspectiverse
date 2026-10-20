@@ -4,107 +4,195 @@ Diagnosis and spec only. This document does not change pipeline behavior.
 
 Oct 19 is the baseline edition: `data-snapshot` `44a537b`, `last_updated` 2026-10-19, 100,000 posts, 107 published planets. The producing run was GitHub Actions `39285647768` (head `cbec72e`). Paid Jev and section labeling stayed off for every replay here. No workflow was dispatched.
 
-The Oct 20 examples are the live edition on `data-snapshot` `b049731` (`last_updated` 2026-10-20, 100,000 posts). `origin/main`'s committed `public/data.json` is still the 2026-10-04 file. The site serves the snapshot.
+The Oct 20 edition is `data-snapshot` `b049731` (`last_updated` 2026-10-20, 100,000 posts, 108 published planets). `origin/main`'s committed `public/data.json` is still the 2026-10-04 file. The site serves the snapshot.
 
 Planet-level duplicates on Oct 19 are the #272 trace ([comment on #275](https://github.com/Data-Science-Link/perspectiverse/issues/275#issuecomment-6293892230)). This spec adopts that trace. The new measurement is faces, posts that stayed off a published face, and `_attach_noise`.
 
 ## Headline (guards off)
 
-The yardstick sheet is `docs/evidence/275/oct19-pairs.csv`: 60 planet pairs and 60 face pairs, seed 275, `is_duplicate` empty. A different model labels that column. Those labels, reweighted by the band shares below, become the before/after rate. The similarity figures in this section are the secondary stand-in until that column is filled. They use the full pair census. They are not a count of the 60-row sample.
+The labels on `docs/evidence/275/oct19-pairs-labeled.csv` and `docs/evidence/275/oct19-face-census.csv` are **composer-2.5 only**. Michael will not spot-check them. They are a first reading of the Oct 19 sheets. They are not the merge bar below.
 
-A near-duplicate, for this secondary rule only, is a representative-post MiniLM centroid cosine ≥ 0.70. Global is one solar system, so there are 11 scopes. There are 107 planets.
+The scorer is a blind **grok-4.7** pass, a different model. It re-labels the Oct 19 planet rows and the Oct 19 face census, and it labels the Oct 20 sheets for the first time. Until those labels exist, columns (a) and (b) stay empty.
 
-**2.4545 near-duplicate planet pairs per section. 0.1495 near-duplicate face pairs per planet.**
+**Composer-2.5 first reading, planets.** 60 planet rows: 20 yes, 38 no, 2 unsure. Band-weighted yes rate **0.15587**, which is **6.8016 duplicate pairs per section**. Counting unsure with yes: **0.167849**, **7.3243 pairs per section**. Unsure alone contributes 0.011979, all of it in B2. The population is 480 same-section pairs and 11 sections. `pairs per section = rate × 480 / 11`.
 
-The pair rates those counts come from, reweighted to each band's share of its population:
+**Composer-2.5 first reading, faces.** The original face sample leaked. 51 of the 60 face rows in `oct19-pairs.csv` are not within-planet pairs. They compare single-face planets, which copies planet rows (`f008`=`p023`, `f018`=`p001`, `f019`=`p016`, `f025`=`p004`, `f038`=`p017`, `f042`=`p010`). Those rows are `planet_leak` in the labeled file and are not scored. Every face number below uses `oct19-face-census.csv`: 27 within-planet pairs, same-viewpoint labels, 13 yes, 13 no, 1 unsure. Because it is a census, the yes rate is 13/27 = **0.481481**, which is **0.1215 duplicate face pairs per planet** (13/107). Yes or unsure is 14/27 = **0.518519**, **0.1308 pairs per planet**.
 
-| | Population | Reweighted pair rate | Per unit |
-| --- | ---: | ---: | ---: |
-| Planets | 480 same-section planet pairs | 0.05625 | 2.4545 pairs / 11 sections |
-| Faces | 27 within-planet face pairs | 0.592593 | 0.1495 pairs / 107 planets |
+The MiniLM ≥ 0.70 proxy is not a headline. On the planet sample it under-calls 12 rows and over-calls 2. On the face census it under-calls 4 and over-calls 6. The old "26 under, 3 over" figure was the leaked face sample and is withdrawn. The proxy's misses sit mostly at cosine 0.48–0.69 (chitchat, campus politics, Trump geopolitics, anti-AI and oil faces). Its over-calls are high-cosine pairs the stance label calls different (greeting planets, Brewers/Dodgers, French protests/stereotypes, Iran war/ships, Good Wishes/Night Time).
 
-Planets that sit in at least one of those planet pairs: 1.9091 per section. Same-section face pairs that cross planets (774 pairs, reweighted rate 0.054264) are a different population. They are in the blind face sample. They are not the faces-per-planet headline.
+`headline = Σ (labeled rate in band b) × (band b's share of that population)`. An average of the 60 rows is a different number and is not reported.
 
-`headline = Σ (rate inside band b) × (band b's share of that population)`. With a hard cosine cut the band rate is 0 or 1, so the pair rate equals the share of pairs at or above 0.70. The sample draw is stratified (planet allocation after the trace exclusion: B0 17, B1 17, B2 16, B3 9, B4 1). An average of those 60 rows is a different number and is not reported here.
+### Planet bands (composer-2.5, 480 pairs, 60-row sample)
 
-### Planet bands (480 pairs)
+| Band | Cosine | Sample n | Yes | Unsure | No | Share | Yes contribution |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| B0 | −1.01 – 0.40 | 17 | 1 | 0 | 16 | 0.735417 | 0.043260 |
+| B1 | 0.40 – 0.55 | 17 | 4 | 0 | 13 | 0.112500 | 0.026471 |
+| B2 | 0.55 – 0.70 | 16 | 7 | 2 | 7 | 0.095833 | 0.041927 |
+| B3 | 0.70 – 0.85 | 9 | 7 | 0 | 2 | 0.054167 | 0.042130 |
+| B4 | 0.85 – 1.01 | 1 | 1 | 0 | 0 | 0.002083 | 0.002083 |
 
-| Band | Cosine | Pairs | Share | Rate ≥ 0.70 | Contribution |
-| --- | --- | ---: | ---: | ---: | ---: |
-| B0 | −1.01 – 0.40 | 353 | 0.735417 | 0 | 0 |
-| B1 | 0.40 – 0.55 | 54 | 0.112500 | 0 | 0 |
-| B2 | 0.55 – 0.70 | 46 | 0.095833 | 0 | 0 |
-| B3 | 0.70 – 0.85 | 26 | 0.054167 | 1 | 0.054167 |
-| B4 | 0.85 – 1.01 | 1 | 0.002083 | 1 | 0.002083 |
+Yes contributions sum to 0.15587. B2's yes-or-unsure contribution is 0.053906. The B0 yes is p019, Thirty Thousand | The Article, cosine 0.148. The B4 yes is p010, Great Day | Happy Sunday, cosine 0.852.
 
-Contributions sum to 0.05625. Times 480 pairs / 11 sections = 2.4545.
+### Face census bands (composer-2.5, 27 pairs)
 
-Per section, pairs at cosine ≥ 0.70: Other 14 (7 planets), Technology 7 (6 planets), Sports 4 (4 planets), Culture 1 (2 planets), Education 1 (2 planets). Business, Environment, Health, Politics, World, and global have none. Health's ADHD pair sits at 0.541, so this cosine rule does not see it. World has 5 pairs and Business 6 pairs in the 0.55–0.70 band; those are near in embedding and are different stories (#272).
+| Band | Pairs | Yes | Unsure | No | Share | Yes contribution |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| B0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| B1 | 3 | 1 | 0 | 2 | 0.111111 | 0.037037 |
+| B2 | 8 | 3 | 0 | 5 | 0.296296 | 0.111111 |
+| B3 | 14 | 8 | 1 | 5 | 0.518519 | 0.296296 |
+| B4 | 2 | 1 | 0 | 1 | 0.074074 | 0.037037 |
 
-### Within-planet face bands (27 pairs)
+The B3 unsure is c016, Cold Weather, Weather Changes | Weather Reports, cosine 0.818. The B4 no is c027, Good Wishes | Night Time, cosine 0.856: the label says those are different stances.
 
-| Band | Pairs | Share | Rate ≥ 0.70 | Contribution |
-| --- | ---: | ---: | ---: | ---: |
-| B0 | 0 | 0 | 0 | 0 |
-| B1 | 3 | 0.111111 | 0 | 0 |
-| B2 | 8 | 0.296296 | 0 | 0 |
-| B3 | 14 | 0.518519 | 1 | 0.518519 |
-| B4 | 2 | 0.074074 | 1 | 0.074074 |
+### What the 0.48–0.69 band still needs
 
-Contributions sum to 0.592593. Times 27 pairs / 107 planets = 0.1495. Sixteen within-planet face pairs clear 0.70. Two of them clear 0.85 (Culture Twitch Streamers, Stream Plans 223 / Burnout 10, cosine 0.895; global Good Morning, Good Wishes 376 / Night Time 7, cosine 0.856).
+Fixes 1 and 2 do not clear this band. Fix 1's bar is 0.80. Fix 2's measured join is the `{ai}` allowlist at cosine ≥ 0.55, which on this sample is one pair (p041). Lowering cosine is not the missing change. Labeled-no pairs sit in the same band, and a raw `specific_stems` join already false-merges them.
 
-### Guards on (secondary)
+Planet yes rows in 0.48–0.69 that the three fixes leave published: p007 Good Day | Great Time 0.675, p015 Billionaire Power | Ultra Rich 0.577, p038 Radical Professors | College Republicans 0.647, p048 US Ukraine War | US Iran War 0.602. p011 AI Control | AI Adoption 0.530 shares `ai` and both sides have 5 posts, and it stays because 0.530 is under `FOLD_COSINE` 0.55. Waiving 0.55 only for the `{ai}` allowlist would also take p011, and no labeled-no row in the sample shares `ai`. That is a narrower change than lowering the global cosine. It is not in the measured fix-2 rate. p009 US Iran War | US Unreliable 0.496, p050 Musk Accountability | Trump Corruption 0.478, and p058 Climate Crisis | Fires 0.416 are the same shape at the bottom of B1: the label says same story, and no safe stem joins them. p019 at 0.148 is a meta-link, not a similarity miss.
 
-Applying the 30-post floor (#266) or `planet_chitchat_reason` on representative posts (#264) drops 54 of 107 planets. The reweighted planet headline falls to **0 pairs per section**. The face headline rises to **0.2407 pairs per planet** (within-planet reweighted rate 0.764706). The floor deletes the small duplicate planets instead of joining them, and the large-planet face duplicates (The Show, Twitch, Account Security, Cold Weather) stay in a smaller denominator.
+p038 is a labeled yes that a raw stem join would take (`student`, `colleg`). The same rule joins labeled-no p013 Radical Professors | School Medical Care (`dumb`) and p046 Radical Professors | Voucher Program (`stat`, `student`). Those are `unsafe_raw_stem_ids`. They are not removed from the rate.
 
-On this file the floor alone drops 53 planets and 548 published posts (sum of `post_count`; a post in global and a section counts twice). #264 on representative posts drops 6 planets: global Good Morning 383, and Other Good Morning 22, Great Day 16, Hope For The Day 14, wonderful day 8, Happy Sunday 6. #235 exact-title fold finds 0 duplicate face titles on Oct 19. #268's stance replay, on representative posts, folds 11 multi-face planets and leaves 14, including The Show at cosine 0.849.
+Face yes rows the 0.80 bar does not touch: c001 High Oil | Oil Prices 0.577, c003 Thirty Thousand | Debt Impact 0.479, c018 Asthma Fatal | Asthma Ban 0.691, c023 AI Art Rejected | Bad Writing 0.607. `local_faces_disagree` did not fire on any of the 27 census pairs, including the labeled disagreements. `local_faces_fold` is true on labeled-no pairs below 0.80 (c002 Tesla, c005 French protests, c009 and c010 voice, c026 Iran). Using the lexicon as the fold signal would raise the over-merge count. A different upstream change is needed for the mid band. The label "same stance" is wider than a subject stem.
 
-`main` has since taken both guards. #266 set `MIN_PLANET_POSTS = 30` (`ce1564a`). #268 folded same-subject faces that do not disagree (`21736d1`): `apply_stance_pass` in `_draft_planet` runs `apply_local_stance_gate` on the model-label path, and skips that gate when the backend is heuristic. Oct 19 was produced with the floor at 5 and without that gate. The headlines above are the published edition with both guards held off. The #268 numbers in this spec are `gate_published_perspectives` on representative posts, the local gate by itself, with no model call.
+## Merge bar
+
+Guards stay off: the #266 floor, the #264 junk filter, the #268 stance gate, and the #235 title fold. A fix has to drop duplicates on **both** the Oct 19 labeled set and the Oct 20 set once grok-4.7 has labeled it, and it fails if either of these rises:
+
+- **(b)** labeled-different pairs that the fix joins or removes (the over-merge count).
+- **(c)** posts or planets moved to Other, or dropped, per section. #280 is the shape: the Oct 20 run moved Politics' Fascism (201 posts) and Wealth Inequality (164) to Other, next to Cat Behavior. College Football Playoff (5) and Notre Dame Miami Game (5) leaving Politics was the right move. Fascism and Wealth Inequality were not. Texas (21) and Texas Derogatory (6) moved in the same pass.
+
+**(a)** is the good count: labeled-duplicate pairs removed or joined. (a) and (b) are blank on purpose. grok-4.7 fills them. composer-2.5 does not.
+
+The sheet is `docs/evidence/275/merge-bar.csv`.
+
+| Fix | Day | (a) good | (b) over-merge | Moved to Other | Dropped | Per section | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 paraphrase face | Oct 19 | awaiting grok-4.7 | awaiting grok-4.7 | 0 planets, 0 posts | 0 | — | awaiting labels; (c) does not rise |
+| 1 paraphrase face | Oct 20 | awaiting grok-4.7 | awaiting grok-4.7 | 0 planets, 0 posts | 0 | — | awaiting labels; (c) does not rise |
+| 2 attach stem | Oct 19 | awaiting grok-4.7 | awaiting grok-4.7 | 0 planets, 0 posts | 0 | — | awaiting labels; (c) does not rise |
+| 2 attach stem | Oct 20 | awaiting grok-4.7 | awaiting grok-4.7 | 0 planets, 0 posts | 0 | — | awaiting labels; (c) does not rise |
+| 3 keep dropped-face posts | Oct 19 | awaiting grok-4.7 | awaiting grok-4.7 | 0 planets, 0 posts | 0 | — | awaiting labels; (c) does not rise |
+| 3 keep dropped-face posts | Oct 20 | awaiting grok-4.7 | awaiting grok-4.7 | 0 planets, 0 posts | 0 | — | awaiting labels; (c) does not rise |
+| Daypart planet gate | Oct 19 | awaiting grok-4.7 | awaiting grok-4.7 | 0 | 5 planets, 433 posts | global Good Morning 383; Other Good Morning 22, Hope For The Day 14, wonderful day 8, Happy Sunday 6 | **fails (c)** |
+| Daypart planet gate | Oct 20 | awaiting grok-4.7 | awaiting grok-4.7 | 0 | 1 planet, 349 posts | global Good Sunday 349 | **fails (c)** |
+| Published edition, not a #275 fix | Oct 20 | — | — | 6 planets, 402 posts | 0 | Politics → Other: Fascism 201, Wealth Inequality 164, Texas 21, Texas Derogatory 6, College Football Playoff 5, Notre Dame Miami Game 5 (#280, Actions `39417351709`) | baseline already has the (c) shape |
+
+Fixes 1–3 do not call `partition_politics_planets`. They add nothing to the #280 moves. A folded face or a joined planet is (a) or (b) once labeled, not a section move. Fix 3 puts stayed-off posts back on the surviving face, so drops do not rise.
+
+The daypart gate fails (c) on both days because it drops planets. It does not move a Politics planet to Other. Pretty Flowers (Oct 19, daypart share 0.333), Account Security (0.017), and Fall Foliage Season (Oct 20, 0.036) stay. The gate's drops are the greeting planets in the per-section column.
+
+### Files the grok-4.7 pass labels
+
+Leave `is_duplicate` empty until that pass. Do not copy composer-2.5 answers onto Oct 20.
+
+| Path | What it is |
+| --- | --- |
+| `docs/evidence/275/oct19-pairs.csv` | Oct 19 planet rows only. The face rows leaked. Do not regenerate this file. |
+| `docs/evidence/275/oct19-face-census.csv` | 27 within-planet face pairs. Face before/after uses this, not the 60-row face sample. |
+| `docs/evidence/275/oct20-pairs.csv` | Oct 20 stratified sample. 60 planet pairs, 36 within-planet face pairs. Unlabeled. |
+| `docs/evidence/275/oct20-face-census.csv` | 38 within-planet face pairs, two distinct titles. Unlabeled. |
+| `docs/evidence/275/oct20-sample-design.json` | Seed 275, band shares, cosine. Not for the labeler. |
+| `docs/evidence/275/merge-bar.csv` | (a) (b) (c) per fix per day. (a) and (b) empty. |
+
+Oct 20 was drawn with the same seed, the same bands, and `validate_label_sheet` before either CSV was written. The face draw is within-planet only. Two hand-picked faces (#278 Bad Jobs, #279 Trump Putin Ukraine) are in the census and out of the 36-row draw. Four hand-picked planet pairs (AI Use / AI Use 2, Data Centers / AI Data Centres, Tesla Flying Roadster / Elon Flying Cars, Cat Behavior / Kitten Behavior) are out of the planet draw. Population behind the draw: 514 same-section planet pairs, 38 labelable within-planet face pairs, 108 planets. Business Stock Market's two faces are both titled Market Volatility (10 and 4 posts). The checker rejects equal titles, so that pair is `held_out_same_title` on the design file and is absent from the census.
+
+## Sampler check
+
+`validate_label_sheet` in `scripts/replay_275_oct19.py` runs before any CSV is written. A face row must have `same_planet` true, one planet on both sides, and two different face titles. A planet row must be two different planets in one section, and must not have `same_planet` true. Sorted endpoints may not repeat, so a face row that copies a planet row fails. Pair ids may not repeat. The Oct 19 sheet was already labeled, and the script refuses to overwrite `oct19-pairs.csv` or `oct19-sample-design.json`.
+
+`tests/test_replay_275_sample.py` covers a valid sheet, the f018 cross-planet leak, equal face titles, a missing `same_planet` flag, one planet named twice, a section string that contains `|`, a face row that copies a planet row, a repeated pair id, the within-planet census order, the overwrite guard, and the empty grok-4.7 columns on the merge bar.
+
+## Good Sunday and the greeting matcher (#277, #208)
+
+Twelve representative posts of global Good Sunday (Oct 20, 349 posts) all get `pleasantry_reason` None. The junk filter on those 12 returns None. `density_labels` made one ball of 349, the floor cannot drop 349, and `catalog_size` keeps the second-largest global planet. None of fixes 1–3 removes it. The Oct 20 run (Actions `39417351709`, 11:51 UTC) finished before #264 merged at 14:43 UTC.
+
+`_greeting` returns false when the post is over 60 words, or `_news` or `_work_topic` matches, or neither `_greeting_wish_body` nor `_standalone_day_wish_body` matches. The wish body only runs when the post opens with a daypart (`_DAYPART_OPEN_RE`). The tail then has to pass `_greeting_tail_only_allowlisted_content`: every substantive token on the allowlist, at most one unknown name-like token, and any token in `_GREETING_NEVER_NAME` rejects the post (`outside`, `frost`, `fall`, `start`, `legs`, `blast`, `wait`, `update`, `downtown`, and the rest of that set). The standalone path needs `_DAY_WISH_PHRASE_RE` ("hope you have a good day", "happy thursday", and a short list like them) and at most 45 words, and the same allowlist.
+
+Which check misses each representative:
+
+| Post | Check that returns false |
+| --- | --- |
+| "Good morning Kelly… chilly outside… first little frost of the fall." | Opens with a daypart. `kelly` is allowlisted. Hard tokens `outside`, `frost`, `fall`. |
+| "Good night everynyan! … work week ahead… stream schedule." | More than one unknown name-like token (`everynyan`, `hopefully`, `ahead`, `schedule`). The rule allows one. |
+| "Good morning, Seima! … serene and relaxing Sunday." | Two name-like unknowns (`seima`, `serene`). |
+| "Good morning Bob and little ladies… breakfast… laundry… great start." | Hard token `start`, plus many unknowns. 59 words, so the 60-word cap is not the miss. |
+| "Have a good rest of your evening. See you in the morning." | Does not open with a daypart. The day-wish phrase regex does not match. |
+| "A very good and happy Thursday night… from Liverpool." | The phrase regex matches. The standalone allowlist then fails. |
+| "I hope you feel good today." | No daypart. The phrase regex does not match "feel good today". |
+| "Good morning… yes the legs… Happy Sinful Sunday." | Hard token `legs`. |
+| "good afternoon my friends… madoka goodies… can't wait." | Hard token `wait`. |
+| "Good morning… last night was such a blast… wait to update you." | Hard tokens `blast`, `wait`, `update`. |
+| "Hope your day was productive… Good evening from downtown Toronto." | The daypart is not the opening. `downtown` is in `_GREETING_NEVER_NAME`. The phrase regex does not match. |
+| "Please stay safe…" | No daypart and no day-wish phrase. |
+
+### Upstream rule that was replayed
+
+Drop a planet when at least half of its representative posts have a daypart greeting in the first 8 words, are at most 60 words, and do not trip `_news`, `_work_topic`, or `_GREETING_HARD_TOPIC_RE`. The tail allowlist is not consulted. This is a planet gate after clustering, not a wider ingest drop. Replay is on representative posts, guards off, $0. Runtime of the whole scoring pass is 17.83 seconds.
+
+Oct 19, gate drops: global Good Morning (share 0.605, 383 posts; the junk filter also drops it), Other Good Morning (0.80, 22), Hope For The Day (0.60, 14), wonderful day (1.0, 8), Happy Sunday (1.0, 6). One Happy Sunday card is "HAPPY Monday AFTER the #NoKings #4 March". That planet is already a greeting planet the junk filter drops. It is not a real-story false positive.
+
+Oct 19, gate does not drop: Great Day (share 0.417). The junk filter does drop Great Day (75% chit-chat). Good Day, Great Time, and Glad Returns have no daypart opener in the reps ("Good for you!", "Have a great time!", "Glad you're back") and the junk filter returns None on them. p007 Good Day | Great Time (yes, 0.675) and p033 Good Day | Great Day (yes, 0.766) survive the gate. p033 survives because Great Day is under 0.50 and Good Day is not a daypart planet.
+
+Oct 20, gate drops: global Good Sunday, share 0.667, 349 posts, junk filter None. The frost post above is one of the cards the ingest matcher misses and the planet gate catches.
+
+False positives of this planet gate: none on the two editions. Pretty Flowers is 1 of 3 reps ("Good morning, beautiful Stella! … Possible frost…"), share 0.333, planet stays. Account Security is 1 of 59. Fall Foliage Season is 1 of 28 ("Good morning North Carolinians… bring your outside plants in"). Both stay.
+
+Widening ingest so every daypart opener is chit-chat is not safe. Pretty Flowers, Account Security, and Fall Foliage each have one such representative. Widening it further to catch "good for you" and "have a great time" collides with ordinary replies. The #208 tests require `Thank you, veterans.` to stay (`tests/test_chitchat_guard.py`).
+
+The junk filter stays as the stopgap for pleasantries the daypart gate misses, on purpose, because of that gap and because of #208. It is not a substitute for the planet gate. The gate is what catches Good Sunday. The filter is what still catches Great Day, which the gate's 0.50 line leaves. Neither one catches Good Day, Great Time, or Glad Returns. On the composer-2.5 reading the gate takes the planet headline from 6.8016 pairs per section to 4.6122 (yes) and from 7.3243 to 4.8736 (yes or unsure). That reading is not the scorer. Under the merge bar the gate already fails (c), because those removals are drops.
+
+## Guards on (secondary, cosine proxy)
+
+Applying the 30-post floor (#266) or `planet_chitchat_reason` on representative posts (#264) drops 54 of 107 Oct 19 planets. The reweighted planet proxy falls to 0 pairs per section. The face proxy rises to 0.2407 pairs per planet, because the large-planet face duplicates stay in a smaller denominator. The floor alone drops 53 planets and 548 published posts. #264 on representative posts drops 6 planets: global Good Morning 383, and Other Good Morning 22, Great Day 16, Hope For The Day 14, wonderful day 8, Happy Sunday 6. It does not drop Good Sunday's 12 representatives. #235 finds 0 exact duplicate face titles on Oct 19. On Oct 20, Business Stock Market has two faces both titled Market Volatility. #268's local gate on representative posts folds 11 multi-face planets and leaves The Show at cosine 0.849.
+
+`main` has since taken both guards. #266 set `MIN_PLANET_POSTS = 30` (`ce1564a`). #268 folded same-subject faces that do not disagree (`21736d1`). Oct 19 was produced with the floor at 5 and without that gate. The headlines above are the published edition with both guards held off.
 
 ## Where the duplicates are made
 
 Clustering is `density_labels` → `_cohesive_balls` (`pipeline/grouping.py`). Above 12,000 posts the centers come from a 12,000-post sample, seed 0 (`_density_from_sample`). The grid is about one seed per `min_cluster_size` posts (5 on the Oct 19 run). `_BALL_MEMBER` 0.50 peels outliers, `_BALL_MERGE` 0.72 folds centers, `_BALL_MEAN` 0.60 drops a loose ball, then groups under the floor become noise. The author cap is 3 (`_cap_author_posts`). Sections are clustered again on their own posts (`live.py` `_cluster_sections`), same seed and same floor. Section labels are one Jev category call per candidate (`stamp_candidate_sections`); that call was not repeated here.
 
-Attach is `attach_same_story` (`pipeline/story_attach.py`). A sibling folds only into a strictly larger parent of at least `BIG_PLANET` 20 posts, centroid cosine ≥ `FOLD_COSINE` 0.55, and ≥ `SIBLING_MAJORITY` 0.60 of its posts passing `post_matches` on the parent's top stem. Noise joins a parent of at least 20 posts at cosine ≥ `ATTACH_COSINE` 0.42 when `post_matches` passes and a second parent is not within `AMBIGUITY` 0.03. `specific_stems` drops tokens under 4 characters, so "ai", "ps5", and "ps6" never become stems.
+Attach is `attach_same_story` (`pipeline/story_attach.py`). A sibling folds only into a strictly larger parent of at least `BIG_PLANET` 20 posts, centroid cosine ≥ `FOLD_COSINE` 0.55, and ≥ `SIBLING_MAJORITY` 0.60 of its posts passing `post_matches` on the parent's top stem. Noise joins a parent of at least 20 posts at cosine ≥ `ATTACH_COSINE` 0.42 when `post_matches` passes and a second parent is not within `AMBIGUITY` 0.03. `specific_stems` drops tokens under 4 characters, so "ai", "ps5", and "ps6" never become stems. Do not lower `_BALL_MERGE` or `FOLD_COSINE`.
 
-Faces are `split_perspectives` (`pipeline/perspectives.py`). k-means for k = 2..6, seed 0, three restarts. A cut is invalid when any face is under `MIN_FACE_POSTS` 2 or `MIN_FACE_SHARE` 0.05, when two face centroids are closer than `_FACE_COSINE` 0.90, or when a face is looser than the planet. If no k passes, the planet is one face (`single_view`). The module docstring still mentions a forced second face; `split_perspectives` does not force one. `_draft_planet` (`live.py`) applies the post floor before any name exists, then `_label_faces` drops a face that fails the shared-claim check. `return_same_story_posts` puts a dropped face's posts back only when `post_matches` says they belong to the kept face.
+Faces are `split_perspectives` (`pipeline/perspectives.py`). k-means for k = 2..6, seed 0, three restarts. A cut is invalid when any face is under `MIN_FACE_POSTS` 2 or `MIN_FACE_SHARE` 0.05, when two face centroids are closer than `_FACE_COSINE` 0.90, or when a face is looser than the planet. If no k passes, the planet is one face. The module docstring still mentions a forced second face; `split_perspectives` does not force one. `_draft_planet` (`live.py`) applies the post floor before any name exists, then `_label_faces` drops a face that fails the shared-claim check. `return_same_story_posts` puts a dropped face's posts back only when `post_matches` says they belong to the kept face.
 
 `post_matches` requires the parent's top stem. It then rejects the post when the longest stem in the post is a similar length and is not part of the story (`len(longest) > len(longest_match) + 1` is the only way a longer extra word is ignored).
+
+Section placement after labeling is `partition_politics_planets` (`pipeline/section_sanity.py`, #228). A Politics planet whose member posts miss a fixed keyword list moves to Culture or Other. That is the #280 path. Fixes 1–3 do not go through it.
 
 ### Planets (#272, adopted)
 
 Same story, more than one planet, all inside one section:
 
-- Technology. Six planets of 5 posts: AI Generated Articles, AI bots, AI Adoption, AI Creative Effort, Crazy, AI Art. Representative cosine 0.706–0.781. Joined they are 30 posts. Stage: `_merge_same_subject` only merges at 0.72, so the full centers stayed apart, then `_fold_targets` refuses them. None has 20 posts, a parent must be strictly larger, and `specific_stems` drops "ai". `story_of` names them "okay" or "actively". AI Control (5 posts, cosine 0.652) does not join.
-- Culture. Tax Movie Titles (177) and Tax Purposes (25), cosine 0.701. Same joke. The representative sample passes today's fold (parent reps ≥ 20, cosine > 0.55). The published edition still has two planets, so the full membership failed a gate this sample passes.
-- Health. ADHD Struggles (29) and ADHD Struggles 2 (15). `titles_alike` treats the names as one title. The second planet's posts say hyperfocus and executive function and do not say "adhd". Representative cosine 0.541, under 0.55. The title does not exist until after the floor in `_draft_planet`. Mental Health Struggles is only 0.027 farther from ADHD Struggles than the duplicate is. Lowering the cosine cut to catch ADHD also catches a different condition.
-- Education. School Surgeries (33) and School Medical Care (8), cosine 0.701, shared stem "school". `post_matches` hits 3 of 6 representative posts, under the 0.60 majority. Two of those posts are a Media Literacy face, a different story on the same planet.
+- Technology. Six planets of 5 posts: AI Generated Articles, AI bots, AI Adoption, AI Creative Effort, Crazy, AI Art. Representative cosine 0.706–0.781. Joined they are 30 posts. Stage: `_merge_same_subject` only merges at 0.72, so the full centers stayed apart, then `_fold_targets` refuses them. None has 20 posts, a parent must be strictly larger, and `specific_stems` drops "ai". AI Control (5 posts, cosine 0.652) does not join on that reading. The composer-2.5 labels call AI Control | AI bots and AI Control | AI Adoption duplicates anyway.
+- Culture. Tax Movie Titles (177) and Tax Purposes (25), cosine 0.701. The representative sample passes today's fold. The published edition still has two planets, so the full membership failed a gate this sample passes.
+- Health. ADHD Struggles (29) and ADHD Struggles 2 (15). `titles_alike` treats the names as one title. The second planet's posts do not say "adhd". Representative cosine 0.541, under 0.55.
+- Education. School Surgeries (33) and School Medical Care (8), cosine 0.701, shared stem "school". `post_matches` hits 3 of 6 representative posts, under the 0.60 majority.
 
-Sports console planets (PS6 Pricing 7, PS5 Compatibility 6, Sony PS5 5, Playstation Games Sony 5, cosine 0.739–0.820) fail the same attach gates and are not one story. "ps5" / "ps6" are three characters, so they are not stems.
+Sports console planets (cosine 0.739–0.820) fail the same attach gates and are not one story. "ps5" and "ps6" are three characters, so they are not stems, and they are not on the allowlist.
 
-Near in embedding, different stories, do not fold: Business Trump Gas Prices / Brent Oil Prices 0.623, Millionaire Definition / Ultra Rich 0.695; World US Ukraine War / Russia Sanctions 0.601; Sports College Football Playoff / BYU vs Notre Dame 0.648; Environment Fires / Coffee Building Fire 0.628; Education Bar Exam / Bits Limited Neighborhood 0.489 (both say "bar"). `_merge_same_subject` has no stem check. Lowering `_BALL_MERGE` or `FOLD_COSINE` on cosine alone is the wrong change.
+Near in embedding, different stories, do not fold: Business Trump Gas Prices / Brent Oil Prices 0.623, Millionaire Definition / Ultra Rich 0.695; World US Ukraine War / Russia Sanctions 0.601; Sports College Football Playoff / BYU vs Notre Dame 0.648; Environment Fires / Coffee Building Fire 0.628; Education Bar Exam / Bits Limited Neighborhood 0.489 (both say "bar"). Lowering `_BALL_MERGE` or `FOLD_COSINE` on cosine alone is the wrong change.
 
-Other greeting planets (Good Day, Good Morning, Great Day, Hope For The Day, wonderful day, Great Time, Glad Returns, Happy Sunday) are one pleasantry family, pairwise cosine about 0.61–0.85, and 14 of the 27 planet pairs at cosine ≥ 0.70. They stayed separate, so their full centers were under 0.72. Joining them would publish one pleasantry planet large enough to clear a 30-post floor.
+The Other greeting family (Good Day, Good Morning, Great Day, Hope For The Day, wonderful day, Great Time, Glad Returns, Happy Sunday) is one pleasantry family, pairwise cosine about 0.61–0.85, and 14 of the 27 planet pairs at cosine ≥ 0.70. Joining them by cosine would publish one pleasantry planet. They are not a fold candidate.
 
 ### Faces
 
 `_FACE_COSINE` 0.90 treats 0.80–0.89 as two views. On Oct 19 the published within-planet pairs at cosine ≥ 0.80 are:
 
-| Section | Planet | Faces | Posts | Cosine |
-| --- | --- | --- | ---: | ---: |
-| Culture | Twitch Streamers | Stream Plans / Burnout | 223 / 10 | 0.895 |
-| global | Good Morning | Good Wishes / Night Time | 376 / 7 | 0.856 |
-| Culture | The Show | Show Quality / Show Enjoyment | 111 / 89 | 0.849 |
-| Technology | Account Security | Account Suspensions / Account Deletions | 60 / 33 | 0.824 |
-| Environment | Cold Weather | Weather Changes / Weather Reports | 72 / 61 | 0.818 |
+| Section | Planet | Faces | Posts | Cosine | Census | composer-2.5 |
+| --- | --- | --- | ---: | ---: | --- | --- |
+| Culture | Twitch Streamers | Stream Plans / Burnout | 223 / 10 | 0.895 | c008 | yes |
+| global | Good Morning | Good Wishes / Night Time | 376 / 7 | 0.856 | c027 | no |
+| Culture | The Show | Show Quality / Show Enjoyment | 111 / 89 | 0.849 | c007 | yes |
+| Technology | Account Security | Account Suspensions / Account Deletions | 60 / 33 | 0.824 | c024 | yes |
+| Environment | Cold Weather | Weather Changes / Weather Reports | 72 / 61 | 0.818 | c016 | unsure |
 
-The Show's posts are generic television chatter ("dropped the show", "enjoy the new series"), not two takes on one named show. The local gate on representative posts folds Good Morning, Twitch, Account Security, and Cold Weather, and does not fold The Show. It also folds Twitter Exodus (0.732), AEW WrestleDream (0.734), Hair Preferences (0.773), Voice Training (0.782 and 0.760; three faces become one), ADHD Struggles (0.798), and School Surgeries (0.757). It keeps US Iran War (0.756), Brewers Dodgers, French Protests (0.732), and the other disagreed planets listed in the replay. The gate now on main still leaves The Show in place. The cut is made earlier, in `split_perspectives`, before a title exists.
-
-Two global planets show a collapsed title with a leftover cut. Video Game Enjoyment is one published face (353 posts) with `face_distinctness` 0.135; the corpus stored faces of 253 and 100 at centroid cosine 0.865. No Kings is one published face (345) with distinctness 0.344; the corpus stored 260 and 85 at cosine 0.656. Distinctness is `1 − max face-centroid cosine` (`live.py` `_face_distinctness`), including a cut that labeling then collapsed to one title.
+`local_faces_disagree` is false on all five. `local_faces_fold` is false only on The Show. The 0.80 bar, which does not consult the lexicon, marks all five `paraphrase_bar`. That includes c027, the labeled different pair. On the composer-2.5 reading the bar takes the face rate from 0.481481 to 0.37037 (0.1215 to 0.0935 pairs per planet) by clearing c007, c008, and c024, and it also clears the unsure c016, so yes-or-unsure falls to the same 0.37037. c027 was already no, so the rate does not show the false fold. If grok-4.7 also calls c027 different, (b) rises and fix 1 fails.
 
 ### Posts that stayed off the published face
 
-The Oct 19 log has 53 "stayed off" lines: 1,856 of 7,619 posts in those planets (24.4%). The global share is the 748 membership rows that have no perspective row:
+The Oct 19 log has 53 "stayed off" lines: 1,856 of 7,619 posts in those planets (24.4%). Global membership with no perspective row:
 
 | Planet | Off the published face | Kept | Kept stem | Mean cosine to the kept face | `post_matches` hits |
 | --- | ---: | ---: | --- | ---: | ---: |
@@ -114,9 +202,7 @@ The Oct 19 log has 53 "stayed off" lines: 1,856 of 7,619 posts in those planets 
 | Musk | 16 of 395 | 379 | musk | — | 0 |
 | Halloween | 38 of 333 | 295 | halloween | — | 0 |
 
-All 257 Ukraine posts and 373 of 375 Early Voting posts are still within cosine 0.42 of the kept face. Seven of the 257 Ukraine posts contain the substring "ukrain". A post that says "Ukraine" can still fail the longest-stem veto. Early Voting's off-face posts say "vote" and do not say "early". Stage: `split_perspectives` can open a second face under the 0.90 gate, `_label_faces` drops the face that fails the shared-claim check, and `return_same_story_posts` / `post_matches` does not put the posts back. Those posts were already inside the planet ball.
-
-The same veto is why a large ball can shrink under the 30-post floor after the face step. The log's largest section leftovers include Cat Cats 209 of 226 (published 17), Day 154 of 502, Weather 90 of 223, School Gun 86 of 306.
+All 257 Ukraine posts and 373 of 375 Early Voting posts are still within cosine 0.42 of the kept face. Seven of the 257 Ukraine posts contain the substring "ukrain". Stage: `split_perspectives` can open a second face under the 0.90 gate, `_label_faces` drops the face that fails the shared-claim check, and `return_same_story_posts` / `post_matches` does not put the posts back. Those posts were already inside the planet ball. The same veto shrinks a ball under the floor after the face step (Cat Cats 226 → 17 in the log; Early Voting 710 → 335).
 
 ### Unassigned and `_attach_noise`
 
@@ -130,93 +216,74 @@ A global replay of `density_labels` (min cluster 5, seed 0) plus the author cap 
 | Posts attached from noise | 8,952 | 8,568 |
 | Noise after attach | 59,162 | 59,553 excluded |
 
-The fold counts match the run. The candidate and attached-post gaps are the difference between this offline call and the live path; the gate counters below are from the replay.
+The fold counts match the run. Noise gate, against 338 parents of at least 20 posts that have a stem: would attach 8,983; ambiguous 439; cosine ≥ 0.42 and stem fail 28,047 (2,026 of them at cosine ≥ 0.55); stem matches but cosine 0.35–0.42 is 2,551; cosine under 0.42 is 30,645.
 
-Noise gate, against parents of at least 20 posts that have a stem (338 such parents):
-
-| Gate | Posts |
-| --- | ---: |
-| Would attach | 8,983 |
-| Ambiguous between two parents | 439 |
-| Cosine ≥ 0.42 and stem fail | 28,047 |
-| of which cosine ≥ 0.55 | 2,026 |
-| Stem matches, cosine 0.35–0.42 | 2,551 |
-| Cosine under 0.42 | 30,645 |
-
-Sibling gate, among candidate balls: 204 pairs at cosine ≥ 0.55 with both sides under 20 posts, 16 pairs blocked because the parent is not strictly larger, 2,227 pairs under the sibling majority. The majority examples are dominated by one 158-post ball whose top stem is empty, sitting near balls about cold, weather, soup, and drinks. That is not a missed duplicate. The 204 pairs with both sides under 20 are the fragment shape the AI planets have: neither side is allowed to be the parent.
+Sibling gate: 204 pairs at cosine ≥ 0.55 with both sides under 20 posts, 16 pairs blocked because the parent is not strictly larger, 2,227 pairs under the sibling majority. The majority examples are dominated by one 158-post ball whose top stem is empty. That is not a missed duplicate.
 
 ### Oct 20 trace
 
-These rows are on `handpicked-pairs.csv` only. They are not in the baseline rate. Cosines are representative centroids.
-
-Duplicate planets:
+These rows are on `handpicked-pairs.csv` only. They are not in the Oct 20 baseline draw. Cosines are representative centroids.
 
 | Section | Pair | Posts | Cosine | Stage |
 | --- | --- | ---: | ---: | --- |
-| Technology | AI Use / AI Use 2 | 5 / 5 | 0.754 | Same attach failure as the Oct 19 AI fragments. `unique_label` appends " 2" when the names collide. Faces: AI Use, and AI Not Welcome. |
-| Technology | Data Centers / AI Data Centres | 120 / 5 | 0.709 | Parent is already over 20, so `BIG_PLANET` is not the block. Spelling (center / centre) and the stem or majority gate are what is left. Data Centers also has two faces, Data Centers Harm 108 and Data Collection 12, cosine 0.740. |
-| Business | Tesla Flying Roadster / Elon Flying Cars | 112 / 9 | 0.616 | Representative cosine 0.616 is above `FOLD_COSINE` 0.55, and the parent (112) is larger than the child (9), so size is not the block. The stem (`tesla` / `elon` / `flying`) or the 0.60 majority is the gate that held. Tesla's own faces, Tesla Fails 90 and Tesla Overhyped 22, sit at 0.846. |
-| Other | Cat Behavior / Kitten Behavior | 37 / 12 | 0.753 | Parent clears 20. Child has faces Kitten Behavior 9 and Kitten Lessons 3 (cosine 0.693). Stem (cat / kitten) or majority held them apart. |
+| Technology | AI Use / AI Use 2 | 5 / 5 | 0.754 | Same attach failure as the Oct 19 AI fragments. Faces: AI Use, and AI Not Welcome. |
+| Technology | Data Centers / AI Data Centres | 120 / 5 | 0.709 | Parent is already over 20. Data Centers faces Harm 108 / Data Collection 12, cosine 0.740. |
+| Business | Tesla Flying Roadster / Elon Flying Cars | 112 / 9 | 0.616 | Above 0.55, parent larger. Stem or the 0.60 majority held. Tesla faces Fails 90 / Overhyped 22, cosine 0.846. |
+| Other | Cat Behavior / Kitten Behavior | 37 / 12 | 0.753 | Parent clears 20. Kitten faces Kitten Behavior 9 / Kitten Lessons 3, cosine 0.693. |
 
-Duplicate faces, both on the global planet. The section planet of the same story is a different, single-face planet:
-
-- #278. Global Bad Jobs, category Business, 344 posts. Faces Bad Jobs 258 (75%) and Short Lived Jobs 86 (25%), cosine 0.752. Both are quit-after-one-day anecdotes. The Business-section planet is Bad First Jobs, 329 posts, one face titled Bad Jobs.
-- #279. Global Trump Putin Ukraine, category World, 1,038 posts. Faces Trump Helps Russia 1,019 (98.2%) and Trump Supports Putin 19 (1.8%), representative cosine 0.939. Both are the anti-Trump, helping-Russia claim. The World-section planet of the same name is 835 posts and one face, Trump Helps Russia. Representative centroids sit past `_FACE_COSINE` 0.90. The cube still shipped two faces, so the vectors the split actually scored were not these representative centroids (the Oct 19 Video Game case is the same split: the corpus kept two face indices, the published title collapsed, and distinctness preserved the cut). Full-membership centroids for this Oct 20 planet were not replayed.
-
-#277 Good Sunday. Global, category Other, 349 posts, one face Good Wishes, about 8.4% of that solar system. It is a greeting planet, not a face duplicate. Twelve representative posts are in the edition ("Good morning Kelly…", "Good morning, Seima… relaxing Sunday", "Have a good rest of your evening"). `pleasantry_reason` returns None on all 12, so `planet_content_share` and the gesture share are 0. The greeting matcher (`_greeting` / `_greeting_wish_body`) keeps a "good morning" whose tail is a name, weather, or a weekend plan; those tokens are not on the allowlist. Stage, in order: ingest kept the posts because they were not classified as chit-chat; `density_labels` formed one ball of 349; the post floor cannot drop 349; `catalog_size` keeps the largest global planets and this is the second largest. The Oct 20 pipeline run (Actions `39417351709`, 11:51 UTC) finished before #264 merged at 14:43 UTC, so that run did not have this guard. Today's guard, applied to the 12 representatives, still does not drop the planet. The 349 member texts are not in the snapshot, so this does not say what the guard would do on the full ball. None of the three method changes below removes Good Sunday. The pleasantry decision has to recognize a day-wish that carries a name or a weather aside.
+#278. Global Bad Jobs, 344 posts. Faces Bad Jobs 258 and Short Lived Jobs 86, cosine 0.752. The Business-section planet is Bad First Jobs, 329 posts, one face. #279. Global Trump Putin Ukraine, 1,038 posts. Faces Trump Helps Russia 1,019 and Trump Supports Putin 19, representative cosine 0.939. The World-section planet is 835 posts and one face. Representative centroids sit past `_FACE_COSINE` 0.90. Full-membership centroids were not replayed. #277 is the greeting section above.
 
 ## What each root fix retires
 
-| Guard | Attach / stem (#272) | Face cut inside `split_perspectives` | Keep dropped-face posts on the surviving face |
-| --- | --- | --- | --- |
-| #266 30-post floor | Retires it for the AI fragments only. They become one 30-post planet before the floor. Bar Exam (23), BYU (17), and the other genuine small stories still need a floor or they publish as specks. | No | Shrinks the set of stories the floor drops because a face was discarded. Does not retire the floor. |
-| #264 junk / pleasantry | No. Joining the greeting family by cosine would publish the pleasantry. | No | No |
-| #268 stance gate | No. Attach does not merge faces. | Yes, for the pairs the gate folds, including The Show, which #268 misses. | No |
-| #235 exact-title face fold | No | Yes. The second face is not published, so a duplicate title is not minted. Oct 19 had 0 exact duplicate face titles. Oct 20 Business Stock Market has two faces both titled Market Volatility; that run did not have #235. | No |
-| #265 label guard | No | No | No |
-
-#264 stays. Fourteen of the 27 planet pairs at cosine ≥ 0.70 are the Other greeting family. Good Sunday is the same failure at planet size 349, and the current matcher misses its representatives.
+| Guard | Attach / stem (#272) | Face cut inside `split_perspectives` | Keep dropped-face posts | Daypart planet gate |
+| --- | --- | --- | --- | --- |
+| #266 30-post floor | Retires it for the AI fragments only. Bar Exam (23), BYU (17), and genuine small stories still need a floor. | No | Shrinks the set of stories the floor drops after a face was discarded. Does not retire the floor. | No |
+| #264 junk / pleasantry | No. Joining greetings by cosine would publish the pleasantry. | No | No | Does not retire it. The gate misses Great Day (0.417) and misses Good Day / Great Time / Glad Returns. The filter stays for that residue. See #208. |
+| #268 stance gate | No | Only for pairs at or above 0.80 whose posts do not disagree. It misses the 0.48–0.69 band, and on this census it also marks the labeled-no Night Time pair. | No | No |
+| #235 exact-title face fold | No | The second face is not published, so a duplicate title is not minted. Oct 19 had 0. Oct 20 Stock Market has two faces titled Market Volatility; that run did not have #235. | No | No |
+| #265 label guard | No | No | No | No |
+| #280 Politics → Other | No. Attach does not move a section. | No | No | No. The gate drops greeting planets. It does not move Fascism or Wealth Inequality. |
 
 ## Method changes
 
-Ranked by the expected drop in the two headlines. All three are local. None adds a model call. The Oct 19 producing run spent $0.118 on DeepInfra (1,046 calls) and $0.032 on Jev (795 calls). The Oct 20 scheduled run spent $0.129 and $0.031. The daily budget is about $0.25–$0.30. These changes add $0.
+Ranked by the composer-2.5 drop, which is the first reading, not the pass/fail. The pass/fail is the merge bar: both days, guards off, (b) does not rise, (c) does not rise. All three proposals are local. None adds a model call. The Oct 19 producing run spent $0.118 on DeepInfra (1,046 calls) and $0.032 on Jev (795 calls). The Oct 20 scheduled run spent $0.129 and $0.031. These changes add $0 a day. The scoring pass that produced the first reading took 17.83 seconds and $0.
 
-Blind `is_duplicate` labels do not exist yet. The drops below are estimated from the cosine census and the #272 / #268 replays. After the sheet is labeled, replace them with the reweighted label rate. Do not score the change with `titles_alike` or with the grouping code that produced the pairs.
+The daypart planet gate moves the planet headline more than fix 2 on the composer-2.5 reading, and it already fails (c). It is specified in the greeting section. It is not one of the three method changes.
 
 ### 1. Refuse a paraphrase face in the split
 
-In `split_perspectives` / `score_face_counts`, a second face is a paraphrase when the face centroids are at or above about 0.80, unless the posts actually disagree. Use the existing free lexicon check from #268 for the disagreement test. Do not add a paid stance pass. `_FACE_COSINE` 0.90 is what let 0.80–0.89 through, including Trump Supports Putin at 0.939 on Oct 20 if that cut was scored on a different vector than the published representatives.
+In `split_perspectives`, a second face is a paraphrase when the face centroids are at or above 0.80, unless the posts disagree. The disagreement check replayed here is `local_faces_disagree` on the census sample texts. It fired on none of the 27 pairs. Do not add a paid stance pass. Do not treat `local_faces_fold` as the fold signal: it is true on labeled-no pairs below 0.80.
 
-Estimated Oct 19 effect: 16 within-planet pairs sit at cosine ≥ 0.70 (headline 0.1495 pairs per planet, reweighted pair rate 0.592593). The #268 replay folds 11 of the 25 multi-face planets, covering the pairs at Twitch, Good Morning, Account Security, Cold Weather, Twitter Exodus, AEW, Hair, Voice Training, ADHD Struggles, and School Surgeries. It misses The Show at 0.849. A bar at 0.80 inside the split removes The Show as well. The pairs it should keep are the ones the lexicon marks as disagreement (Iran War at 0.756, Brewers, French Protests). That leaves on the order of 4 pairs and a headline around 0.04–0.06 face pairs per planet. The planet-pair headline does not move.
+Composer-2.5 effect, guards off: faces yes 0.481481 → 0.37037 (0.1215 → 0.0935 pairs per planet). Yes or unsure 0.518519 → 0.37037 (0.1308 → 0.0935). Planets do not move. Resolved census ids: c007 The Show (yes, lexicon fold false), c008 Twitch (yes), c024 Account Security (yes), c016 Cold Weather (unsure), c027 Good Wishes | Night Time (no). The mid-band face yes rows (c001, c003, c018, c023) stay. (c) does not rise on either day. (a) and (b) are awaiting grok-4.7. If that pass agrees that c027 is different, (b) rises and this fix fails.
 
-Risk: a real minority pressed against the majority collapses. Night Time is 7 posts at full-member cosine 0.883 against Good Wishes. The disagreement check is what keeps Iran War. If the lexicon cannot see a disagreement, the geometric bar will fold the minority.
+Risk: Night Time is 7 posts against Good Wishes, and the census already calls them different stances. The geometric bar folds that minority because the disagreement check does not see it.
 
 ### 2. Let same-subject fragments join before the floor
 
 This is #272's change. #275 does not carry a second attach implementation.
 
-`_fold_targets` currently requires a strictly larger parent of at least 20 posts, and `specific_stems` drops any token under 4 characters. Change the fold so two sub-20 balls of one subject can join, and so a real subject token shorter than 4 characters can be a stem through an allowlist. Do not drop the 4-character floor for every token: "bar" would glue Bar Exam to Bits Limited Neighborhood, and "ps5" / "ps6" would glue the console history into one story. Do not lower `_BALL_MERGE` or `FOLD_COSINE`. The 0.55–0.70 band is full of different stories (46 planet pairs, share 0.095833, rate 0 under the 0.70 rule, and #272's reading is that they are not duplicates).
+`_fold_targets` requires a strictly larger parent of at least 20 posts, and `specific_stems` drops any token under 4 characters. Two sub-20 balls may join when they share an allowlisted short stem and the centroid cosine is at least 0.55. The allowlist is `{ai}`. It is not `bar`, `ps5`, or `ps6`. Do not lower `_BALL_MERGE` or `FOLD_COSINE`.
 
-Estimated Oct 19 effect on the planet headline: the six Technology planets are 7 of the 27 pairs. Joining them removes 0.636 pairs per section (2.4545 → 1.818) and clears the 30-post floor with 30 posts. Tax Purposes is uncertain: the representative sample already passes the fold and the full ball did not. ADHD is not in the cosine headline (0.541) and is not fixed by an attach threshold, because the shared signal is the published title and the title is written after the floor. School Medical Care fails the majority, and part of that planet is a different story. The 14 greeting pairs stay separate. The 204 sibling pairs with both sides under 20 are the pool this change can fold; a stem allowlist, not the cosine, decides which of them are one subject. The face headline does not move.
+A raw `specific_stems` intersection on the sample texts is not this fix. It joins labeled-no p013 and p046, and it joins p038 and the greeting pair p010. Those ids are `unsafe_raw_stem_ids`.
 
-Risk: a loose allowlist over-merges. The stem list is the control, not the cosine. Console fragments and the greeting family are the cases the allowlist must refuse.
+Composer-2.5 effect, guards off: the measured fix resolves p041 AI Control | AI bots (yes, 0.640, both 5 posts). Planets yes 0.15587 → 0.149881 (6.8016 → 6.5403 pairs per section). Yes or unsure 0.167849 → 0.16186 (7.3243 → 7.063). Faces do not move. p011 stays, because its cosine is 0.530. (c) does not rise on either day. (a) and (b) are awaiting grok-4.7.
+
+Risk: a longer allowlist over-merges. The stem list is the control. Console fragments and the greeting family stay off it.
 
 ### 3. Keep a dropped face's posts on the surviving face
 
-When `_label_faces` drops a face, posts already inside the planet ball should remain on the surviving face unless they are a different story. `return_same_story_posts` currently requires the kept face's top stem as a password, and the longest-stem veto then rejects a post that contains the subject and also contains another word of similar length. On the global membership that veto hit 0 of 257 Ukraine posts and 0 of 375 Early Voting posts, all of them already inside cosine 0.42 of the kept face.
+When `_label_faces` drops a face, posts already inside the planet ball should remain on the surviving face unless they are a different story. `return_same_story_posts` currently requires the kept face's top stem, and the longest-stem veto then rejects a post that contains the subject and another word of similar length. On the global membership that veto hit 0 of 257 Ukraine posts and 0 of 375 Early Voting posts.
 
-Estimated Oct 19 effect on the two headlines: about zero directly. These posts are unpublished; they are not a second planet or a second face. The indirect effect is the floor. Restoring them stops a face drop from pushing a real story under 30 (Cat Cats 226 → 17 in the log; Early Voting 710 → 335). The same `post_matches` path blocks `_attach_noise` (28,047 posts at cosine ≥ 0.42 fail the stem, 2,026 of them at cosine ≥ 0.55). Loosening it inside the planet and loosening it for noise are the same function. The noise change is larger and riskier; do it only for posts that were members of the planet and lost their face.
+Composer-2.5 effect on the pair rates: none. Those posts are not rows in the sample or the census. The indirect effect is the floor (Cat Cats 226 → 17; Early Voting 710 → 335). The same `post_matches` path blocks `_attach_noise` (28,047 posts at cosine ≥ 0.42 fail the stem). Loosening it for noise is a different, larger change. Do it only for posts that were members of the planet and lost their face. (c) does not rise: the change restores posts, and it does not move a planet to Other. (a) and (b) are awaiting grok-4.7.
 
-Risk: the veto exists so a second story inside the ball does not attach. Zionism posts in a Gaza planet are the case `story_of` already documents. A restore rule that only puts back posts whose longest stem matches, or posts with no competing stem, keeps that case out. A restore rule that ignores stems will pull the second story in.
+Risk: the veto exists so a second story inside the ball does not attach. Zionism posts in a Gaza planet are the case `story_of` already documents. A restore that ignores stems pulls that second story in.
 
 ## Overlap with #272
 
 #272 (builder `bc-ac9dba54`) is the grouping fix so real stories clear the 30-post floor. Its planet trace is the planet section above. No grouping code from that builder was available to replay here.
 
-Proposal 2 is #272's work. #275 should not land a parallel attach change. What #275 adds, and #272 did not measure, is the face cut, the stayed-off posts, and the noise-gate counts. The face change and the attach change do not touch the same function. They do interact at the floor: joining the AI fragments makes #266 unnecessary for those planets, and restoring stayed-off posts makes #266 drop fewer stories that the face step had shrunk. The greeting family is in both traces and is not a fold candidate in either.
-
-The before/after yardstick for both is `docs/evidence/275/oct19-pairs.csv`, labeled by a different model, reweighted with the band shares in `oct19-sample-design.json`. `handpicked-pairs.csv` is scored on its own.
+Proposal 2 is #272's work. #275 should not land a parallel attach change. What #275 adds is the face cut, the stayed-off posts, the noise-gate counts, the greeting-matcher trace, and the Oct 20 out-of-sample sheets. The face change and the attach change do not touch the same function. They meet at the floor: joining the AI fragments makes #266 unnecessary for those planets, and restoring stayed-off posts makes #266 drop fewer stories the face step had shrunk. The greeting family is not a fold candidate in either spec.
 
 ## Out of scope
 
-No pipeline edit in this change. No Jev call, no section labeling, no workflow dispatch. `is_duplicate` stays empty. The hand-picked pairs are not mixed into the baseline rate.
+No pipeline edit in this change. No Jev call, no section labeling, no workflow dispatch. `is_duplicate` on `oct19-pairs.csv`, `oct20-pairs.csv`, and `oct20-face-census.csv` stays empty. The hand-picked pairs are not mixed into the baseline rate. composer-2.5 does not fill the merge bar.
