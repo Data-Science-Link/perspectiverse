@@ -158,8 +158,8 @@ def test_thin_generic_ai_fragments_merge_and_a_specific_story_stays():
 
 
 def test_unsplit_story_is_kept_instead_of_coherence_blocked(capsys):
-    """A named story of 5 or more posts is published when the re-split finds nothing."""
-    words = ["alphaaa", "bravooo", "charlii", "deltaaa", "echoooo", "foxtrot"]
+    """A named story at the planet floor is published when the re-split finds nothing."""
+    words = ["alphaaa", "bravooo", "charlii", "deltaaa", "echoooo", "foxtrot", "golfiii", "hotelll"]
     specs = [(word, f"{word} unique{word}", 1) for word in words]
     posts, matrix = _posts(specs)
     topics, membership, _faces = _build_topics(
@@ -169,8 +169,8 @@ def test_unsplit_story_is_kept_instead_of_coherence_blocked(capsys):
     assert "story stays" in logged
     assert "Coherence blocked" not in logged
     assert len(topics) == 1
-    assert topics[0]["post_count"] == 6
-    assert len(membership) == 6
+    assert topics[0]["post_count"] == 8
+    assert len(membership) == 8
 
 
 def test_split_catchall_posts_separates_ai_stories_and_ignores_glue():
