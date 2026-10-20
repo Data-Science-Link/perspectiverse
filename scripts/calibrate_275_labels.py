@@ -6,8 +6,13 @@ scored separately. ``planet_leak`` rows are not face pairs. ``unsure`` is not
 a yes or a no. Seed 273 holds out one third of each band. Spot-check ids are
 kept out of the tune split.
 
-The headline is withheld unless every population band with a non-zero share
-has a yes/no label. A raw average of the sample is not the headline.
+The planet headline is withheld unless every population band with a non-zero
+share has a yes/no label. A raw average of the sample is not the headline.
+
+Face rows come from the within-planet census, not the leaked face sample.
+A face percentage is withheld when the held-out set is smaller than
+``MIN_FACE_HOLDOUT``. The face result is then raw counts. Pooling more days
+of face pairs is what makes a real rate.
 """
 
 from __future__ import annotations
@@ -35,6 +40,17 @@ from pipeline.duplicate_rate import (
 PLANET_SPOT_IDS = frozenset(
     {"p006", "p060", "p002", "p003", "p004", "p001", "p007", "p009", "p011", "p015"}
 )
+FACE_SPOT_IDS = frozenset(
+    {"c001", "c003", "c005", "c010", "c018", "c020", "c022", "c023", "c026", "c027"}
+)
+# One day of within-planet faces holds out about 9 pairs. A percentage on
+# that few rows is not a rate. 30 is the smallest held-out set that gets one.
+MIN_FACE_HOLDOUT = 30
+
+
+def percentage_withheld(held_out: int, *, minimum: int = MIN_FACE_HOLDOUT) -> bool:
+    """True when a face held-out set is too small for a percentage."""
+    return int(held_out) < int(minimum)
 
 
 def _shares(design: dict, side: str) -> dict[str, float]:
@@ -69,7 +85,7 @@ def calibration_rows(labeled: list[dict[str, str]], design: dict, *, level: str)
             if row_level == "planet_leak":
                 excluded_leak += 1
                 continue
-            if row_level != "face":
+            if row_level != "face_census":
                 continue
         answer = str(row.get("is_duplicate") or "").strip().lower()
         if answer == "unsure":
@@ -77,11 +93,12 @@ def calibration_rows(labeled: list[dict[str, str]], design: dict, *, level: str)
             continue
         if answer not in {"yes", "no"}:
             continue
-        band = bands.get(str(row.get("pair_id") or ""))
+        pair_id = str(row.get("pair_id") or "")
+        band = str(row.get("band") or "").strip() or bands.get(pair_id)
         if not band:
             missing_band += 1
             continue
-        pair_id = str(row.get("pair_id") or "")
+        spot_ids = PLANET_SPOT_IDS if level == "planet" else FACE_SPOT_IDS
         kept.append(
             {
                 "pair_type": "planet" if level == "planet" else "face",
@@ -90,7 +107,7 @@ def calibration_rows(labeled: list[dict[str, str]], design: dict, *, level: str)
                 "left_title": str(row.get("title_a") or ""),
                 "right_title": str(row.get("title_b") or ""),
                 "duplicate": "1" if answer == "yes" else "0",
-                "spot_check": "1" if pair_id in PLANET_SPOT_IDS else "0",
+                "spot_check": "1" if pair_id in spot_ids else "0",
                 "band": band,
                 "band_share": str(shares.get(band, "")),
                 "pair_id": pair_id,
@@ -108,7 +125,7 @@ def calibration_rows(labeled: list[dict[str, str]], design: dict, *, level: str)
     }
 
 
-def _calibrate_level(scored: list[dict], prepared: dict) -> dict:
+def _calibrate_level(scored: list[dict], prepared: dict, *, counts_only: bool = False) -> dict:
     labels = prepared["rows"]
     parts = split_labeled_sample(labels)
     tuned = tune_threshold(scored, parts["tune"])
@@ -119,9 +136,24 @@ def _calibrate_level(scored: list[dict], prepared: dict) -> dict:
         use_title_min=True,
     )
     measured = agreement_with_labels(flagged, parts["evaluation"])
+    held_out = len(parts["evaluation"])
+    agree = int(measured["true_positive"]) + int(measured["true_negative"])
+    small = counts_only and percentage_withheld(held_out)
     complete = not prepared["missing_population_bands"]
-    headline_precision = measured["precision"] if complete and measured["weighted"] else None
-    headline_recall = measured["recall"] if complete and measured["weighted"] else None
+    weighted = bool(complete and measured["weighted"] and not small)
+    if small:
+        withheld = (
+            f"Held-out set is {held_out}, under {MIN_FACE_HOLDOUT}. "
+            "No face percentage. Pooling more days of face pairs is the path to a real rate."
+        )
+    elif not complete:
+        withheld = "Population bands with no yes/no label: " + ", ".join(prepared["missing_population_bands"])
+    elif not measured["weighted"]:
+        withheld = "Not every scored band has a real share."
+    else:
+        withheld = None
+    headline_precision = measured["precision"] if weighted else None
+    headline_recall = measured["recall"] if weighted else None
     return {
         "tuned_threshold": {
             "title_min": tuned["title_min"],
@@ -138,18 +170,14 @@ def _calibrate_level(scored: list[dict], prepared: dict) -> dict:
             "spot_ids": [row["pair_id"] for row in parts["spot_checks"]],
         },
         "headline": {
-            "weighted": bool(complete and measured["weighted"]),
+            "weighted": weighted,
             "precision": headline_precision,
             "recall": headline_recall,
-            "withheld_because": (
-                None
-                if complete and measured["weighted"]
-                else (
-                    "Population bands with no yes/no label: " + ", ".join(prepared["missing_population_bands"])
-                    if prepared["missing_population_bands"]
-                    else "Not every scored band has a real share."
-                )
-            ),
+            "counts_only": bool(counts_only and small),
+            "agree": agree,
+            "judged": int(measured["matched"]),
+            "held_out": held_out,
+            "withheld_because": withheld,
         },
         "bands": measured["bands"],
         "matched": measured["matched"],
@@ -175,27 +203,41 @@ def render_level(name: str, result: dict) -> list[str]:
         f"centroid cosine >= {tuned['centroid_min']} "
         f"(tune F1 {tuned['tune_f1']}, seed {result['split']['seed']}).",
         "",
-        "A band with no predicted positive in the held-out rows has no precision, "
-        "so it is left out of the precision average. Its share is still listed below.",
-        "",
     ]
-    if headline["weighted"]:
+    if headline.get("counts_only"):
         lines.append(
-            f"Band-weighted held-out agreement: precision {headline['precision']}, "
-            f"recall {headline['recall']}."
+            f"Held-out agreement: {headline['agree']} of {headline['judged']} agree."
         )
+        lines.append(str(headline["withheld_because"]))
     else:
         lines.append(
-            "Band-weighted held-out agreement withheld. " + str(headline["withheld_because"])
+            "A band with no predicted positive in the held-out rows has no precision, "
+            "so it is left out of the precision average. Its share is still listed below."
         )
+        lines.append("")
+        if headline["weighted"]:
+            lines.append(
+                f"Band-weighted held-out agreement: precision {headline['precision']}, "
+                f"recall {headline['recall']}."
+            )
+        else:
+            lines.append(
+                "Band-weighted held-out agreement withheld. " + str(headline["withheld_because"])
+            )
     lines.extend(["", "Per band:", ""])
     for band in result["bands"]:
         share = band.get("share")
         share_text = "share not recorded" if share is None else f"real share {float(share):.1%}"
-        lines.append(
-            f"- {band['band']} ({share_text}): precision {band['precision']}, "
-            f"recall {band['recall']}, matched {band['matched']}"
-        )
+        if headline.get("counts_only"):
+            agreed = int(band.get("true_positive") or 0) + int(band.get("true_negative") or 0)
+            lines.append(
+                f"- {band['band']} ({share_text}): {agreed} of {band['matched']} agree"
+            )
+        else:
+            lines.append(
+                f"- {band['band']} ({share_text}): precision {band['precision']}, "
+                f"recall {band['recall']}, matched {band['matched']}"
+            )
     split = result["split"]
     lines.extend(
         [
@@ -213,6 +255,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Calibrate on the #275 Oct 19 labeled sheet")
     parser.add_argument("--data", default="public/data.json")
     parser.add_argument("--labeled", required=True)
+    parser.add_argument("--faces", required=True, help="Within-planet face census CSV")
     parser.add_argument("--design", required=True)
     parser.add_argument("--source-commit", default="")
     parser.add_argument("--json", dest="json_path")
@@ -221,6 +264,8 @@ def main(argv: list[str] | None = None) -> int:
     payload = json.loads(Path(args.data).read_text(encoding="utf-8"))
     with Path(args.labeled).open(newline="", encoding="utf-8") as handle:
         labeled = list(csv.DictReader(handle))
+    with Path(args.faces).open(newline="", encoding="utf-8") as handle:
+        faces = list(csv.DictReader(handle))
     design = json.loads(Path(args.design).read_text(encoding="utf-8"))
     scored = score_pairs(payload)
     report = {
@@ -229,22 +274,25 @@ def main(argv: list[str] | None = None) -> int:
         "design_json": str(args.design),
         "edition": payload.get("last_updated"),
         "label_source": (
-            "Yes/no labels from cursor/root-cause-duplicates-3988 "
-            "docs/evidence/275/oct19-pairs-labeled.csv at 2082bf1. "
-            "The perspective-definition pass is b62ec0d; planet yes/no did not change after that, "
-            "and 2c1c384 only reclassified 51 leaked face rows as planet_leak. "
-            "Those 51 are not in the face score. The labeler is composer-2.5, not Michael. "
-            "spot-check-20.md has an empty Michael column, so the spot-check ids use the "
-            "composer label and are kept out of the tune split. Unsure is excluded. "
-            "Bands and population shares come from oct19-sample-design.json."
+            "Planet yes/no labels from cursor/root-cause-duplicates-3988 "
+            "docs/evidence/275/oct19-pairs-labeled.csv. "
+            "Face yes/no labels from docs/evidence/275/oct19-face-census.csv, "
+            "the within-planet census. The 60-row face sample is not used: 51 of those "
+            "rows were planet pairs. The labeler is composer-2.5, not Michael. "
+            "spot-check-20.md has an empty Michael column, so those ids use the composer "
+            "label and stay out of the tune split. Unsure is excluded. "
+            "Planet bands and shares come from oct19-sample-design.json. "
+            f"A face percentage is withheld below {MIN_FACE_HOLDOUT} held-out pairs."
         ),
+        "face_census": str(args.faces),
         "planet": _calibrate_level(
             [row for row in scored if row["pair_type"] == "planet"],
             calibration_rows(labeled, design, level="planet"),
         ),
         "face": _calibrate_level(
             [row for row in scored if row["pair_type"] == "face"],
-            calibration_rows(labeled, design, level="face"),
+            calibration_rows(faces, design, level="face"),
+            counts_only=True,
         ),
     }
     lines = [

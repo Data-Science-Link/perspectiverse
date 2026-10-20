@@ -3,7 +3,8 @@
   "labeled_csv": "/tmp/275/oct19-pairs-labeled.csv",
   "design_json": "/tmp/275/oct19-sample-design.json",
   "edition": "2026-10-19",
-  "label_source": "Yes/no labels from cursor/root-cause-duplicates-3988 docs/evidence/275/oct19-pairs-labeled.csv at 2082bf1. The perspective-definition pass is b62ec0d; planet yes/no did not change after that, and 2c1c384 only reclassified 51 leaked face rows as planet_leak. Those 51 are not in the face score. The labeler is composer-2.5, not Michael. spot-check-20.md has an empty Michael column, so the spot-check ids use the composer label and are kept out of the tune split. Unsure is excluded. Bands and population shares come from oct19-sample-design.json.",
+  "label_source": "Planet yes/no labels from cursor/root-cause-duplicates-3988 docs/evidence/275/oct19-pairs-labeled.csv. Face yes/no labels from docs/evidence/275/oct19-face-census.csv, the within-planet census. The 60-row face sample is not used: 51 of those rows were planet pairs. The labeler is composer-2.5, not Michael. spot-check-20.md has an empty Michael column, so those ids use the composer label and stay out of the tune split. Unsure is excluded. Planet bands and shares come from oct19-sample-design.json. A face percentage is withheld below 30 held-out pairs.",
+  "face_census": "/tmp/275/oct19-face-census.csv",
   "planet": {
     "tuned_threshold": {
       "title_min": 0.5,
@@ -84,6 +85,10 @@
       "weighted": true,
       "precision": 0.3251,
       "recall": 0.0512,
+      "counts_only": false,
+      "agree": 17,
+      "judged": 27,
+      "held_out": 27,
       "withheld_because": null
     },
     "bands": [
@@ -167,50 +172,61 @@
   "face": {
     "tuned_threshold": {
       "title_min": 0.5,
-      "centroid_min": 0.9,
-      "tune_f1": 0.8
+      "centroid_min": 0.55,
+      "tune_f1": 0.8889
     },
     "split": {
       "seed": 273,
-      "tuned_on": 5,
-      "holdout": 4,
-      "spot_checks": 0,
+      "tuned_on": 9,
+      "holdout": 7,
+      "spot_checks": 10,
       "tune_ids": [
-        "f024",
-        "f035",
-        "f060",
-        "f032",
-        "f037"
+        "c014",
+        "c012",
+        "c009",
+        "c021",
+        "c006",
+        "c007",
+        "c019",
+        "c011",
+        "c015"
       ],
       "holdout_ids": [
-        "f009",
-        "f028",
-        "f026",
-        "f047"
+        "c013",
+        "c004",
+        "c002",
+        "c024",
+        "c017",
+        "c025",
+        "c008"
       ],
-      "spot_ids": []
+      "spot_ids": [
+        "c001",
+        "c003",
+        "c005",
+        "c010",
+        "c018",
+        "c020",
+        "c022",
+        "c023",
+        "c026",
+        "c027"
+      ]
     },
     "headline": {
       "weighted": false,
       "precision": null,
       "recall": null,
-      "withheld_because": "Population bands with no yes/no label: B1"
+      "counts_only": true,
+      "agree": 9,
+      "judged": 16,
+      "held_out": 17,
+      "withheld_because": "Held-out set is 17, under 30. No face percentage. Pooling more days of face pairs is the path to a real rate."
     },
     "bands": [
       {
-        "band": "B2",
-        "share": 0.2963,
-        "matched": 1,
-        "true_positive": 0,
-        "false_positive": 0,
-        "false_negative": 0,
-        "true_negative": 1,
-        "precision": null,
-        "recall": null
-      },
-      {
-        "band": "B3",
-        "share": 0.5185,
+        "band": "B1",
+        "share": 0.1111,
         "matched": 2,
         "true_positive": 0,
         "false_positive": 0,
@@ -218,6 +234,28 @@
         "true_negative": 1,
         "precision": null,
         "recall": 0.0
+      },
+      {
+        "band": "B2",
+        "share": 0.2963,
+        "matched": 5,
+        "true_positive": 1,
+        "false_positive": 0,
+        "false_negative": 2,
+        "true_negative": 2,
+        "precision": 1.0,
+        "recall": 0.3333
+      },
+      {
+        "band": "B3",
+        "share": 0.5185,
+        "matched": 8,
+        "true_positive": 1,
+        "false_positive": 1,
+        "false_negative": 2,
+        "true_negative": 4,
+        "precision": 0.5,
+        "recall": 0.3333
       },
       {
         "band": "B4",
@@ -231,20 +269,18 @@
         "recall": 0.0
       }
     ],
-    "matched": 4,
-    "unmatched": 0,
+    "matched": 16,
+    "unmatched": 1,
     "sample_mix_not_headline": {
-      "precision": null,
-      "recall": 0.0,
+      "precision": 0.6667,
+      "recall": 0.25,
       "note": "Raw sample mix. Not the headline. The sample does not match each band's real share."
     },
     "labels": {
-      "yes_no_rows": 9,
-      "unsure_excluded": 0,
-      "planet_leak_excluded": 51,
-      "missing_population_bands": [
-        "B1"
-      ],
+      "yes_no_rows": 26,
+      "unsure_excluded": 1,
+      "planet_leak_excluded": 0,
+      "missing_population_bands": [],
       "band_shares": {
         "B0": 0.0,
         "B1": 0.111111,

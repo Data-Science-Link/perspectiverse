@@ -1,6 +1,6 @@
 # Oct 19 duplicate-threshold calibration
 
-Yes/no labels from cursor/root-cause-duplicates-3988 docs/evidence/275/oct19-pairs-labeled.csv at 2082bf1. The perspective-definition pass is b62ec0d; planet yes/no did not change after that, and 2c1c384 only reclassified 51 leaked face rows as planet_leak. Those 51 are not in the face score. The labeler is composer-2.5, not Michael. spot-check-20.md has an empty Michael column, so the spot-check ids use the composer label and are kept out of the tune split. Unsure is excluded. Bands and population shares come from oct19-sample-design.json.
+Planet yes/no labels from cursor/root-cause-duplicates-3988 docs/evidence/275/oct19-pairs-labeled.csv. Face yes/no labels from docs/evidence/275/oct19-face-census.csv, the within-planet census. The 60-row face sample is not used: 51 of those rows were planet pairs. The labeler is composer-2.5, not Michael. spot-check-20.md has an empty Michael column, so those ids use the composer label and stay out of the tune split. Unsure is excluded. Planet bands and shares come from oct19-sample-design.json. A face percentage is withheld below 30 held-out pairs.
 
 Source commit: 2082bf1.
 Edition date: 2026-10-19.
@@ -25,16 +25,16 @@ Tuned on 31 rows, held out 19, spot-check ids in the agreement set 8. Matched 27
 
 ## Faces
 
-Tuned threshold: title similarity >= 0.5, centroid cosine >= 0.9 (tune F1 0.8, seed 273).
+Tuned threshold: title similarity >= 0.5, centroid cosine >= 0.55 (tune F1 0.8889, seed 273).
 
-A band with no predicted positive in the held-out rows has no precision, so it is left out of the precision average. Its share is still listed below.
-
-Band-weighted held-out agreement withheld. Population bands with no yes/no label: B1
+Held-out agreement: 9 of 16 agree.
+Held-out set is 17, under 30. No face percentage. Pooling more days of face pairs is the path to a real rate.
 
 Per band:
 
-- B2 (real share 29.6%): precision None, recall None, matched 1
-- B3 (real share 51.8%): precision None, recall 0.0, matched 2
-- B4 (real share 7.4%): precision None, recall 0.0, matched 1
+- B1 (real share 11.1%): 1 of 2 agree
+- B2 (real share 29.6%): 3 of 5 agree
+- B3 (real share 51.8%): 5 of 8 agree
+- B4 (real share 7.4%): 0 of 1 agree
 
-Tuned on 5 rows, held out 4, spot-check ids in the agreement set 0. Matched 4, unmatched 0.
+Tuned on 9 rows, held out 7, spot-check ids in the agreement set 10. Matched 16, unmatched 1.
