@@ -696,3 +696,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Why:** #260 took 6 review rounds on `composer-2.5` (Oct 19) while the table already said to escalate after one failed attempt. Michael (Factory room, 2026-10-20 5:48 AM CT): "moving off basic model after failed attempt sounds good".
 **Alternatives:** Count only crashed or abandoned runs as failed attempts (the reading that let #260 loop). Leave it to the Manager's judgment (rejected because it didn't happen).
 **Revisit:** If grok-4.7 reworks start costing noticeably more without fewer review rounds.
+
+### 2026-10-20: Escalation after a failed review follows the routing table (supersedes the same-day entry above)
+**Decision:** A failed agent review still counts as a failed attempt. The next round moves one step up `MODEL_ROUTING.md` for the task's complexity and type of work. `grok-4.7` is one allowed step, not the default, and the third-party rule is unchanged.
+**Why:** Michael (Factory room, 2026-10-20 6:03 AM CT): "Make sure to use the factory rules routing table for models depending on task complexity. Definitely feel free to escalate to grok 4.7 but don't just make the whole routing a binary between composer and 4.7." The earlier wording ("the rework moves to grok-4.7") read as that binary.
+**Alternatives:** Keep the fixed composer-to-grok-4.7 step (rejected as the binary Michael warned against).
+**Revisit:** With the routing table itself.
+**Supersedes:** 2026-10-20 "A failed agent review counts as a failed attempt for model escalation", wording only.
