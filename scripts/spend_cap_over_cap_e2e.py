@@ -134,6 +134,7 @@ def main() -> int:
             "\n".join(
                 [
                     "min_cluster_size: 8",
+                    "min_planet_posts: 12",
                     "cluster_backend: lexical",
                     "label_backend: openai",
                     "label_workers: 1",
