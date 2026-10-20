@@ -1,4 +1,5 @@
 import json
+import threading
 import time
 
 import pytest
@@ -8,25 +9,44 @@ from pipeline.label import (
     LABEL_READ_TIMEOUT_DEFAULT,
     LABEL_READ_TIMEOUT_MAX,
     LABEL_READ_TIMEOUT_MIN,
+    TIMEOUT_CIRCUIT_LIMIT,
+    LabelBudgetExceeded,
     build_perspective_prompt,
     build_planet_name_prompt,
     build_prompt,
     build_topic_prompt,
     classify_label_error,
     compute_read_timeout,
+    configured_label_read_timeout_max,
+    dead_provider_worst_case,
     format_label_latency_summary,
+    format_latency_histogram,
     label_perspective,
+    label_read_timeout,
     label_topic,
     parse_label,
     record_label_latency,
     reset_label_latency_samples,
+    reset_label_timeout_circuit,
     resolve_openai_base_url,
     resolve_openai_model,
     retry_budget_seconds,
     set_label_deadline,
+    timeout_circuit_is_open,
     _openai_generate,
     _retry_fits_budget,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_label_runtime():
+    reset_label_latency_samples()
+    reset_label_timeout_circuit()
+    set_label_deadline(None)
+    yield
+    reset_label_latency_samples()
+    reset_label_timeout_circuit()
+    set_label_deadline(None)
 from pipeline.settings import MAX_PROMPT_POSTS
 
 
@@ -577,8 +597,10 @@ def test_compute_read_timeout_uses_p95_and_clamps():
     assert compute_read_timeout([1.0] * 10) == LABEL_READ_TIMEOUT_MIN
 
 
-def test_retry_budget_seconds_counts_read_timeout_only_for_timeouts():
-    assert retry_budget_seconds(2.0, "429", read_timeout=40.0) == 2.0
+def test_retry_budget_seconds_counts_a_full_read_for_every_attempt():
+    """A 429 retry still performs a read that can block for the whole timeout."""
+    assert retry_budget_seconds(0.0, "timeout", read_timeout=40.0) == 40.0
+    assert retry_budget_seconds(2.0, "429", read_timeout=40.0) == 42.0
     assert retry_budget_seconds(2.0, "timeout", read_timeout=40.0) == 42.0
 
 
@@ -598,23 +620,123 @@ def test_retry_fits_budget_uses_shorter_read_timeout():
 
 
 def test_label_latency_summary_after_successes(monkeypatch):
-    reset_label_latency_samples()
+    clock = {"now": 1_000.0}
 
     def fake_read_json(url, *, timeout, data=None, headers=None):
+        clock["now"] += 10.0
         return {"choices": [{"message": {"content": "{}"}}]}
 
     monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.monotonic", lambda: clock["now"])
     monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
     for _ in range(3):
-        record_label_latency(10.0)
+        _openai_generate("hello", "model")
     line = format_label_latency_summary()
     assert line is not None
+    assert "n=3" in line
     assert "p50=10.0s" in line
+    assert "histogram <30s=3, 30-45s=0, 45-90s=0, >90s=0" in line
     assert f"read_timeout={LABEL_READ_TIMEOUT_DEFAULT:.0f}s" in line
 
 
+def test_openai_generate_records_success_latency_including_the_45_90_bucket(monkeypatch):
+    """``_openai_generate`` itself records the sample. The histogram keeps 45–90s."""
+    clock = {"now": 0.0}
+    delays = iter((60.0, 12.0))
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        clock["now"] += next(delays)
+        return {"choices": [{"message": {"content": "{\"title\": \"Rent Burden\"}"}}]}
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.monotonic", lambda: clock["now"])
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("LABEL_READ_TIMEOUT_MAX", "90")
+    assert "Rent Burden" in _openai_generate("hello", "model")
+    assert "Rent Burden" in _openai_generate("hello", "model")
+    line = format_label_latency_summary()
+    assert line is not None
+    assert "n=2" in line
+    assert "45-90s=1" in line
+    assert "histogram <30s=1, 30-45s=0, 45-90s=1, >90s=0" in line
+    assert label_read_timeout() == configured_label_read_timeout_max() or label_read_timeout() <= 90
+
+
+def test_read_timeout_cap_is_configurable(monkeypatch):
+    monkeypatch.setenv("LABEL_READ_TIMEOUT_MAX", "90")
+    assert configured_label_read_timeout_max() == 90.0
+    # 80 * 1.5 + 5 = 125, clamped to the configured cap.
+    assert compute_read_timeout([80.0] * 10) == 90.0
+    monkeypatch.setenv("LABEL_READ_TIMEOUT_MAX", "45")
+    assert compute_read_timeout([80.0] * 10) == LABEL_READ_TIMEOUT_MAX
+    monkeypatch.setenv("LABEL_READ_TIMEOUT_MAX", "nope")
+    assert configured_label_read_timeout_max() == LABEL_READ_TIMEOUT_MAX
+
+
+def test_slow_cold_start_samples_age_out_after_256():
+    for _ in range(8):
+        record_label_latency(80.0)
+    assert compute_read_timeout([80.0] * 8) == LABEL_READ_TIMEOUT_MAX
+    assert label_read_timeout() == LABEL_READ_TIMEOUT_MAX
+    for _ in range(256):
+        record_label_latency(10.0)
+    # The 80s cold-start samples are gone. 10 * 1.5 + 5 = 20, clamped up to 30.
+    assert label_read_timeout() == LABEL_READ_TIMEOUT_MIN
+    line = format_label_latency_summary()
+    assert line is not None
+    assert "n=256" in line
+    assert "max=10.0s" in line
+
+
+def test_one_logical_label_is_one_stored_success(monkeypatch):
+    """Retries are attempt rows. One successful logical label stores one success."""
+    from pipeline.costs import get_meter, reset_meter
+
+    reset_meter()
+    calls = {"n": 0}
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("Request failed for api.deepinfra.com: timed out")
+        return {
+            "model": "unit-test-llm",
+            "usage": {"prompt_tokens": 4, "completion_tokens": 2, "estimated_cost": "0.0001"},
+            "choices": [{"message": {"content": "Rent Burden"}}],
+        }
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
+    monkeypatch.setattr("pipeline.label.time.monotonic", lambda: 50.0 + calls["n"])
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://unit-test.deepinfra.com/v1")
+    text = _openai_generate("hello", "unit-test-llm")
+    assert text == "Rent Burden"
+    attempts = get_meter().attempts()
+    assert [item.status for item in attempts] == ["retry", "success"]
+    assert sum(1 for item in attempts if item.status == "success") == 1
+    line = format_label_latency_summary()
+    assert line is not None
+    assert "n=1" in line
+
+
+def test_openai_generate_does_not_start_a_read_past_the_deadline(monkeypatch):
+    calls = []
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls.append(timeout)
+        raise RuntimeError("Request failed for api.deepinfra.com: timed out")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    set_label_deadline(time.monotonic() + 10)
+    with pytest.raises(LabelBudgetExceeded, match="section time budget"):
+        _openai_generate("hello", "model")
+    assert calls == []
+
+
 def test_openai_generate_skips_timeout_retry_that_would_pass_the_deadline(monkeypatch):
-    """Do not start another read past the section ceiling when backoff + timeout do not fit."""
+    """The first read fits. Backoff plus another read does not, so there is no retry."""
     calls = []
     slept = []
 
@@ -625,18 +747,14 @@ def test_openai_generate_skips_timeout_retry_that_would_pass_the_deadline(monkey
     monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
     monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: slept.append(seconds))
     monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
-    reset_label_latency_samples()
-    set_label_deadline(time.monotonic() + 30)
-    try:
-        with pytest.raises(RuntimeError, match="timed out"):
-            _openai_generate("hello", "model")
-    finally:
-        set_label_deadline(None)
+    set_label_deadline(time.monotonic() + LABEL_READ_TIMEOUT_DEFAULT + 0.5)
+    with pytest.raises(RuntimeError, match="timed out"):
+        _openai_generate("hello", "model")
     assert len(calls) == 1
     assert slept == []
 
 
-def test_openai_generate_skips_429_retry_when_the_backoff_does_not_fit(monkeypatch):
+def test_openai_generate_skips_429_retry_when_the_next_read_does_not_fit(monkeypatch):
     calls = []
 
     def fake_read_json(url, *, timeout, data=None, headers=None):
@@ -646,13 +764,116 @@ def test_openai_generate_skips_429_retry_when_the_backoff_does_not_fit(monkeypat
     monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
     monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
     monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
-    set_label_deadline(time.monotonic() + 0.5)
-    try:
-        with pytest.raises(RuntimeError, match="HTTP 429"):
-            _openai_generate("hello", "model")
-    finally:
-        set_label_deadline(None)
+    set_label_deadline(time.monotonic() + LABEL_READ_TIMEOUT_DEFAULT + 0.5)
+    with pytest.raises(RuntimeError, match="HTTP 429"):
+        _openai_generate("hello", "model")
     assert len(calls) == 1
+
+
+def test_timeout_circuit_stops_retries_after_six_consecutive_timeouts(monkeypatch):
+    calls = []
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls.append(1)
+        raise RuntimeError("Request failed for api.deepinfra.com: timed out")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    with pytest.raises(RuntimeError, match="timed out"):
+        _openai_generate("hello", "model")
+    # Four retries are still allowed: 5 reads, circuit limit is 6.
+    assert len(calls) == 5
+    assert not timeout_circuit_is_open()
+    with pytest.raises(RuntimeError, match="timed out"):
+        _openai_generate("hello", "model")
+    assert len(calls) == 5 + 1
+    assert timeout_circuit_is_open()
+    with pytest.raises(RuntimeError, match="timed out"):
+        _openai_generate("hello", "model")
+    assert len(calls) == 7
+
+
+def test_timeout_circuit_is_shared_across_workers(monkeypatch):
+    calls = []
+    lock = threading.Lock()
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        with lock:
+            calls.append(1)
+        raise RuntimeError("Request failed for api.deepinfra.com: timed out")
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+
+    def worker():
+        with pytest.raises(RuntimeError):
+            _openai_generate("hello", "model")
+
+    threads = [threading.Thread(target=worker) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    # Four workers with four retries each would be 20 POSTs. The shared circuit stops that.
+    assert TIMEOUT_CIRCUIT_LIMIT <= len(calls) < 4 * 5
+    assert timeout_circuit_is_open()
+
+
+def test_a_success_clears_the_timeout_streak(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_read_json(url, *, timeout, data=None, headers=None):
+        calls["n"] += 1
+        if calls["n"] < 5:
+            raise RuntimeError("Request failed for api.deepinfra.com: timed out")
+        return {"choices": [{"message": {"content": "ok"}}]}
+
+    monkeypatch.setattr("pipeline.label.read_json", fake_read_json)
+    monkeypatch.setattr("pipeline.label.time.sleep", lambda seconds: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-real-key")
+    assert _openai_generate("hello", "model") == "ok"
+    assert not timeout_circuit_is_open()
+    calls["n"] = 0
+
+    def always_timeout(url, *, timeout, data=None, headers=None):
+        calls["n"] += 1
+        raise RuntimeError("Request failed for api.deepinfra.com: timed out")
+
+    monkeypatch.setattr("pipeline.label.read_json", always_timeout)
+    with pytest.raises(RuntimeError):
+        _openai_generate("hello", "model")
+    assert calls["n"] == 5
+
+
+def test_dead_day_chain_time_versus_ceilings():
+    """A dead provider must not run the draft phase past its ceiling."""
+    report = dead_provider_worst_case()
+    before = report["before"]
+    after = report["after"]
+    assert report["draft_ceiling"] == 24 * 60
+    assert report["section_ceiling"] == 30 * 60
+    assert report["unbounded_extra_posts"] == 12 * 16 * 4
+    assert report["unbounded_wall_seconds"] == 3680
+    assert before["wall_seconds"] > report["draft_ceiling"]
+    assert before["extra_posts"] == 288
+    assert before["posts"] == 480
+    assert before["wall_seconds"] == 1780
+    assert after["wall_seconds"] <= report["draft_ceiling"]
+    assert after["wall_seconds"] <= report["section_ceiling"]
+    assert after["wall_seconds"] == 1440
+    assert after["extra_posts"] == 4
+    assert after["posts"] == 431
+    assert after["extra_posts"] < before["extra_posts"]
+    assert format_latency_histogram([10, 40, 60, 120]) == "<30s=1, 30-45s=1, 45-90s=1, >90s=1"
+
+
+def test_production_90s_chain_runs_past_thirty_minutes():
+    """The night this fixes: a 90s ungated read runs the phase past 30 minutes."""
+    report = dead_provider_worst_case(read_timeout=90.0, retry_delays=(2.0,))
+    assert report["before"]["wall_seconds"] == 2084
+    assert report["before"]["wall_seconds"] > report["section_ceiling"]
 
 
 def test_classify_label_error_buckets():
