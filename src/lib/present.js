@@ -1,7 +1,9 @@
 import {
+  LABEL_NOT_READY,
   PERSPECTIVES_PENDING,
   STANCE_CHECK_FAILED,
   STANCE_CHECK_INCOHERENT,
+  STANCE_CHECK_LABEL_HELD,
   STANCE_CHECK_UNSHARED,
 } from './copy.js'
 
@@ -281,13 +283,16 @@ function presentDigest(topics, previous) {
         : faces
             .map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
             .join(' ')
+      const labelHeld = topic.stance_check === STANCE_CHECK_LABEL_HELD
       const pending =
         topic.stance_check === STANCE_CHECK_FAILED ||
         topic.stance_check === STANCE_CHECK_INCOHERENT ||
         topic.stance_check === STANCE_CHECK_UNSHARED
-      const opposingNote = pending
-        ? PERSPECTIVES_PENDING
-        : oneView
+      const opposingNote = labelHeld
+        ? LABEL_NOT_READY
+        : pending
+          ? PERSPECTIVES_PENDING
+          : oneView
           ? topic.opposing_note || 'No clear opposing view found in this sample'
           : null
       return {
@@ -296,7 +301,7 @@ function presentDigest(topics, previous) {
         percent: topic.total_volume_percent,
         arguments: argumentsList.slice(0, 6),
         oneView,
-        stancePending: pending,
+        stancePending: pending || labelHeld,
         opposingNote,
         disagreement,
       }

@@ -18,7 +18,7 @@ from pipeline.label_guard import (
     readable_face_label,
     scan_edition_labels,
 )
-from pipeline.schema import STANCE_CHECK_UNSHARED
+from pipeline.schema import STANCE_CHECK_LABEL_HELD
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -35,6 +35,11 @@ def _topic(name: str, summary: str, face_title: str, face_summary: str, posts: l
             }
         ],
     }
+
+
+def test_pending_summary_is_not_stance_analyzed_copy():
+    assert PENDING_SUMMARY == "Topic label not ready for this edition."
+    assert "analyzed" not in PENDING_SUMMARY.lower()
 
 
 def test_detects_template_preamble_and_insult_labels():
@@ -75,7 +80,7 @@ def test_guard_holds_insult_placeholder_pending():
     topic["perspectives"][0]["_face_member_uris"] = ["at://1", "at://2"]
     log = guard_published_labels([topic], posts)
     face = topic["perspectives"][0]
-    assert topic["stance_check"] == STANCE_CHECK_UNSHARED
+    assert topic["stance_check"] == STANCE_CHECK_LABEL_HELD
     assert topic["name"] == PENDING_TITLE
     assert topic["summary"] == PENDING_SUMMARY
     assert face["title"] == PENDING_TITLE

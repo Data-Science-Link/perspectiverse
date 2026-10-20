@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import {
+  LABEL_NOT_READY,
   PERSPECTIVES_PENDING,
   STANCE_CHECK_FAILED,
   STANCE_CHECK_INCOHERENT,
+  STANCE_CHECK_LABEL_HELD,
   STANCE_CHECK_UNSHARED,
   oneViewNote,
   showStanceFailure,
@@ -30,6 +32,13 @@ assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_INCOHERENT }), 'No clea
 assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_FAILED, perspectives: [{}, {}] }), true)
 assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_INCOHERENT, perspectives: [{}] }), true)
 assert.equal(showStanceFailure({ perspectives: [{}, {}] }), false)
+assert.equal(oneViewNote({ stance_check: STANCE_CHECK_LABEL_HELD }), '')
+assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_LABEL_HELD, perspectives: [{}] }), false)
+assert.equal(
+  oneViewNote({ stance_check: STANCE_CHECK_FAILED }),
+  PERSPECTIVES_PENDING,
+)
+assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_LABEL_HELD }), PERSPECTIVES_PENDING)
 
 function paragraphs(text) {
   return String(text || '')

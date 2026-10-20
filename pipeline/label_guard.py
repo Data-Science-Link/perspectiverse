@@ -20,12 +20,11 @@ from pipeline.label import (
     topic_name_is_weak,
     unique_label,
 )
-from pipeline.schema import STANCE_CHECK_UNSHARED, TOP_TERMS_LIMIT
+from pipeline.schema import STANCE_CHECK_LABEL_HELD, TOP_TERMS_LIMIT
 from pipeline.spam_guard import post_body
 
-# Same line the reading screen shows for stance_check.
 PENDING_TITLE = "Pending"
-PENDING_SUMMARY = "Perspectives still being analyzed."
+PENDING_SUMMARY = "Topic label not ready for this edition."
 
 _TEMPLATE_GROUPED = re.compile(r"^posts grouped under (.+)\.\s*$", re.IGNORECASE)
 _TEMPLATE_ABOUT = re.compile(r"^these posts are about (.+)\.\s*$", re.IGNORECASE)
@@ -508,7 +507,7 @@ def _assign_name(topic: dict, new_name: str, used_names: set[str]) -> str:
 
 
 def _mark_pending(topic: dict) -> None:
-    topic["stance_check"] = STANCE_CHECK_UNSHARED
+    topic["stance_check"] = STANCE_CHECK_LABEL_HELD
     topic.pop("opposing_note", None)
     topic["summary"] = PENDING_SUMMARY
     topic.pop("brief", None)
@@ -603,7 +602,7 @@ def guard_published_labels(topics: list[dict], posts: list[dict]) -> list[str]:
                 log.append(f"Label guard: face {title!r} → {new_title!r} ({issue})")
                 _apply_label(face, "title", new_title, new_summary)
             else:
-                topic["stance_check"] = STANCE_CHECK_UNSHARED
+                topic["stance_check"] = STANCE_CHECK_LABEL_HELD
                 topic.pop("opposing_note", None)
                 shown = planet_name if planet_name.lower().startswith("pending") else PENDING_TITLE
                 _mark_face_pending(face, shown)
