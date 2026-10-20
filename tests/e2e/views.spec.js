@@ -318,7 +318,7 @@ test.describe('Perspectiverse views', () => {
     await menu.getByRole('button', { name: /Methodology/ }).click()
     await expect(page).toHaveURL(/page=methodology/)
     await expect(page.getByRole('heading', { name: 'How the map is built' })).toBeVisible()
-    await expect(page.getByRole('img', { name: /Jev filters to planets/i })).toBeVisible()
+    await expect(page.getByRole('img', { name: /ingest filters to planets/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'An unbiased pipeline' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Read it on GitHub' })).toBeVisible()
     const flow = await page.locator('.method-overview').boundingBox()
