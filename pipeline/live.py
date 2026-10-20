@@ -310,6 +310,7 @@ def run_live(
                 print(
                     "Carried-over clustering filters: "
                     f"chitchat={carried_cluster_skips.get('chitchat', 0)}, "
+                    f"health_update={carried_cluster_skips.get('health_update', 0)}, "
                     f"link_only={carried_cluster_skips.get('link_only', 0)}, "
                     f"language={carried_cluster_skips.get('language', 0)}."
                 )
