@@ -326,6 +326,61 @@ def test_headline_agreement_uses_each_bands_real_share():
     assert "precision 0.5" not in rendered
 
 
+def test_partial_band_share_withholds_the_headline():
+    """One band with a share and one without. List both. Do not emit a headline."""
+    labels = []
+    scored = []
+    for index in range(2):
+        label, pair = _labeled_pair("common", "0.9", f"common-{index}", duplicate="1", cosine=0.95)
+        labels.append(label)
+        scored.append(pair)
+    for index in range(2):
+        label, pair = _labeled_pair("rare", "", f"rare-{index}", duplicate="0", cosine=0.95)
+        labels.append(label)
+        scored.append(pair)
+    measured = agreement_with_labels(scored, labels)
+    assert measured["weighted"] is False
+    assert measured["precision"] is None
+    assert measured["recall"] is None
+    by_band = {band["band"]: band for band in measured["bands"]}
+    assert by_band["common"]["share"] == 0.9
+    assert by_band["common"]["precision"] == 1.0
+    assert by_band["rare"]["share"] is None
+    assert by_band["rare"]["precision"] == 0.0
+    rendered = "\n".join(
+        render_duplicate_lines(
+            {
+                "duplicate_rate": {
+                    "definition": "test",
+                    "planet_stage": "clustering/attach",
+                    "face_stage": "faces/stance",
+                    "before": {"planets": {"rate": 0, "near_duplicates": 0, "pairs": 1}, "faces": {"rate": 0, "near_duplicates": 0, "pairs": 0}},
+                    "after": {"planets": {"rate": 0, "near_duplicates": 0, "pairs": 1}, "faces": {"rate": 0, "near_duplicates": 0, "pairs": 0}, "removed": {}},
+                    "agreement": {
+                        "present": True,
+                        "weighted": measured["weighted"],
+                        "precision": measured["precision"],
+                        "recall": measured["recall"],
+                        "bands": measured["bands"],
+                        "spot_checks": 0,
+                        "seed": SPLIT_SEED,
+                        "scored_on": 4,
+                        "tuned_on": 0,
+                        "matched": measured["matched"],
+                        "unmatched": 0,
+                        "note": "partial",
+                    },
+                }
+            }
+        )
+    )
+    assert "Agreement reweighted" not in rendered
+    assert "no single number" in rendered or "single number is withheld" in rendered
+    assert "common" in rendered
+    assert "rare" in rendered
+    assert "share not recorded" in rendered
+
+
 def test_missing_band_share_has_no_single_agreement_number():
     label, pair = _labeled_pair("common", "", "only", duplicate="1", cosine=0.95)
     measured = agreement_with_labels([pair], [label])

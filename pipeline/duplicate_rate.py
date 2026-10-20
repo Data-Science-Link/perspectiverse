@@ -59,8 +59,9 @@ The other rows are split with seed 273 inside each band: two-thirds tune the
 threshold, one third is held out. Agreement is precision and recall on the
 held-out third plus the spot-check pairs only. The tune rows are not in that
 score. The sample is stratified, so a raw average of those rows is not the
-headline. The headline weights each band by ``band_share``. Per-band figures
-are printed beside it.
+headline. The headline weights each band by ``band_share`` only when every scored
+band has one. Otherwise the bands are listed and there is no single number.
+Per-band figures are printed either way.
 """
 
 from __future__ import annotations
@@ -561,7 +562,9 @@ def agreement_with_labels(
     sample_actual = true_positive + false_negative
     sample_precision = (true_positive / sample_predicted) if sample_predicted else None
     sample_recall = (true_positive / sample_actual) if sample_actual else None
-    weighted = any(band.get("share") is not None for band in bands)
+    # A headline needs every scored band's real share. One missing share
+    # leaves the bands listed and the single number unset.
+    weighted = bool(counts) and all(band in shares for band in counts)
     return {
         "matched": true_positive + false_positive + false_negative + true_negative,
         "unmatched": unmatched,
@@ -1080,8 +1083,8 @@ def render_duplicate_lines(report: dict[str, Any]) -> list[str]:
             )
         else:
             lines.append(
-                "Agreement by similarity band. The sample did not record each band's real share, "
-                "so there is no single number."
+                "Agreement by similarity band. A single number is withheld until every scored band "
+                "has its real share of pairs."
             )
         for band in bands:
             share = band.get("share")
