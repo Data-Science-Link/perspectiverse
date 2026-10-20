@@ -678,3 +678,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Michael (Factory, 3:07 PM CT): "PLEASE do not build either. They are just big initiatives for the future after refining the sites core functionality... I want to wait until we get everything else polished and really nice."
 - **Alternatives:** Build the email list or chat now. Rejected because core polish comes first.
 - **Revisit:** Only when Michael says the core site is polished and gives an explicit go for a specific build.
+
+### 2026-10-18: Each solar view shows only its 10 largest planets
+**Decision:** Whichever solar system or topic a visitor selects, including "All topics", the view shows the 10 largest planets. The edition may hold more, and that's expected. This applies to desktop and phone, and the phone linear grid only needs to fit those 10.
+**Why:** Michael (Factory room, 8:27 PM CT) said this is the intended behavior.
+**Alternatives:** Show every planet with vertical scrolling on phones (#249, declined).
+**Revisit:** If Michael asks for a way to reach planets past the top 10.

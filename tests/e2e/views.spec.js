@@ -1,5 +1,53 @@
 import { expect, test } from '@playwright/test'
 
+async function expectMobileOrbitLabelsOnScreen(page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const labels = [...document.querySelectorAll('.observatory .planet-label')]
+    if (labels.length < 10) return false
+    const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
+    const header = document.querySelector('header')?.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    return labels.every((node) => {
+      const rect = node.getBoundingClientRect()
+      if (rect.width < 8 || rect.height < 8) return false
+      if (rect.left < 1 || rect.top < 1) return false
+      if (rect.right > viewportWidth - 1 || rect.bottom > viewportHeight - 1) return false
+      if (header && rect.top < header.bottom - 1) return false
+      if (chrome && rect.bottom > chrome.top + 1) return false
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      return Boolean(hit && (hit === node || node.contains(hit)))
+    })
+  })).toBe(true)
+}
+
+async function expectOrbitLabelBoxesDisjoint(page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const labels = [...document.querySelectorAll('.orbit-labels .planet-label')]
+    if (labels.length < 10) return false
+    const boxes = labels.map((node) => {
+      const rect = node.getBoundingClientRect()
+      return {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        visible: getComputedStyle(node).visibility !== 'hidden',
+      }
+    })
+    if (boxes.some((box) => !box.visible || box.width < 8)) return false
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const overlapX = Math.min(boxes[i].right, boxes[j].right) - Math.max(boxes[i].left, boxes[j].left)
+        const overlapY = Math.min(boxes[i].bottom, boxes[j].bottom) - Math.max(boxes[i].top, boxes[j].top)
+        if (overlapX > 0.5 && overlapY > 0.5) return false
+      }
+    }
+    return true
+  })).toBe(true)
+}
+
 async function enterSolarSystem(page) {
   const welcome = page.getByRole('dialog', { name: 'Perspectiverse' })
   if (await welcome.isVisible().catch(() => false)) {
@@ -66,7 +114,7 @@ test.describe('Perspectiverse views', () => {
     const observatoryCanvas = page.locator('.observatory canvas')
     await expect(observatoryCanvas).toBeVisible()
     if (testInfo.project.name === 'mobile') {
-      await expect(page.locator('.observatory .planet-label').first()).toBeVisible()
+      await expectMobileOrbitLabelsOnScreen(page)
     }
 
     if (testInfo.project.name !== 'mobile') {
@@ -110,13 +158,69 @@ test.describe('Perspectiverse views', () => {
     await expect(page.getByRole('button', { name: 'Linear' })).toBeVisible()
 
     if (testInfo.project.name === 'mobile') {
-      await page.locator('.observatory .planet-label').first().click({ force: true })
+      await expectMobileOrbitLabelsOnScreen(page)
+      await page.locator('.observatory .planet-label').first().click()
     }
     await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Example posts' })).toBeVisible()
     if (testInfo.project.name !== 'mobile') {
       await expect(page.getByLabel('Choose which topics fill the solar system')).toBeVisible()
     }
+  })
+
+  test('phone orbit labels each open their planet', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'phone orbits only')
+    test.setTimeout(90_000)
+    await page.addInitScript(() => {
+      window.localStorage.setItem('perspectiverse.hide-welcome', '1')
+    })
+    await page.goto('/')
+    await enterSolarSystem(page)
+    await expect(page.getByRole('button', { name: 'Linear' })).toBeVisible()
+    await expectMobileOrbitLabelsOnScreen(page)
+    await expectOrbitLabelBoxesDisjoint(page)
+
+    const labels = page.locator('.orbit-labels .planet-label')
+    await expect(labels).toHaveCount(10)
+    const renderedFont = await labels.first().evaluate((node) => {
+      let scale = 1
+      for (let el = node; el; el = el.parentElement) {
+        const transform = getComputedStyle(el).transform
+        if (transform && transform !== 'none') {
+          scale *= new DOMMatrix(transform).a
+        }
+      }
+      return Number.parseFloat(getComputedStyle(node).fontSize) * scale
+    })
+    expect(renderedFont).toBeGreaterThanOrEqual(10)
+
+    const names = (await labels.allInnerTexts()).map((name) => name.trim())
+    expect(new Set(names).size).toBe(10)
+    for (let index = 0; index < names.length; index += 1) {
+      const name = names[index]
+      await page.locator('.orbit-labels .planet-label').nth(index).click()
+      await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
+      await expect(page.locator('.reading-screen h1').first()).toHaveText(name)
+      await page.getByRole('banner').getByRole('button', { name: 'Universe' }).click()
+      await expect(page.locator('.observatory canvas')).toBeVisible()
+      await expectMobileOrbitLabelsOnScreen(page)
+      await expectOrbitLabelBoxesDisjoint(page)
+    }
+  })
+
+  test('phone orbit label pills do not overlap', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'phone orbits only')
+    await page.addInitScript(() => {
+      window.localStorage.setItem('perspectiverse.hide-welcome', '1')
+    })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await enterSolarSystem(page)
+    await expect(page.getByRole('button', { name: 'Linear' })).toBeVisible()
+    await expectOrbitLabelBoxesDisjoint(page)
+
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expectOrbitLabelBoxesDisjoint(page)
   })
 
   test('respects do not show again and still lets the menu reopen welcome', async ({ page }) => {
@@ -139,6 +243,7 @@ test.describe('Perspectiverse views', () => {
     await enterSolarSystem(page)
 
     if (testInfo.project.name === 'mobile') {
+      await expectMobileOrbitLabelsOnScreen(page)
       await page.locator('.observatory .planet-label').first().click({ force: true })
     } else {
       await page.getByRole('button', { name: 'Perspectives' }).click()
@@ -245,7 +350,7 @@ test.describe('Perspectiverse views', () => {
     await expect(page.locator('.observatory canvas')).toBeVisible()
   })
 
-  test('each planet shows its own post count and Universe returns to the solar system', async ({ page }) => {
+  test('each planet shows its own post count and Universe returns to the solar system', async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('perspectiverse.hide-welcome', '1')
     })
@@ -258,6 +363,7 @@ test.describe('Perspectiverse views', () => {
     await expect(labels.nth(1)).toBeVisible()
     const secondName = (await labels.nth(1).innerText()).trim()
 
+    if (testInfo.project.name === 'mobile') await expectMobileOrbitLabelsOnScreen(page)
     await labels.nth(0).click({ force: true })
     const eyebrow = page.locator('.reading-screen .eyebrow')
     await expect(eyebrow).toBeVisible()
@@ -269,6 +375,7 @@ test.describe('Perspectiverse views', () => {
     await expect(page).not.toHaveURL(/topic=/)
     await expect(page.locator('.observatory canvas')).toBeVisible()
 
+    if (testInfo.project.name === 'mobile') await expectMobileOrbitLabelsOnScreen(page)
     await page.locator('.observatory .planet-label', { hasText: secondName }).first().click({ force: true })
     const secondCount = (await page.locator('.reading-screen .eyebrow').innerText()).trim()
     expect(secondCount).toMatch(/\d[\d,]* posts/i)

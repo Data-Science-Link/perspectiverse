@@ -20,6 +20,8 @@ from pipeline.chitchat_guard import (
 )
 from scripts.replay_planet_guard import classify_planet
 from pipeline.free_ingest import keep_edition_quality
+from pipeline.language import edition_filter_reason
+from pipeline.store import should_drop_stored_post
 from pipeline.label import (
     build_planet_name_prompt,
     build_topic_prompt,
@@ -449,6 +451,144 @@ def test_get_well_wishes_and_personal_health_updates_drop():
     assert blocked_other == 2
 
 
+def test_issue_227_thank_planet_201_mention_cluster_drops():
+    """Published Thank ball (~201 posts): many thank mentions, few ingest thanks."""
+    filler = {
+        "text": "The housing council meets Tuesday about zoning changes downtown.",
+    }
+    mention = {
+        "text": (
+            "I want to thank everyone who came out to support the local "
+            "fundraiser last night."
+        ),
+    }
+    members = [mention] * 65 + [filler] * (201 - 65)
+    reason = planet_chitchat_reason(members, [], name="Thank")
+    assert reason is not None
+    assert "mention thanks" in reason
+    assert "65 posts" in reason
+
+
+def test_issue_227_twitch_planet_55_bare_link_cards_drop():
+    """Published ~55-post twitch.tv ball (review: 15/55 stream share, still kept).
+
+    Link cards keep the URL in ``clean_text`` while ``text`` is whitespace.
+    Salient term ``twitch`` names the ball; channel slugs stay below the cutoff.
+    """
+    link_card = {"text": " ", "clean_text": "twitch.tv/48291"}
+    text_url = {"text": "twitch.tv/71024"}
+    members = [link_card] * 39 + [text_url] * 16
+    assert len(members) == 55
+    reason = planet_chitchat_reason(members, [], name="Twitch")
+    assert reason == "Mostly about a streaming platform, not a topic"
+
+
+def test_stream_cluster_keeps_topical_news_planets():
+    """Ukraine, vote, Israel, trans, healthcare, fascism, and Trump/Musk must not drop."""
+    fillers = {
+        "ukraine": "The anniversary of the invasion is not a happy anniversary for Ukraine.",
+        "trump": "Trump and Musk argued over tariffs and Ukraine aid in a televised interview.",
+        "vote": "The Senate should publish the mail ballot rules before November.",
+        "israel": (
+            "Keep out of prison even if most Israelis die. Netanyahu has port-a-potty "
+            "bomb shelters. www.youtube.com/live/0IVuVK6"
+        ),
+        "trans": (
+            "little vent but with all the anti trans stuff happening i hate that i now "
+            "live in constant fear"
+        ),
+        "healthcare": "I'm sick of Congress missing the healthcare vote.",
+        "fascism": "We cannot let fascism take root in our local school boards.",
+    }
+    for name, text in fillers.items():
+        members = [{"text": text}] * 55
+        assert planet_chitchat_reason(members, [], name=name) is None
+
+
+def test_twitch_policy_planet_55_stays():
+    policy = {
+        "text": (
+            "Twitch's new moderation policy will change how streamers handle politics "
+            "on the platform during live broadcasts."
+        ),
+    }
+    filler = {
+        "text": "Congress debated the spending package late into the evening on Thursday.",
+    }
+    members = [policy] * 8 + [filler] * 47
+    assert planet_chitchat_reason(members, [], name="Streaming Policy") is None
+
+
+def test_issue_227_production_thank_planet_samples():
+    """Exact lines from the #224 reviewer sample of the Thank planet (622 posts)."""
+    drops = [
+        "Thank you so much ^^u^^ we're gradually getting back into the swing of things with it",
+        "My pleasure, Kate. I'll keep the lights on for you.",
+        "Your work in progress pics are always incredible!",
+        "Of course! Thank you for making an awesome shirt!",
+        "Thanks! lots of photogenic ones today.",
+    ]
+    for text in drops:
+        assert pleasantry_reason({"text": text}) is not None, text
+    assert pleasantry_reason({"text": "Thank you, Senator, for voting no on the bill."}) is None
+    assert pleasantry_reason({"text": "How can I contribute to this great work?"}) is None
+
+
+def test_issue_227_reviewer_false_positive_keeps():
+    """Topical posts from the bc-88ba023c hand sample must stay."""
+    keeps = [
+        "Thank you - never forget. The only people who support nazis... are nazis.",
+        "I voted today, and it feels so good! #IVoted",
+        (
+            "Great - they are scumbag organizations… if you/your staff has used AI for the photo "
+            "to please not. It is destroying communities, the environment, & is built on stolen work."
+        ),
+        (
+            "Webtoon vs ComicFury vs Itch vs Tumblr — find your audience. "
+            "Great for posting ebooks and building a readership."
+        ),
+        (
+            "I can't do treatments. Anytime a studio hires me to write a screenplay "
+            "I end up rewriting the whole thing."
+        ),
+    ]
+    for text in keeps:
+        assert pleasantry_reason({"text": text}) is None, text
+
+
+def test_issue_227_missed_shapes_and_topical_lookalikes():
+    drops = [
+        "THIS IS SO GOOD",
+        "this is so good 🤩",
+        "This is so good.",
+        "Wonderful design and rendering!! Love his soft eyes",
+        "Omg look how cute this is!!",
+        "Karaoke stream! Join me",
+        "I appreciate all the support on here",
+    ]
+    for text in drops:
+        assert pleasantry_reason({"text": text}) is not None, text
+    keeps = [
+        "Thank you, Senator, for voting no on the bill.",
+        "Twitch's new moderation policy will change how streamers handle politics on the platform.",
+        "The Senate Judiciary Committee is live now for the confirmation hearing on the nominee.",
+        "The jobs report was amazing and wages finally rose.",
+    ]
+    for text in keeps:
+        assert pleasantry_reason({"text": text}) is None, text
+    thank_thread = [{"text": "Thank you!!"}] * 8 + [{"text": "Thanks so much!"}] * 10
+    assert planet_chitchat_reason(thank_thread, [], name="Thank You")
+    policy = [
+        {
+            "text": (
+                "Twitch's new moderation policy will change how streamers handle politics "
+                "on the platform during live broadcasts."
+            )
+        }
+    ] * 6
+    assert planet_chitchat_reason(policy, [], name="Thank You") is None
+
+
 def test_hashtags_sports_jabs_and_stream_mentions_stay():
     stays = [
         "#NoKings❌👑",
@@ -480,11 +620,47 @@ def test_bare_youtube_link_counts_in_the_planet_share_only():
     bare = {"text": "youtu.be/VAWjsVoDpm0 #musicsky"}
     assert pleasantry_reason(bare) is None
     assert is_bare_link_post(bare)
-    assert ingest_block_reason(bare) is None
+    assert ingest_block_reason(bare) == "link_only"
     assert planet_chitchat_reason([bare] * 8, [], name="Music Videos")
     sentence = {"text": "You might find this video heartening. youtu.be/SOSOyr1yPao"}
     assert not is_bare_link_post(sentence)
     assert planet_chitchat_reason([sentence] * 8, [], name="Music Videos") is None
+
+
+def test_stored_drop_and_clustering_agree_on_raw_text_not_stale_clean_text(monkeypatch):
+    """#219 stored rows may have ``clean_text`` without the URL; clustering must match ingest."""
+
+    monkeypatch.delenv("PERSPECTIVERSE_PURGE_STORED_REASONS", raising=False)
+
+    def assert_edition_matches_ingest(post: dict) -> None:
+        block = ingest_block_reason(post)
+        edition = edition_filter_reason(post)
+        assert edition == block
+        kept, language, links, chitchat = edition_posts_for_clustering([post])
+        if block in {"link_only", "language"}:
+            assert len(kept) == 0
+            assert should_drop_stored_post(post) is False
+        elif block is None:
+            assert len(kept) == 1
+        else:
+            assert len(kept) == 0
+
+    commentary = {
+        "uri": "at://stored/commentary-link",
+        "text": "There it is!! bsky.app/profile/example.bsky.social/post/abc",
+        "clean_text": "There it is!!",
+    }
+    assert edition_filter_reason(commentary) is None
+    assert_edition_matches_ingest(commentary)
+
+    stale_bare = {
+        "uri": "at://stored/bare-youtube",
+        "text": "youtu.be/VAWjsVoDpm0 #musicsky",
+        "clean_text": "#musicsky",
+    }
+    assert edition_filter_reason(stale_bare) == "link_only"
+    assert ingest_block_reason(stale_bare) == "link_only"
+    assert_edition_matches_ingest(stale_bare)
 
 
 def test_clustering_pass_counts_carried_over_skips():
@@ -607,3 +783,154 @@ def _planet_texts(payload: dict, section: str, name: str) -> list[str]:
         if planet["section"] == section and planet["name"] == name:
             return list(planet["texts"])
     raise AssertionError(f"missing {section}:{name}")
+
+
+def test_issue_208_good_morning_greeting_variants():
+    """Live miss 2026-10-19: Good Morning planet (#208 comment)."""
+    greetings = [
+        "Good morning to you!",
+        "Good morning from",
+        "Good morning from Kinmo the cat.",
+        "Hiya Baron! Good morning to you.",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Every Morning is a Good Morning…",
+    ]
+    for text in greetings:
+        assert pleasantry_reason({"text": text}) == "greeting", text
+    keeps = [
+        "The Senate met this morning to debate the healthcare bill.",
+        "Good morning! Protect Trans Kids",
+    ]
+    for text in keeps:
+        assert pleasantry_reason({"text": text}) is None, text
+
+
+def test_issue_208_good_morning_planet_representatives_drop():
+    """Fifteen published Good Morning representatives must hit the planet guard."""
+    reps = [
+        "Good morning to you!",
+        "Good morning from Kinmo the cat.",
+        "Hiya Baron! Good morning to you.",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Every Morning is a Good Morning…",
+        "Good morning to you!",
+        "Good morning from",
+        "Good morning!",
+        "Morning!",
+        "Good morning friend!",
+        "Good morning everyone!",
+        "Good morning beautiful!",
+        "Good morning to you too!",
+        "Good morning! Protect Trans Kids",
+    ]
+    members = _members(reps)
+    share = sum(1 for m in members if pleasantry_reason(m)) / len(members)
+    assert share >= PLEASANTRY_SHARE_DROP
+    assert planet_chitchat_reason(members, [], name="Good Morning") is not None
+
+
+def test_issue_208_morning_patterns_do_not_swallow_topics():
+    """Reviewer strings (bc-44865100) for #208 greeting guard, verbatim."""
+    must_catch = [
+        "Good morning everyone, have a great day ☀️",
+        "Good morning to you!",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Good morning from Kinmo the cat.",
+        "Good morning from",
+        "Hiya Baron! Good morning to you.",
+        "Every Morning is a Good Morning…",
+        "Good morning, I hope everyone sleeps well",
+        "Good morning all, peaceful vibes today",
+        "Morning friends, enjoy your coffee",
+        "Good morning dear, sleep well",
+        "Good morning everyone, stay warm",
+        "Good night, sweet dreams",
+        "Good morning folks, coffee is on",
+        "Good morning, I hope your day is easy",
+    ]
+    for text in must_catch:
+        assert pleasantry_reason({"text": text}) == "greeting", text
+    keeps = [
+        # Original 16 (a31e73d)
+        "Morning Joe said viewers loved the opening interview.",
+        "Morning commute was brutal today",
+        "good morning america interview with the coach",
+        "Morning after pill ban",
+        "Morning after pill access expands",
+        "Good morning, the Lakers won",
+        "Good morning! The Yankees won again",
+        "Good afternoon, the Fed held rates steady",
+        "Good night at the museum, the new exhibit opens Friday",
+        "You are so far out of touch, I'm just not going to waste anymore time. Have a good evening.",
+        "Good morning! Black Lives Matter",
+        "Good morning! Free Palestine",
+        "Good morning world news: talks stalled",
+        "A good morning run before the marathon",
+        "Morning after the game the coach resigned",
+        "Good night folks, see you at the rally tomorrow",
+        # Nine news-tail keeps (77ed247)
+        "Good morning, I hope the bill passes",
+        "Good morning, I hope the strike ends",
+        "Good evening, I hope the senate confirms the judge",
+        "Good afternoon, I hope the hurricane turns offshore",
+        "Good morning, the peaceful protest grew overnight",
+        "Good morning, my friend the senator spoke",
+        "Good morning, enjoy your indictment",
+        "Good morning, I hope Congress votes tonight",
+        "Good morning, I hope Ukraine holds the line",
+        # Fourteen fresh topic probes (bc-44865100, exact wording)
+        "Good morning, I hope my landlord fixes the heat",
+        "Good morning, enjoy the eclipse today",
+        "Good morning, I hope the vaccine works",
+        "Good morning, the tariffs start today",
+        "Good evening, I hope my landlord fixes the heat",
+        "Good morning, the parade starts at noon",
+        "Good morning, I hope the train is on time",
+        "Good afternoon, the bakery on Main burned",
+        "Good morning, the bridge is closed for repairs",
+        "Good evening, the aurora is visible tonight",
+        "Good morning, I hope the recital sells out",
+        "Good morning, the ferry is cancelled",
+        "Good morning, enjoy the comet tonight",
+        "Good morning, the choir concert sold out",
+        "Good morning, I hope the Wi-Fi comes back",
+        # Eleven vocabulary probes kept (b66dc85)
+        "Good morning, coffee prices doubled",
+        "Good morning, warm weather records broken in Texas",
+        "Morning friends, the coffee shop union won",
+        "Good night, the heat wave continues",
+        "Good morning, the tea harvest is late",
+        "Good morning, warmer oceans are bleaching the reef",
+        "Good morning, rest stops closed on the highway",
+        "Morning friends, coffee futures jumped overnight",
+        "Good morning, stay orders halted the project",
+        "Good morning, easy money flooded the market",
+        "Good morning, sweet potato harvest failed",
+        # Seven judgment / headline tails (d446d06 re-review, exact wording)
+        "Good morning, Ozempic shortage",
+        "Good morning, Bitcoin crashed",
+        "Good morning, Moderna recalled",
+        "Good morning Taylor Swift",
+        "Good evening Hezbollah",
+        "Good night Kamala",
+        "Good morning Iran",
+        # Seven wish-phrase + topic tails (b66dc85 re-review)
+        "Good morning, I hope everyone sleeps through the storm warning",
+        "Good morning, coffee is on sale downtown",
+        "Good morning, enjoy your coffee before the hearing",
+        "Good morning, I hope everyone sleeps through the eclipse",
+        "Good morning, peaceful vibes before the parade",
+        "Good night, sweet dreams about the merger",
+        "Good morning, sleep well before the launch",
+        # Nice-to-catch: no daypart open; must stay kept
+        "Have a wonderful morning everyone",
+    ]
+    misclassified = []
+    for text in keeps:
+        reason = pleasantry_reason({"text": text})
+        if reason is not None:
+            misclassified.append(f"{reason}: {text}")
+    assert misclassified == [], "\n".join(misclassified)

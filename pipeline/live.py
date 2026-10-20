@@ -16,7 +16,7 @@ from pathlib import Path
 
 from pipeline.assemble import FACE_LETTERS, assemble_payload, face_id, topic_name, write_payload
 from pipeline.briefs import apply_level_summaries
-from pipeline.cleaning import clean_posts, drop_near_duplicates
+from pipeline.cleaning import clean_posts, clean_text, drop_near_duplicates
 from pipeline.corpus import (
     TARGET_POSTS,
     claim_count,
@@ -93,6 +93,7 @@ from pipeline.schema import (
     category_for_members,
     to_percents,
 )
+from pipeline.section_sanity import partition_politics_planets
 from pipeline.settings import load_settings
 from pipeline.store import (
     LIVE_CORPUS_DB,
@@ -341,7 +342,10 @@ def run_live(
             f"Reclustering {len(planet_posts)} edition-quality posts from scratch "
             f"({len(cleaned)} stored in corpus)."
         )
-        texts = [post["clean_text"] for post in planet_posts]
+        texts = [
+            clean_text(str(post.get("text") or post.get("clean_text") or ""))
+            for post in planet_posts
+        ]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
         # Fixed floor. The corpus size does not raise it, and the group count
         # is not n // floor. Density clustering decides how many groups exist.
@@ -3123,6 +3127,7 @@ def _cluster_sections(
             _finalize_section_planets_batch(active_jobs, deadline)
     finally:
         set_label_deadline(None)
+    relocated: dict[str, list[dict]] = {}
     for job in jobs:
         if job.skipped_budget:
             continue
@@ -3134,6 +3139,15 @@ def _cluster_sections(
             deadline=deadline,
             finalize=False,
         )
+        if job.name == "Politics" and topics:
+            topics, moved = partition_politics_planets(topics, job.posts)
+            for dest, planets in moved.items():
+                for planet in planets:
+                    print(
+                        f"Section Politics: moved planet {planet.get('name')} "
+                        f"({planet.get('post_count')} posts) to {dest} (post-label sanity)."
+                    )
+                relocated.setdefault(dest, []).extend(planets)
         if topics:
             result[job.name] = _assign_section_topic_ids(job.name, topics)
             print(f"Section {job.name}: {len(topics)} planet(s) from {job.post_count} posts.")
@@ -3142,7 +3156,25 @@ def _cluster_sections(
         else:
             print(f"Section {job.name}: no publishable planet from {job.post_count} posts.")
 
+    for dest, planets in relocated.items():
+        if not planets:
+            continue
+        base = len(result.get(dest, []))
+        for offset, topic in enumerate(planets, start=1):
+            topic["id"] = base + offset
+        assigned = _assign_section_topic_ids(dest, planets)
+        result.setdefault(dest, []).extend(assigned)
+        print(f"Section {dest}: accepted {len(assigned)} planet(s) relocated from Politics.")
+
+    renormalize_section_catalogs(result)
+
     return {name: result[name] for name in CATEGORIES if name in result}
+
+
+def renormalize_section_catalogs(sections: dict[str, list[dict]]) -> None:
+    """Recompute section topic shares after post-label planets move between catalogs."""
+    for section_topics in sections.values():
+        publish_volumes(section_topics)
 
 
 def publish_volumes(topics: list[dict]) -> None:
