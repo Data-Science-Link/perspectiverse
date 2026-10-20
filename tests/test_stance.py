@@ -12,6 +12,7 @@ from pipeline.live import (
     _collect_finalize_face_jobs,
     _drop_unshared_planets,
     _draft_planet,
+    _merge_alike_drafts,
 )
 from pipeline.schema import (
     SINGLE_VIEW_NOTE,
@@ -701,7 +702,8 @@ def test_heuristic_backend_makes_no_stance_call():
 
     context = _context(chosen="heuristic", stance_generate=generate)
     merged, log = apply_stance_pass(drafted, _members(uris), context, subject="Iran")
-    assert len(merged) == 2
+    # The local gate still runs. These two share Iran and the posts do not disagree.
+    assert [item[0]["title"] for item in merged] == ["Iran War"]
     assert log == []
     assert context["story_calls"] == {}
 
@@ -765,6 +767,30 @@ def test_a_failed_sample_after_a_merge_restores_the_pre_pass_faces():
     assert "Pre-pass faces kept (2)" in " ".join(log)
     assert "HTTP error" in " ".join(log)
     assert stance_check_failures() == before + 1
+
+
+def test_a_failed_call_locks_faces_the_posts_disagree_on():
+    uris = ["a1", "a2", "b1", "b2"]
+    drafted = [
+        _face("Israel Policy", uris[:2], summary="Posts about Israel policy"),
+        _face("Israel Policy 2", uris[2:], summary="Posts about Israel policy"),
+    ]
+    members = [
+        _post("a1", "Israel is a genocidal terrorist state."),
+        _post("a2", "These killings are horrific and wrong."),
+        _post("b1", "I support and defend Israel. The operation was successful."),
+        _post("b2", "Israel deserves support. The strikes were effective."),
+    ]
+
+    def generate(_prompt: str) -> str:
+        raise RuntimeError("HTTP 500")
+
+    context = _context(stance_generate=generate)
+    merged, log = apply_stance_pass(drafted, members, context, subject="Israel")
+    assert context.get("stance_check_failed") is True
+    assert "Pre-pass faces kept" in " ".join(log)
+    assert [item[0]["title"] for item in merged] == ["Israel Policy", "Israel Policy 2"]
+    assert all(item[0].get("stance_locked") for item in merged)
 
 
 def test_a_failed_call_keeps_the_faces():
@@ -1124,6 +1150,67 @@ def test_issue_excerpt_same_side_faces_fold_to_one(number: int):
     assert gated[0]["title"] == largest["title"]
 
 
+def test_alike_titles_that_disagree_stay_apart_before_the_gate():
+    left_uris = ["a1", "a2"]
+    right_uris = ["b1", "b2"]
+    left = _face("Israel Condemned", left_uris, summary="Israel is condemned")
+    right = _face("Israel Condemned 2", right_uris, summary="Israel is condemned")
+    members = [
+        _post("a1", "Israel is a genocidal terrorist state."),
+        _post("a2", "These killings are horrific and wrong."),
+        _post("b1", "I support and defend Israel. The operation was successful."),
+        _post("b2", "Israel deserves support. The strikes were effective."),
+    ]
+    assert titles_alike("Israel Condemned", "Israel Condemned 2") is True
+    merged = _merge_alike_drafts([left, right], 6, members)
+    assert [item[0]["title"] for item in merged] == ["Israel Condemned", "Israel Condemned 2"]
+    assert all(item[0].get("stance_locked") for item in merged)
+    same_side = [
+        _post("a1", "Israel is a genocidal terrorist state."),
+        _post("a2", "These killings are horrific and wrong."),
+        _post("b1", "The occupation is genocidal and horrific."),
+        _post("b2", "These killings are wrong and cruel."),
+    ]
+    folded = _merge_alike_drafts(
+        [
+            _face("Israel Condemned", left_uris, summary="Israel is condemned"),
+            _face("Israel Condemned 2", right_uris, summary="Israel is condemned"),
+        ],
+        6,
+        same_side,
+    )
+    assert [item[0]["title"] for item in folded] == ["Israel Condemned"]
+
+
+def test_disagreeing_faces_stay_locked_against_the_title_fold():
+    uris_a = ["a1", "a2"]
+    uris_b = ["b1", "b2"]
+    # Titles carry no polarity word, so the gate does not rewrite them, and
+    # they stay alike for the finalize fold this lock has to block.
+    drafted = [
+        _face("Israel Policy", uris_a, summary="Posts about Israel policy"),
+        _face("Israel Policy 2", uris_b, summary="Posts about Israel policy"),
+    ]
+    members = [
+        _post("a1", "Israel is a genocidal terrorist state."),
+        _post("a2", "These killings are horrific and wrong."),
+        _post("b1", "I support and defend Israel. The operation was successful."),
+        _post("b2", "Israel deserves support. The strikes were effective."),
+    ]
+    assert titles_alike("Israel Policy", "Israel Policy 2") is True
+    gated = apply_local_stance_gate(drafted, members)
+    assert [item[0]["title"] for item in gated] == ["Israel Policy", "Israel Policy 2"]
+    assert all(item[0].get("stance_locked") for item in gated)
+    topic = {
+        "perspectives": [
+            {**gated[0][0], "id": "1A", "post_count": gated[0][2]},
+            {**gated[1][0], "id": "1B", "post_count": gated[1][2]},
+        ]
+    }
+    assert merge_alike_published_faces([topic]) == 0
+    assert [face["title"] for face in topic["perspectives"]] == ["Israel Policy", "Israel Policy 2"]
+
+
 def test_maga_support_over_hostile_posts_is_rewritten():
     # Issue #163, verbatim representative posts.
     planet = _excerpt(163)
@@ -1140,6 +1227,68 @@ def test_maga_support_over_hostile_posts_is_rewritten():
             {"text": "This is not a genocide."},
         ],
     ) is False
+
+
+def test_a_weak_posts_pole_does_not_append_a_side_or_rewrite_the_summary():
+    face = {"title": "Successful Operation", "summary": "The operation was successful."}
+    posts = [
+        {"text": "This was horrific and wrong."},
+        {"text": "The killings are genocidal."},
+        {"text": "People discussed the timeline."},
+        {"text": "Another note about the schedule."},
+        {"text": "Weather was fine."},
+        {"text": "Lunch was late."},
+        {"text": "The meeting ran long."},
+        {"text": "Traffic was slow."},
+    ]
+    assert align_contradicting_title(face, posts) is False
+    assert face["title"] == "Successful Operation"
+    assert face["summary"] == "The operation was successful."
+    swapped = {"title": "MAGA Support", "summary": "MAGA supporters back Trump"}
+    assert align_contradicting_title(swapped, posts) is True
+    assert swapped["title"] == "MAGA Opposed"
+    assert swapped["summary"] == "MAGA supporters back Trump"
+
+
+def test_a_majority_posts_pole_may_append_a_side_and_rewrite_the_summary():
+    face = {"title": "Successful Operation", "summary": "The operation was successful."}
+    posts = [
+        {"text": "This was horrific and wrong."},
+        {"text": "The killings are genocidal."},
+        {"text": "The violence is horrific."},
+        {"text": "This is cruel and wrong."},
+    ]
+    assert align_contradicting_title(face, posts) is True
+    assert face["title"] == "Successful Operation Opposed"
+    assert "oppose" in face["summary"].lower()
+
+
+def test_pro_ice_minority_posts_do_not_fold():
+    # Counter to issue #151. Those representative posts condemn ICE and fold.
+    # Real pro-ICE cues on the minority face are a disagreement and stay apart.
+    faces = [
+        {
+            "title": "ICE Abuse",
+            "summary": "ICE agents are abusive",
+            "post_count": 54,
+            "representative_posts": [
+                {"text": "ICE agents are abusive and the violence is horrific."},
+                {"text": "These ICE killings are wrong."},
+            ],
+        },
+        {
+            "title": "ICE Has Role",
+            "summary": "ICE has a legitimate role and should not be abolished.",
+            "post_count": 18,
+            "representative_posts": [
+                {"text": "I support and defend ICE. It has a legitimate role."},
+                {"text": "ICE should not be abolished. The work was successful and deserved."},
+            ],
+        },
+    ]
+    gated = gate_published_perspectives(faces)
+    assert [face["title"] for face in gated] == ["ICE Abuse", "ICE Has Role"]
+    assert all(face.get("stance_locked") for face in gated)
 
 
 def test_prices_up_versus_down_stay_two_faces():

@@ -4,6 +4,14 @@ No model call. Reads a snapshot, runs ``gate_published_perspectives`` on every
 planet, and prints planets whose face count or titles change, then the planets
 that still have two or more faces.
 
+This replay sees representative posts only, plus each face's post count. The
+live gate (``apply_local_stance_gate``) uses the full face membership, so a
+planet can fold or stay on different evidence in the two paths.
+
+The Oct 19 snapshot this replay was checked against is edition commit
+44a537b (``44a537b834acb2ac421f1ebfb33b6bd68ef44744``, "Update discourse
+snapshot and cost ledger").
+
     python scripts/replay_stance_gate.py path/to/data.json
 """
 
@@ -18,6 +26,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.stance import gate_published_perspectives
+
+# Pinned edition for the Oct 19 discourse snapshot. Representative posts only.
+EDITION_COMMIT = "44a537b"
 
 
 def iter_planets(data: dict):
@@ -64,6 +75,9 @@ def _format_titles(titles: list[str]) -> str:
 
 def render(report: dict) -> str:
     lines = [
+        "Replay uses representative posts only. Live apply_local_stance_gate uses full membership.",
+        f"Edition commit pinned for the Oct 19 snapshot: {EDITION_COMMIT}.",
+        "",
         "| Scope | Planet | Faces before | Titles before | Faces after | Titles after |",
         "| --- | --- | ---: | --- | ---: | --- |",
     ]
@@ -78,7 +92,7 @@ def render(report: dict) -> str:
                 after=_format_titles(row["after_titles"]),
             )
         )
-    if len(lines) == 2:
+    if len(report["changed"]) == 0:
         lines.append("| | none | | | | |")
     lines.append("")
     lines.append("Planets that still have two or more faces:")

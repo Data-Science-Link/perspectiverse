@@ -2,7 +2,8 @@
 
 The calls use whatever label model the pipeline is already using (DeepInfra
 Llama when that is the configured backend). The heuristic backend makes none
-of them. A second face is kept only when the other pole is at least
+of them. It still runs the local disagreement gate, which does not call a
+model. A second face is kept only when the other pole is at least
 ``stance_second_face_share`` of the stance sample, at least two posts, and
 one coherent claim. Every planet is sampled at most 40 posts. The whole
 planet is used when it is smaller than that cap. The whole-planet count is not what this
@@ -26,11 +27,14 @@ counts. That check is local and does not call the model.
 
 After that, a second local check publishes two or more faces only when the
 posts disagree. Same-subject faces with no disagreement fold into the larger
-face and keep its title. A title whose polarity contradicts its posts is
-rewritten onto the posts' side. A denial title such as "Not Genocidal" is
-left alone. A second face from the model is kept only when this check agrees.
-The check does not call a model. Exact duplicate titles are a separate
-finalize fold and are not handled here.
+face and keep its title. Faces kept apart by that disagreement are
+``stance_locked`` so a later title fold cannot merge them. A title whose
+polarity contradicts its posts swaps a known polarity word onto the posts'
+side. Appending Opposed or Supported, and replacing the summary, wait until
+a majority of the posts (at least two) take that side. A denial title such
+as "Not Genocidal" is left alone. A second face from the model is kept only
+when this check agrees. The check does not call a model. Exact duplicate
+titles are a separate finalize fold and are not handled here.
 """
 
 from __future__ import annotations
@@ -1116,6 +1120,9 @@ _TOPIC_FAMILIES = (
     frozenset({"languag", "translation", "misunderstood"}),
 )
 _POLE_SHARE = 0.15
+# Appending a side word, or replacing the summary, needs a majority. The 15%
+# pole is enough to swap a polarity word the title already uses.
+_STRONG_POLE_SHARE = 0.5
 
 
 def _lex_tokens(text: str) -> list[str]:
@@ -1214,6 +1221,25 @@ def _posts_pole(posts: list[dict]) -> int:
         if found / count >= _POLE_SHARE:
             return True
         return count <= 6 and other == 0
+
+    if holds(negative, positive):
+        return -1
+    if holds(positive, negative):
+        return 1
+    return 0
+
+
+def _posts_pole_strong(posts: list[dict]) -> int:
+    """The posts' side when at least two of them are a majority, not a 15% trace."""
+    if not posts:
+        return 0
+    signs = [_cue_pole(str(post.get("clean_text") or post.get("text") or "")) for post in posts]
+    negative = sum(1 for sign in signs if sign < 0)
+    positive = sum(1 for sign in signs if sign > 0)
+    count = len(posts)
+
+    def holds(found: int, other: int) -> bool:
+        return found >= 2 and found > other and found / count >= _STRONG_POLE_SHARE
 
     if holds(negative, positive):
         return -1
@@ -1539,7 +1565,11 @@ def _swap_polarity_word(word: str, table: dict[str, str]) -> str | None:
 
 
 def align_contradicting_title(face: dict, posts: list[dict]) -> bool:
-    """Rewrite a title that takes the opposite side from its posts. Denial titles stay."""
+    """Rewrite a title that takes the opposite side from its posts. Denial titles stay.
+
+    A known polarity token is swapped when the posts take a side. Appending
+    Opposed or Supported, and generating a summary, wait for a majority.
+    """
     title = " ".join(str(face.get("title") or "").split())
     if not title or _title_is_denial(title):
         return False
@@ -1547,6 +1577,7 @@ def align_contradicting_title(face: dict, posts: list[dict]) -> bool:
     posts_pole = _posts_pole(posts)
     if not title_pole or not posts_pole or title_pole == posts_pole:
         return False
+    strong = _posts_pole_strong(posts) == posts_pole
     table = {
         "support": "Opposed",
         "supports": "Opposed",
@@ -1579,10 +1610,12 @@ def align_contradicting_title(face: dict, posts: list[dict]) -> bool:
         rewritten.append(replacement)
         swapped = True
     if not swapped:
+        if not strong:
+            return False
         rewritten.append("Opposed" if posts_pole < 0 else "Supported")
     face["title"] = " ".join(rewritten)
     summary = " ".join(str(face.get("summary") or "").split())
-    if summary and _cue_pole(summary) == title_pole:
+    if strong and summary and _cue_pole(summary) == title_pole:
         subject = " ".join(word for word in words if _swap_polarity_word(word, table) is None) or face["title"]
         side = "oppose" if posts_pole < 0 else "support"
         face["summary"] = f"These posts {side} {subject}."
@@ -1622,6 +1655,43 @@ def _cluster_faces(count: int, fold, disagree) -> list[list[int]]:
     return groups
 
 
+def _groups_kept_by_disagreement(groups: list[list[int]], disagree) -> set[int]:
+    """Group indexes that stay apart because a pair across them disagrees."""
+    home: dict[int, int] = {}
+    for group_index, indexes in enumerate(groups):
+        for index in indexes:
+            home[index] = group_index
+    count = len(home)
+    locked: set[int] = set()
+    for left in range(count):
+        for right in range(left + 1, count):
+            if home[left] == home[right]:
+                continue
+            if disagree(left, right):
+                locked.add(home[left])
+                locked.add(home[right])
+    return locked
+
+
+def _lock_prepass_disagreements(drafted: list, members: list[dict]) -> None:
+    """Lock faces a failed call hands back when the posts already disagree.
+
+    Finalize still title-merges whatever this pass returns. The local gate
+    did not run, so the lock has to be stamped on these faces directly.
+    """
+    if len(drafted) < 2:
+        return
+    post_sets = [_posts_for_draft(item[0], item[1], members) for item in drafted]
+    for left in range(len(drafted)):
+        for right in range(left + 1, len(drafted)):
+            if not local_faces_disagree(
+                drafted[left][0], drafted[right][0], post_sets[left], post_sets[right]
+            ):
+                continue
+            drafted[left][0]["stance_locked"] = True
+            drafted[right][0]["stance_locked"] = True
+
+
 def _posts_for_draft(perspective: dict, rows: list, members: list[dict]) -> list[dict]:
     by_uri = {str(post.get("uri") or ""): post for post in members}
     posts = []
@@ -1658,18 +1728,32 @@ def apply_local_stance_gate(
         return local_faces_disagree(drafted[left][0], drafted[right][0], post_sets[left], post_sets[right])
 
     if len(drafted) == 1:
-        grouped = [drafted[0]]
+        tagged = [(drafted[0], False)]
     else:
-        grouped = []
-        for indexes in _cluster_faces(len(drafted), fold, disagree):
+        clusters = _cluster_faces(len(drafted), fold, disagree)
+        locked_groups = _groups_kept_by_disagreement(clusters, disagree)
+        tagged = []
+        for group_index, indexes in enumerate(clusters):
+            lock = group_index in locked_groups
             if len(indexes) == 1:
-                grouped.append(drafted[indexes[0]])
+                tagged.append((drafted[indexes[0]], lock))
                 continue
-            grouped.append(_fold(drafted, indexes, post_limit))
-        grouped.sort(key=lambda item: -int(item[2]))
+            folded = _fold(drafted, indexes, post_limit)
+            if not lock:
+                perspective, rows, size = folded
+                perspective = dict(perspective)
+                perspective.pop("stance_locked", None)
+                folded = (perspective, rows, size)
+            tagged.append((folded, lock))
+        tagged.sort(key=lambda item: -int(item[0][2]))
     aligned = []
-    for perspective, rows, size in grouped:
+    for (perspective, rows, size), lock in tagged:
         face = dict(perspective)
+        if lock:
+            # Finalize merges alike titles and skips a locked face. A face kept
+            # because the posts disagree has to carry that lock or the merge
+            # puts the opposition back together.
+            face["stance_locked"] = True
         align_contradicting_title(face, _posts_for_draft(face, rows, members))
         aligned.append((face, rows, size))
     return aligned
@@ -1692,7 +1776,9 @@ def gate_published_perspectives(faces: list[dict], *, post_limit: int = 36) -> l
     if len(copied) == 1:
         grouped = copied
     else:
-        for indexes in _cluster_faces(len(copied), fold, disagree):
+        clusters = _cluster_faces(len(copied), fold, disagree)
+        locked_groups = _groups_kept_by_disagreement(clusters, disagree)
+        for group_index, indexes in enumerate(clusters):
             ranked = sorted(indexes, key=lambda index: (-int(copied[index].get("post_count") or 0), index))
             base = dict(copied[ranked[0]])
             posts = list(base.get("representative_posts") or [])
@@ -1709,6 +1795,10 @@ def gate_published_perspectives(faces: list[dict], *, post_limit: int = 36) -> l
                     seen.add(text)
             base["representative_posts"] = posts[: max(int(post_limit), 1)]
             base["post_count"] = total
+            if group_index in locked_groups:
+                base["stance_locked"] = True
+            elif len(indexes) > 1:
+                base.pop("stance_locked", None)
             grouped.append(base)
     for face in grouped:
         align_contradicting_title(face, list(face.get("representative_posts") or []))
@@ -1739,14 +1829,19 @@ def apply_stance_pass(
 
     A failed call (timeout, HTTP error, unparseable output), after one retry,
     restores the faces from before this pass and sets ``stance_check_failed``
-    on the context. The heuristic backend returns immediately and does not
-    call the model.
+    on the context. The heuristic backend does not call the model. It still
+    runs the local gate.
     """
     context.pop("stance_check_failed", None)
     context.pop("stance_check_incoherent", None)
     context.pop("stance_failure_reason", None)
-    if context.get("chosen") == "heuristic" or len(drafted) < 1:
+    if len(drafted) < 1:
         return drafted, []
+    if context.get("chosen") == "heuristic":
+        gated = apply_local_stance_gate(
+            drafted, members, subject=subject, post_limit=int(context.get("limit") or 36)
+        )
+        return gated, []
     generate = context.get("stance_generate") or context.get("summary_model")
     if generate is None:
         return drafted, ["Stance check skipped: no label model."]
@@ -1780,6 +1875,7 @@ def apply_stance_pass(
             f"Stance check failed on {subject or 'planet'}: {reason}. "
             f"Pre-pass faces kept ({before})."
         )
+        _lock_prepass_disagreements(drafted, members)
         return drafted, log
     if context.get("stance_check_incoherent"):
         last = context.get("stance_last") or {}
@@ -1792,6 +1888,9 @@ def apply_stance_pass(
             )
         gated = apply_local_stance_gate(drafted, members, subject=subject, post_limit=int(context.get("limit") or 36))
         if _gate_signature(gated) == _gate_signature(drafted):
+            for original, updated in zip(drafted, gated):
+                if updated[0].get("stance_locked"):
+                    original[0]["stance_locked"] = True
             log.append(
                 f"Second side not coherent on {subject or 'planet'}:{detail}. "
                 f"Pre-pass faces kept ({before})."
