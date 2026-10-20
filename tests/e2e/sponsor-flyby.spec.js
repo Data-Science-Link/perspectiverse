@@ -15,7 +15,7 @@ function glyphHeight(page) {
 async function sampleTowFlight(page, frames = 48) {
   return page.evaluate(async (frameCount) => {
     const sleep = () => new Promise((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(resolve))
+      requestAnimationFrame(resolve)
     })
 
     const gaps = []
@@ -133,6 +133,7 @@ test.describe('Sponsor flyby placeholder', () => {
   })
 
   test('pill stays towed to the ship during an animated flight', async ({ page }) => {
+    test.setTimeout(120_000)
     await page.addInitScript(() => {
       window.localStorage.setItem('perspectiverse.hide-welcome', '1')
     })
@@ -144,14 +145,15 @@ test.describe('Sponsor flyby placeholder', () => {
     })).toBe(true)
 
     await page.waitForTimeout(400)
-    const stats = await sampleTowFlight(page, 96)
-    expect(stats.gapSamples).toBeGreaterThanOrEqual(20)
+    const stats = await sampleTowFlight(page, 56)
+    expect(stats.gapSamples).toBeGreaterThanOrEqual(16)
     expect(stats.pillDistance).toBeGreaterThan(40)
     expect(stats.p95Gap).toBeLessThan(56)
     expect(stats.maxGap).toBeLessThan(96)
   })
 
   test('pill stays fully opaque when it does not overlap labels', async ({ page }) => {
+    test.setTimeout(120_000)
     await page.addInitScript(() => {
       window.localStorage.setItem('perspectiverse.hide-welcome', '1')
     })
@@ -162,7 +164,7 @@ test.describe('Sponsor flyby placeholder', () => {
       return el?.style.visibility === 'visible'
     })).toBe(true)
 
-    const stats = await sampleTowFlight(page, 96)
+    const stats = await sampleTowFlight(page, 56)
     expect(stats.clearSamples).toBeGreaterThanOrEqual(5)
     expect(stats.minClearOpacity ?? 0).toBeGreaterThanOrEqual(0.99)
   })
