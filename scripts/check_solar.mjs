@@ -13,7 +13,16 @@ import {
   systemExtent,
   topicScale,
 } from '../src/lib/layout.js'
-import { clampSolarView, mobileOrbitHome, orbitSamplePoints, projectToCanvas, solarLayoutKey } from '../src/lib/solarCamera.js'
+import {
+  clampSolarView,
+  clearSolarView,
+  mobileOrbitHome,
+  orbitSamplePoints,
+  projectToCanvas,
+  restoreSolarView,
+  solarLayoutKey,
+  stashSolarView,
+} from '../src/lib/solarCamera.js'
 import { labelCenterIsClear, ORBIT_LABEL_FONT_PX, orbitLabelCssBox, separateLabelBoxes } from '../src/lib/orbitLabels.js'
 import { decorateTopics } from '../src/lib/planets.js'
 
@@ -163,6 +172,35 @@ const clamped = clampSolarView(
 )
 assert.ok(clamped.distance <= 19.2 + 1e-6)
 assert.ok(Math.abs(clamped.target[0]) <= 8 * 0.45 + 1e-6)
+
+function fakeControls(position, target) {
+  return {
+    getPosition(out) {
+      out.set(...position)
+      return out
+    },
+    getTarget(out) {
+      out.set(...target)
+      return out
+    },
+    setLookAt(px, py, pz, tx, ty, tz) {
+      this.applied = [px, py, pz, tx, ty, tz]
+    },
+  }
+}
+
+const homePose = [0, 4, 12, 0, 0, 0]
+const homeLimits = { home: homePose, minDistance: 3.2, maxDistance: 40, extent: 12 }
+clearSolarView()
+const homeControls = fakeControls([0, 4, 12], [0, 0, 0])
+stashSolarView(homeControls, 'all:orbit', homeLimits)
+assert.equal(restoreSolarView(homeControls, 'all:orbit', homeLimits, false), false)
+assert.equal(homeControls.applied, undefined)
+const zoomedControls = fakeControls([0, 4, 8], [0, 0, 0])
+stashSolarView(zoomedControls, 'all:orbit', homeLimits)
+assert.equal(restoreSolarView(zoomedControls, 'all:orbit', homeLimits, false), true)
+assert.deepEqual(zoomedControls.applied, [0, 4, 8, 0, 0, 0])
+clearSolarView()
 
 function assertMobileOrbitsFit(frame, chromeInset) {
   const reference = homeLookAt(true, topics.length, layout.extent)
