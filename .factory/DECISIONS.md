@@ -722,3 +722,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Supersedes:** #79 (minimum 5 posts). Partly supersedes #77 (no posts dropped): posts in sub-floor planets now leave the edition. #77 still holds for separate planets above the floor (don't glue or drop them).
 - **Alternatives:** 8 (the Manager's recommendation: drops 23 planets, 1.0% of posts), 10/15/20 (1.7% to 3.5% of posts), and the conditional grab-bag drop (rejected by Michael earlier today).
 - **Revisit:** If real news stories keep falling under the floor, or if the edition looks thin on low-volume days. Also once Michael decides whether a planet that clears 30 whole, but splits into pieces that are all under 30, should stay one planet (0 cases on Oct 19).
+
+### 2026-10-20: Build planet dossiers to improve summaries and perspectives
+- **Decision:** Build planet dossiers (#241, issue #237) now, as an input to planet summaries and face perspectives. The future visitor chat (#240) will reuse them later (#240 stays on hold). Close the stale drafts #198, #184, #170, #142 and #145; their issues stay open (#151, #168, #172 linked to #275).
+- **Why:** Michael (Factory room, 2026-10-20 10:45 AM CT): "This should feed better summaries and perspectives as well as the future chat. The summaries right now are poor quality." The closed drafts were superseded or built for paths that no longer run.
+- **Done bar:** a blind, seeded before/after score of summary quality against main using a written question, plus Michael's spot-check, plus the added paid $/day measured against #87's ≤$0.25/day bar. Dossiers existing is not the bar.
+- **Alternatives:** Park #241 until the visitor chat resumes (the Manager's recommendation); improve summaries without dossiers.
+- **Revisit:** If the measured summary-quality comparison shows no gain over main, or the extra paid calls push daily spend over #87's bar.
