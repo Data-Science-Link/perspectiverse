@@ -715,3 +715,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Why:** On #234, #264 and #265 the reviewer wrote fixes (for example 59c47d3, c931e4d and 0626886) that nobody had reviewed, so the agent-review step didn't cover them. Michael (Factory room, 2026-10-20 8:01 AM CT): "OK on the two process checks".
 **Alternatives:** Let reviewers commit fixes as part of review (rejected because it leaves unreviewed code). Always re-review the whole PR (heavier than needed).
 **Revisit:** If review rounds get noticeably slower, or if reviewer-written commits keep needing a second pass anyway.
+
+### 2026-10-20: Fix root causes of bad groupings and perspectives where possible
+- **Decision:** For bad planets (groupings) or bad faces (perspectives), fix the upstream cause first (filtering, clustering, stance and labeling). Post-hoc cleanup such as hiding, folding, dropping or relabeling at publish time is fine as a stopgap only when the PR names the root cause and links an open issue for it.
+- **Why:** Michael wants quality improved at the source, not masked on the page.
+- **Alternatives:** Keep cleanup-only fixes (rejected as the default).
+- **Revisit:** If a root-cause fix costs more than the daily budget allows, or can't beat main on the same replay measure.
+- **Decided by:** Michael, Factory room, 2026-10-20 9:49 AM CT ("where possible try to fix root cause rather than just post-hoc aesthetic cleaning up bad groupings or bad perspectives").
