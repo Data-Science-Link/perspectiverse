@@ -166,9 +166,90 @@ const INSPECT_TOUCH = { one: 0, two: 1024, three: 0 }
 const _labelPoint = new Vector3()
 const LABEL_HOLD_MS = 220
 
+function hideOrbitLabel(node) {
+  node.style.visibility = 'hidden'
+  node._orbitLeft = null
+  node._orbitHold = 0
+}
+
+function cameraOnHome(camera, fitKey, { relaxed = false } = {}) {
+  const home = fitKey.split(',').map(Number)
+  if (home.length < 6) return true
+  const dx = camera.position.x - home[0]
+  const dy = camera.position.y - home[1]
+  const dz = camera.position.z - home[2]
+  const posTol = relaxed ? 1.44 : 0.64
+  const aimTol = relaxed ? 0.12 : 0.08
+  _labelPoint.set(home[3], home[4], home[5]).project(camera)
+  return dx * dx + dy * dy + dz * dz < posTol
+    && Math.abs(_labelPoint.x) < aimTol
+    && Math.abs(_labelPoint.y) < aimTol
+    && _labelPoint.z < 1
+}
+
+// Off the solved home pose, pin each pill to its planet's projection and hide
+// the ones outside the screen. The home packer pulls every pill into the chrome,
+// which is only valid for the framing that fits all ten.
+function placeOrbitLabelsAtCamera(nodes, topics, anchors, layout, camera, canvasRect, overlayRect) {
+  const header = document.querySelector('header')?.getBoundingClientRect()
+  const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
+  const bounds = {
+    left: 4,
+    top: Math.max(4, (header ? header.bottom - overlayRect.top : 0) + 4),
+    right: Math.max(40, overlayRect.width - 4),
+    bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
+  }
+  const visible = []
+  nodes.forEach((node, index) => {
+    const pos = anchors.current[topics[index].id]
+    const width = node.offsetWidth
+    const height = node.offsetHeight
+    if (!pos || width < 2 || height < 2) {
+      hideOrbitLabel(node)
+      return
+    }
+    const lift = (layout.items?.[index]?.scale ?? 1) * 1.32
+    _labelPoint.set(pos.x, pos.y + lift, pos.z).project(camera)
+    if (_labelPoint.z < -1 || _labelPoint.z > 1) {
+      hideOrbitLabel(node)
+      return
+    }
+    const x = (_labelPoint.x * 0.5 + 0.5) * canvasRect.width + (canvasRect.left - overlayRect.left)
+    const y = (1 - _labelPoint.y) * 0.5 * canvasRect.height + (canvasRect.top - overlayRect.top)
+    const onScreen = x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom
+    if (!onScreen) {
+      hideOrbitLabel(node)
+      return
+    }
+    const left = Math.round(Math.min(Math.max(x - width / 2, bounds.left), bounds.right - width))
+    const top = Math.round(Math.min(Math.max(y - height / 2, bounds.top), bounds.bottom - height))
+    visible.push({ index, box: { x: left, y: top, w: width, h: height } })
+  })
+
+  const nudges = visible.length > 0
+    ? separateLabelBoxes(visible.map((entry) => entry.box), bounds)
+    : []
+  const now = performance.now()
+  visible.forEach((entry, vi) => {
+    const node = nodes[entry.index]
+    const nudge = nudges[vi] || { x: 0, y: 0 }
+    const left = Math.round(entry.box.x + nudge.x)
+    const top = Math.round(entry.box.y + nudge.y)
+    if (node._orbitLeft === left && node._orbitTop === top) return
+    if (node._orbitLeft != null && now < (node._orbitHold || 0)) return
+    node._orbitLeft = left
+    node._orbitTop = top
+    node._orbitHold = now + LABEL_HOLD_MS
+    node.style.left = `${left}px`
+    node.style.top = `${top}px`
+    node.style.visibility = 'visible'
+  })
+}
+
 function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
   const nudges = useRef(null)
   const nudgeKey = useRef('')
+  const packAtHome = useRef(true)
 
   useFrame(({ camera, gl }) => {
     if (!enabled) return
@@ -179,6 +260,17 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
     const canvasRect = gl.domElement.getBoundingClientRect()
     const overlayRect = overlay.getBoundingClientRect()
     if (canvasRect.width < 20 || canvasRect.height < 20) return
+
+    if (cameraOnHome(camera, fitKey, { relaxed: false })) {
+      packAtHome.current = true
+    } else if (!cameraOnHome(camera, fitKey, { relaxed: true })) {
+      packAtHome.current = false
+    }
+
+    if (!packAtHome.current) {
+      placeOrbitLabelsAtCamera(nodes, topics, anchors, layout, camera, canvasRect, overlayRect)
+      return
+    }
 
     const bases = []
     for (let index = 0; index < topics.length; index += 1) {
@@ -191,19 +283,6 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
         x: (_labelPoint.x * 0.5 + 0.5) * canvasRect.width + (canvasRect.left - overlayRect.left),
         y: (1 - _labelPoint.y) * 0.5 * canvasRect.height + (canvasRect.top - overlayRect.top),
       })
-    }
-
-    const home = fitKey.split(',').map(Number)
-    if (home.length >= 6) {
-      const dx = camera.position.x - home[0]
-      const dy = camera.position.y - home[1]
-      const dz = camera.position.z - home[2]
-      _labelPoint.set(home[3], home[4], home[5]).project(camera)
-      const aimed = dx * dx + dy * dy + dz * dz < 0.64
-        && Math.abs(_labelPoint.x) < 0.08
-        && Math.abs(_labelPoint.y) < 0.08
-        && _labelPoint.z < 1
-      if (!aimed) return
     }
     if (nodes.some((node) => node.offsetWidth < 2)) return
     const header = document.querySelector('header')?.getBoundingClientRect()
@@ -310,7 +389,7 @@ function FocusCamera({
     if (!position) return
 
     if (lastId.current === null) {
-      stashSolarView(controls, layoutKey)
+      stashSolarView(controls, layoutKey, limits)
     }
 
     const distance = cameraOffsetForScale(topicScale(selectedTopic.total_volume_percent, volumeMax))
@@ -357,11 +436,11 @@ function Universe({
   const handleSelectTopic = useCallback(
     (topicId) => {
       if (selectedTopicId == null) {
-        stashSolarView(controlsRef.current, layoutKey)
+        stashSolarView(controlsRef.current, layoutKey, limits)
       }
       onSelectTopic(topicId)
     },
-    [onSelectTopic, selectedTopicId, layoutKey],
+    [onSelectTopic, selectedTopicId, layoutKey, limits],
   )
 
   useEffect(() => {
