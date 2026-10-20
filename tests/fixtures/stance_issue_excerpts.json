@@ -1,0 +1,296 @@
+{
+  "256": {
+    "name": "Israel Condemned",
+    "category": "World",
+    "post_count": 389,
+    "total_volume_percent": 9.3,
+    "perspectives": [
+      {
+        "title": "Israel Condemned",
+        "volume_percent": 79.9,
+        "representative_posts": [
+          {
+            "text": "This is an act of war. Israelis are terrorists."
+          }
+        ]
+      },
+      {
+        "title": "Israel Influence",
+        "volume_percent": 20.1,
+        "representative_posts": [
+          {
+            "text": "This has gone on for decades. But now there's a nationalist spirit of purging Gaza of all non Jews. By whatever means ar"
+          }
+        ]
+      }
+    ]
+  },
+  "254": {
+    "name": "New Movie",
+    "category": "Culture",
+    "post_count": 367,
+    "total_volume_percent": 8.8,
+    "perspectives": [
+      {
+        "title": "Movie Reactions",
+        "volume_percent": 61.0,
+        "representative_posts": [
+          {
+            "text": "Seeing it tomorrow night and have not been this excited about a movie in forever."
+          }
+        ]
+      },
+      {
+        "title": "Movie Going",
+        "volume_percent": 39.0,
+        "representative_posts": [
+          {
+            "text": "it might be the one movie I'll go check out in a theater this month"
+          }
+        ]
+      }
+    ]
+  },
+  "179": {
+    "name": "Trump Russia Ties",
+    "post_count": 510,
+    "total_volume_percent": 38.5,
+    "perspectives": [
+      {
+        "id": "1A",
+        "title": "Trump Helps Russia",
+        "volume_percent": 93.5,
+        "summary": "Trump helps Russia against Ukraine",
+        "representative_posts": [
+          {
+            "text": "Russia attacks a Ukrainian powerplant, violating the energy ceasefire. Trump responds by threatening to cut Ukraine\u2019s arms, not Russia."
+          }
+        ]
+      },
+      {
+        "id": "1B",
+        "title": "Starlink Restriction",
+        "volume_percent": 6.5,
+        "summary": "Starlink restriction disrupts Ukraine's military",
+        "representative_posts": [
+          {
+            "text": "Ukraine's Starlink restrictions raise suspicions of Musk, Trump retaliation"
+          },
+          {
+            "text": "Ukraine accused SpaceX of restricting use of its Starlink system, impacting Kyiv's ability to control its drones as Russian attacks continue"
+          }
+        ]
+      }
+    ]
+  },
+  "164": {
+    "name": "Public Execution",
+    "category": "Politics",
+    "post_count": 87,
+    "perspectives": [
+      {
+        "id": "4A",
+        "title": "Public Executions",
+        "summary": "Public executions are wrong",
+        "volume_percent": 73.6,
+        "representative_posts": [
+          {
+            "text": "Public executions are messages directed at the populace, not the criminal..."
+          },
+          {
+            "text": "Sick and cruel, yes. But more importantly, public executions are messages from a regime..."
+          }
+        ]
+      },
+      {
+        "id": "4B",
+        "title": "Execution Livestream",
+        "summary": "Livestreaming executions is wrong",
+        "volume_percent": 26.4,
+        "representative_posts": [
+          {
+            "text": "Pentagon says the firing squad execution ... will be livestreamed..."
+          },
+          {
+            "text": "To livestream an execution will not deter terrorism. It will invite terrorism..."
+          }
+        ]
+      }
+    ]
+  },
+  "162": {
+    "name": "Gaza Genocide",
+    "category": "World",
+    "post_count": 215,
+    "perspectives": [
+      {
+        "id": "1A",
+        "title": "Israel Condemned",
+        "summary": "Israel is accused of racism and genocide",
+        "volume_percent": 57.2,
+        "representative_posts": [
+          {
+            "text": "ISRAEL IS A TERRORIST STATE RUN BY A BUNCH OF WAR CRIMINALS."
+          },
+          {
+            "text": "Israel is a genocidal state and all the world should cut all ties with it"
+          }
+        ]
+      },
+      {
+        "id": "1B",
+        "title": "Gaza Genocide",
+        "summary": "Israel kills Palestinians in Gaza",
+        "volume_percent": 42.8,
+        "representative_posts": [
+          {
+            "text": "Israel continues to kill Palestinians in Gaza three years into the genocide..."
+          },
+          {
+            "text": "Hey, is it a genocide yet you doubters?"
+          }
+        ]
+      }
+    ]
+  },
+  "152": {
+    "last_updated": "2026-10-12",
+    "name": "Musk Election Interference",
+    "category": "Politics",
+    "post_count": 67,
+    "face_distinctness": 0.123,
+    "perspectives": [
+      {
+        "id": "5A",
+        "title": "Musk Donations",
+        "summary": "Musk donates heavily to Republicans",
+        "volume_percent": 73.1,
+        "representative_posts": [
+          {
+            "text": "NEW AND UNREAL: Inside Elon Musk\u2019s $276 Million Midterm Rescue Mission for Republicans... Big $ must be banned in politics!"
+          }
+        ]
+      },
+      {
+        "id": "5B",
+        "title": "Musk Citizenship",
+        "summary": "Musk's citizenship is questioned",
+        "volume_percent": 26.9,
+        "representative_posts": [
+          {
+            "text": "Musk is once again engaging in illegal federal election interference..."
+          },
+          {
+            "text": "...ELON MUSKS USED HIS STARLINK SOFTWARE TO RIG THE 2024 ELECTION..."
+          }
+        ]
+      }
+    ]
+  },
+  "117": {
+    "id": 4,
+    "name": "Rise of Fascism",
+    "category": "Politics",
+    "post_count": 40,
+    "face_distinctness": 0.146,
+    "perspectives": [
+      {
+        "id": "4A",
+        "title": "Rise of Fascism",
+        "volume_percent": 62.5,
+        "summary": "The US is becoming fascist"
+      },
+      {
+        "id": "4B",
+        "title": "Fascism Rising",
+        "volume_percent": 37.5,
+        "summary": "Fascism is spreading globally"
+      }
+    ]
+  },
+  "116": {
+    "id": 1,
+    "name": "Trump Putin Diesel Deal",
+    "category": "World",
+    "post_count": 250,
+    "face_distinctness": 0.174,
+    "perspectives": [
+      {
+        "id": "1A",
+        "title": "Trump Helps Russia",
+        "volume_percent": 29.2,
+        "summary": "Trump helps Russia against Ukraine"
+      },
+      {
+        "id": "1B",
+        "title": "Trump Putin Ties",
+        "volume_percent": 27.2,
+        "summary": "Trump is tied to Putin"
+      },
+      {
+        "id": "1C",
+        "title": "Russia Invasion",
+        "volume_percent": 22.4,
+        "summary": "Russia invades its neighbor"
+      },
+      {
+        "id": "1D",
+        "title": "Russian Diesel Deal",
+        "volume_percent": 21.2,
+        "summary": "Trump buys diesel from Russia"
+      }
+    ]
+  },
+  "163": {
+    "name": "Maga Movement",
+    "category": "Politics",
+    "post_count": 65,
+    "perspectives": [
+      {
+        "id": "6A",
+        "title": "MAGA Support",
+        "summary": "MAGA supporters back Trump",
+        "volume_percent": 100,
+        "representative_posts": [
+          {
+            "text": "at this point, it's the fucking maga idiots cheering him on that piss me off."
+          },
+          {
+            "text": "Of Course He Has, Because MAGA Is A Pedophile Movement."
+          },
+          {
+            "text": "To realise how moronic the #MAGA really are Watch this mind-blowing video..."
+          }
+        ]
+      }
+    ]
+  },
+  "151": {
+    "last_updated": "2026-10-12",
+    "name": "ICE Abuse",
+    "category": "Politics",
+    "post_count": 72,
+    "perspectives": [
+      {
+        "id": "3A",
+        "title": "ICE Abuse",
+        "summary": "ICE agents are abusive",
+        "volume_percent": 75.0
+      },
+      {
+        "id": "3B",
+        "title": "ICE Has Role",
+        "summary": "Some posts argue that ICE has a legitimate role in law enforcement and should not be abolished.",
+        "volume_percent": 25.0,
+        "representative_posts": [
+          {
+            "text": "These motherfuckers. Abolish ICE. Abolish DHS."
+          },
+          {
+            "text": "Overall, violent crime is dropping... The exception: a massive crime wave involving guns carried out by ICE agents."
+          }
+        ]
+      }
+    ]
+  }
+}
