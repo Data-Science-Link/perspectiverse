@@ -20,7 +20,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Is this a poll of everyone?',
-    a: 'No. It is a sample of public English posts — usually Bluesky — from the last week. Internet talk is not humanity.',
+    a: 'No. It is a sample of public English posts on Bluesky from the last week. Internet talk is not humanity.',
   },
   {
     q: 'What does planet size mean?',

@@ -71,7 +71,7 @@ const STAGES = [
     nodes: [
       {
         name: 'Bluesky search',
-        detail: 'English posts from the last 168 hours. The job holds up to 10,000 that already passed cleaning, dedup, spam, and the public-claim check.',
+        detail: 'English posts from the last 168 hours. The job holds up to 100,000 that already passed cleaning, dedup, spam, and the public-claim check.',
       },
       {
         name: 'Clean + SQLite',
