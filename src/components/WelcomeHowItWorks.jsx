@@ -48,8 +48,8 @@ function IconExplore() {
 
 const STEPS = [
   {
-    title: 'Public posts from the web',
-    body: 'We gather today’s posts — for example from Bluesky, X, and others.',
+    title: 'Public posts on Bluesky',
+    body: 'We gather this week’s English posts from Bluesky — public conversation, not a personal feed.',
     icon: <IconPosts />,
   },
   {

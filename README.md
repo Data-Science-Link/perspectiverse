@@ -40,11 +40,11 @@ One switch covers link-only and non-English posts only. `DROP_LINK_AND_LANGUAGE_
 
 ## Current status
 
-The observatory ships a **live** `public/data.json`. The daily job holds a rolling window of up to **10,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check**. Non-claims stay stored and do not count. The public fetch is a neutral 7-day sample, not a sports or AI keyword quota. Each later day drops posts older than seven days and searches only today. Planet names, face titles, and perspective steelmans are generated (LLM when a key is present, heuristic otherwise). The dropdown is a newspaper: World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, and Other.
+The observatory ships a **live** `public/data.json`. The daily job holds a rolling window of up to **100,000 English Bluesky posts that passed cleaning, dedup, spam, and the public-claim check**. Non-claims stay stored and do not count. The public fetch is a neutral 7-day sample, not a sports or AI keyword quota. Each later day drops posts older than seven days and searches only today. Planet names, face titles, and perspective steelmans are generated (LLM when a key is present, heuristic otherwise). The dropdown is a newspaper: World, Politics, Business, Technology, Sports, Culture, Health, Environment, Education, and Other.
 
 | Layer | State |
 | --- | --- |
-| Live universe (`public/data.json`, `mode: live`) | Published snapshot; the job target is 10,000 filtered claims |
+| Live universe (`public/data.json`, `mode: live`) | Published snapshot; the job target is 100,000 filtered claims |
 | Retained SQLite (`pipeline/data/live_corpus.db`) | Rolling 7 days; a fetched UTC day is not searched again. Daily job uses private R2 object `live_corpus.db` when the `R2_*` secrets are set. `R2_OBJECT_KEY` can point a preview at a second object |
 | Spam filter | Regex, then free `jev_prefilter` and Jev when `TYPESAFE_API_KEY` is set (#92) |
 | Live pipeline (`--live`) | Default command. Daily job embeds with MiniLM; pytest stays lexical |
@@ -95,7 +95,7 @@ python -m pipeline.run_pipeline --live
 python -m pipeline.run_pipeline --demo
 ```
 
-`--live` is the default. It refreshes `pipeline/data/live_corpus.db` toward 10,000 filtered claims, clusters up to 10 planets, labels planets and faces, synthesizes core arguments, and overwrites `public/data.json`. `--demo` still writes the old synthetic 10-category universe. The file committed on `main` stays the last published snapshot until the daily job writes a new one on `data-snapshot`.
+`--live` is the default. It refreshes `pipeline/data/live_corpus.db` toward 100,000 filtered claims, clusters up to 10 planets, labels planets and faces, synthesizes core arguments, and overwrites `public/data.json`. `--demo` still writes the old synthetic 10-category universe. The file committed on `main` stays the last published snapshot until the daily job writes a new one on `data-snapshot`.
 
 Copy `.env.example` to `.env` for secrets. Do not commit `.env`.
 
@@ -111,7 +111,7 @@ OPENAI_MODEL=meta-llama/Llama-3.3-70B-Instruct-Turbo
 
 Same three names as GitHub Actions secrets. About 50 short JSON calls per snapshot (~$0.01, cents/month on the daily job).
 
-**Sections, spam, and claims (Jev).** Jev is a decision model, not a writer. When `TYPESAFE_API_KEY` is set, `pipeline/jev_prefilter.py` drops obvious non-candidates for free (#92), then each new post gets a spam score (drop at 0.8), a public-claim score (keep at 0.5), and one newspaper section. Verdicts live in SQLite table `jev_verdicts` for 14 days so the same post URI is not rescored (#92). Non-claims stay in SQLite and do not fill the 10,000 or join a planet. Planet names still come from DeepInfra. With no key, a live Bluesky run stops instead of clustering unlabeled posts. `--fixture` and `--relabel` of an unlabeled file still run. Add the key as an Actions secret. `JEV_MODEL` is optional (`jev-latest` if unset).
+**Sections, spam, and claims (Jev).** Jev is a decision model, not a writer. When `TYPESAFE_API_KEY` is set, `pipeline/jev_prefilter.py` drops obvious non-candidates for free (#92), then each new post gets a spam score (drop at 0.8), a public-claim score (keep at 0.5), and one newspaper section. Verdicts live in SQLite table `jev_verdicts` for 14 days so the same post URI is not rescored (#92). Non-claims stay in SQLite and do not fill the 100,000 or join a planet. Planet names still come from DeepInfra. With no key, a live Bluesky run stops instead of clustering unlabeled posts. `--fixture` and `--relabel` of an unlabeled file still run. Add the key as an Actions secret. `JEV_MODEL` is optional (`jev-latest` if unset).
 
 Relabel the retained corpus without refetching Bluesky:
 

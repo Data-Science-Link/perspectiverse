@@ -153,10 +153,21 @@ def salient_terms(texts: list[str], limit: int = 3) -> list[str]:
     ranked = sorted(counts, key=lambda term: (-counts[term], term))
     if not texts:
         return []
-    threshold = max(2, int(len(texts) * 0.3))
-    strong = [term for term in ranked if counts[term] >= threshold]
-    chosen = strong[:limit] or ranked[:1]
-    return chosen
+    n = len(texts)
+    strict = max(2, int(n * 0.3))
+    relaxed = max(2, int(n * 0.15))
+    strong = [term for term in ranked if counts[term] >= strict]
+    chosen = strong[:limit]
+    min_terms = min(limit, 4) if limit >= 4 and n >= 4 else 0
+    if len(chosen) < min_terms:
+        for term in ranked:
+            if counts[term] >= relaxed and term not in chosen:
+                chosen.append(term)
+            if len(chosen) >= min_terms or len(chosen) >= limit:
+                break
+    if not chosen:
+        chosen = ranked[:1]
+    return chosen[:limit]
 
 
 def _sq_distances(matrix: np.ndarray, centers: np.ndarray, row_norms: np.ndarray | None = None) -> np.ndarray:
