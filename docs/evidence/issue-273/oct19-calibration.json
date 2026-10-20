@@ -1,0 +1,257 @@
+{
+  "source_commit": "2082bf1",
+  "labeled_csv": "/tmp/275/oct19-pairs-labeled.csv",
+  "design_json": "/tmp/275/oct19-sample-design.json",
+  "edition": "2026-10-19",
+  "label_source": "Yes/no labels from cursor/root-cause-duplicates-3988 docs/evidence/275/oct19-pairs-labeled.csv at 2082bf1. The perspective-definition pass is b62ec0d; planet yes/no did not change after that, and 2c1c384 only reclassified 51 leaked face rows as planet_leak. Those 51 are not in the face score. The labeler is composer-2.5, not Michael. spot-check-20.md has an empty Michael column, so the spot-check ids use the composer label and are kept out of the tune split. Unsure is excluded. Bands and population shares come from oct19-sample-design.json.",
+  "planet": {
+    "tuned_threshold": {
+      "title_min": 0.5,
+      "centroid_min": 0.9,
+      "tune_f1": 0.1517
+    },
+    "split": {
+      "seed": 273,
+      "tuned_on": 31,
+      "holdout": 19,
+      "spot_checks": 8,
+      "tune_ids": [
+        "p008",
+        "p052",
+        "p005",
+        "p019",
+        "p018",
+        "p057",
+        "p055",
+        "p034",
+        "p036",
+        "p025",
+        "p021",
+        "p058",
+        "p014",
+        "p032",
+        "p050",
+        "p056",
+        "p059",
+        "p024",
+        "p054",
+        "p048",
+        "p046",
+        "p038",
+        "p013",
+        "p022",
+        "p017",
+        "p040",
+        "p041",
+        "p051",
+        "p043",
+        "p045",
+        "p033"
+      ],
+      "holdout_ids": [
+        "p044",
+        "p053",
+        "p039",
+        "p047",
+        "p042",
+        "p027",
+        "p026",
+        "p020",
+        "p023",
+        "p037",
+        "p035",
+        "p016",
+        "p028",
+        "p012",
+        "p029",
+        "p049",
+        "p030",
+        "p031",
+        "p010"
+      ],
+      "spot_ids": [
+        "p001",
+        "p002",
+        "p003",
+        "p004",
+        "p007",
+        "p009",
+        "p011",
+        "p015"
+      ]
+    },
+    "headline": {
+      "weighted": true,
+      "precision": 0.3251,
+      "recall": 0.0512,
+      "withheld_because": null
+    },
+    "bands": [
+      {
+        "band": "B0",
+        "share": 0.7354,
+        "matched": 7,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 0,
+        "true_negative": 7,
+        "precision": null,
+        "recall": null
+      },
+      {
+        "band": "B1",
+        "share": 0.1125,
+        "matched": 8,
+        "true_positive": 0,
+        "false_positive": 1,
+        "false_negative": 2,
+        "true_negative": 5,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "band": "B2",
+        "share": 0.0958,
+        "matched": 6,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 3,
+        "true_negative": 3,
+        "precision": null,
+        "recall": 0.0
+      },
+      {
+        "band": "B3",
+        "share": 0.0542,
+        "matched": 5,
+        "true_positive": 1,
+        "false_positive": 0,
+        "false_negative": 3,
+        "true_negative": 1,
+        "precision": 1.0,
+        "recall": 0.25
+      },
+      {
+        "band": "B4",
+        "share": 0.0021,
+        "matched": 1,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 1,
+        "true_negative": 0,
+        "precision": null,
+        "recall": 0.0
+      }
+    ],
+    "matched": 27,
+    "unmatched": 0,
+    "sample_mix_not_headline": {
+      "precision": 0.5,
+      "recall": 0.1,
+      "note": "Raw sample mix. Not the headline. The sample does not match each band's real share."
+    },
+    "labels": {
+      "yes_no_rows": 58,
+      "unsure_excluded": 2,
+      "planet_leak_excluded": 0,
+      "missing_population_bands": [],
+      "band_shares": {
+        "B0": 0.735417,
+        "B1": 0.1125,
+        "B2": 0.095833,
+        "B3": 0.054167,
+        "B4": 0.002083
+      }
+    }
+  },
+  "face": {
+    "tuned_threshold": {
+      "title_min": 0.5,
+      "centroid_min": 0.9,
+      "tune_f1": 0.8
+    },
+    "split": {
+      "seed": 273,
+      "tuned_on": 5,
+      "holdout": 4,
+      "spot_checks": 0,
+      "tune_ids": [
+        "f024",
+        "f035",
+        "f060",
+        "f032",
+        "f037"
+      ],
+      "holdout_ids": [
+        "f009",
+        "f028",
+        "f026",
+        "f047"
+      ],
+      "spot_ids": []
+    },
+    "headline": {
+      "weighted": false,
+      "precision": null,
+      "recall": null,
+      "withheld_because": "Population bands with no yes/no label: B1"
+    },
+    "bands": [
+      {
+        "band": "B2",
+        "share": 0.2963,
+        "matched": 1,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 0,
+        "true_negative": 1,
+        "precision": null,
+        "recall": null
+      },
+      {
+        "band": "B3",
+        "share": 0.5185,
+        "matched": 2,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 1,
+        "true_negative": 1,
+        "precision": null,
+        "recall": 0.0
+      },
+      {
+        "band": "B4",
+        "share": 0.0741,
+        "matched": 1,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 1,
+        "true_negative": 0,
+        "precision": null,
+        "recall": 0.0
+      }
+    ],
+    "matched": 4,
+    "unmatched": 0,
+    "sample_mix_not_headline": {
+      "precision": null,
+      "recall": 0.0,
+      "note": "Raw sample mix. Not the headline. The sample does not match each band's real share."
+    },
+    "labels": {
+      "yes_no_rows": 9,
+      "unsure_excluded": 0,
+      "planet_leak_excluded": 51,
+      "missing_population_bands": [
+        "B1"
+      ],
+      "band_shares": {
+        "B0": 0.0,
+        "B1": 0.111111,
+        "B2": 0.296296,
+        "B3": 0.518519,
+        "B4": 0.074074
+      }
+    }
+  }
+}
