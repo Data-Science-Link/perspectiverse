@@ -13,4 +13,4 @@ The 220ms still-gap is `LABEL_HOLD_MS`, added in `ea3de96` and merged in #252 (`
 
 The black frame is the phone drill unmounting the observatory, in place since `1b25e6b`. It is already there at `53242b1^`. #234 restores the camera after the new canvas boots, which reads as a black flash and then a reload into the right zoom.
 
-Screenshots: `main-back-00.png` is the blank frame on main. `branch-back-01.png` is the first solar frame on this branch, with the same canvas still attached. Videos are the `*.webm` files in this folder.
+Screenshots: `main-back-00.png` is the blank frame on main. On this branch, `branch-back-00.png` is the reading screen with the canvas kept mounted and the orbit pills hidden, `branch-back-01.png` is the camera still pulling back with the scene already drawn, and `branch-back-02.png` is the restored solar system. Videos are the `*.webm` files in this folder.
