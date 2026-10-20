@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { categoryCounts } from '../lib/categories'
-import { SITE_TAGLINE, oneViewNote, showStanceFailure } from '../lib/copy'
+import { SITE_TAGLINE, oneViewNote, showStanceFailure, sidebarSliceNote } from '../lib/copy'
 import { faceShade, hexToRgba, rankPerspectives, topicColor } from '../lib/colors'
 import { formatNumber, formatPercent } from '../lib/layout'
 import { LazyPostFeed, TopTerms } from './FaceEvidence'
@@ -161,6 +161,7 @@ function TopicPanel({
 }) {
   const color = topicColor(topic.id, topic.body)
   const ranked = rankPerspectives(topic.perspectives)
+  const sliceNote = sidebarSliceNote(topic)
   return (
     <div className="panel is-topic">
       <button type="button" className="back-link" onClick={onBack}>
@@ -176,8 +177,8 @@ function TopicPanel({
         attention, not importance. Each bar below is a real opinion. Length shows
         how many posts sat there. A longer bar is the more common view.
       </p>
-      {(ranked.length === 1 || showStanceFailure(topic)) && (
-        <p className="lede">{oneViewNote(topic)}</p>
+      {(ranked.length === 1 || showStanceFailure(topic)) && sliceNote && (
+        <p className="lede">{sliceNote}</p>
       )}
       <MiniCube
         topic={topic}
@@ -225,6 +226,7 @@ function PerspectivePanel({
   const ranked = rankPerspectives(topic.perspectives)
   const color = faceShade(planetColor, ranked.findIndex((item) => item.id === perspective.id), ranked.length)
   const argumentsList = (perspective.arguments ?? []).filter((item) => String(item).trim())
+  const sliceNote = sidebarSliceNote(topic)
 
   return (
     <div className="panel is-face">
@@ -258,7 +260,7 @@ function PerspectivePanel({
         {ranked.length === 1 ? (
           <>
             <strong>One view</strong>
-            <span>{oneViewNote(topic)}</span>
+            {sliceNote ? <span>{sliceNote}</span> : null}
           </>
         ) : showStanceFailure(topic) ? (
           <>
