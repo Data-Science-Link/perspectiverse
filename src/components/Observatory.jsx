@@ -164,17 +164,18 @@ const ORBIT_TOUCH = { one: 64, two: 4096, three: 128 }
 const INSPECT_TOUCH = { one: 0, two: 1024, three: 0 }
 
 const _labelPoint = new Vector3()
-const LABEL_HOLD_MS = 220
+const _packBoxes = []
+const _projected = []
+const _points = Array.from({ length: 16 }, () => ({ x: 0, y: 0 }))
+const _active = []
+const LABEL_QUANT_PX = 8
 
 function hideOrbitLabel(node) {
   node.style.visibility = 'hidden'
-  node._orbitLeft = null
-  node._orbitHold = 0
 }
 
-function cameraOnHome(camera, fitKey, { relaxed = false } = {}) {
-  const home = fitKey.split(',').map(Number)
-  if (home.length < 6) return true
+function cameraOnHome(camera, home, { relaxed = false } = {}) {
+  if (!home || home.length < 6) return true
   const dx = camera.position.x - home[0]
   const dy = camera.position.y - home[1]
   const dz = camera.position.z - home[2]
@@ -187,156 +188,185 @@ function cameraOnHome(camera, fitKey, { relaxed = false } = {}) {
     && _labelPoint.z < 1
 }
 
-// Off the solved home pose, pin each pill to its planet's projection and hide
-// the ones outside the screen. The home packer pulls every pill into the chrome,
-// which is only valid for the framing that fits all ten.
-function placeOrbitLabelsAtCamera(nodes, topics, anchors, layout, camera, canvasRect, overlayRect) {
-  const header = document.querySelector('header')?.getBoundingClientRect()
-  const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
-  const bounds = {
-    left: 4,
-    top: Math.max(4, (header ? header.bottom - overlayRect.top : 0) + 4),
-    right: Math.max(40, overlayRect.width - 4),
-    bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
-  }
-  const visible = []
-  nodes.forEach((node, index) => {
-    const pos = anchors.current[topics[index].id]
-    const width = node.offsetWidth
-    const height = node.offsetHeight
-    if (!pos || width < 2 || height < 2) {
-      hideOrbitLabel(node)
-      return
-    }
-    const lift = (layout.items?.[index]?.scale ?? 1) * 1.32
-    _labelPoint.set(pos.x, pos.y + lift, pos.z).project(camera)
-    if (_labelPoint.z < -1 || _labelPoint.z > 1) {
-      hideOrbitLabel(node)
-      return
-    }
-    const x = (_labelPoint.x * 0.5 + 0.5) * canvasRect.width + (canvasRect.left - overlayRect.left)
-    const y = (1 - _labelPoint.y) * 0.5 * canvasRect.height + (canvasRect.top - overlayRect.top)
-    const onScreen = x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom
-    if (!onScreen) {
-      hideOrbitLabel(node)
-      return
-    }
-    const left = Math.round(Math.min(Math.max(x - width / 2, bounds.left), bounds.right - width))
-    const top = Math.round(Math.min(Math.max(y - height / 2, bounds.top), bounds.bottom - height))
-    visible.push({ index, box: { x: left, y: top, w: width, h: height } })
-  })
-
-  const nudges = visible.length > 0
-    ? separateLabelBoxes(visible.map((entry) => entry.box), bounds)
-    : []
-  const now = performance.now()
-  visible.forEach((entry, vi) => {
-    const node = nodes[entry.index]
-    const nudge = nudges[vi] || { x: 0, y: 0 }
-    const left = Math.round(entry.box.x + nudge.x)
-    const top = Math.round(entry.box.y + nudge.y)
-    if (node._orbitLeft === left && node._orbitTop === top) return
-    if (node._orbitLeft != null && now < (node._orbitHold || 0)) return
-    node._orbitLeft = left
-    node._orbitTop = top
-    node._orbitHold = now + LABEL_HOLD_MS
-    node.style.left = `${left}px`
-    node.style.top = `${top}px`
-    node.style.visibility = 'visible'
-  })
+function projectOrbitLabel(pos, lift, camera, canvasRect, overlayRect, out) {
+  _labelPoint.set(pos.x, pos.y + lift, pos.z).project(camera)
+  if (_labelPoint.z < -1 || _labelPoint.z > 1) return null
+  out.x = (_labelPoint.x * 0.5 + 0.5) * canvasRect.width + (canvasRect.left - overlayRect.left)
+  out.y = (1 - _labelPoint.y) * 0.5 * canvasRect.height + (canvasRect.top - overlayRect.top)
+  return out
 }
 
 function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
-  const nudges = useRef(null)
-  const nudgeKey = useRef('')
   const packAtHome = useRef(true)
+  const dom = useRef({
+    nodes: null,
+    sizes: null,
+    canvasRect: null,
+    overlayRect: null,
+    bounds: null,
+    nudgeX: null,
+    nudgeY: null,
+    sig: null,
+  })
+  const home = useMemo(() => fitKey.split(',').map(Number), [fitKey])
 
-  useFrame(({ camera, gl }) => {
+  useEffect(() => {
+    if (!enabled) return undefined
+    const read = () => {
+      const overlay = document.querySelector('.orbit-labels')
+      const canvas = document.querySelector('.observatory canvas')
+      if (!overlay || !canvas) return
+      const nodes = [...overlay.querySelectorAll('.planet-label')]
+      const canvasRect = canvas.getBoundingClientRect()
+      const overlayRect = overlay.getBoundingClientRect()
+      const header = document.querySelector('header')?.getBoundingClientRect()
+      const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
+      dom.current.nodes = nodes
+      dom.current.sizes = nodes.map((node) => ({ w: node.offsetWidth, h: node.offsetHeight }))
+      dom.current.canvasRect = canvasRect
+      dom.current.overlayRect = overlayRect
+      dom.current.bounds = {
+        left: 4,
+        top: Math.max(4, (header ? header.bottom - overlayRect.top : 0) + 4),
+        right: Math.max(40, overlayRect.width - 4),
+        bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
+      }
+      dom.current.sig = null
+    }
+    read()
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(read) : null
+    for (const node of [
+      document.querySelector('.orbit-labels'),
+      document.querySelector('.observatory canvas'),
+      document.querySelector('header'),
+      document.querySelector('.observatory-chrome'),
+    ]) {
+      if (node) observer?.observe(node)
+    }
+    window.addEventListener('resize', read)
+    let cancel = false
+    document.fonts?.ready?.then(() => {
+      if (!cancel) read()
+    })
+    return () => {
+      cancel = true
+      observer?.disconnect()
+      window.removeEventListener('resize', read)
+    }
+  }, [enabled, topics])
+
+  useFrame(({ camera }) => {
     if (!enabled) return
-    const overlay = document.querySelector('.orbit-labels')
-    if (!overlay) return
-    const nodes = [...overlay.querySelectorAll('.planet-label')]
-    if (nodes.length !== topics.length) return
-    const canvasRect = gl.domElement.getBoundingClientRect()
-    const overlayRect = overlay.getBoundingClientRect()
+    const state = dom.current
+    const nodes = state.nodes
+    const sizes = state.sizes
+    const { canvasRect, overlayRect, bounds } = state
+    if (!nodes || nodes.length !== topics.length || !sizes || !canvasRect || !overlayRect || !bounds) return
     if (canvasRect.width < 20 || canvasRect.height < 20) return
-
-    if (cameraOnHome(camera, fitKey, { relaxed: false })) {
-      packAtHome.current = true
-    } else if (!cameraOnHome(camera, fitKey, { relaxed: true })) {
-      packAtHome.current = false
-    }
-
-    if (!packAtHome.current) {
-      placeOrbitLabelsAtCamera(nodes, topics, anchors, layout, camera, canvasRect, overlayRect)
-      return
-    }
-
-    const bases = []
-    for (let index = 0; index < topics.length; index += 1) {
-      const pos = anchors.current[topics[index].id]
-      if (!pos) return
-      const lift = (layout.items?.[index]?.scale ?? 1) * 1.32
-      _labelPoint.set(pos.x, pos.y + lift, pos.z).project(camera)
-      if (_labelPoint.z < -1 || _labelPoint.z > 1) return
-      bases.push({
-        x: (_labelPoint.x * 0.5 + 0.5) * canvasRect.width + (canvasRect.left - overlayRect.left),
-        y: (1 - _labelPoint.y) * 0.5 * canvasRect.height + (canvasRect.top - overlayRect.top),
-      })
-    }
-    if (nodes.some((node) => node.offsetWidth < 2)) return
-    const header = document.querySelector('header')?.getBoundingClientRect()
-    const chrome = document.querySelector('.observatory-chrome')?.getBoundingClientRect()
-    const bounds = {
-      left: 4,
-      top: Math.max(4, (header ? header.bottom - overlayRect.top : 0) + 4),
-      right: Math.max(40, overlayRect.width - 4),
-      bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
-    }
     if (!(bounds.bottom > bounds.top + 24) || !(bounds.right > bounds.left + 24)) return
-    const boxes = nodes.map((node, index) => ({
-      x: bases[index].x - node.offsetWidth / 2,
-      y: bases[index].y - node.offsetHeight / 2,
-      w: node.offsetWidth,
-      h: node.offsetHeight,
-    }))
-    const signature = `${fitKey}|${boxes.map((box) => `${Math.round(box.x)},${Math.round(box.y)},${box.w},${box.h}`).join(';')}`
-    if (nudgeKey.current !== signature || !nudges.current) {
-      nudges.current = separateLabelBoxes(boxes, bounds)
-      nudgeKey.current = signature
+    if (sizes.some((size) => size.w < 2 || size.h < 2)) return
+
+    if (cameraOnHome(camera, home, { relaxed: false })) packAtHome.current = true
+    else if (!cameraOnHome(camera, home, { relaxed: true })) packAtHome.current = false
+    const atHome = packAtHome.current
+
+    const count = topics.length
+    if (!state.nudgeX || state.nudgeX.length !== count) {
+      state.nudgeX = new Float64Array(count)
+      state.nudgeY = new Float64Array(count)
+      state.sig = null
+    }
+    if (!state.sig || state.sig.length !== count * 2 + 1) {
+      state.sig = new Float64Array(count * 2 + 1)
+      state.sig[0] = -1
     }
 
-    let overlapping = nodes.some((node) => node._orbitLeft == null)
-    if (!overlapping) {
-      for (let i = 0; i < nodes.length; i += 1) {
-        for (let j = i + 1; j < nodes.length; j += 1) {
-          const a = nodes[i]
-          const b = nodes[j]
-          const ax = a._orbitLeft
-          const ay = a._orbitTop
-          const bx = b._orbitLeft
-          const by = b._orbitTop
-          const overlapX = Math.min(ax + a.offsetWidth, bx + b.offsetWidth) - Math.max(ax, bx)
-          const overlapY = Math.min(ay + a.offsetHeight, by + b.offsetHeight) - Math.max(ay, by)
-          if (overlapX > 0 && overlapY > 0) overlapping = true
+    let missing = false
+    for (let index = 0; index < count; index += 1) {
+      const pos = anchors.current[topics[index].id]
+      if (!pos) {
+        missing = true
+        _projected[index] = null
+        continue
+      }
+      const lift = (layout.items?.[index]?.scale ?? 1) * 1.32
+      const slot = _points[index] || (_points[index] = { x: 0, y: 0 })
+      _projected[index] = projectOrbitLabel(pos, lift, camera, canvasRect, overlayRect, slot)
+    }
+    if (atHome) {
+      for (let index = 0; index < count; index += 1) {
+        if (!_projected[index]) missing = true
+      }
+      if (missing) return
+    }
+
+    const mode = atHome ? 1 : 0
+    let dirty = state.sig[0] !== mode
+    state.sig[0] = mode
+    let activeCount = 0
+    for (let index = 0; index < count; index += 1) {
+      const point = _projected[index]
+      const size = sizes[index]
+      let onScreen = Boolean(point)
+      let left = 0
+      let top = 0
+      if (point) {
+        left = point.x - size.w / 2
+        top = point.y - size.h / 2
+        if (!atHome) {
+          onScreen = point.x >= bounds.left && point.x <= bounds.right
+            && point.y >= bounds.top && point.y <= bounds.bottom
         }
+      }
+      const qx = onScreen ? Math.round(left / LABEL_QUANT_PX) : -9999
+      const qy = onScreen ? Math.round(top / LABEL_QUANT_PX) : -9999
+      if (state.sig[index * 2 + 1] !== qx || state.sig[index * 2 + 2] !== qy) dirty = true
+      state.sig[index * 2 + 1] = qx
+      state.sig[index * 2 + 2] = qy
+      if (!onScreen) {
+        hideOrbitLabel(nodes[index])
+        continue
+      }
+      const slot = _active[activeCount] || (_active[activeCount] = { index: 0, left: 0, top: 0, w: 0, h: 0 })
+      slot.index = index
+      slot.left = left
+      slot.top = top
+      slot.w = size.w
+      slot.h = size.h
+      activeCount += 1
+    }
+
+    if (dirty) {
+      _packBoxes.length = activeCount
+      for (let i = 0; i < activeCount; i += 1) {
+        const item = _active[i]
+        const box = _packBoxes[i] || (_packBoxes[i] = { x: 0, y: 0, w: 0, h: 0 })
+        box.x = item.left
+        box.y = item.top
+        box.w = item.w
+        box.h = item.h
+      }
+      const nudges = activeCount > 0 ? separateLabelBoxes(_packBoxes, bounds) : []
+      state.nudgeX.fill(0)
+      state.nudgeY.fill(0)
+      for (let i = 0; i < activeCount; i += 1) {
+        const nudge = nudges[i] || { x: 0, y: 0 }
+        state.nudgeX[_active[i].index] = nudge.x
+        state.nudgeY[_active[i].index] = nudge.y
       }
     }
 
-    const now = performance.now()
-    nodes.forEach((node, index) => {
-      const nudge = nudges.current[index] || { x: 0, y: 0 }
-      const left = Math.round(boxes[index].x) + nudge.x
-      const top = Math.round(boxes[index].y) + nudge.y
-      if (node._orbitLeft === left && node._orbitTop === top) return
-      if (node._orbitLeft != null && !overlapping && now < (node._orbitHold || 0)) return
-      node._orbitLeft = left
-      node._orbitTop = top
-      node._orbitHold = now + LABEL_HOLD_MS
-      node.style.left = `${left}px`
-      node.style.top = `${top}px`
+    for (let i = 0; i < activeCount; i += 1) {
+      const item = _active[i]
+      const node = nodes[item.index]
+      const x = Math.round(item.left + state.nudgeX[item.index])
+      const y = Math.round(item.top + state.nudgeY[item.index])
+      if (node._orbitLeft === x && node._orbitTop === y && node.style.visibility === 'visible') continue
+      node._orbitLeft = x
+      node._orbitTop = y
+      node.style.transform = `translate3d(${x}px, ${y}px, 0)`
       node.style.visibility = 'visible'
-    })
+    }
   })
 
   return null
@@ -533,7 +563,7 @@ function Universe({
       />
       {isMobile && !linear && (
         <OrbitLabelPlacer
-          enabled
+          enabled={!selectedTopicId}
           topics={topics}
           anchors={anchors}
           layout={layout}
@@ -608,8 +638,8 @@ export default function Observatory({
   const linearGrid = linear && layout.mode === 'grid'
 
   useLayoutEffect(() => {
-    if (linear || !isMobile) {
-      setOrbitFrame(null)
+    if (linear || !isMobile || selectedTopicId) {
+      if (linear || !isMobile) setOrbitFrame(null)
       return undefined
     }
     const measure = () => {
@@ -630,7 +660,7 @@ export default function Observatory({
       observer.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [linear, isMobile, canvasAspect])
+  }, [linear, isMobile, canvasAspect, selectedTopicId])
 
   useLayoutEffect(() => {
     if (!linearGrid) {
