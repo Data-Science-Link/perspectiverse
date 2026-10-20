@@ -427,15 +427,15 @@ def _package(level: str, before: dict, after: dict, population: int, unit: int, 
 
 MERGE_BAR_COLUMNS = [
     "fix_id",
+    "build_issue",
     "day",
     "guards",
     "scorer",
     "good_labeled_duplicates_removed_or_joined",
     "over_merge_labeled_different",
-    "moved_to_other_planets",
-    "moved_to_other_posts",
-    "dropped_planets",
-    "dropped_posts",
+    "pushed_to_other_planets",
+    "pushed_to_other_posts",
+    "posts_removed_from_edition",
     "per_section",
     "verdict",
 ]
@@ -450,99 +450,106 @@ def _per_section_drops(planets: list[dict]) -> str:
     )
 
 
+def _blank_bar(fix_id: str, build_issue: str, day: str, *, note: str, guards: str = "off") -> dict:
+    """(a) and (b) stay empty until grok-4.7 labels them."""
+    return {
+        "fix_id": fix_id,
+        "build_issue": build_issue,
+        "day": day,
+        "guards": guards,
+        "scorer": "awaiting grok-4.7",
+        "good_labeled_duplicates_removed_or_joined": "",
+        "over_merge_labeled_different": "",
+        "pushed_to_other_planets": 0,
+        "pushed_to_other_posts": 0,
+        "posts_removed_from_edition": 0,
+        "per_section": "",
+        "verdict": "awaiting grok-4.7; nothing pushed to Other; posts removed: 0",
+        "note": note,
+    }
+
+
 def merge_bar_rows(greeting: dict) -> list[dict]:
     """(a) and (b) stay empty until a grok-4.7 label file is the scorer.
 
     composer-2.5 labels are a separate reading. They do not fill these columns.
-    (c) is the section move or drop this fix adds, with guards off. A later
-    label pass must not overwrite (c) with a label count.
+    Pushed-to-Other and posts-removed are separate. A post removed from the
+    edition does not show up in Other. A later label pass must not overwrite
+    either count with a label count.
     """
-    notes = {
-        "fix1_paraphrase_face": (
-            "Does not call section_sanity and does not drop a planet. "
-            "Unpublishing a paraphrase face is (a) or (b), once labeled."
+    # #288 is Michael's "fix 3": the greeting matcher. The stayed-off restore
+    # in this spec is a different change and has no build issue yet.
+    notes = [
+        (
+            "fix1_paraphrase_face",
+            "286",
+            "Does not call section_sanity. Posts stay on the planet. Unpublishing a paraphrase face is (a) or (b), once labeled.",
         ),
-        "fix2_attach_stem": (
-            "A join stays in the section. Posts are kept. No planet moves to Other."
+        (
+            "fix2_attach_stem",
+            "287",
+            "A join stays in the section. Posts are kept. No planet moves to Other.",
         ),
-        "fix3_keep_dropped_face_posts": (
-            "Stayed-off posts return to the surviving face. Drops do not rise."
+        (
+            "fix3_keep_dropped_face_posts",
+            "needs new issue",
+            "Stayed-off posts return to the surviving face. Not #288. #288 is the greeting matcher.",
         ),
-    }
+    ]
     days: list[tuple[str, dict | None]] = []
     for key, census in greeting.items():
         days.append((str(census.get("edition") or key), census))
     if not days:
         days = [("2026-10-19", None), ("2026-10-20", None)]
     rows = []
-    for fix_id, note in notes.items():
+    for fix_id, build_issue, note in notes:
         for day, _census in days:
-            rows.append(
-                {
-                    "fix_id": fix_id,
-                    "day": day,
-                    "guards": "off",
-                    "scorer": "awaiting grok-4.7",
-                    "good_labeled_duplicates_removed_or_joined": "",
-                    "over_merge_labeled_different": "",
-                    "moved_to_other_planets": 0,
-                    "moved_to_other_posts": 0,
-                    "dropped_planets": 0,
-                    "dropped_posts": 0,
-                    "per_section": "",
-                    "verdict": "awaiting grok-4.7; (c) does not rise",
-                    "note": note,
-                }
-            )
+            rows.append(_blank_bar(fix_id, build_issue, day, note=note))
     for day, census in days:
         dropped = [row for row in (census or {}).get("planets") or [] if row.get("daypart_gate_drops")]
         posts = sum(int(row["posts"]) for row in dropped)
-        rises = bool(dropped) or posts > 0
-        rows.append(
-            {
-                "fix_id": "daypart_planet_gate",
-                "day": day,
-                "guards": "off",
-                "scorer": "awaiting grok-4.7",
-                "good_labeled_duplicates_removed_or_joined": "",
-                "over_merge_labeled_different": "",
-                "moved_to_other_planets": 0,
-                "moved_to_other_posts": 0,
-                "dropped_planets": len(dropped),
-                "dropped_posts": posts,
-                "per_section": _per_section_drops(dropped),
-                "verdict": (
-                    "fails (c); (a) and (b) awaiting grok-4.7"
-                    if rises
-                    else "awaiting grok-4.7; (c) does not rise"
-                ),
-                "note": (
-                    "Drops a planet when at least half of its representative posts "
-                    "open with a daypart. That drop is (c). It does not move a "
-                    "Politics planet to Other."
-                ),
-            }
+        row = _blank_bar(
+            "daypart_planet_gate",
+            "288",
+            day,
+            note=(
+                "The daypart planet gate is the upstream change inside #288. "
+                "It removes greeting planets from the edition. Those posts do not "
+                "move to Other. #288 therefore drops posts."
+            ),
         )
+        row["posts_removed_from_edition"] = posts
+        row["per_section"] = _per_section_drops(dropped)
+        if posts:
+            planets = len(dropped)
+            planet_word = "planet" if planets == 1 else "planets"
+            row["verdict"] = (
+                f"#288 removes {posts} posts from the edition "
+                f"({planets} {planet_word}). Pushed to Other: 0. "
+                "Real-news planets removed on this replay: 0. "
+                "(a) and (b) awaiting grok-4.7."
+            )
+        rows.append(row)
     rows.append(
         {
             "fix_id": "published_edition_not_a_275_fix",
+            "build_issue": "280",
             "day": "2026-10-20",
             "guards": "live run post-label sanity, not held off",
             "scorer": "n/a",
             "good_labeled_duplicates_removed_or_joined": "",
             "over_merge_labeled_different": "",
-            "moved_to_other_planets": 6,
-            "moved_to_other_posts": 402,
-            "dropped_planets": 0,
-            "dropped_posts": 0,
+            "pushed_to_other_planets": 6,
+            "pushed_to_other_posts": 402,
+            "posts_removed_from_edition": 0,
             "per_section": (
                 "Politics → Other: Fascism 201, Wealth Inequality 164, Texas 21, "
                 "Texas Derogatory 6, College Football Playoff 5, Notre Dame Miami Game 5 "
                 "(#280, Actions 39417351709). The sports moves match the section. "
-                "Fascism and Wealth Inequality do not."
+                "Fascism and Wealth Inequality do not. These posts stay in the edition, in Other."
             ),
-            "verdict": "baseline already has the (c) shape; fixes 1–3 do not add to it",
-            "note": "Not a #275 proposal. Shown so a fix's (c) is a rise over this, not a retelling of it.",
+            "verdict": "baseline pushes planets to Other; posts removed from the edition: 0",
+            "note": "Not a #275 proposal. Shown so a fix's Other column is a rise over this.",
         }
     )
     return rows

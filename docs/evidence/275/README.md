@@ -38,6 +38,6 @@ Planet rows are two planets in one solar system (global is one scope). Face rows
 
 Planet pairs per section use the 480 Oct 19 same-section pairs and 11 sections. Face pairs per planet on Oct 19 use the 27-row census and 107 planets.
 
-The merge bar is `merge-bar.csv`. For each fix and each day it has (a) labeled duplicates removed or joined, (b) labeled-different pairs joined or removed, and (c) posts or planets moved to Other or dropped, per section. (a) and (b) are empty until grok-4.7 labels them. A fix fails if (b) or (c) rises. Guards stay off.
+The merge bar is `merge-bar.csv`. For each fix and each day it has (a) labeled duplicates removed or joined, (b) labeled-different pairs joined or removed, planets and posts pushed to Other, and posts removed from the edition. Removed posts do not show up in Other. (a) and (b) are empty until grok-4.7 labels them. Each row names its build issue: #286, #287, #288, or needs a new issue. A fix fails if (b) rises or if anything new is pushed to Other. #288 removes posts. Guards stay off.
 
 `handpicked-pairs.csv` is scored on its own. It is not added to the baseline rate.

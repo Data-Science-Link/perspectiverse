@@ -1,10 +1,10 @@
-fix_id,day,guards,scorer,good_labeled_duplicates_removed_or_joined,over_merge_labeled_different,moved_to_other_planets,moved_to_other_posts,dropped_planets,dropped_posts,per_section,verdict
-fix1_paraphrase_face,2026-10-19,off,awaiting grok-4.7,,,0,0,0,0,,awaiting grok-4.7; (c) does not rise
-fix1_paraphrase_face,2026-10-20,off,awaiting grok-4.7,,,0,0,0,0,,awaiting grok-4.7; (c) does not rise
-fix2_attach_stem,2026-10-19,off,awaiting grok-4.7,,,0,0,0,0,,awaiting grok-4.7; (c) does not rise
-fix2_attach_stem,2026-10-20,off,awaiting grok-4.7,,,0,0,0,0,,awaiting grok-4.7; (c) does not rise
-fix3_keep_dropped_face_posts,2026-10-19,off,awaiting grok-4.7,,,0,0,0,0,,awaiting grok-4.7; (c) does not rise
-fix3_keep_dropped_face_posts,2026-10-20,off,awaiting grok-4.7,,,0,0,0,0,,awaiting grok-4.7; (c) does not rise
-daypart_planet_gate,2026-10-19,off,awaiting grok-4.7,,,0,0,5,433,"Other: Good Morning 22 posts, Hope For The Day 14 posts, wonderful day 8 posts, Happy Sunday 6 posts; global: Good Morning 383 posts",fails (c); (a) and (b) awaiting grok-4.7
-daypart_planet_gate,2026-10-20,off,awaiting grok-4.7,,,0,0,1,349,global: Good Sunday 349 posts,fails (c); (a) and (b) awaiting grok-4.7
-published_edition_not_a_275_fix,2026-10-20,"live run post-label sanity, not held off",n/a,,,6,402,0,0,"Politics → Other: Fascism 201, Wealth Inequality 164, Texas 21, Texas Derogatory 6, College Football Playoff 5, Notre Dame Miami Game 5 (#280, Actions 39417351709). The sports moves match the section. Fascism and Wealth Inequality do not.",baseline already has the (c) shape; fixes 1–3 do not add to it
+fix_id,build_issue,day,guards,scorer,good_labeled_duplicates_removed_or_joined,over_merge_labeled_different,pushed_to_other_planets,pushed_to_other_posts,posts_removed_from_edition,per_section,verdict
+fix1_paraphrase_face,286,2026-10-19,off,awaiting grok-4.7,,,0,0,0,,awaiting grok-4.7; nothing pushed to Other; posts removed: 0
+fix1_paraphrase_face,286,2026-10-20,off,awaiting grok-4.7,,,0,0,0,,awaiting grok-4.7; nothing pushed to Other; posts removed: 0
+fix2_attach_stem,287,2026-10-19,off,awaiting grok-4.7,,,0,0,0,,awaiting grok-4.7; nothing pushed to Other; posts removed: 0
+fix2_attach_stem,287,2026-10-20,off,awaiting grok-4.7,,,0,0,0,,awaiting grok-4.7; nothing pushed to Other; posts removed: 0
+fix3_keep_dropped_face_posts,needs new issue,2026-10-19,off,awaiting grok-4.7,,,0,0,0,,awaiting grok-4.7; nothing pushed to Other; posts removed: 0
+fix3_keep_dropped_face_posts,needs new issue,2026-10-20,off,awaiting grok-4.7,,,0,0,0,,awaiting grok-4.7; nothing pushed to Other; posts removed: 0
+daypart_planet_gate,288,2026-10-19,off,awaiting grok-4.7,,,0,0,433,"Other: Good Morning 22 posts, Hope For The Day 14 posts, wonderful day 8 posts, Happy Sunday 6 posts; global: Good Morning 383 posts",#288 removes 433 posts from the edition (5 planets). Pushed to Other: 0. Real-news planets removed on this replay: 0. (a) and (b) awaiting grok-4.7.
+daypart_planet_gate,288,2026-10-20,off,awaiting grok-4.7,,,0,0,349,global: Good Sunday 349 posts,#288 removes 349 posts from the edition (1 planet). Pushed to Other: 0. Real-news planets removed on this replay: 0. (a) and (b) awaiting grok-4.7.
+published_edition_not_a_275_fix,280,2026-10-20,"live run post-label sanity, not held off",n/a,,,6,402,0,"Politics → Other: Fascism 201, Wealth Inequality 164, Texas 21, Texas Derogatory 6, College Football Playoff 5, Notre Dame Miami Game 5 (#280, Actions 39417351709). The sports moves match the section. Fascism and Wealth Inequality do not. These posts stay in the edition, in Other.",baseline pushes planets to Other; posts removed from the edition: 0

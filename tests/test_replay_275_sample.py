@@ -145,12 +145,22 @@ def test_merge_bar_leaves_grok_columns_empty_and_counts_drops():
     assert all(row["over_merge_labeled_different"] == "" for row in scored)
     assert all(row["scorer"] == "awaiting grok-4.7" for row in scored)
     gate = next(row for row in rows if row["fix_id"] == "daypart_planet_gate" and row["day"] == "2026-10-19")
-    assert gate["dropped_planets"] == 1 and gate["dropped_posts"] == 6
-    assert gate["moved_to_other_planets"] == 0
-    assert gate["verdict"].startswith("fails (c)")
+    assert gate["build_issue"] == "288"
+    assert gate["posts_removed_from_edition"] == 6
+    assert gate["pushed_to_other_planets"] == 0 and gate["pushed_to_other_posts"] == 0
+    assert "removes 6 posts" in gate["verdict"]
     assert "Politics" not in gate["per_section"]
     fix1 = next(row for row in rows if row["fix_id"] == "fix1_paraphrase_face" and row["day"] == "2026-10-20")
-    assert fix1["dropped_planets"] == 0 and fix1["moved_to_other_planets"] == 0
+    assert fix1["build_issue"] == "286"
+    assert fix1["posts_removed_from_edition"] == 0 and fix1["pushed_to_other_planets"] == 0
+    fix2 = next(row for row in rows if row["fix_id"] == "fix2_attach_stem")
+    assert fix2["build_issue"] == "287"
+    stayed = next(row for row in rows if row["fix_id"] == "fix3_keep_dropped_face_posts")
+    assert stayed["build_issue"] == "needs new issue"
+    published = next(row for row in rows if row["fix_id"] == "published_edition_not_a_275_fix")
+    assert published["build_issue"] == "280"
+    assert published["pushed_to_other_posts"] == 402
+    assert published["posts_removed_from_edition"] == 0
 
 
 def test_face_draw_keeps_only_same_planet_pairs():
