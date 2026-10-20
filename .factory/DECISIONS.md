@@ -722,3 +722,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Supersedes:** #79 (minimum 5 posts). Partly supersedes #77 (no posts dropped): posts in sub-floor planets now leave the edition. #77 still holds for separate planets above the floor (don't glue or drop them).
 - **Alternatives:** 8 (the Manager's recommendation: drops 23 planets, 1.0% of posts), 10/15/20 (1.7% to 3.5% of posts), and the conditional grab-bag drop (rejected by Michael earlier today).
 - **Revisit:** If real news stories keep falling under the floor, or if the edition looks thin on low-volume days. Also once Michael decides whether a planet that clears 30 whole, but splits into pieces that are all under 30, should stay one planet (0 cases on Oct 19).
+
+### 2026-10-20: Fix root causes of bad groupings and perspectives where possible
+- **Decision:** For bad planets (groupings) or bad faces (perspectives), fix the upstream cause first (filtering, clustering, stance and labeling). Post-hoc cleanup such as hiding, folding, dropping or relabeling at publish time is fine as a stopgap only when the PR names the root cause and links an open issue for it.
+- **Why:** Michael wants quality improved at the source, not masked on the page.
+- **Alternatives:** Keep cleanup-only fixes (rejected as the default).
+- **Revisit:** If a root-cause fix costs more than the daily budget allows, or can't beat main on the same replay measure.
+- **Decided by:** Michael, Factory room, 2026-10-20 9:49 AM CT ("where possible try to fix root cause rather than just post-hoc aesthetic cleaning up bad groupings or bad perspectives").

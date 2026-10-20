@@ -79,6 +79,7 @@ from pipeline.label import (
 from pipeline.perspectives import select_representatives, split_perspectives
 from pipeline.stance import (
     apply_stance_pass,
+    local_faces_disagree,
     report_stance_check_failures,
     report_stance_check_incoherent,
     reset_stance_check_failures,
@@ -301,6 +302,7 @@ def run_live(
                 print(
                     "Carried-over clustering filters: "
                     f"chitchat={carried_cluster_skips.get('chitchat', 0)}, "
+                    f"health_update={carried_cluster_skips.get('health_update', 0)}, "
                     f"link_only={carried_cluster_skips.get('link_only', 0)}, "
                     f"language={carried_cluster_skips.get('language', 0)}."
                 )
@@ -1478,7 +1480,7 @@ def _label_faces(
             f"the published face count ({published}). They were on a dropped face "
             "and did not match the kept face."
         )
-    drafted = _merge_alike_drafts(kept, limit)
+    drafted = _merge_alike_drafts(kept, limit, members)
     return drafted, labeled
 
 
@@ -2647,19 +2649,55 @@ def _split_different_stories(
     )
 
 
+def _posts_for_merge(
+    perspective: dict,
+    rows: list[tuple[str, int, float]],
+    by_uri: dict[str, dict],
+) -> list[dict]:
+    posts = []
+    for uri, _position, _distance in rows:
+        post = by_uri.get(str(uri))
+        if post is not None:
+            posts.append(post)
+    if posts:
+        return posts
+    return list(perspective.get("representative_posts") or [])
+
+
 def _merge_alike_drafts(
     drafted: list[tuple[dict, list[tuple[str, int, float]], int]],
     post_limit: int = EXAMPLE_POST_CAP,
+    members: list[dict] | None = None,
 ) -> list[tuple[dict, list[tuple[str, int, float]], int]]:
     """Fold a face into a larger one when the titles are the same stance.
 
     Same rule as ``_merge_alike_faces``, but the membership rows move with
-    the merged face so the database matches what is published.
+    the merged face so the database matches what is published. A title match
+    is not enough when the posts disagree: that fold used to run before the
+    stance gate and could erase a real opposition.
     """
+    by_uri = {str(post.get("uri") or ""): post for post in (members or [])}
     ranked = sorted(drafted, key=lambda item: (-int(item[2]), str(item[0].get("id") or "")))
     kept: list[list] = []
     for perspective, rows, size in ranked:
-        match = next((item for item in kept if titles_alike(item[0].get("title"), perspective.get("title"))), None)
+        incoming_posts = _posts_for_merge(perspective, rows, by_uri)
+        match = None
+        for item in kept:
+            if not titles_alike(item[0].get("title"), perspective.get("title")):
+                continue
+            if local_faces_disagree(
+                item[0],
+                perspective,
+                _posts_for_merge(item[0], item[1], by_uri),
+                incoming_posts,
+            ):
+                # Finalize folds alike titles again. Lock both so that pass
+                # cannot undo a disagreement this merge refused.
+                item[0]["stance_locked"] = True
+                perspective["stance_locked"] = True
+                continue
+            match = item
+            break
         if match is None:
             kept.append([perspective, list(rows), int(size)])
             continue
