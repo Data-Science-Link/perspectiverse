@@ -387,6 +387,7 @@ def _planet_brief(planet: dict) -> dict:
 
 def _draft_record(section: str, posts: list[dict], matrix, topic: dict, base_context: dict) -> dict:
     from pipeline.live import _draft_planet, _bundles_from
+    from pipeline.spend_cap import PaidCallsBlocked
 
     clustered = {"topics": [topic], "matrix": matrix, "assignments": [], "noise_count": 0}
     stats: list[dict] = []
@@ -396,6 +397,8 @@ def _draft_record(section: str, posts: list[dict], matrix, topic: dict, base_con
     context.pop("story_calls", None)
     try:
         result, log = _draft_planet(posts, clustered, topic, context)
+    except PaidCallsBlocked:
+        raise
     except Exception as exc:  # noqa: BLE001 - one candidate must not hide the table
         return {
             "section": section,
@@ -867,6 +870,12 @@ def main() -> None:
 
     llm_rows = []
     if args.llm and samples:
+        from pipeline.spend_cap import ENV_ALLOW_PAID, PaidCallsBlocked, paid_calls_allowed
+
+        if not paid_calls_allowed():
+            raise SystemExit(
+                f"Paid labeling is off. Set {ENV_ALLOW_PAID}=1 before --llm grouping eval."
+            )
         from pipeline.embed import embed_minilm
         from pipeline.label import _openai_generate, resolve_openai_model
 
@@ -879,6 +888,8 @@ def main() -> None:
                 break
             try:
                 packed = llm_opposing_positions(planet["texts"], planet["matrix"], generate, embed_minilm)
+            except PaidCallsBlocked:
+                raise
             except Exception as exc:  # noqa: BLE001 - record the failure, keep the local table
                 packed = {
                     "approach": "llm_opposing",

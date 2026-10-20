@@ -30,6 +30,11 @@ CALLS_PER_PLANET = 16
 # Post counts are the live corpus (run 37696485020). Planet counts for the four
 # sections that run labeled are that run's; the six it skipped use the planet
 # counts from the heuristic relabel of the same corpus.
+@pytest.fixture(autouse=True)
+def _allow_paid_section_pool_tests(monkeypatch):
+    monkeypatch.setenv("PERSPECTIVERSE_ALLOW_PAID", "1")
+
+
 ROSTER = (
     ("Politics", 5123, 10),
     ("World", 1286, 9),

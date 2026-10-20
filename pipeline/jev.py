@@ -96,10 +96,21 @@ def jev_cache_version() -> str:
 
 
 def describe_jev() -> str:
-    """One startup line. Probes /v1/models only when a key is set and this is not pytest."""
+    """One startup line.
+
+    The authenticated ``GET /v1/models`` probe runs only when a key is set,
+    ``PERSPECTIVERSE_ALLOW_PAID`` is set, and this is not pytest. With the
+    flag unset the line is static and no request is sent, so a dry run that
+    never reaches a paid call still starts. ``run_live`` prints this line
+    before the spend cap and does not itself refuse a flag-off run.
+    """
     global _disabled_reason
     if not _api_key():
         return "Jev: off (TYPESAFE_API_KEY unset); regex and keyword sections."
+    from pipeline.spend_cap import paid_calls_allowed
+
+    if not paid_calls_allowed():
+        return f"Jev: on (model {_model()}; probe skipped (paid calls off))."
     if os.getenv("PYTEST_CURRENT_TEST"):
         return f"Jev: on (model {_model()}; pytest skips the live probe)."
     try:
@@ -162,8 +173,10 @@ def apply_jev(
             decisions=decisions,
         )
     except Exception as exc:
-        from pipeline.spend_cap import SpendCapExceeded
+        from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
+        if isinstance(exc, PaidCallsBlocked):
+            raise
         if not isinstance(exc, SpendCapExceeded):
             raise
         halted = exc
@@ -532,8 +545,10 @@ def _classify_many(
                 except CancelledError:
                     continue
                 except Exception as exc:
-                    from pipeline.spend_cap import SpendCapExceeded
+                    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
+                    if isinstance(exc, PaidCallsBlocked):
+                        raise
                     if isinstance(exc, SpendCapExceeded):
                         halted = exc
                         continue
@@ -716,9 +731,9 @@ def classify_planet_section(summary: str, arguments: str) -> str | None:
     try:
         payload = _post_systemone(planet_section_body(summary, arguments))
     except Exception as exc:
-        from pipeline.spend_cap import SpendCapExceeded
+        from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
-        if isinstance(exc, SpendCapExceeded):
+        if isinstance(exc, (SpendCapExceeded, PaidCallsBlocked)):
             raise
         return None
     parsed = parse_planet_section(payload)
@@ -840,13 +855,13 @@ def _remember_jev_cost(payload: dict | None, status: str) -> None:
 
     ``SpendCapExceeded`` still stops the run, including a top-up round.
     """
-    from pipeline.spend_cap import SpendCapExceeded
+    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
     try:
         from pipeline.costs import record_jev_attempt
 
         record_jev_attempt(requested_model=_model(), payload=payload, status=status)
-    except SpendCapExceeded:
+    except (SpendCapExceeded, PaidCallsBlocked):
         raise
     except Exception as exc:
         sys.stderr.write(f"WARNING: Cost log skipped for a Jev call: {exc}\n")

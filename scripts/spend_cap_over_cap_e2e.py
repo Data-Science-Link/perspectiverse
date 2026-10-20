@@ -160,6 +160,7 @@ def main() -> int:
         os.environ["PERSPECTIVERSE_COST_LEDGER"] = str(ledger)
         os.environ["PERSPECTIVERSE_COST_RUN"] = str(cost_run)
         os.environ["PERSPECTIVERSE_SPEND_CAP_MARKER"] = str(marker)
+        os.environ["PERSPECTIVERSE_ALLOW_PAID"] = "1"
         os.environ.pop("TYPESAFE_API_KEY", None)
 
         calls = {"n": 0}

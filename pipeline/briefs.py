@@ -176,11 +176,11 @@ def detail_from(
 
 
 def _ask_model(generate: Callable[[str], str], prompt: str) -> dict | None:
-    from pipeline.spend_cap import SpendCapExceeded
+    from pipeline.spend_cap import PaidCallsBlocked, SpendCapExceeded
 
     try:
         raw = generate(prompt)
-    except SpendCapExceeded:
+    except (SpendCapExceeded, PaidCallsBlocked):
         raise
     except Exception:
         return None

@@ -21,6 +21,9 @@ dependencies = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = [
+    "expect_paid_blocked: test expects PaidCallsBlocked to propagate (conftest teardown guard)",
+]
 
 [project.optional-dependencies]
 dev = [

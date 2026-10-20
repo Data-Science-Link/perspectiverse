@@ -17,6 +17,11 @@ The stop is on by default. ``PERSPECTIVERSE_DAILY_SPEND_WARN`` and
 ``PERSPECTIVERSE_DAILY_SPEND_STOP`` exist so a test can use a tiny cap.
 A bad setting stops the run; it does not turn the cap off.
 
+Paid labeling, Jev, section, and summary calls are also off by default.
+They run only when ``PERSPECTIVERSE_ALLOW_PAID`` is set (the scheduled
+workflow and deliberate ``workflow_dispatch`` set it). Pytest and CI
+without that flag raise ``PaidCallsBlocked`` on any paid or metered call.
+
 ``SpendCapExceeded`` is raised after the call that crosses $1.00 has been
 metered, and before any later paid call. Handlers that swallow a bad planet
 or a metering error re-raise it so the run cannot publish anyway.
@@ -62,6 +67,7 @@ ENV_CORPUS_CLAIMS = "PERSPECTIVERSE_CORPUS_CLAIM_COUNT"
 ENV_LEDGER = "PERSPECTIVERSE_COST_LEDGER"
 ENV_COST_RUN = "PERSPECTIVERSE_COST_RUN"
 ENV_MARKER = "PERSPECTIVERSE_SPEND_CAP_MARKER"
+ENV_ALLOW_PAID = "PERSPECTIVERSE_ALLOW_PAID"
 
 # Distinct from the publish guard's exit 10 (keep the edition, labeling degraded).
 STOP_EXIT = 14
@@ -89,6 +95,26 @@ class SpendCapExceeded(Exception):
     def __init__(self, message: str, *, spent_usd: Decimal) -> None:
         super().__init__(message)
         self.spent_usd = spent_usd
+
+
+class PaidCallsBlocked(Exception):
+    """Paid labeling or Jev calls are off until ``PERSPECTIVERSE_ALLOW_PAID`` is set."""
+
+
+def paid_calls_allowed() -> bool:
+    """True only when an operator explicitly opted in (scheduled or dispatch workflow)."""
+    value = (os.getenv(ENV_ALLOW_PAID) or "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def require_paid_opt_in(where: str) -> None:
+    """Refuse labeling, Jev, or metered paid services when the opt-in flag is unset."""
+    if paid_calls_allowed():
+        return
+    raise PaidCallsBlocked(
+        f"Paid calls are blocked ({where}). "
+        f"Set {ENV_ALLOW_PAID}=1 for a scheduled or deliberate workflow_dispatch run."
+    )
 
 
 def utc_today() -> date:
@@ -370,6 +396,7 @@ def _raise_if_stopped(total: Decimal, *, where: str) -> None:
 
 def guard_before_paid_call(kind: str) -> None:
     """Refuse another labeling, Jev, or top-up call when the day is already at the stop."""
+    require_paid_opt_in(f"before another {kind} call")
     with _lock:
         _load_prior_locked()
         _raise_if_stopped(_prior + _run_paid, where=f"before another {kind} call")
@@ -379,6 +406,7 @@ def account_recorded_attempt(attempt: Attempt) -> None:
     """Count one metered paid call, then warn or stop. The call is already on the meter."""
     if attempt.service not in PAID_CALL_SERVICES:
         return
+    require_paid_opt_in(f"after a {attempt.service} meter record")
     added = attempt.cost_usd if isinstance(attempt.cost_usd, Decimal) else Decimal(str(attempt.cost_usd))
     if added < 0:
         added = Decimal("0")

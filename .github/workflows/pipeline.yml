@@ -229,6 +229,8 @@ jobs:
           # override). Empty falls back to the $1.00 stop in spend_cap.py.
           PERSPECTIVERSE_DAILY_SPEND_STOP: ${{ github.event_name == 'workflow_dispatch' && inputs.spend_stop_usd || '' }}
           PERSPECTIVERSE_DAILY_SPEND_WARN: ${{ github.event_name == 'workflow_dispatch' && inputs.spend_stop_usd || '' }}
+          # Explicit opt-in for labeling, Jev, and metered paid calls (#246).
+          PERSPECTIVERSE_ALLOW_PAID: "1"
         run: |
           source .venv/bin/activate
           python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db

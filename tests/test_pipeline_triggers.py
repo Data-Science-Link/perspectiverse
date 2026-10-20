@@ -28,6 +28,7 @@ FILL_RUN_ENV = (
 SPEND_CAP_OVERRIDE_ENV = (
     "${{ github.event_name == 'workflow_dispatch' && inputs.spend_stop_usd || '' }}"
 )
+ALLOW_PAID_ENV = "1"
 # False on a schedule (the event check short-circuits) and on a normal dispatch.
 # True only for a preview dispatch (preview_only, or the free_ingest alias).
 NOT_PREVIEW = (
@@ -281,6 +282,7 @@ def test_free_ingest_is_on_for_schedule_and_normal_dispatch():
     assert live["env"]["PERSPECTIVERSE_FREE_INGEST"] == FREE_INGEST_ENV
     assert live["env"]["PERSPECTIVERSE_FILL_RUN"] == FILL_RUN_ENV
     assert live["env"]["PERSPECTIVERSE_DAILY_SPEND_STOP"] == SPEND_CAP_OVERRIDE_ENV
+    assert live["env"]["PERSPECTIVERSE_ALLOW_PAID"] == ALLOW_PAID_ENV
     assert "PERSPECTIVERSE_FREE_INGEST" not in live["run"]
     assert "python -m pipeline.run_pipeline --live --db pipeline/data/live_corpus.db" in live["run"]
 
@@ -295,6 +297,14 @@ def test_free_ingest_is_on_for_schedule_and_normal_dispatch():
     assert free_ingest_value("workflow_dispatch", legacy_jev=True, preview_only=True) == "1"
     assert free_ingest_value("workflow_dispatch", preview_only=True, fill="15") == "1"
     assert free_ingest_value("workflow_dispatch", legacy_jev=True, fill="15") == "0"
+
+
+def test_allow_paid_is_set_on_the_live_step():
+    live = next(step for step in _steps() if step.get("id") == "live")
+    assert live["env"]["PERSPECTIVERSE_ALLOW_PAID"] == ALLOW_PAID_ENV
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "PERSPECTIVERSE_ALLOW_PAID" in workflow
+    assert "#246" in workflow or "opt-in" in workflow.lower()
 
 
 def test_spend_stop_usd_defaults_empty_and_only_dispatch_sets_cap_override():
