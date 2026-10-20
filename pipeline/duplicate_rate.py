@@ -45,16 +45,22 @@ Labeled sample
 ``docs/evidence/275/oct19-pairs.csv`` is #275's hand labels, when that file
 exists. Required header:
 
-    pair_type,left_key,right_key,left_title,right_title,duplicate,spot_check
+    pair_type,left_key,right_key,left_title,right_title,duplicate,spot_check,band,band_share
 
 ``pair_type`` is ``planet`` or ``face``. Keys are ``planet:{scope}:{id}`` and
 ``face:{scope}:{planet_id}:{face_index}``. ``duplicate`` is 1 or 0. Titles are
 the fallback match when the keys differ. ``spot_check`` (or a row in
 ``docs/evidence/275/oct19-spot-checks.csv``) marks Michael's pairs.
+``band`` is the similarity stratum. ``band_share`` is that stratum's real
+fraction of pairs in the edition, the same number on every row of the band.
+A number above 1 is read as a percent.
 
-The other rows are split with seed 273: two-thirds tune the threshold, one
-third is held out. Agreement is precision and recall on the held-out third
-plus the spot-check pairs only. The tune rows are not in that score.
+The other rows are split with seed 273 inside each band: two-thirds tune the
+threshold, one third is held out. Agreement is precision and recall on the
+held-out third plus the spot-check pairs only. The tune rows are not in that
+score. The sample is stratified, so a raw average of those rows is not the
+headline. The headline weights each band by ``band_share``. Per-band figures
+are printed beside it.
 """
 
 from __future__ import annotations
@@ -322,6 +328,42 @@ def _spot_check_row(raw: dict) -> bool:
     return source in _SPOT_VALUES
 
 
+def _csv_column(raw: dict, names: tuple[str, ...]) -> str:
+    for name in names:
+        value = raw.get(name)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return ""
+
+
+def _parse_share(text: str) -> float | None:
+    cleaned = str(text or "").strip().rstrip("%")
+    if not cleaned:
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _shares_by_band(labels: list[dict[str, str]]) -> dict[str, float]:
+    """One real share per band. A value above 1 is a percent."""
+    found: dict[str, list[float]] = {}
+    for row in labels:
+        parsed = _parse_share(str(row.get("band_share") or ""))
+        if parsed is None:
+            continue
+        found.setdefault(str(row.get("band") or ""), []).append(parsed)
+    percent = any(value > 1 for values in found.values() for value in values)
+    shares: dict[str, float] = {}
+    for band, values in found.items():
+        number = sum(values) / len(values)
+        if percent:
+            number = number / 100.0
+        shares[band] = number
+    return shares
+
+
 def _label_identity(row: dict[str, str]) -> tuple[str, str, str]:
     left = row["left_key"] or _normalize_title(row["left_title"])
     right = row["right_key"] or _normalize_title(row["right_title"])
@@ -348,6 +390,10 @@ def load_labeled_pairs(path: Path) -> list[dict[str, str]]:
                     "right_title": str(raw.get("right_title") or "").strip(),
                     "duplicate": "1" if label in {"1", "true", "yes"} else "0",
                     "spot_check": "1" if _spot_check_row(raw) else "0",
+                    "band": _csv_column(raw, ("band", "similarity_band", "stratum")),
+                    "band_share": _csv_column(
+                        raw, ("band_share", "share", "pair_share", "population_share", "real_share")
+                    ),
                 }
             )
         return rows
@@ -378,6 +424,10 @@ def load_label_bundle(path: Path, spot_path: Path | None = None) -> list[dict[st
             existing["spot_check"] = "1"
         if row["duplicate"] == "1":
             existing["duplicate"] = "1"
+        if row.get("band") and not existing.get("band"):
+            existing["band"] = row["band"]
+        if row.get("band_share") and not existing.get("band_share"):
+            existing["band_share"] = row["band_share"]
     return kept
 
 
@@ -388,16 +438,21 @@ def split_labeled_sample(
 ) -> dict[str, list[dict[str, str]]]:
     """Two-thirds tune, one-third holdout. Spot-checks stay out of the tune set.
 
-    The pool is sorted, then shuffled with ``seed``, so the split does not
-    depend on row order or ``PYTHONHASHSEED``.
+    Each similarity band is sorted, then shuffled with ``seed``, so the split
+    does not depend on row order or ``PYTHONHASHSEED``. Holding out inside
+    the band keeps a thin stratum from landing entirely in the tune set.
     """
     spots = [row for row in labels if row.get("spot_check") == "1"]
     pool = [row for row in labels if row.get("spot_check") != "1"]
-    ordered = sorted(pool, key=_label_identity)
-    random.Random(seed).shuffle(ordered)
-    tune_count = (len(ordered) * 2) // 3
-    tune = ordered[:tune_count]
-    holdout = ordered[tune_count:]
+    rng = random.Random(seed)
+    tune: list[dict[str, str]] = []
+    holdout: list[dict[str, str]] = []
+    for band in sorted({str(row.get("band") or "") for row in pool}):
+        ordered = sorted((row for row in pool if str(row.get("band") or "") == band), key=_label_identity)
+        rng.shuffle(ordered)
+        tune_count = (len(ordered) * 2) // 3
+        tune.extend(ordered[:tune_count])
+        holdout.extend(ordered[tune_count:])
     evaluation = holdout + spots
     tune_ids = {_label_identity(row) for row in tune}
     if tune_ids & {_label_identity(row) for row in evaluation}:
@@ -420,14 +475,25 @@ def _match_label(label: dict[str, str], by_key: dict, by_title: dict) -> dict[st
     return None
 
 
+def _weighted_metric(bands: list[dict[str, Any]], field: str) -> float | None:
+    usable = [band for band in bands if band.get(field) is not None and band.get("share") is not None]
+    total = sum(float(band["share"]) for band in usable)
+    if not usable or total <= 0:
+        return None
+    value = sum(float(band["share"]) * float(band[field]) for band in usable) / total
+    return round(value, 4)
+
+
 def agreement_with_labels(
     scored: list[dict[str, Any]],
     labels: list[dict[str, str]],
 ) -> dict[str, Any]:
-    """Precision and recall of ``near_duplicate`` on the labeled rows it can match.
+    """Precision and recall on the labeled rows this scoring can match.
 
-    The detector's own rate is not an input. Unmatched labels are reported
-    and left out of precision and recall.
+    The headline is each band's precision and recall weighted by that band's
+    real share of pairs. A raw average of the stratified sample is stored
+    under ``sample_mix`` and is not the headline. Unmatched labels are left
+    out of both.
     """
     by_key: dict[tuple, dict[str, Any] | list] = {}
     by_title: dict[tuple, dict[str, Any] | list] = {}
@@ -446,30 +512,56 @@ def agreement_with_labels(
                 existing.append(pair)
             else:
                 by_title[title_key] = [existing, pair]
-    true_positive = 0
-    false_positive = 0
-    false_negative = 0
-    true_negative = 0
+    counts: dict[str, dict[str, int]] = {}
     unmatched = 0
     for label in labels:
         pair = _match_label(label, by_key, by_title)
         if pair is None:
             unmatched += 1
             continue
+        band = str(label.get("band") or "")
+        bucket = counts.setdefault(band, {"tp": 0, "fp": 0, "fn": 0, "tn": 0})
         predicted = bool(pair["near_duplicate"])
         actual = label["duplicate"] == "1"
         if predicted and actual:
-            true_positive += 1
+            bucket["tp"] += 1
         elif predicted and not actual:
-            false_positive += 1
+            bucket["fp"] += 1
         elif not predicted and actual:
-            false_negative += 1
+            bucket["fn"] += 1
         else:
-            true_negative += 1
-    predicted_positive = true_positive + false_positive
-    actual_positive = true_positive + false_negative
-    precision = (true_positive / predicted_positive) if predicted_positive else None
-    recall = (true_positive / actual_positive) if actual_positive else None
+            bucket["tn"] += 1
+    shares = _shares_by_band(labels)
+    bands: list[dict[str, Any]] = []
+    true_positive = false_positive = false_negative = true_negative = 0
+    for band in sorted(counts):
+        bucket = counts[band]
+        true_positive += bucket["tp"]
+        false_positive += bucket["fp"]
+        false_negative += bucket["fn"]
+        true_negative += bucket["tn"]
+        predicted_positive = bucket["tp"] + bucket["fp"]
+        actual_positive = bucket["tp"] + bucket["fn"]
+        precision = (bucket["tp"] / predicted_positive) if predicted_positive else None
+        recall = (bucket["tp"] / actual_positive) if actual_positive else None
+        bands.append(
+            {
+                "band": band or "(no band)",
+                "share": None if band not in shares else round(shares[band], 4),
+                "matched": predicted_positive + bucket["fn"] + bucket["tn"],
+                "true_positive": bucket["tp"],
+                "false_positive": bucket["fp"],
+                "false_negative": bucket["fn"],
+                "true_negative": bucket["tn"],
+                "precision": None if precision is None else round(precision, 4),
+                "recall": None if recall is None else round(recall, 4),
+            }
+        )
+    sample_predicted = true_positive + false_positive
+    sample_actual = true_positive + false_negative
+    sample_precision = (true_positive / sample_predicted) if sample_predicted else None
+    sample_recall = (true_positive / sample_actual) if sample_actual else None
+    weighted = any(band.get("share") is not None for band in bands)
     return {
         "matched": true_positive + false_positive + false_negative + true_negative,
         "unmatched": unmatched,
@@ -477,8 +569,15 @@ def agreement_with_labels(
         "false_positive": false_positive,
         "false_negative": false_negative,
         "true_negative": true_negative,
-        "precision": None if precision is None else round(precision, 4),
-        "recall": None if recall is None else round(recall, 4),
+        "weighted": weighted,
+        "precision": _weighted_metric(bands, "precision") if weighted else None,
+        "recall": _weighted_metric(bands, "recall") if weighted else None,
+        "bands": bands,
+        "sample_mix": {
+            "precision": None if sample_precision is None else round(sample_precision, 4),
+            "recall": None if sample_recall is None else round(sample_recall, 4),
+            "note": "Raw sample mix. Not the headline. The sample does not match each band's real share.",
+        },
     }
 
 
@@ -668,7 +767,11 @@ def tune_threshold(
                 use_title_min=True,
             )
             measured = agreement_with_labels(flagged, tune_labels)
-            score = _f1(measured["precision"], measured["recall"])
+            if measured["weighted"]:
+                score = _f1(measured["precision"], measured["recall"])
+            else:
+                mix = measured["sample_mix"]
+                score = _f1(mix["precision"], mix["recall"])
             candidate = {
                 "title_min": title_min,
                 "centroid_min": centroid_min,
@@ -800,9 +903,10 @@ def duplicate_rates(
             "scored_on": len(parts["evaluation"]),
             **measured,
             "note": (
-                "Precision and recall are the held-out third plus Michael's spot-check pairs. "
-                "The tune split is not in these numbers. The shares above are the detector's "
-                "own counts, not that grade."
+                "The headline weights each similarity band by its real share of pairs. "
+                "It is the held-out third plus Michael's spot-check pairs, not the tune split, "
+                "and not a raw average of the stratified sample. "
+                "The duplicate shares above are the detector's own counts, not that grade."
             ),
         }
     else:
@@ -825,7 +929,9 @@ def duplicate_rates(
             "scored_on": 0,
             "note": (
                 "The labeled sample is not in the tree yet, so the threshold stays at the "
-                "default and precision and recall are not computed. This rate does not grade itself."
+                "default and precision and recall are not computed. When it lands, the headline "
+                "weights each similarity band by that band's real share of pairs. "
+                "This rate does not grade itself."
             ),
         }
     flagged_after = _flag_pairs(
@@ -964,12 +1070,30 @@ def render_duplicate_lines(report: dict[str, Any]) -> list[str]:
         lines.append(reading)
         lines.append("")
     if agreement.get("present"):
+        bands = agreement.get("bands") or []
+        if agreement.get("weighted"):
+            lines.append(
+                f"Agreement reweighted to each band's real share of pairs "
+                f"(held-out third plus {agreement.get('spot_checks')} spot-check pairs, "
+                f"seed {agreement.get('seed')}): "
+                f"precision {agreement.get('precision')}, recall {agreement.get('recall')}."
+            )
+        else:
+            lines.append(
+                "Agreement by similarity band. The sample did not record each band's real share, "
+                "so there is no single number."
+            )
+        for band in bands:
+            share = band.get("share")
+            share_text = "share not recorded" if share is None else f"real share {float(share):.1%}"
+            lines.append(
+                f"- {band.get('band')} ({share_text}): "
+                f"precision {band.get('precision')}, recall {band.get('recall')}, "
+                f"matched {band.get('matched')}"
+            )
         lines.append(
-            f"Agreement on the held-out third plus {agreement.get('spot_checks')} spot-check pairs "
-            f"(`{agreement.get('path')}`, seed {agreement.get('seed')}): "
-            f"precision {agreement.get('precision')}, recall {agreement.get('recall')} "
-            f"(scored {agreement.get('scored_on')}, tuned on {agreement.get('tuned_on')}, "
-            f"matched {agreement.get('matched')}, unmatched {agreement.get('unmatched')}). "
+            f"Scored {agreement.get('scored_on')}, tuned on {agreement.get('tuned_on')}, "
+            f"matched {agreement.get('matched')}, unmatched {agreement.get('unmatched')}. "
             f"{agreement.get('note')}"
         )
     else:

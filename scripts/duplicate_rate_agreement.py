@@ -45,12 +45,19 @@ def main(argv: list[str] | None = None) -> int:
     agreement = report["agreement"]
     print(
         "DUPLICATE_AGREEMENT "
+        f"weighted={agreement.get('weighted')} "
         f"precision={agreement.get('precision')} recall={agreement.get('recall')} "
         f"tuned_on={agreement.get('tuned_on')} holdout={agreement.get('holdout')} "
         f"spot_checks={agreement.get('spot_checks')} scored_on={agreement.get('scored_on')} "
         f"title_min={agreement.get('title_min')} centroid_min={agreement.get('centroid_min')} "
         f"seed={agreement.get('seed')}"
     )
+    for band in agreement.get("bands") or []:
+        print(
+            f"BAND {band.get('band')} share={band.get('share')} "
+            f"precision={band.get('precision')} recall={band.get('recall')} "
+            f"matched={band.get('matched')}"
+        )
     print(agreement.get("note") or "")
     return 0
 

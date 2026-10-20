@@ -27,7 +27,7 @@ Before is the grouping. After reapplies the floor, the junk filter, and the face
 
 Guards removed 0 planets under the floor, 3 junk planets, and folded 0 faces.
 
-The labeled sample is not in the tree yet, so the threshold stays at the default and precision and recall are not computed. This rate does not grade itself.
+The labeled sample is not in the tree yet, so the threshold stays at the default and precision and recall are not computed. When it lands, the headline weights each similarity band by that band's real share of pairs. This rate does not grade itself.
 
 ## Where to fix
 

@@ -7,6 +7,7 @@ from pipeline.duplicate_rate import (
     agreement_with_labels,
     apply_post_hoc_guards,
     duplicate_rates,
+    render_duplicate_lines,
     split_labeled_sample,
     tune_threshold,
 )
@@ -223,3 +224,112 @@ def test_agreement_is_not_scored_on_the_tune_pairs(tmp_path):
     assert report["agreement"]["scored_on"] == len(parts["evaluation"])
     assert report["agreement"]["spot_checks"] == 1
     assert report["agreement"]["tuned_on"] + report["agreement"]["holdout"] + report["agreement"]["spot_checks"] == len(labels)
+
+
+def _labeled_pair(band, share, left, *, duplicate, cosine):
+    return (
+        {
+            "pair_type": "planet",
+            "left_key": left,
+            "right_key": left + "-b",
+            "left_title": left,
+            "right_title": left + " other",
+            "duplicate": duplicate,
+            "spot_check": "0",
+            "band": band,
+            "band_share": share,
+        },
+        {
+            "pair_type": "planet",
+            "left_key": left,
+            "right_key": left + "-b",
+            "left_title": left,
+            "right_title": left + " other",
+            "title_similarity": 0.1,
+            "titles_alike": False,
+            "centroid_cosine": cosine,
+            "near_duplicate": True,
+        },
+    )
+
+
+def test_holdout_is_inside_each_similarity_band():
+    labels = []
+    for band, count in (("low", 3), ("high", 3)):
+        for index in range(count):
+            labels.append(
+                {
+                    "pair_type": "planet",
+                    "left_key": f"{band}-{index}",
+                    "right_key": f"{band}-{index}-b",
+                    "left_title": f"{band} {index}",
+                    "right_title": "other",
+                    "duplicate": "0",
+                    "spot_check": "0",
+                    "band": band,
+                    "band_share": "0.5",
+                }
+            )
+    parts = split_labeled_sample(labels, seed=SPLIT_SEED)
+    for band in ("low", "high"):
+        assert sum(row["band"] == band for row in parts["holdout"]) == 1
+        assert sum(row["band"] == band for row in parts["tune"]) == 2
+
+
+def test_headline_agreement_uses_each_bands_real_share():
+    """Equal sample counts, unequal real shares. The headline follows the shares."""
+    labels = []
+    scored = []
+    for index in range(4):
+        label, pair = _labeled_pair("common", "0.9", f"common-{index}", duplicate="1", cosine=0.95)
+        labels.append(label)
+        scored.append(pair)
+    for index in range(4):
+        label, pair = _labeled_pair("rare", "0.1", f"rare-{index}", duplicate="0", cosine=0.95)
+        labels.append(label)
+        scored.append(pair)
+    measured = agreement_with_labels(scored, labels)
+    assert measured["sample_mix"]["precision"] == 0.5
+    assert measured["precision"] == 0.9
+    assert measured["weighted"] is True
+    by_band = {band["band"]: band for band in measured["bands"]}
+    assert by_band["common"]["precision"] == 1.0
+    assert by_band["rare"]["precision"] == 0.0
+    rendered = "\n".join(render_duplicate_lines(
+        {
+            "duplicate_rate": {
+                "definition": "test",
+                "planet_stage": "clustering/attach",
+                "face_stage": "faces/stance",
+                "before": {"planets": {"rate": 0, "near_duplicates": 0, "pairs": 1}, "faces": {"rate": 0, "near_duplicates": 0, "pairs": 0}},
+                "after": {"planets": {"rate": 0, "near_duplicates": 0, "pairs": 1}, "faces": {"rate": 0, "near_duplicates": 0, "pairs": 0}, "removed": {}},
+                "agreement": {
+                    "present": True,
+                    "weighted": True,
+                    "precision": measured["precision"],
+                    "recall": measured["recall"],
+                    "bands": measured["bands"],
+                    "spot_checks": 0,
+                    "seed": SPLIT_SEED,
+                    "scored_on": 8,
+                    "tuned_on": 0,
+                    "matched": measured["matched"],
+                    "unmatched": 0,
+                    "note": "reweighted",
+                },
+            }
+        }
+    ))
+    assert "precision 0.9" in rendered
+    assert "real share 90.0%" in rendered
+    assert "real share 10.0%" in rendered
+    assert "precision 0.5" not in rendered
+
+
+def test_missing_band_share_has_no_single_agreement_number():
+    label, pair = _labeled_pair("common", "", "only", duplicate="1", cosine=0.95)
+    measured = agreement_with_labels([pair], [label])
+    assert measured["weighted"] is False
+    assert measured["precision"] is None
+    assert measured["bands"][0]["precision"] == 1.0
+    assert measured["sample_mix"]["precision"] == 1.0
