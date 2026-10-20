@@ -96,10 +96,21 @@ def jev_cache_version() -> str:
 
 
 def describe_jev() -> str:
-    """One startup line. Probes /v1/models only when a key is set and this is not pytest."""
+    """One startup line.
+
+    The authenticated ``GET /v1/models`` probe runs only when a key is set,
+    ``PERSPECTIVERSE_ALLOW_PAID`` is set, and this is not pytest. With the
+    flag unset the line is static and no request is sent, so a dry run that
+    never reaches a paid call still starts. ``run_live`` prints this line
+    before the spend cap and does not itself refuse a flag-off run.
+    """
     global _disabled_reason
     if not _api_key():
         return "Jev: off (TYPESAFE_API_KEY unset); regex and keyword sections."
+    from pipeline.spend_cap import paid_calls_allowed
+
+    if not paid_calls_allowed():
+        return f"Jev: on (model {_model()}; probe skipped (paid calls off))."
     if os.getenv("PYTEST_CURRENT_TEST"):
         return f"Jev: on (model {_model()}; pytest skips the live probe)."
     try:

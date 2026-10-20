@@ -9,7 +9,7 @@ import pytest
 from pipeline.costs import SERVICE_DEEPINFRA, SERVICE_JEV, get_meter, record_attempt, reset_meter
 from pipeline.briefs import _ask_model
 from pipeline.free_ingest import stamp_candidate_sections
-from pipeline.jev import _post_systemone, apply_jev, classify_planet_section, reset_jev_state
+from pipeline.jev import _post_systemone, apply_jev, classify_planet_section, describe_jev, reset_jev_state
 from pipeline.label import _openai_generate, label_topic, resolve_openai_model
 from pipeline.spend_cap import (
     ENV_ALLOW_PAID,
@@ -70,6 +70,47 @@ def test_openai_generate_raises_without_opt_in(monkeypatch):
     monkeypatch.setattr("pipeline.label.read_json", fake)
     with pytest.raises(PaidCallsBlocked):
         _openai_generate("hello", "model")
+
+
+def test_describe_jev_skips_models_probe_when_paid_calls_are_off(monkeypatch):
+    """A set key and no pytest marker still must not GET api.typesafe.ai."""
+    import sys
+    import types
+
+    monkeypatch.delenv(ENV_ALLOW_PAID, raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    reset_jev_state()
+    hits: list[str] = []
+
+    def refuse(*_args, **_kwargs):
+        hits.append("http")
+        raise AssertionError("HTTP must not run when paid calls are off")
+
+    monkeypatch.setattr("urllib.request.urlopen", refuse)
+    try:
+        import requests
+    except ImportError:
+        requests = types.ModuleType("requests")
+        sessions = types.ModuleType("requests.sessions")
+
+        class _Session:
+            def request(self, *args, **kwargs):
+                return refuse(*args, **kwargs)
+
+        sessions.Session = _Session
+        requests.sessions = sessions
+        monkeypatch.setitem(sys.modules, "requests", requests)
+        monkeypatch.setitem(sys.modules, "requests.sessions", sessions)
+    monkeypatch.setattr(requests, "get", refuse, raising=False)
+    monkeypatch.setattr(requests, "post", refuse, raising=False)
+    monkeypatch.setattr(requests, "request", refuse, raising=False)
+    if getattr(requests, "sessions", None) is not None and hasattr(requests.sessions, "Session"):
+        monkeypatch.setattr(requests.sessions.Session, "request", refuse, raising=False)
+
+    text = describe_jev()
+    assert "probe skipped (paid calls off)" in text
+    assert hits == []
 
 
 @pytest.mark.expect_paid_blocked
