@@ -17,12 +17,14 @@ import re
 from pathlib import Path
 
 from pipeline.cleaning import HANDLE_RE, HASHTAG_RE, URL_RE
-from pipeline.language import edition_filter_reason, is_link_only, partition_posts
+from pipeline.language import edition_filter_reason, is_link_only, looks_english, partition_posts
 from pipeline.spam_guard import guard_reason, post_body
 from pipeline.weather_guard import weather_bot_reason
 
 # Majority of member posts. Titles are not consulted.
 PLEASANTRY_SHARE_DROP = 0.55
+# Non-English clusters that slipped through stored carry-over (#222).
+NON_ENGLISH_SHARE_DROP = 0.55
 # A model "yes" needs the posts to agree. In the preview fixture every
 # real-topic planet is 0% pleasantry (97 of the 100 non-target planets).
 # The only planets under 55% that contain any pleasantry are at 50%
@@ -908,6 +910,19 @@ _GREETING_SIGNOFF_TAIL_RE = re.compile(
     r"\bhave a good (?:evening|night|afternoon|day)\s*\.?\s*$",
     re.IGNORECASE,
 )
+_STANDALONE_DAY_WISH_OPEN_RE = re.compile(
+    r"^(?:"
+    r"(?:i\s+)?hope\s+(?:you\s+)?(?:have\s+)?(?:a\s+)?(?:good|great|wonderful|nice|fabulous|productive)\s+day\b|"
+    r"have\s+a\s+(?:good|great|wonderful|nice|fabulous|magnificent|relaxing)\s+day\b|"
+    r"happy\s+(?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)(?:\s+funday)?\b|"
+    r"hope\s+(?:you\s+)?have\s+a\s+(?:good|great|wonderful|nice|fabulous)\s+day\b"
+    r")",
+    re.IGNORECASE,
+)
+_BSKY_PROFILE_URL_RE = re.compile(
+    r"(?:https?://)?(?:www\.)?bsky\.app/profile/[^\s]+",
+    re.IGNORECASE,
+)
 _GREETING_TOPIC_VERB = frozenset(
     {
         "said",
@@ -1266,6 +1281,66 @@ def _greeting_wish_body(plain: str) -> bool:
     return _greeting_tail_only_allowlisted_content(remainder)
 
 
+def _hope_you_day_wish(plain: str) -> bool:
+    """Short hope-you-have-a-day lines without a daypart open (#208 watch planets)."""
+    if _news(plain) or _work_topic(plain):
+        return False
+    if _word_count(plain) > 42:
+        return False
+    if not re.search(r"\b(?:hope you|i hope you)\b", plain or "", flags=re.I):
+        return False
+    if re.search(
+        r"\b(?:good|great|wonderful|nice|fabulous|productive|peaceful|easy|magnificent)\s+day\b",
+        plain or "",
+        flags=re.I,
+    ):
+        return len(_substance(plain)) <= 7
+    if re.search(r"\b(?:peace|rest|blessings)\s+today\b", plain or "", flags=re.I):
+        return len(_substance(plain)) <= 8
+    return False
+
+
+def _embedded_daypart_greeting(plain: str) -> bool:
+    """``Good morning!!!`` after a name or emoji, still a greeting card."""
+    if _news(plain) or _work_topic(plain):
+        return False
+    if _word_count(plain) > 45:
+        return False
+    match = re.search(r"\bgood\s+(?:morning|afternoon|evening|night)\b", plain or "", flags=re.I)
+    if not match:
+        return False
+    before = plain[: match.start()].strip()
+    if before and (_word_count(before) > 8 or len(_substance(before)) >= 3):
+        return False
+    return _greeting_wish_body(plain[match.start() :])
+
+
+def _standalone_day_wish_body(plain: str) -> bool:
+    if _news(plain) or _work_topic(plain):
+        return False
+    if _word_count(plain) > 45:
+        return False
+    if _hope_you_day_wish(plain):
+        return True
+    text = (plain or "").strip()
+    without_vocative = re.sub(
+        r"^happy\s+[a-z]{2,}\s+[a-z]{2,}\.\s*",
+        "",
+        text,
+        flags=re.I,
+    )
+    for candidate in (text, without_vocative):
+        if _STANDALONE_DAY_WISH_OPEN_RE.match(candidate):
+            tail = _STANDALONE_DAY_WISH_OPEN_RE.sub("", candidate).strip()
+            if not tail or _greeting_tail_only_allowlisted_content(tail):
+                return True
+    if re.search(r"\bhave\s+a\s+(?:good|great|wonderful|nice)\s+day\b", text, flags=re.I):
+        return len(_substance(text)) <= 4
+    if re.search(r"\bhappy\s+sunday\b", text, flags=re.I):
+        return len(_substance(text)) <= 5 and _word_count(text) <= 32
+    return False
+
+
 def _greeting(plain: str) -> bool:
     exact = {
         "gm",
@@ -1286,7 +1361,11 @@ def _greeting(plain: str) -> bool:
         return False
     if _word_count(plain) > 60:
         return False
-    return _greeting_wish_body(plain)
+    if _greeting_wish_body(plain):
+        return True
+    if _embedded_daypart_greeting(plain):
+        return True
+    return _standalone_day_wish_body(plain)
 
 
 def pleasantry_reason(post: dict) -> str | None:
@@ -1506,6 +1585,21 @@ def is_bare_link_post(post: dict) -> bool:
     return is_link_only(post_body(post))
 
 
+def is_bare_profile_link_post(post: dict) -> bool:
+    """A Bluesky profile/post URL with almost no commentary (#223)."""
+    raw = _post_text_surfaces(post)
+    if not _BSKY_PROFILE_URL_RE.search(raw):
+        return False
+    if is_link_only(post_body(post)):
+        return True
+    text = _BSKY_PROFILE_URL_RE.sub(" ", raw)
+    text = URL_RE.sub(" ", text)
+    text = HASHTAG_RE.sub(" ", text)
+    text = HANDLE_RE.sub(" ", text)
+    words = re.findall(r"[A-Za-z]{3,}", text)
+    return len(words) < 4
+
+
 def planet_content_share(members: list[dict]) -> float:
     """Pleasantry posts plus bare-link posts, over the members given."""
     if not members:
@@ -1513,7 +1607,9 @@ def planet_content_share(members: list[dict]) -> float:
     hits = sum(
         1
         for member in members
-        if pleasantry_reason(member) or is_bare_link_post(member)
+        if pleasantry_reason(member)
+        or is_bare_link_post(member)
+        or is_bare_profile_link_post(member)
     )
     return hits / len(members)
 
@@ -1599,6 +1695,14 @@ def planet_chitchat_reason(
     platform = _streaming_platform_salient_reason(members)
     if platform:
         return platform
+    non_english = sum(
+        1
+        for member in members
+        if not looks_english(_post_text_surfaces(member) or post_body(member))
+    )
+    non_english_share = non_english / len(members)
+    if non_english_share >= NON_ENGLISH_SHARE_DROP:
+        return f"{non_english_share:.0%} of the posts are not English"
     share = planet_content_share(members)
     if share >= PLEASANTRY_SHARE_DROP:
         return f"{share:.0%} of the posts are chit-chat"

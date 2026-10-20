@@ -13,6 +13,7 @@ from pipeline.chitchat_guard import (
     edition_posts_for_clustering,
     ingest_block_reason,
     is_bare_link_post,
+    is_bare_profile_link_post,
     MODEL_CHITCHAT_SHARE_FLOOR,
     planet_chitchat_reason,
     pleasantry_reason,
@@ -749,6 +750,7 @@ def test_replay_39072480258_representatives():
     ]
     dropped = [(row["section"], row["name"]) for row in rows if row["decision"] == "DROP"]
     assert dropped == [
+        ("Technology", "App Bsky Profile"),
         ("Health", "Health Issues"),
         ("Health", "Speedy Recovery"),
         ("Health", "Recovering Health"),
@@ -934,3 +936,50 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
         if reason is not None:
             misclassified.append(f"{reason}: {text}")
     assert misclassified == [], "\n".join(misclassified)
+
+
+def test_issue_208_watch_planets_standalone_day_wishes():
+    """Other-section day-wish planets from the 2026-10-19 edition (#208 watch list)."""
+    reps = [
+        "Have a great day! 🙌🏽",
+        "good morning!! have a great day",
+        "Good morning y'all Happy Sunday hope everybody has a great day today☀️",
+        "Happy Sunday Maryann. Have a great day!💚",
+        "good morning and happy sunday!!!!",
+        "Good Morning and Happy Sunday Ms M 🌞🌞💙💙☮️☮️🌈🌈",
+        "Good morning I hope you have a good day.😊",
+        "Hope you have a good day LanguageNerd24601 (Can't donate)!",
+        "Dreamcatcher!!! Good morning!!! 👋 I hope you have a fabulous day!!!",
+    ]
+    for text in reps:
+        assert pleasantry_reason({"text": text}) == "greeting", text
+    members = _members(reps)
+    assert planet_chitchat_reason(members, [], name="Great Day")
+    assert planet_chitchat_reason(members, [], name="Happy Sunday")
+    assert pleasantry_reason({"text": "HAPPY Monday AFTER the #NoKings #4 March.♥️"}) is None
+
+
+def test_issue_223_profile_link_planet_drops():
+    texts = [
+        "for good measure bsky.app/profile/benj...",
+        "Speaking of which… bsky.app/profile/lets...",
+        "À propos I was reading this yesterday 🙂: bsky.app/profile/ani-...",
+        "Exhibit A - They are all clueless bsky.app/profile/rebe...",
+        "Better and better bsky.app/profile/mlco...",
+    ]
+    assert is_bare_profile_link_post({"text": texts[0]})
+    assert is_bare_profile_link_post({"text": texts[1]})
+    assert not is_bare_profile_link_post({"text": texts[2]})
+    assert planet_chitchat_reason([{"text": t} for t in texts], [], name="Bsky App Profile")
+
+
+def test_issue_222_portuguese_lottery_planet_drops():
+    members = [
+        {
+            "text": (
+                "Resultado da Lotofácil de hoje: veja números e ganhadores do concurso 3806 "
+                "(sexta, 16/10)"
+            )
+        }
+    ] * 6
+    assert planet_chitchat_reason(members, [], name="Lotofácil Concurso")
