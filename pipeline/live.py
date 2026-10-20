@@ -52,6 +52,7 @@ from pipeline.cluster_math import salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
+from pipeline.label_guard import guard_published_labels, readable_face_label, readable_planet_summary
 from pipeline.label import (
     catchall_reasons,
     content_tokens,
@@ -1427,9 +1428,10 @@ def _label_faces(
         elif _face_has_no_shared_claim(label) and shares:
             renamed = topic_name(list(face.get("terms") or terms))
             if renamed and _title_covers_posts(renamed, sample):
+                fallback_title, fallback_summary = readable_face_label(face_posts, list(face.get("terms") or terms))
                 label = {
-                    "title": renamed,
-                    "summary": summary or f"These posts are about {renamed}.",
+                    "title": renamed if renamed and not _title_needs_repair(renamed) else fallback_title,
+                    "summary": summary or fallback_summary,
                     "label_source": "heuristic",
                 }
                 arguments = []
@@ -1876,6 +1878,8 @@ def _finalize_published_planets(
     section = str(context.get("section") or "All topics")
     if context.get("chosen") == "heuristic" or not topics:
         merge_alike_published_faces(topics)
+        for line in guard_published_labels(topics, posts):
+            print(line)
         _strip_internal_planet_fields(topics)
         return set()
     jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
@@ -1883,6 +1887,8 @@ def _finalize_published_planets(
     incomplete = _run_finalize_faces_parallel(jobs, workers, deadline, scope=section)
     # Relabel can rename two faces onto one title after the draft merge already ran.
     merge_alike_published_faces(topics)
+    for line in guard_published_labels(topics, posts):
+        print(line)
     _strip_internal_planet_fields(topics)
     return incomplete
 
@@ -1894,6 +1900,8 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     if jobs[0].context.get("chosen") == "heuristic":
         for job in jobs:
             merge_alike_published_faces(job.built)
+            for line in guard_published_labels(job.built, job.posts):
+                print(line)
             _strip_internal_planet_fields(job.built)
         return set()
     face_jobs: list[_FinalizeFaceJob] = []
@@ -1912,6 +1920,8 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     )
     for job in jobs:
         merge_alike_published_faces(job.built)
+        for line in guard_published_labels(job.built, job.posts):
+            print(line)
         _strip_internal_planet_fields(job.built)
     return incomplete
 
@@ -2392,7 +2402,7 @@ def _rescue_named_story(
     perspective = {
         "id": face_id(1, 0),
         "title": title,
-        "summary": f"These posts are about {title}.",
+        "summary": readable_planet_summary(members, title, terms),
         "volume_percent": 100.0,
         "post_count": len(members),
         "representative_posts": representatives,
@@ -3403,10 +3413,11 @@ def _pending_face_from_members(
         limit=min(int(EXAMPLE_POST_CAP), len(members)),
         vectors=member_matrix,
     )
+    _pending_title, pending_summary = readable_face_label(members, salient_terms(member_texts, limit=TOP_TERMS_LIMIT))
     perspective = {
         "id": face_id(1, 0),
         "title": planet_name,
-        "summary": f"Posts grouped under {planet_name}.",
+        "summary": pending_summary,
         "volume_percent": 100.0,
         "post_count": len(members),
         "representative_posts": representatives,
@@ -3485,8 +3496,18 @@ def _salvage_unshared_pending_faces(topic: dict, faces: list[dict]) -> list[dict
     best = max(faces, key=lambda face: int(face.get("post_count") or 0))
     salvaged = {key: value for key, value in best.items() if not str(key).startswith("_")}
     planet_name = str(topic.get("name") or "").strip() or str(salvaged.get("title") or "Topic")
+    member_texts = [
+        str(rep.get("text") or "")
+        for rep in salvaged.get("representative_posts") or []
+        if str(rep.get("text") or "").strip()
+    ]
+    terms = salient_terms(member_texts, limit=TOP_TERMS_LIMIT)
+    _pending_title, pending_summary = readable_face_label(
+        [{"text": text, "clean_text": text} for text in member_texts],
+        terms,
+    )
     salvaged["title"] = planet_name
-    salvaged["summary"] = f"Posts grouped under {planet_name}."
+    salvaged["summary"] = pending_summary
     salvaged.pop("arguments", None)
     return [salvaged]
 

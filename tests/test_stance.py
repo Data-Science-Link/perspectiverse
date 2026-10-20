@@ -16,6 +16,7 @@ from pipeline.schema import (
     SINGLE_VIEW_NOTE,
     STANCE_CHECK_FAILED,
     STANCE_CHECK_INCOHERENT,
+    STANCE_CHECK_LABEL_HELD,
     _check_stance_check,
     apply_opposing_note,
 )
@@ -635,6 +636,15 @@ def test_above_threshold_without_one_claim_keeps_pre_pass_faces(coherent, title)
     _check_stance_check({"stance_check": STANCE_CHECK_INCOHERENT}, "planet")
     with pytest.raises(ValueError, match="opposing_note"):
         _check_stance_check({"stance_check": STANCE_CHECK_INCOHERENT, "opposing_note": SINGLE_VIEW_NOTE}, "planet")
+
+
+def test_label_held_stance_check_is_valid_schema():
+    _check_stance_check({"stance_check": STANCE_CHECK_LABEL_HELD}, "planet")
+    with pytest.raises(ValueError, match="opposing_note"):
+        _check_stance_check(
+            {"stance_check": STANCE_CHECK_LABEL_HELD, "opposing_note": SINGLE_VIEW_NOTE},
+            "planet",
+        )
 
 
 def test_incoherent_second_side_undoes_a_same_stance_merge():
