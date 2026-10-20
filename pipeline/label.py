@@ -902,8 +902,8 @@ CATCHALL_LABEL_COVERAGE = 0.30
 _CATCHALL_GLUE_SHARE = 0.70
 # A catch-all bucket under this size, named by a generic stem, is a fragment.
 # It is held out of the catalog. It is not glued onto another planet.
-# This is stricter than the 5-post planet floor from #79. Specific stems still
-# publish at 5 posts.
+# Specific stems publish at min_planet_posts (30 by default), per the
+# 2026-10-20 floor decision.
 _THIN_FRAGMENT_POSTS = 8
 _SHORT_SUBJECTS = frozenset({"ai", "eu", "gop", "ice", "uk", "un", "us"})
 # Attitude words and the weak keys that produced AI Concerns/Use/Dangers/Rights

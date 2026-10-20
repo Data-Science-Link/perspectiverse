@@ -716,9 +716,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Alternatives:** Let reviewers commit fixes as part of review (rejected because it leaves unreviewed code). Always re-review the whole PR (heavier than needed).
 **Revisit:** If review rounds get noticeably slower, or if reviewer-written commits keep needing a second pass anyway.
 
-### 2026-10-20 — Published planets need 30 posts
-- **Decision:** `MIN_PLANET_POSTS` is 30. A planet with exactly 30 posts is published. The same floor applies to a story split out of a glued candidate: a piece under 30 is left out. This supersedes the five-post floor from #79 for every published planet. `min_planet_posts` and `PERSPECTIVERSE_MIN_PLANET_POSTS` still override the constant. The generic thin-fragment hold (`_THIN_FRAGMENT_POSTS = 8`) is unchanged.
-- **Decided by:** Michael (Factory room, 2026-10-20 8:14 AM CT): "Let's make the floor 30 posts".
-- **Why:** Floors of 5, 8, 10, 15, and 20 were replayed on the Oct 19 edition. Michael chose 30 after that table.
-- **Alternatives:** Keep 5 (#79). Ship the replay recommendation of 8. Use 10, 15, or 20.
-- **Revisit when:** Michael decides whether a planet that clears 30 as a whole, but whose split pieces are each under 30, should stay one planet. That behavior is unchanged in this decision.
+### 2026-10-20: Planet floor raised to 30 posts (supersedes #79; partly supersedes #77)
+- **Decision:** A planet, including a face split off into its own planet, is published only if it has at least 30 posts. Planets under the floor are left out of the edition, and their posts are not reassigned. The next-ranked candidate fills the freed slot. The generic thin-fragment hold (`_THIN_FRAGMENT_POSTS = 8`) is unchanged.
+- **Why:** Michael (2026-10-20): small planets were mostly grab-bag junk that looks off to a newcomer; he chose a plain minimum-posts floor over a conditional grab-bag rule, and picked 30 after seeing the 5/8/10/15/20 replay on Oct 19. At 30, the Oct 19 edition drops 53 of 107 planets and 548 of 12,201 posts, with 0 split-caused losses.
+- **Supersedes:** #79 (minimum 5 posts). Partly supersedes #77 (no posts dropped): posts in sub-floor planets now leave the edition. #77 still holds for separate planets above the floor (don't glue or drop them).
+- **Alternatives:** 8 (the Manager's recommendation: drops 23 planets, 1.0% of posts), 10/15/20 (1.7% to 3.5% of posts), and the conditional grab-bag drop (rejected by Michael earlier today).
+- **Revisit:** If real news stories keep falling under the floor, or if the edition looks thin on low-volume days. Also once Michael decides whether a planet that clears 30 whole, but splits into pieces that are all under 30, should stay one planet (0 cases on Oct 19).
