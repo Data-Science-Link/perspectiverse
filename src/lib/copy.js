@@ -31,6 +31,12 @@ export function showStanceFailure(topic) {
   return stancePending(topic)
 }
 
+/** Sidebar / digest slice when oneViewNote is empty but the planet is label-held. */
+export function sidebarSliceNote(topic) {
+  if (labelHeld(topic)) return LABEL_NOT_READY
+  return oneViewNote(topic)
+}
+
 export const SITE_TITLE = 'Perspectiverse'
 export const SITE_TAGLINE = 'See every perspective — and where yours stands.'
 export const SOLAR_SYSTEM_LABEL = 'Filter topics'

@@ -89,6 +89,28 @@ def test_guard_holds_insult_placeholder_pending():
     assert log
 
 
+def test_guard_face_only_hold_marks_planet_summary_pending():
+    posts = [
+        {"uri": "at://1", "text": "Trump and Hegseth are fascists who aspire to copy Hitler.", "likes": 9},
+        {"uri": "at://2", "text": "This regime is fascist and must be stopped.", "likes": 4},
+    ]
+    topic = _topic(
+        "US Politics",
+        "Posts in this sample debate authoritarian rhetoric and political violence.",
+        "Fascist",
+        "Posts grouped under Fascist.",
+        [{"text": post["text"], "likes": post["likes"]} for post in posts],
+    )
+    topic["_member_uris"] = ["at://1", "at://2"]
+    topic["perspectives"][0]["_face_member_uris"] = ["at://1", "at://2"]
+    log = guard_published_labels([topic], posts)
+    assert topic["name"] == "US Politics"
+    assert topic["summary"] == PENDING_SUMMARY
+    assert topic["stance_check"] == STANCE_CHECK_LABEL_HELD
+    assert topic["perspectives"][0]["summary"] == PENDING_SUMMARY
+    assert log
+
+
 def test_guard_uses_a_shared_phrase_and_rejects_term_bags():
     heat = _topic(
         "Angeles Cities Heat",

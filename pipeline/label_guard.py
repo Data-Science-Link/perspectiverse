@@ -595,8 +595,7 @@ def guard_published_labels(topics: list[dict], posts: list[dict]) -> list[str]:
                 log.append(f"Label guard: face {title!r} → {new_title!r} ({issue})")
                 _apply_label(face, "title", new_title, new_summary)
             else:
-                topic["stance_check"] = STANCE_CHECK_LABEL_HELD
-                topic.pop("opposing_note", None)
+                _mark_pending(topic)
                 shown = planet_name if planet_name.lower().startswith("pending") else PENDING_TITLE
                 _mark_face_pending(face, shown)
                 log.append(f"Label guard: face {title!r} held pending ({issue})")

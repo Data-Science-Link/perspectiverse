@@ -307,4 +307,41 @@ assert.equal(incoherentPlanet.stancePending, true)
 assert.equal(incoherentPlanet.opposingNote, PERSPECTIVES_PENDING)
 assert.equal(/opposing view/i.test(incoherentPlanet.opposingNote), false)
 
+const labelHeldDigest = presentSnapshot({
+  mode: 'live',
+  source: 'bluesky',
+  window_hours: 168,
+  total_posts: 4,
+  last_updated: '2026-10-11',
+  topics: [
+    {
+      id: 2,
+      name: 'Readable Planet',
+      category: 'World',
+      total_volume_percent: 8,
+      post_count: 4,
+      stance_check: STANCE_CHECK_LABEL_HELD,
+      summary: 'Topic label not ready for this edition.',
+      perspectives: [
+        {
+          id: '2A',
+          title: 'Pending',
+          summary: 'Topic label not ready for this edition.',
+          volume_percent: 100,
+          arguments: ['The first reason is concrete and long enough for readers.'],
+          representative_posts: [
+            { author: 'ada', text: 'A readable post about the held label case.', likes: 2 },
+            { author: 'bea', text: 'Another post in the same sample.', likes: 1 },
+          ],
+        },
+      ],
+    },
+  ],
+})
+const labelHeldPlanet = labelHeldDigest.digest.planets[0]
+assert.equal(labelHeldPlanet.oneView, true)
+assert.equal(labelHeldPlanet.stancePending, true)
+assert.equal(labelHeldPlanet.opposingNote, LABEL_NOT_READY)
+assert.equal(labelHeldPlanet.opposingNote.includes(PERSPECTIVES_PENDING), false)
+
 console.log('presented planets keep real perspectives and skip stock filler')
