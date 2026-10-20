@@ -316,7 +316,7 @@ def test_chitchat_drop_frees_the_catalog_slot_for_the_next_candidate():
     from pipeline import live
     from tests.test_faces_53 import _blobs
 
-    def group(text: str, prefix: str, seed: int, count: int = 12):
+    def group(text: str, prefix: str, seed: int, count: int = 30):
         matrix = _blobs([count], seed=seed)
         posts = [
             {
