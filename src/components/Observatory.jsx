@@ -474,7 +474,13 @@ function Universe({
         />
       )}
       <TwinklingStars count={settings.twinkleStars} radius={110} />
-      <SponsorFlybyScene paused={inspecting} />
+      <SponsorFlybyScene
+        paused={inspecting}
+        linear={linear}
+        isMobile={isMobile}
+        extentX={layout.extentX ?? layout.extent ?? 14}
+        extentY={layout.extentY ?? layout.extent ?? 6}
+      />
       {showOrbits && !linear && topics.slice(1).map((topic, index) => {
         const orbit = orbitElements(index + 1, false, topic.id, layout.radii[index + 1])
         return (
@@ -807,7 +813,7 @@ export default function Observatory({
     <section
       className={`observatory${landscapeGrid ? ' is-linear-phone-landscape' : ''}`}
     >
-      <SponsorFlybyBanner paused={flybyPaused} />
+      <SponsorFlybyBanner paused={flybyPaused} linear={linear} linearGrid={linearGrid} />
       <Canvas
         key={`${epoch}-${isMobile ? 'm' : 'd'}`}
         camera={{

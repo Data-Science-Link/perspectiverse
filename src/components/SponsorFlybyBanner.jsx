@@ -5,7 +5,7 @@ import { pillOpacityForLabels, towSideForShip } from '../lib/sponsorFlybyPlaceme
 export const SPONSOR_BANNER_TEXT = 'Does Advertising Work? Just Did!'
 export const SPONSOR_BANNER_MIN_SCREEN_PX = 14
 
-export default function SponsorFlybyBanner({ paused = false }) {
+export default function SponsorFlybyBanner({ paused = false, linear = false, linearGrid = false }) {
   const screenRef = useRef(null)
   const rowRef = useRef(null)
   const pillRef = useRef(null)
@@ -43,7 +43,13 @@ export default function SponsorFlybyBanner({ paused = false }) {
       const canvasRect = canvas.getBoundingClientRect()
       const headerBottom = chrome?.getBoundingClientRect().bottom ?? 0
       const chromeRow = observatory.querySelector('.observatory-chrome')
-      const chromeTop = chromeRow?.getBoundingClientRect().top ?? canvasRect.bottom
+      let chromeTop = chromeRow?.getBoundingClientRect().top ?? canvasRect.bottom
+      if (linear && linearGrid) {
+        const filterLabel = observatory.querySelector('.topic-filter span')
+        const filterTop = filterLabel?.getBoundingClientRect().top
+          ?? document.getElementById('solar-topic-filter')?.getBoundingClientRect().top
+        if (filterTop) chromeTop = Math.min(chromeTop, filterTop - 12)
+      }
       const pad = 10
       const bounds = {
         left: canvasRect.left + pad,
@@ -94,7 +100,7 @@ export default function SponsorFlybyBanner({ paused = false }) {
 
     tick()
     return () => cancelAnimationFrame(frame)
-  }, [paused, reduceMotion])
+  }, [linear, linearGrid, paused, reduceMotion])
 
   if (reduceMotion || paused) return null
 

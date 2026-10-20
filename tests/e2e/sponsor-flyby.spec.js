@@ -166,4 +166,65 @@ test.describe('Sponsor flyby placeholder', () => {
     expect(stats.clearSamples).toBeGreaterThanOrEqual(5)
     expect(stats.minClearOpacity ?? 0).toBeGreaterThanOrEqual(0.99)
   })
+
+  async function openLinearWithSponsor(page) {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('perspectiverse.hide-welcome', '1')
+    })
+    await page.goto('/?sponsorFlyby=1&sponsorProgress=0.5')
+    await enterSolarSystem(page)
+    await page.getByRole('button', { name: 'Linear' }).click()
+    await expect(page.getByRole('button', { name: 'Orbits' })).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const el = document.querySelector('.sponsor-flyby-screen')
+      return el?.style.visibility === 'visible'
+    }), { timeout: 20_000 }).toBe(true)
+  }
+
+  test('linear view shows sponsor banner without blocking planet labels', async ({ page }, testInfo) => {
+    await openLinearWithSponsor(page)
+
+    const text = page.locator('.sponsor-flyby-banner-text')
+    await expect(text).toHaveText('Does Advertising Work? Just Did!')
+    await expect.poll(async () => glyphHeight(page)).toBeGreaterThanOrEqual(14)
+
+    const layout = await page.evaluate(() => {
+      const pill = document.querySelector('.sponsor-flyby-banner')?.getBoundingClientRect()
+      const canvas = document.querySelector('.observatory canvas')?.getBoundingClientRect()
+      const filter = document.getElementById('solar-topic-filter')?.getBoundingClientRect()
+      const labels = [...document.querySelectorAll('.observatory .planet-label')].map((node) => ({
+        rect: node.getBoundingClientRect(),
+      }))
+      return { pill, canvas, filter, labels }
+    })
+    expect(layout.pill).toBeTruthy()
+    expect(layout.canvas).toBeTruthy()
+    expect(layout.pill.right).toBeLessThanOrEqual(layout.canvas.right + 2)
+    expect(layout.pill.left).toBeGreaterThanOrEqual(layout.canvas.left - 2)
+    expect(layout.pill.top).toBeGreaterThanOrEqual(layout.canvas.top - 2)
+
+    if (testInfo.project.name === 'mobile' && layout.filter) {
+      expect(layout.pill.bottom).toBeLessThanOrEqual(layout.filter.top - 6)
+    }
+
+    const pillArea = layout.pill.width * layout.pill.height
+    let labelOverlap = 0
+    for (const { rect } of layout.labels) {
+      const w = Math.min(rect.right, layout.pill.right) - Math.max(rect.left, layout.pill.left)
+      const h = Math.min(rect.bottom, layout.pill.bottom) - Math.max(rect.top, layout.pill.top)
+      if (w > 4 && h > 4) labelOverlap += w * h
+    }
+    expect(labelOverlap).toBeLessThan(pillArea * 0.55)
+
+    const label = page.locator('.observatory .planet-label').first()
+    const labelBox = await label.boundingBox()
+    expect(labelBox).toBeTruthy()
+    const blocked = await page.evaluate(({ x, y }) => {
+      const target = document.elementFromPoint(x, y)
+      return target?.closest?.('.sponsor-flyby-screen') != null
+    }, { x: labelBox.x + labelBox.width / 2, y: labelBox.y + labelBox.height / 2 })
+    expect(blocked).toBe(false)
+    await page.mouse.click(labelBox.x + labelBox.width / 2, labelBox.y + labelBox.height / 2)
+    await expect(page.getByRole('button', { name: 'Read more …' })).toBeVisible()
+  })
 })

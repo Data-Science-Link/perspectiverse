@@ -9,13 +9,20 @@ import {
   SPONSOR_IDLE_MIN_SECONDS,
   SPONSOR_TEST_FLIGHT_PROGRESS,
   sponsorFlightPath,
+  sponsorFlightPathLinear,
   sponsorFlybyQueryMode,
 } from '../lib/sponsorFlybyPath'
 
 const _ndc = new Vector3()
 const _world = new Vector3()
 
-export default function SponsorFlybyScene({ paused = false }) {
+export default function SponsorFlybyScene({
+  paused = false,
+  linear = false,
+  isMobile = false,
+  extentX = 14,
+  extentY = 6,
+}) {
   const groupRef = useRef()
   const { camera, gl } = useThree()
   const flybyMode = useMemo(() => sponsorFlybyQueryMode(), [])
@@ -84,7 +91,9 @@ export default function SponsorFlybyScene({ paused = false }) {
 
     if (!groupRef.current) return
 
-    const pathPoint = sponsorFlightPath(progress.current)
+    const pathPoint = (linear || isMobile)
+      ? sponsorFlightPathLinear(progress.current, extentX, extentY)
+      : sponsorFlightPath(progress.current)
     groupRef.current.position.copy(pathPoint)
     groupRef.current.updateWorldMatrix(true, false)
     camera.updateMatrixWorld()

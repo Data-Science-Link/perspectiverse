@@ -8,6 +8,15 @@ export function sponsorFlightPath(t) {
   return new Vector3(x, y, z)
 }
 
+/** Fly across the linear row/grid volume in front of the camera. */
+export function sponsorFlightPathLinear(t, extentX = 14, extentY = 6) {
+  const spanX = Math.max(8, extentX * 1.65)
+  const x = -spanX * 0.5 + t * spanX
+  const y = Math.sin(t * Math.PI) * Math.max(0.8, extentY * 0.22)
+  const z = 1.8 + Math.cos(t * Math.PI) * 0.9
+  return new Vector3(x, y, z)
+}
+
 export const SPONSOR_FLIGHT_SECONDS = 16
 export const SPONSOR_IDLE_MIN_SECONDS = 50
 export const SPONSOR_IDLE_MAX_SECONDS = 95
