@@ -18,6 +18,7 @@ import {
 import TopicFilter from './TopicFilter'
 import { solarSettings } from '../lib/solarSettings'
 import { OrbitRing, default as Planet } from './Planet'
+import { SponsorFlybyBanner, SponsorFlybyProvider, SponsorFlybyScene } from './SponsorFlyby'
 import TwinklingStars from './TwinklingStars'
 
 function homeView(isMobile, planetCount = 10, layoutExtent = null, homeFrame = {}) {
@@ -473,6 +474,13 @@ function Universe({
         />
       )}
       <TwinklingStars count={settings.twinkleStars} radius={110} />
+      <SponsorFlybyScene
+        paused={inspecting}
+        linear={linear}
+        isMobile={isMobile}
+        extentX={layout.extentX ?? layout.extent ?? 14}
+        extentY={layout.extentY ?? layout.extent ?? 6}
+      />
       {showOrbits && !linear && topics.slice(1).map((topic, index) => {
         const orbit = orbitElements(index + 1, false, topic.id, layout.radii[index + 1])
         return (
@@ -797,11 +805,15 @@ export default function Observatory({
   const hint = 'Drag to look around'
   const landscapeGrid = linearGrid && canvasAspect > 1.15
 
+  const flybyPaused = Boolean(selectedTopicId)
+
   return (
+    <SponsorFlybyProvider>
     <>
     <section
       className={`observatory${landscapeGrid ? ' is-linear-phone-landscape' : ''}`}
     >
+      <SponsorFlybyBanner paused={flybyPaused} linear={linear} linearGrid={linearGrid} />
       <Canvas
         key={`${epoch}-${isMobile ? 'm' : 'd'}`}
         camera={{
@@ -921,5 +933,6 @@ export default function Observatory({
       </div>
     </section>
     </>
+    </SponsorFlybyProvider>
   )
 }
