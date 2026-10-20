@@ -1,0 +1,200 @@
+{
+  "sections": [
+    {
+      "section": "global",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "World",
+      "planets_before": 7,
+      "planets_after": 7,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Politics",
+      "planets_before": 7,
+      "planets_after": 7,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Business",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Technology",
+      "planets_before": 10,
+      "planets_after": 4,
+      "labeled_duplicate_pairs_joined": 2,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 30,
+      "folds": [
+        {
+          "child": "AI Generated Articles",
+          "parent": "AI bots",
+          "posts": 5
+        },
+        {
+          "child": "AI Control",
+          "parent": "AI bots",
+          "posts": 5
+        },
+        {
+          "child": "AI Adoption",
+          "parent": "AI bots",
+          "posts": 5
+        },
+        {
+          "child": "AI Creative Effort",
+          "parent": "AI bots",
+          "posts": 5
+        },
+        {
+          "child": "Crazy",
+          "parent": "AI bots",
+          "posts": 5
+        },
+        {
+          "child": "AI Art",
+          "parent": "AI bots",
+          "posts": 5
+        }
+      ],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Sports",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Culture",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Health",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Environment",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Education",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    },
+    {
+      "section": "Other",
+      "planets_before": 13,
+      "planets_after": 13,
+      "labeled_duplicate_pairs_joined": 0,
+      "labeled_different_pairs_joined": 0,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": [],
+      "labeled_unsure_pairs_joined": 0
+    }
+  ],
+  "labeled_duplicate_pairs_joined": [
+    {
+      "pair_id": "p011",
+      "section": "Technology",
+      "planets": [
+        "AI Control",
+        "AI Adoption"
+      ]
+    },
+    {
+      "pair_id": "p041",
+      "section": "Technology",
+      "planets": [
+        "AI Control",
+        "AI bots"
+      ]
+    }
+  ],
+  "labeled_different_pairs_joined": [],
+  "labeled_unsure_pairs_joined": [],
+  "planets_before": 107,
+  "planets_after": 101,
+  "moved_to_other": 0,
+  "posts_dropped": 0,
+  "edition": "2026-10-19",
+  "watch": [
+    {
+      "section": "Other",
+      "name": "Rise of Fascism",
+      "posts": 150,
+      "section_after": "Other"
+    }
+  ]
+}

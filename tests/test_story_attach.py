@@ -3,12 +3,15 @@
 import numpy as np
 
 from pipeline.schema import SINGLE_VIEW_NOTE
+from pipeline.label import content_tokens
 from pipeline.story_attach import (
     _without_global_glue,
     attach_same_story,
     attachment_stems,
     merge_alike_published_faces,
     return_same_story_posts,
+    specific_stems,
+    story_of,
 )
 from pipeline.topics import cluster_texts
 
@@ -262,6 +265,131 @@ def test_identical_iran_war_faces_merge_after_relabel():
     assert topic["post_count"] == 48
     assert topic["opposing_note"] == SINGLE_VIEW_NOTE
     assert set(topic["perspectives"][0]["_face_member_uris"]) == {"a", "b"}
+
+
+def test_content_tokens_drops_ai_but_the_subject_allowlist_keeps_it():
+    """Root cause: content_tokens drops stems under 4 characters."""
+    text = "AI models wrote this PS5 note about the bar exam and the US war"
+    assert "ai" not in content_tokens(text)
+    assert "ps5" not in content_tokens(text)
+    stems = specific_stems(text)
+    assert "ai" in stems
+    assert "ps5" not in stems
+    assert "bar" not in stems
+    assert "us" not in stems
+
+
+def test_allowlisted_ai_wins_a_tie_with_a_mood_word():
+    top, stems = story_of(["I actively avoid AI tools"] * 5)
+    assert top == "ai"
+    assert "ai" in stems
+
+
+def test_post_count_size_lets_a_short_representative_sample_fold():
+    """A published planet can have fewer representative posts than post_count."""
+    parent = ["I anyway reject AI"] * 4
+    child = ["I actively reject AI"] * 2
+    texts = parent + child
+    matrix = np.vstack([_unit(1, 0)] * 4 + [_unit(0.90, 0.436)] * 2)
+    labels = [0] * 4 + [1] * 2
+    _updated, blocked = attach_same_story(matrix, texts, labels, noise=False)
+    assert blocked["folded_planets"] == 0
+    updated, stats = attach_same_story(matrix, texts, labels, noise=False, sizes={0: 5, 1: 5})
+    assert stats["folded_planets"] == 1
+    assert set(updated) == {0}
+
+
+def test_ai_fragments_fold_into_one_planet_before_the_floor():
+    moods = ("anyway", "actively", "crazy", "okay", "article", "bots")
+    texts: list[str] = []
+    rows = []
+    labels: list[int] = []
+    for index, mood in enumerate(moods):
+        text = f"I {mood} reject AI"
+        texts.extend([text] * 5)
+        rows.extend([_unit(1, 0.02 * index, 0)] * 5)
+        labels.extend([index] * 5)
+    updated, stats = attach_same_story(np.vstack(rows), texts, labels, noise=False)
+    assert stats["folded_planets"] == 5
+    assert len(set(updated)) == 1
+
+
+def test_ai_fragment_does_not_chain_through_a_neighbor():
+    """C matches B, and B matches A, but C is far from the hub A."""
+    texts = ["I anyway reject AI"] * 20
+    rows = (
+        [_unit(1, 0, 0)] * 5
+        + [_unit(0.80, 0.60, 0)] * 5
+        + [_unit(0.20, 0.98, 0)] * 5
+        + [_unit(0.70, -0.50, 0.51)] * 5
+    )
+    labels = [0] * 5 + [1] * 5 + [2] * 5 + [3] * 5
+    updated, stats = attach_same_story(np.vstack(rows), texts, labels, noise=False)
+    assert stats["folded_planets"] == 2
+    assert set(updated[:5]) == {0}
+    assert set(updated[5:10]) == {0}
+    assert set(updated[10:15]) == {2}
+    assert set(updated[15:]) == {0}
+
+
+def test_price_fragments_do_not_fold():
+    gas = ["Gas prices at the pump are high again"] * 6
+    brent = ["Brent crude prices jumped this week"] * 6
+    texts = gas + brent
+    matrix = np.vstack([_unit(1, 0)] * 6 + [_unit(0.85, 0.527)] * 6)
+    labels = [0] * 6 + [1] * 6
+    updated, stats = attach_same_story(matrix, texts, labels, noise=False)
+    assert stats["folded_planets"] == 0
+    assert set(updated[6:]) == {1}
+
+
+def test_console_fragments_do_not_fold():
+    ps5 = ["PS5 compatibility with old playstation games"] * 5
+    ps6 = ["PS6 pricing rumors for the sony console"] * 5
+    texts = ps5 + ps6
+    matrix = np.vstack([_unit(1, 0)] * 5 + [_unit(0.90, 0.436)] * 5)
+    labels = [0] * 5 + [1] * 5
+    updated, stats = attach_same_story(matrix, texts, labels, noise=False)
+    assert stats["folded_planets"] == 0
+    assert "ps5" not in specific_stems(ps5[0])
+    assert set(updated[5:]) == {1}
+
+
+def test_iran_war_does_not_fold_into_russia_sanctions():
+    iran = ["The Iran war closed the strait of Hormuz"] * 20
+    sanctions = ["Russia sanctions tightened again yesterday"] * 6
+    texts = iran + sanctions
+    matrix = np.vstack([_unit(1, 0)] * 20 + [_unit(0.78, 0.626)] * 6)
+    labels = [0] * 20 + [1] * 6
+    updated, stats = attach_same_story(matrix, texts, labels, noise=False)
+    assert stats["folded_planets"] == 0
+    assert set(updated[20:]) == {1}
+
+
+def test_thirty_thousand_does_not_fold_into_high_prices():
+    debt = ["Thirty thousand dollars of debt is the point"] * 20
+    prices = ["High prices and inflation keep rising"] * 6
+    texts = debt + prices
+    matrix = np.vstack([_unit(1, 0)] * 20 + [_unit(0.80, 0.600)] * 6)
+    labels = [0] * 20 + [1] * 6
+    updated, stats = attach_same_story(matrix, texts, labels, noise=False)
+    assert stats["folded_planets"] == 0
+    assert set(updated[20:]) == {1}
+
+
+def test_big_parent_keeps_a_fragment_that_also_says_ai():
+    big = ["data centers and more data centers"] * 22
+    small = ["AI data centers need a petition"] * 5
+    speck = ["AI models are pure slop anyway"] * 5
+    texts = big + small + speck
+    matrix = np.vstack(
+        [_unit(1, 0, 0)] * 22 + [_unit(0.86, 0.51, 0)] * 5 + [_unit(0.55, 0.70, 0.46)] * 5
+    )
+    labels = [0] * 22 + [1] * 5 + [2] * 5
+    updated, stats = attach_same_story(matrix, texts, labels, noise=False)
+    assert set(updated[:27]) == {0}
+    assert set(updated[27:]) == {2}
+    assert stats["folded_planets"] == 1
 
 
 def test_iran_war_and_iran_conflict_stay_separate():

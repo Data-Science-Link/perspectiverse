@@ -1,0 +1,173 @@
+{
+  "sections": [
+    {
+      "section": "global",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "World",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "Politics",
+      "planets_before": 4,
+      "planets_after": 4,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "Business",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "Technology",
+      "planets_before": 10,
+      "planets_after": 5,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 26,
+      "folds": [
+        {
+          "child": "Funny Bsky",
+          "parent": "AI Risk",
+          "posts": 6
+        },
+        {
+          "child": "AI Use",
+          "parent": "AI Risk",
+          "posts": 5
+        },
+        {
+          "child": "AI Gone Rogue",
+          "parent": "AI Risk",
+          "posts": 5
+        },
+        {
+          "child": "AI in Schools",
+          "parent": "AI Risk",
+          "posts": 5
+        },
+        {
+          "child": "AI Use 2",
+          "parent": "AI Risk",
+          "posts": 5
+        }
+      ]
+    },
+    {
+      "section": "Sports",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "Culture",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "Health",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "Environment",
+      "planets_before": 10,
+      "planets_after": 10,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "Education",
+      "planets_before": 8,
+      "planets_after": 8,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    },
+    {
+      "section": "Other",
+      "planets_before": 16,
+      "planets_after": 16,
+      "labeled_duplicate_pairs_joined": null,
+      "labeled_different_pairs_joined": null,
+      "planets_or_posts_moved_to_other": 0,
+      "posts_dropped": 0,
+      "posts_folded": 0,
+      "folds": []
+    }
+  ],
+  "labeled_duplicate_pairs_joined": [],
+  "labeled_different_pairs_joined": [],
+  "labeled_unsure_pairs_joined": [],
+  "planets_before": 108,
+  "planets_after": 103,
+  "moved_to_other": 0,
+  "posts_dropped": 0,
+  "edition": "2026-10-20",
+  "watch": [
+    {
+      "section": "Other",
+      "name": "Fascism",
+      "posts": 201,
+      "section_after": "Other"
+    },
+    {
+      "section": "Other",
+      "name": "Wealth Inequality",
+      "posts": 164,
+      "section_after": "Other"
+    }
+  ]
+}

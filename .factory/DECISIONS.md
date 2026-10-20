@@ -729,3 +729,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Keep cleanup-only fixes (rejected as the default).
 - **Revisit:** If a root-cause fix costs more than the daily budget allows, or can't beat main on the same replay measure.
 - **Decided by:** Michael, Factory room, 2026-10-20 9:49 AM CT ("where possible try to fix root cause rather than just post-hoc aesthetic cleaning up bad groupings or bad perspectives").
+
+### 2026-10-20: Same-story fragments join on an allowlisted short subject (#287)
+- **Decision:** Fragments under `BIG_PLANET` (20) may fold into each other before the 30-post floor when their subject is on a short-token allowlist. The allowlist is `ai`. `content_tokens` still drops every token under 4 characters. `ps5`, `ps6`, `bar`, and `us` are not subjects. `FOLD_COSINE` and `_BALL_MERGE` stay where they are.
+- **Why:** Equal min-cluster balls never fold, and a parent must already have 20 posts, so the Oct 19 AI planets stay six planets of 5 and the floor hides them. Opening the fold to every shared stem, or lowering the cosine cut, also joins different stories in that same band (gas prices with Brent, professors with vouchers, Iran with sanctions).
+- **Alternatives:** Lower `FOLD_COSINE` or `_BALL_MERGE` (rejected: the near-but-different pairs sit in the same band). A post-hoc title fold after the floor (rejected: the floor has already dropped the fragments). Putting `ps5` on the allowlist (rejected: the console planets are not one story).
+- **Revisit:** If a real short subject other than `ai` keeps splitting under the floor, or if the `ai` allowlist joins a labeled-different pair on a later edition.
