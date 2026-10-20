@@ -702,8 +702,7 @@ def test_heuristic_backend_makes_no_stance_call():
 
     context = _context(chosen="heuristic", stance_generate=generate)
     merged, log = apply_stance_pass(drafted, _members(uris), context, subject="Iran")
-    # The local gate still runs. These two share Iran and the posts do not disagree.
-    assert [item[0]["title"] for item in merged] == ["Iran War"]
+    assert len(merged) == 2
     assert log == []
     assert context["story_calls"] == {}
 

@@ -2,8 +2,7 @@
 
 The calls use whatever label model the pipeline is already using (DeepInfra
 Llama when that is the configured backend). The heuristic backend makes none
-of them. It still runs the local disagreement gate, which does not call a
-model. A second face is kept only when the other pole is at least
+of them. A second face is kept only when the other pole is at least
 ``stance_second_face_share`` of the stance sample, at least two posts, and
 one coherent claim. Every planet is sampled at most 40 posts. The whole
 planet is used when it is smaller than that cap. The whole-planet count is not what this
@@ -1829,19 +1828,15 @@ def apply_stance_pass(
 
     A failed call (timeout, HTTP error, unparseable output), after one retry,
     restores the faces from before this pass and sets ``stance_check_failed``
-    on the context. The heuristic backend does not call the model. It still
-    runs the local gate.
+    on the context. The heuristic backend returns immediately and does not
+    call the model. The local gate stays off that path: it would fold
+    same-subject faces the heuristic collapse and retry checks still own.
     """
     context.pop("stance_check_failed", None)
     context.pop("stance_check_incoherent", None)
     context.pop("stance_failure_reason", None)
-    if len(drafted) < 1:
+    if context.get("chosen") == "heuristic" or len(drafted) < 1:
         return drafted, []
-    if context.get("chosen") == "heuristic":
-        gated = apply_local_stance_gate(
-            drafted, members, subject=subject, post_limit=int(context.get("limit") or 36)
-        )
-        return gated, []
     generate = context.get("stance_generate") or context.get("summary_model")
     if generate is None:
         return drafted, ["Stance check skipped: no label model."]
