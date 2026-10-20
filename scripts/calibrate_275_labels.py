@@ -34,6 +34,9 @@ from pipeline.duplicate_rate import (
     split_labeled_sample,
     tune_threshold,
     _flag_pairs,
+    _match_label,
+    _normalize_title,
+    _pair_identity,
 )
 
 # Rebuilt spot-check sheet (spot-check-20.md). Michael's column is blank there.
@@ -47,10 +50,182 @@ FACE_SPOT_IDS = frozenset(
 # that few rows is not a rate. 30 is the smallest held-out set that gets one.
 MIN_FACE_HOLDOUT = 30
 
+# Planet titles the #275 spec calls one pleasantry family (Good Sunday and the rest).
+GREETING_TITLES = frozenset(
+    {
+        "good day",
+        "good morning",
+        "great day",
+        "hope for the day",
+        "wonderful day",
+        "great time",
+        "glad returns",
+        "happy sunday",
+        "good sunday",
+    }
+)
+KIND_ORDER = ("greeting", "same_story", "paraphrase_face", "other")
+KIND_LABEL = {
+    "greeting": "Greeting/chit-chat planets (#288)",
+    "same_story": "Same-story fragments (#287)",
+    "paraphrase_face": "Paraphrase faces (#286)",
+    "other": "Other",
+}
+# A kind the gate almost never flags cannot show whether that fix moved.
+_NEAR_ZERO_FACTOR = 5
+KIND_TRACKER = {
+    "greeting": (
+        "The nightly check can't track this fix. "
+        "A $0 greeting-title count can: published planets whose name is in this family."
+    ),
+    "same_story": (
+        "The nightly check can't track this fix. "
+        "A $0 fragment count can: same-section planets under 20 posts, "
+        "the size the attach gate will not use as a parent."
+    ),
+    "paraphrase_face": (
+        "The nightly check can't track this fix. "
+        "A $0 face stance-agreement count can: within-planet face pairs whose posts "
+        "share a subject and do not disagree."
+    ),
+    "other": (
+        "The nightly check can't track this fix. "
+        "A $0 count of labeled duplicates outside the three kinds can, once those rows exist."
+    ),
+}
+
 
 def percentage_withheld(held_out: int, *, minimum: int = MIN_FACE_HOLDOUT) -> bool:
     """True when a face held-out set is too small for a percentage."""
     return int(held_out) < int(minimum)
+
+
+def recall_is_near_zero(flagged: int, total: int) -> bool:
+    """True when the gate flags too few of a kind to track a fix."""
+    if int(total) <= 0:
+        return False
+    return int(flagged) * _NEAR_ZERO_FACTOR < int(total)
+
+
+def duplicate_kind(row: dict[str, str]) -> str | None:
+    """Kind of one model-labeled duplicate.
+
+    Planet yes/no rows use ``level`` ``planet``. Face yes/no rows use
+    ``level`` ``face_census``. A ``planet_leak`` row is not tagged. Unsure
+    and no are not duplicates.
+    """
+    answer = str(row.get("is_duplicate") or "").strip().lower()
+    if answer != "yes":
+        return None
+    level = str(row.get("level") or "")
+    if level == "face_census":
+        return "paraphrase_face"
+    if level != "planet":
+        return None
+    left = _normalize_title(str(row.get("title_a") or row.get("left_title") or ""))
+    right = _normalize_title(str(row.get("title_b") or row.get("right_title") or ""))
+    if left in GREETING_TITLES and right in GREETING_TITLES:
+        return "greeting"
+    if left and right:
+        return "same_story"
+    return "other"
+
+
+def _index_scored(scored: list[dict]) -> dict:
+    by_title: dict = {}
+    for pair in scored:
+        key = (
+            pair["pair_type"],
+            *_pair_title_key(pair["left_title"], pair["right_title"]),
+        )
+        current = by_title.get(key)
+        if current is None:
+            by_title[key] = pair
+        elif isinstance(current, list):
+            current.append(pair)
+        else:
+            by_title[key] = [current, pair]
+    return by_title
+
+
+def _pair_title_key(left: str, right: str) -> tuple[str, str]:
+    return _pair_identity(_normalize_title(left), _normalize_title(right))
+
+
+def kind_recall(rows: list[dict[str, str]], scored: list[dict]) -> dict:
+    """How many labeled duplicates the nightly gate flags, by kind.
+
+    The nightly gate is the default one: ``titles_alike`` or centroid cosine
+    at least 0.90. Counts are raw. A kind near zero names a $0 count that
+    could move when that fix lands.
+    """
+    by_title = _index_scored(scored)
+    buckets = {
+        kind: {"kind": kind, "label": KIND_LABEL[kind], "total": 0, "flagged": 0, "unmatched": 0, "pairs": []}
+        for kind in KIND_ORDER
+    }
+    for row in rows:
+        kind = duplicate_kind(row)
+        if kind is None:
+            continue
+        pair_type = "face" if kind == "paraphrase_face" else "planet"
+        label = {
+            "pair_type": pair_type,
+            "left_key": "",
+            "right_key": "",
+            "left_title": str(row.get("title_a") or row.get("left_title") or ""),
+            "right_title": str(row.get("title_b") or row.get("right_title") or ""),
+        }
+        found = _match_label(label, {}, by_title)
+        flagged = bool(found and found.get("near_duplicate"))
+        bucket = buckets[kind]
+        bucket["total"] += 1
+        bucket["flagged"] += int(flagged)
+        bucket["unmatched"] += int(found is None)
+        bucket["pairs"].append(
+            {
+                "pair_id": str(row.get("pair_id") or ""),
+                "left_title": label["left_title"],
+                "right_title": label["right_title"],
+                "flagged": flagged,
+                "titles_alike": None if found is None else bool(found.get("titles_alike")),
+                "centroid_cosine": None if found is None else found.get("centroid_cosine"),
+            }
+        )
+    kinds = []
+    for kind in KIND_ORDER:
+        bucket = buckets[kind]
+        near = recall_is_near_zero(bucket["flagged"], bucket["total"])
+        bucket["near_zero"] = near
+        bucket["tracker"] = KIND_TRACKER[kind] if near else None
+        kinds.append(bucket)
+    return {
+        "gate": "titles_alike or centroid cosine >= 0.90",
+        "kinds": kinds,
+    }
+
+
+def render_kind_recall(report: dict) -> list[str]:
+    lines = [
+        "## Recall by duplicate kind",
+        "",
+        "Every model-labeled duplicate on the Oct 19 planet sheet and the face census. "
+        "The nightly check flags a pair when titles look alike or the TF-IDF centroid "
+        "cosine is at least 0.90. Counts are raw. `planet_leak` rows are not included.",
+        "",
+    ]
+    for kind in report["kinds"]:
+        lines.append(
+            f"- {kind['label']}: {kind['flagged']} of {kind['total']}"
+        )
+        flagged = [pair for pair in kind["pairs"] if pair["flagged"]]
+        if flagged and kind["flagged"] < kind["total"]:
+            named = ", ".join(f"{pair['left_title']} | {pair['right_title']}" for pair in flagged)
+            lines.append(f"  Flagged: {named}.")
+        if kind.get("tracker"):
+            lines.append(f"  {kind['tracker']}")
+    lines.append("")
+    return lines
 
 
 def _shares(design: dict, side: str) -> dict[str, float]:
@@ -294,6 +469,7 @@ def main(argv: list[str] | None = None) -> int:
             calibration_rows(faces, design, level="face"),
             counts_only=True,
         ),
+        "kind_recall": kind_recall(list(labeled) + list(faces), scored),
     }
     lines = [
         "# Oct 19 duplicate-threshold calibration",
@@ -306,6 +482,7 @@ def main(argv: list[str] | None = None) -> int:
     ]
     lines.extend(render_level("Planets", report["planet"]))
     lines.extend(render_level("Faces", report["face"]))
+    lines.extend(render_kind_recall(report["kind_recall"]))
     rendered = "\n".join(lines)
     if args.json_path:
         Path(args.json_path).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

@@ -38,3 +38,16 @@ Per band:
 - B4 (real share 7.4%): 0 of 1 agree
 
 Tuned on 9 rows, held out 7, spot-check ids in the agreement set 10. Matched 16, unmatched 1.
+
+## Recall by duplicate kind
+
+Every model-labeled duplicate on the Oct 19 planet sheet and the face census. The nightly check flags a pair when titles look alike or the TF-IDF centroid cosine is at least 0.90. Counts are raw. `planet_leak` rows are not included.
+
+- Greeting/chit-chat planets (#288): 0 of 11
+  The nightly check can't track this fix. A $0 greeting-title count can: published planets whose name is in this family.
+- Same-story fragments (#287): 1 of 9
+  Flagged: US Ukraine War | US Iran War.
+  The nightly check can't track this fix. A $0 fragment count can: same-section planets under 20 posts, the size the attach gate will not use as a parent.
+- Paraphrase faces (#286): 0 of 13
+  The nightly check can't track this fix. A $0 face stance-agreement count can: within-planet face pairs whose posts share a subject and do not disagree.
+- Other: 0 of 0

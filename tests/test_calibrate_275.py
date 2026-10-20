@@ -10,6 +10,10 @@ _SPEC.loader.exec_module(_MODULE)
 calibration_rows = _MODULE.calibration_rows
 percentage_withheld = _MODULE.percentage_withheld
 render_level = _MODULE.render_level
+duplicate_kind = _MODULE.duplicate_kind
+kind_recall = _MODULE.kind_recall
+recall_is_near_zero = _MODULE.recall_is_near_zero
+render_kind_recall = _MODULE.render_kind_recall
 
 
 def _design():
@@ -88,3 +92,68 @@ def test_face_percentage_is_withheld_below_30_held_out_pairs():
     assert "8 of 9 agree" in rendered
     assert "No face percentage" in rendered
     assert "precision" not in rendered
+
+
+def _scored(pair_type, left, right, *, near):
+    return {
+        "pair_type": pair_type,
+        "left_title": left,
+        "right_title": right,
+        "near_duplicate": near,
+        "titles_alike": near,
+        "centroid_cosine": 0.95 if near else 0.2,
+    }
+
+
+def test_kind_recall_is_raw_counts_and_names_a_cheap_tracker_when_near_zero():
+    assert duplicate_kind(
+        {"level": "planet", "title_a": "Good Day", "title_b": "Happy Sunday", "is_duplicate": "yes"}
+    ) == "greeting"
+    assert duplicate_kind(
+        {"level": "planet", "title_a": "AI Control", "title_b": "AI bots", "is_duplicate": "yes"}
+    ) == "same_story"
+    assert duplicate_kind(
+        {"level": "face_census", "title_a": "Show Quality", "title_b": "Show Enjoyment", "is_duplicate": "yes"}
+    ) == "paraphrase_face"
+    assert duplicate_kind(
+        {"level": "planet_leak", "title_a": "Good Day", "title_b": "Happy Sunday", "is_duplicate": "yes"}
+    ) is None
+    assert duplicate_kind(
+        {"level": "planet", "title_a": "Good Day", "title_b": "Happy Sunday", "is_duplicate": "unsure"}
+    ) is None
+    assert recall_is_near_zero(0, 11) is True
+    assert recall_is_near_zero(1, 9) is True
+    assert recall_is_near_zero(8, 13) is False
+    assert recall_is_near_zero(0, 0) is False
+
+    rows = [
+        {"pair_id": "p010", "level": "planet", "title_a": "Great Day", "title_b": "Happy Sunday", "is_duplicate": "yes"},
+        {"pair_id": "p002", "level": "planet", "title_a": "Good Day", "title_b": "Hope For The Day", "is_duplicate": "yes"},
+        {"pair_id": "p041", "level": "planet", "title_a": "AI Control", "title_b": "AI bots", "is_duplicate": "yes"},
+        {"pair_id": "c007", "level": "face_census", "title_a": "Show Quality", "title_b": "Show Enjoyment", "is_duplicate": "yes"},
+        {"pair_id": "f018", "level": "planet_leak", "title_a": "Great Day", "title_b": "Glad Returns", "is_duplicate": "yes"},
+    ]
+    scored = [
+        _scored("planet", "Great Day", "Happy Sunday", near=False),
+        _scored("planet", "Good Day", "Hope For The Day", near=False),
+        _scored("planet", "AI Control", "AI bots", near=False),
+        _scored("face", "Show Quality", "Show Enjoyment", near=False),
+    ]
+    report = kind_recall(rows, scored)
+    by_label = {kind["label"]: kind for kind in report["kinds"]}
+    assert by_label["Greeting/chit-chat planets (#288)"]["flagged"] == 0
+    assert by_label["Greeting/chit-chat planets (#288)"]["total"] == 2
+    assert "greeting-title count" in by_label["Greeting/chit-chat planets (#288)"]["tracker"]
+    assert by_label["Same-story fragments (#287)"]["flagged"] == 0
+    assert by_label["Same-story fragments (#287)"]["total"] == 1
+    assert "under 20 posts" in by_label["Same-story fragments (#287)"]["tracker"]
+    assert by_label["Paraphrase faces (#286)"]["flagged"] == 0
+    assert by_label["Paraphrase faces (#286)"]["total"] == 1
+    assert "stance-agreement count" in by_label["Paraphrase faces (#286)"]["tracker"]
+    assert by_label["Other"]["total"] == 0
+    assert by_label["Other"]["tracker"] is None
+    rendered = "\n".join(render_kind_recall(report))
+    assert "0 of 2" in rendered
+    assert "0 of 1" in rendered
+    assert "greeting-title count" in rendered
+    assert "stance-agreement count" in rendered

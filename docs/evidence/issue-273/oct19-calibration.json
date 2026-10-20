@@ -289,5 +289,317 @@
         "B4": 0.074074
       }
     }
+  },
+  "kind_recall": {
+    "gate": "titles_alike or centroid cosine >= 0.90",
+    "kinds": [
+      {
+        "kind": "greeting",
+        "label": "Greeting/chit-chat planets (#288)",
+        "total": 11,
+        "flagged": 0,
+        "unmatched": 0,
+        "pairs": [
+          {
+            "pair_id": "p002",
+            "left_title": "Good Day",
+            "right_title": "Hope For The Day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.4166
+          },
+          {
+            "pair_id": "p007",
+            "left_title": "Good Day",
+            "right_title": "Great Time",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0819
+          },
+          {
+            "pair_id": "p010",
+            "left_title": "Great Day",
+            "right_title": "Happy Sunday",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3911
+          },
+          {
+            "pair_id": "p028",
+            "left_title": "Good Morning",
+            "right_title": "Happy Sunday",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.245
+          },
+          {
+            "pair_id": "p030",
+            "left_title": "Good Morning",
+            "right_title": "Hope For The Day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.4769
+          },
+          {
+            "pair_id": "p031",
+            "left_title": "Good Morning",
+            "right_title": "wonderful day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.6384
+          },
+          {
+            "pair_id": "p033",
+            "left_title": "Good Day",
+            "right_title": "Great Day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.4355
+          },
+          {
+            "pair_id": "p040",
+            "left_title": "Good Day",
+            "right_title": "wonderful day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3093
+          },
+          {
+            "pair_id": "p045",
+            "left_title": "Great Day",
+            "right_title": "wonderful day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.5081
+          },
+          {
+            "pair_id": "p049",
+            "left_title": "wonderful day",
+            "right_title": "Happy Sunday",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3101
+          },
+          {
+            "pair_id": "p051",
+            "left_title": "Hope For The Day",
+            "right_title": "Happy Sunday",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1514
+          }
+        ],
+        "near_zero": true,
+        "tracker": "The nightly check can't track this fix. A $0 greeting-title count can: published planets whose name is in this family."
+      },
+      {
+        "kind": "same_story",
+        "label": "Same-story fragments (#287)",
+        "total": 9,
+        "flagged": 1,
+        "unmatched": 0,
+        "pairs": [
+          {
+            "pair_id": "p009",
+            "left_title": "US Iran War",
+            "right_title": "US Unreliable",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0222
+          },
+          {
+            "pair_id": "p011",
+            "left_title": "AI Control",
+            "right_title": "AI Adoption",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0
+          },
+          {
+            "pair_id": "p015",
+            "left_title": "Billionaire Power",
+            "right_title": "Ultra Rich",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0533
+          },
+          {
+            "pair_id": "p019",
+            "left_title": "Thirty Thousand",
+            "right_title": "The Article",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0177
+          },
+          {
+            "pair_id": "p038",
+            "left_title": "Radical Professors",
+            "right_title": "College Republicans",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.2798
+          },
+          {
+            "pair_id": "p041",
+            "left_title": "AI Control",
+            "right_title": "AI bots",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0628
+          },
+          {
+            "pair_id": "p048",
+            "left_title": "US Ukraine War",
+            "right_title": "US Iran War",
+            "flagged": true,
+            "titles_alike": true,
+            "centroid_cosine": 0.1957
+          },
+          {
+            "pair_id": "p050",
+            "left_title": "Musk Accountability",
+            "right_title": "Trump Corruption",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1374
+          },
+          {
+            "pair_id": "p058",
+            "left_title": "Climate Crisis",
+            "right_title": "Fires",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0501
+          }
+        ],
+        "near_zero": true,
+        "tracker": "The nightly check can't track this fix. A $0 fragment count can: same-section planets under 20 posts, the size the attach gate will not use as a parent."
+      },
+      {
+        "kind": "paraphrase_face",
+        "label": "Paraphrase faces (#286)",
+        "total": 13,
+        "flagged": 0,
+        "unmatched": 0,
+        "pairs": [
+          {
+            "pair_id": "c001",
+            "left_title": "High Oil",
+            "right_title": "Oil Prices",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0991
+          },
+          {
+            "pair_id": "c003",
+            "left_title": "Thirty Thousand",
+            "right_title": "Debt Impact",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.098
+          },
+          {
+            "pair_id": "c006",
+            "left_title": "Hair Preferences",
+            "right_title": "Hair Remarks",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3702
+          },
+          {
+            "pair_id": "c007",
+            "left_title": "Show Quality",
+            "right_title": "Show Enjoyment",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.2912
+          },
+          {
+            "pair_id": "c008",
+            "left_title": "Stream Plans",
+            "right_title": "Burnout",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3392
+          },
+          {
+            "pair_id": "c011",
+            "left_title": "Voice Care",
+            "right_title": "Voice Acting",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3338
+          },
+          {
+            "pair_id": "c015",
+            "left_title": "School Medication",
+            "right_title": "School Medical Care",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1593
+          },
+          {
+            "pair_id": "c017",
+            "left_title": "ADHD Struggles",
+            "right_title": "ADHD Effects",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1512
+          },
+          {
+            "pair_id": "c018",
+            "left_title": "Asthma Fatal",
+            "right_title": "Asthma Ban",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1549
+          },
+          {
+            "pair_id": "c019",
+            "left_title": "Wrestling Appeal",
+            "right_title": "Wrestle Dream",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1126
+          },
+          {
+            "pair_id": "c023",
+            "left_title": "AI Art Rejected",
+            "right_title": "Bad Writing",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0925
+          },
+          {
+            "pair_id": "c024",
+            "left_title": "Account Suspensions",
+            "right_title": "Account Deletions",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3585
+          },
+          {
+            "pair_id": "c025",
+            "left_title": "Twitter Sucks",
+            "right_title": "Bluesky vs Twitter",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.4128
+          }
+        ],
+        "near_zero": true,
+        "tracker": "The nightly check can't track this fix. A $0 face stance-agreement count can: within-planet face pairs whose posts share a subject and do not disagree."
+      },
+      {
+        "kind": "other",
+        "label": "Other",
+        "total": 0,
+        "flagged": 0,
+        "unmatched": 0,
+        "pairs": [],
+        "near_zero": false,
+        "tracker": null
+      }
+    ]
   }
 }
