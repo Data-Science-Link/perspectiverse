@@ -599,8 +599,8 @@ def test_glued_stories_split_instead_of_dropping(capsys):
     """A candidate whose faces share no subject word becomes one planet per story."""
     posts, clustered = _glued_candidate(
         [
-            _story_blob("diesel", 24, seed=3),
-            _story_blob("measles", 20, seed=11),
+            _story_blob("diesel", 36, seed=3),
+            _story_blob("measles", 30, seed=11),
         ]
     )
     topics, membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=10)
@@ -631,8 +631,8 @@ def test_different_stories_stay_published_through_the_later_guard(capsys):
     """
     posts, clustered = _glued_candidate(
         [
-            _story_blob("diesel", 24, seed=3),
-            _story_blob("measles", 20, seed=11),
+            _story_blob("diesel", 36, seed=3),
+            _story_blob("measles", 30, seed=11),
         ]
     )
     topics, _membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=10)
@@ -657,9 +657,9 @@ def test_different_stories_stay_published_through_the_later_guard(capsys):
 def test_split_planets_stay_within_the_catalog(capsys):
     posts, clustered = _glued_candidate(
         [
-            _story_blob("diesel", 24, seed=3),
-            _story_blob("measles", 20, seed=11),
-            _story_blob("bitcoin", 18, seed=19),
+            _story_blob("diesel", 36, seed=3),
+            _story_blob("measles", 33, seed=11),
+            _story_blob("bitcoin", 30, seed=19),
         ]
     )
     topics, membership, _faces = live._build_topics(posts, clustered, SETTINGS, keep=2)
@@ -671,7 +671,7 @@ def test_split_planets_stay_within_the_catalog(capsys):
 
 
 def test_single_post_story_is_skipped_with_a_reason(capsys):
-    diesel_posts, diesel_matrix = _story_blob("diesel", 16, seed=4)
+    diesel_posts, diesel_matrix = _story_blob("diesel", 30, seed=4)
     lone = {
         "uri": "at://hurricane/0",
         "author": "hurricane.0",
@@ -773,7 +773,7 @@ def test_split_child_under_the_floor_is_excluded_without_label_calls(monkeypatch
     seen = _spy_labelers(monkeypatch)
     members, clustered, topic, drafted = _drafted_stories(
         [
-            _story_blob("diesel", 16, seed=4),
+            _story_blob("diesel", 30, seed=4),
             _story_blob("measles", 3, seed=9),
         ]
     )
@@ -793,11 +793,12 @@ def test_split_child_under_the_floor_is_excluded_without_label_calls(monkeypatch
 
 
 def test_split_child_at_the_floor_is_kept(monkeypatch):
+    """A split piece with exactly min_planet_posts posts is published."""
     seen = _spy_labelers(monkeypatch)
     members, clustered, topic, drafted = _drafted_stories(
         [
-            _story_blob("diesel", 16, seed=4),
-            _story_blob("measles", 8, seed=9),
+            _story_blob("diesel", 30, seed=4),
+            _story_blob("measles", 30, seed=9),
         ]
     )
     handled, result, log = live._split_different_stories(
@@ -814,11 +815,43 @@ def test_split_child_at_the_floor_is_kept(monkeypatch):
     assert not any(line.startswith("INFO ") for line in log)
 
 
+def test_split_child_one_under_the_floor_is_excluded(monkeypatch):
+    seen = _spy_labelers(monkeypatch)
+    members, clustered, topic, drafted = _drafted_stories(
+        [
+            _story_blob("diesel", 30, seed=4),
+            _story_blob("measles", 29, seed=9),
+        ]
+    )
+    context = live._label_context(SETTINGS)
+    context["section"] = "Health"
+    handled, result, log = live._split_different_stories(
+        members, clustered, topic, context, members, drafted, []
+    )
+    assert handled is True
+    assert result is not None
+    assert len(result["planets"]) == 1
+    assert "diesel" in result["planets"][0]["planet"]["name"].lower()
+    assert result["floor_excluded"] == 1
+    assert any(line.startswith("INFO Health:") and "29 posts" in line for line in log)
+    assert all("measles" not in blob for _name, blob in seen)
+
+
+def test_floor_publishes_a_count_equal_to_the_minimum():
+    """The check is ``count >= floor``. 0 disables it."""
+    context = live._label_context(SETTINGS)
+    assert context["min_planet_posts"] == 30
+    assert live._below_planet_floor(29, context) is True
+    assert live._below_planet_floor(30, context) is False
+    assert live._below_planet_floor(31, context) is False
+    assert live._below_planet_floor(0, {"min_planet_posts": 0}) is False
+
+
 def test_min_planet_posts_override_excludes_a_child_the_default_keeps(monkeypatch):
     members, clustered, topic, drafted = _drafted_stories(
         [
-            _story_blob("diesel", 16, seed=4),
-            _story_blob("measles", 8, seed=9),
+            _story_blob("diesel", 40, seed=4),
+            _story_blob("measles", 30, seed=9),
         ]
     )
     default_handled, default_result, _default_log = live._split_different_stories(
@@ -828,7 +861,7 @@ def test_min_planet_posts_override_excludes_a_child_the_default_keeps(monkeypatc
     assert len(default_result["planets"]) == 2
 
     seen = _spy_labelers(monkeypatch)
-    overridden = live._label_context({**SETTINGS, "min_planet_posts": 10})
+    overridden = live._label_context({**SETTINGS, "min_planet_posts": 31})
     overridden["section"] = "Health"
     handled, result, log = live._split_different_stories(
         members, clustered, topic, overridden, members, drafted, []
@@ -838,7 +871,7 @@ def test_min_planet_posts_override_excludes_a_child_the_default_keeps(monkeypatc
     assert len(result["planets"]) == 1
     assert "measles" not in result["planets"][0]["planet"]["name"].lower()
     assert result["floor_excluded"] == 1
-    assert any(line.startswith("INFO Health:") and "8 posts" in line for line in log)
+    assert any(line.startswith("INFO Health:") and "30 posts" in line for line in log)
     assert all("measles" not in blob for _name, blob in seen)
 
 
@@ -874,9 +907,9 @@ def test_planet_that_shrinks_below_the_floor_is_not_named(monkeypatch, capsys):
         return {"name": "Nope", "label_source": "heuristic"}
 
     monkeypatch.setattr(live, "label_topic", fake_name)
-    posts, matrix = _story_blob("diesel", 12, seed=3)
+    posts, matrix = _story_blob("diesel", 30, seed=3)
     clustered = {
-        "topics": [{"id": 0, "size": 12, "member_indices": list(range(12)), "terms": ["diesel"]}],
+        "topics": [{"id": 0, "size": 30, "member_indices": list(range(30)), "terms": ["diesel"]}],
         "matrix": matrix,
         "assignments": [],
         "noise_count": 0,
@@ -892,12 +925,12 @@ def test_planet_that_shrinks_below_the_floor_is_not_named(monkeypatch, capsys):
 def test_whole_planet_under_the_floor_is_not_labeled_or_used_as_filler(monkeypatch, capsys):
     seen = _spy_labelers(monkeypatch)
     small_posts, small_matrix = _story_blob("measles", 4, seed=2)
-    big_posts, big_matrix = _story_blob("diesel", 16, seed=6)
+    big_posts, big_matrix = _story_blob("diesel", 30, seed=6)
     posts = small_posts + big_posts
     clustered = {
         "topics": [
             {"id": 0, "size": 4, "member_indices": [0, 1, 2, 3], "terms": ["measles"]},
-            {"id": 1, "size": 16, "member_indices": list(range(4, 20)), "terms": ["diesel"]},
+            {"id": 1, "size": 30, "member_indices": list(range(4, 34)), "terms": ["diesel"]},
         ],
         "matrix": np.vstack([small_matrix, big_matrix]),
         "assignments": [],

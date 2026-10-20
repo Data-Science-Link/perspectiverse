@@ -23,10 +23,10 @@ from pipeline.cluster_math import (
 MIN_FACE_POSTS = 2
 MIN_FACE_SHARE = 0.05
 # One floor for every published planet, including a story split out of a
-# glued candidate. 8 is the recommendation from the 2026-10-19 edition
-# replay; Michael confirms the number. Overridable via settings
+# glued candidate. A planet with exactly this many posts is published.
+# Michael set 30 on 2026-10-20. Overridable via settings
 # ``min_planet_posts`` and PERSPECTIVERSE_MIN_PLANET_POSTS.
-MIN_PLANET_POSTS = 8
+MIN_PLANET_POSTS = 30
 
 
 def l2_rows(matrix: np.ndarray) -> np.ndarray:

@@ -703,3 +703,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Alternatives:** Keep the fixed composer-to-grok-4.7 step (rejected as the binary Michael warned against).
 **Revisit:** With the routing table itself.
 **Supersedes:** 2026-10-20 "A failed agent review counts as a failed attempt for model escalation", wording only.
+
+### 2026-10-20 — Published planets need 30 posts
+- **Decision:** `MIN_PLANET_POSTS` is 30. A planet with exactly 30 posts is published. The same floor applies to a story split out of a glued candidate: a piece under 30 is left out. This supersedes the five-post floor from #79 for every published planet. `min_planet_posts` and `PERSPECTIVERSE_MIN_PLANET_POSTS` still override the constant. The generic thin-fragment hold (`_THIN_FRAGMENT_POSTS = 8`) is unchanged.
+- **Decided by:** Michael (Factory room, 2026-10-20 8:14 AM CT): "Let's make the floor 30 posts".
+- **Why:** Floors of 5, 8, 10, 15, and 20 were replayed on the Oct 19 edition. Michael chose 30 after that table.
+- **Alternatives:** Keep 5 (#79). Ship the replay recommendation of 8. Use 10, 15, or 20.
+- **Revisit when:** Michael decides whether a planet that clears 30 as a whole, but whose split pieces are each under 30, should stay one planet. That behavior is unchanged in this decision.
