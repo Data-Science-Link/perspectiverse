@@ -678,3 +678,21 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Michael (Factory, 3:07 PM CT): "PLEASE do not build either. They are just big initiatives for the future after refining the sites core functionality... I want to wait until we get everything else polished and really nice."
 - **Alternatives:** Build the email list or chat now. Rejected because core polish comes first.
 - **Revisit:** Only when Michael says the core site is polished and gives an explicit go for a specific build.
+
+### 2026-10-18: Each solar view shows only its 10 largest planets
+**Decision:** Whichever solar system or topic a visitor selects, including "All topics", the view shows the 10 largest planets. The edition may hold more, and that's expected. This applies to desktop and phone, and the phone linear grid only needs to fit those 10.
+**Why:** Michael (Factory room, 8:27 PM CT) said this is the intended behavior.
+**Alternatives:** Show every planet with vertical scrolling on phones (#249, declined).
+**Revisit:** If Michael asks for a way to reach planets past the top 10.
+
+### 2026-10-20: Search for an existing issue before filing a scheduled-run failure
+**Decision:** Before the daily check files a bug for a failed scheduled run, it searches open issues for the same failure (error message, failing step or run). If one matches, it comments on that issue with the new run instead of opening a new one.
+**Why:** On Oct 19 the morning Politics 93.1% failure was filed twice (#257 and #258). That split the evidence and forced a duplicate close. Michael (Factory room, 2026-10-20 5:43 AM CT): "For #2 I am good with that proposed rule".
+**Alternatives:** Keep filing per run and close duplicates later (rejected because it creates noise and splits evidence). Have a human dedupe (rejected because it adds a human step for mechanical work).
+**Revisit:** If a real new failure ever gets folded into an old issue by mistake, or if the search misses a duplicate again.
+
+### 2026-10-20: A failed agent review counts as a failed attempt for model escalation
+**Decision:** When an agent review FAILs a build, that counts as one failed attempt under `MODEL_ROUTING.md`. A `composer-2.5` build that fails review once gets its rework on `grok-4.7` instead of more rounds on the same model.
+**Why:** #260 took 6 review rounds on `composer-2.5` (Oct 19) while the table already said to escalate after one failed attempt. Michael (Factory room, 2026-10-20 5:48 AM CT): "moving off basic model after failed attempt sounds good".
+**Alternatives:** Count only crashed or abandoned runs as failed attempts (the reading that let #260 loop). Leave it to the Manager's judgment (rejected because it didn't happen).
+**Revisit:** If grok-4.7 reworks start costing noticeably more without fewer review rounds.
