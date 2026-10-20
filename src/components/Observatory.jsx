@@ -310,7 +310,7 @@ function FocusCamera({
     if (!position) return
 
     if (lastId.current === null) {
-      stashSolarView(controls, layoutKey)
+      stashSolarView(controls, layoutKey, limits)
     }
 
     const distance = cameraOffsetForScale(topicScale(selectedTopic.total_volume_percent, volumeMax))
@@ -357,11 +357,11 @@ function Universe({
   const handleSelectTopic = useCallback(
     (topicId) => {
       if (selectedTopicId == null) {
-        stashSolarView(controlsRef.current, layoutKey)
+        stashSolarView(controlsRef.current, layoutKey, limits)
       }
       onSelectTopic(topicId)
     },
-    [onSelectTopic, selectedTopicId, layoutKey],
+    [onSelectTopic, selectedTopicId, layoutKey, limits],
   )
 
   useEffect(() => {
