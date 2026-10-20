@@ -59,7 +59,7 @@ Applying the 30-post floor (#266) or `planet_chitchat_reason` on representative 
 
 On this file the floor alone drops 53 planets and 548 published posts (sum of `post_count`; a post in global and a section counts twice). #264 on representative posts drops 6 planets: global Good Morning 383, and Other Good Morning 22, Great Day 16, Hope For The Day 14, wonderful day 8, Happy Sunday 6. #235 exact-title fold finds 0 duplicate face titles on Oct 19. #268's stance replay, on representative posts, folds 11 multi-face planets and leaves 14, including The Show at cosine 0.849.
 
-#266 is on `main` now (`MIN_PLANET_POSTS = 30`, merge `ce1564a`). Oct 19 was produced with the floor at 5. The numbers above are the published edition with that floor held off.
+`main` has since taken both guards. #266 set `MIN_PLANET_POSTS = 30` (`ce1564a`). #268 folded same-subject faces that do not disagree (`21736d1`): `apply_stance_pass` in `_draft_planet` runs `apply_local_stance_gate` on the model-label path, and skips that gate when the backend is heuristic. Oct 19 was produced with the floor at 5 and without that gate. The headlines above are the published edition with both guards held off. The #268 numbers in this spec are `gate_published_perspectives` on representative posts, the local gate by itself, with no model call.
 
 ## Where the duplicates are made
 
@@ -98,7 +98,7 @@ Other greeting planets (Good Day, Good Morning, Great Day, Hope For The Day, won
 | Technology | Account Security | Account Suspensions / Account Deletions | 60 / 33 | 0.824 |
 | Environment | Cold Weather | Weather Changes / Weather Reports | 72 / 61 | 0.818 |
 
-The Show's posts are generic television chatter ("dropped the show", "enjoy the new series"), not two takes on one named show. A #268 replay on representative posts folds Good Morning, Twitch, Account Security, and Cold Weather, and does not fold The Show. It also folds Twitter Exodus (0.732), AEW WrestleDream (0.734), Hair Preferences (0.773), Voice Training (0.782 and 0.760; three faces become one), ADHD Struggles (0.798), and School Surgeries (0.757). It keeps US Iran War (0.756), Brewers Dodgers, French Protests (0.732), and the other disagreed planets listed in the replay. Adopting #268 as a finalize gate leaves The Show in place. The cut is made earlier, in `split_perspectives`, before a title exists.
+The Show's posts are generic television chatter ("dropped the show", "enjoy the new series"), not two takes on one named show. The local gate on representative posts folds Good Morning, Twitch, Account Security, and Cold Weather, and does not fold The Show. It also folds Twitter Exodus (0.732), AEW WrestleDream (0.734), Hair Preferences (0.773), Voice Training (0.782 and 0.760; three faces become one), ADHD Struggles (0.798), and School Surgeries (0.757). It keeps US Iran War (0.756), Brewers Dodgers, French Protests (0.732), and the other disagreed planets listed in the replay. The gate now on main still leaves The Show in place. The cut is made earlier, in `split_perspectives`, before a title exists.
 
 Two global planets show a collapsed title with a leftover cut. Video Game Enjoyment is one published face (353 posts) with `face_distinctness` 0.135; the corpus stored faces of 253 and 100 at centroid cosine 0.865. No Kings is one published face (345) with distinctness 0.344; the corpus stored 260 and 85 at cosine 0.656. Distinctness is `1 − max face-centroid cosine` (`live.py` `_face_distinctness`), including a cut that labeling then collapsed to one title.
 
