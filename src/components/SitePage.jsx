@@ -20,7 +20,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Is this a poll of everyone?',
-    a: 'No. It is a sample of public English posts — usually Bluesky — from the last week. Internet talk is not humanity.',
+    a: 'No. It is a sample of public English posts on Bluesky from the last week. Internet talk is not humanity.',
   },
   {
     q: 'What does planet size mean?',
@@ -44,7 +44,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Where does the data come from?',
-    a: 'Today: English Bluesky posts from the last week, after spam and quality filters. We hope to add broader inputs later.',
+    a: 'Today: English Bluesky posts from the last week, after spam, chit-chat, and other ingest filters. We hope to add broader inputs later.',
   },
   {
     q: 'How do I get in touch?',
@@ -183,13 +183,14 @@ function MethodologyPage() {
       </section>
 
       <section>
-        <h2>Jev filters</h2>
+        <h2>Ingest guards and Jev</h2>
         <p>
-          When configured, Jev scores each post for spam, whether it makes a public claim worth mapping,
-          and a newspaper-style section (World, Politics, Business, and the rest). High-confidence spam
-          drops out. Sections help the topic filter match how editors bucket news — see{' '}
-          <code>pipeline/jev.py</code> and the README. Without an API key, regex cleaning and keyword
-          sections still run.
+          The daily job uses free local guards at ingest: spam, chit-chat, and (by default) link-only and
+          non-English posts. Up to 100,000 of what remains fills the rolling seven-day window. When
+          configured, Jev runs once per candidate planet to pick a newspaper-style section (World,
+          Politics, Business, and the rest); member posts inherit it. The scheduled path does not score
+          every post for spam or claims. Sections help the topic filter match how editors bucket news —
+          see <code>pipeline/jev.py</code> and the README. Without an API key, keyword sections still run.
         </p>
       </section>
 

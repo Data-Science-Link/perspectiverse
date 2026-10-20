@@ -684,3 +684,22 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Why:** Michael (Factory room, 8:27 PM CT) said this is the intended behavior.
 **Alternatives:** Show every planet with vertical scrolling on phones (#249, declined).
 **Revisit:** If Michael asks for a way to reach planets past the top 10.
+
+### 2026-10-20: Search for an existing issue before filing a scheduled-run failure
+**Decision:** Before the daily check files a bug for a failed scheduled run, it searches open issues for the same failure (error message, failing step or run). If one matches, it comments on that issue with the new run instead of opening a new one.
+**Why:** On Oct 19 the morning Politics 93.1% failure was filed twice (#257 and #258). That split the evidence and forced a duplicate close. Michael (Factory room, 2026-10-20 5:43 AM CT): "For #2 I am good with that proposed rule".
+**Alternatives:** Keep filing per run and close duplicates later (rejected because it creates noise and splits evidence). Have a human dedupe (rejected because it adds a human step for mechanical work).
+**Revisit:** If a real new failure ever gets folded into an old issue by mistake, or if the search misses a duplicate again.
+
+### 2026-10-20: A failed agent review counts as a failed attempt for model escalation
+**Decision:** When an agent review FAILs a build, that counts as one failed attempt under `MODEL_ROUTING.md`. A `composer-2.5` build that fails review once gets its rework on `grok-4.7` instead of more rounds on the same model.
+**Why:** #260 took 6 review rounds on `composer-2.5` (Oct 19) while the table already said to escalate after one failed attempt. Michael (Factory room, 2026-10-20 5:48 AM CT): "moving off basic model after failed attempt sounds good".
+**Alternatives:** Count only crashed or abandoned runs as failed attempts (the reading that let #260 loop). Leave it to the Manager's judgment (rejected because it didn't happen).
+**Revisit:** If grok-4.7 reworks start costing noticeably more without fewer review rounds.
+
+### 2026-10-20: Escalation after a failed review follows the routing table (supersedes the same-day entry above)
+**Decision:** A failed agent review still counts as a failed attempt. The next round moves one step up `MODEL_ROUTING.md` for the task's complexity and type of work. `grok-4.7` is one allowed step, not the default, and the third-party rule is unchanged.
+**Why:** Michael (Factory room, 2026-10-20 6:03 AM CT): "Make sure to use the factory rules routing table for models depending on task complexity. Definitely feel free to escalate to grok 4.7 but don't just make the whole routing a binary between composer and 4.7." The earlier wording ("the rework moves to grok-4.7") read as that binary.
+**Alternatives:** Keep the fixed composer-to-grok-4.7 step (rejected as the binary Michael warned against).
+**Revisit:** With the routing table itself.
+**Supersedes:** 2026-10-20 "A failed agent review counts as a failed attempt for model escalation", wording only.
