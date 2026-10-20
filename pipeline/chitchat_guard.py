@@ -831,8 +831,443 @@ def _get_well(plain: str) -> bool:
     return True
 
 
+_EVERY_MORNING_PLATITUDE_RE = re.compile(
+    r"\bevery\s+morning\s+is\s+a\s+good\s+morning\b",
+    re.IGNORECASE,
+)
+_LEADING_HAIL_RE = re.compile(
+    r"^(?:hiya|hey|hello|hi)\s+[a-z]{2,}\s+"
+    r"(?=good\s+(?:morning|afternoon|evening|night)|goodmorning|goodnight|morning\b)",
+    re.IGNORECASE,
+)
+_DAYPART_OPEN_RE = re.compile(
+    r"^good\s+(?:morning|afternoon|evening|night)\b|"
+    r"^goodmorning\b|"
+    r"^goodnight\b|"
+    r"^(?:gm|gn)\b",
+    re.IGNORECASE,
+)
+_MORNING_ONLY_OPEN_RE = re.compile(r"^morning\b", re.IGNORECASE)
+_MORNING_NAME_OPEN_RE = re.compile(
+    r"^morning\s+([a-z]{2,})(.*)$",
+    re.IGNORECASE,
+)
+_GOOD_MORNING_TOPIC_TAIL = frozenset(
+    {
+        "america",
+        "world",
+        "news",
+        "run",
+        "routine",
+    }
+)
+_MORNING_FALSE_SECOND = frozenset(
+    {
+        "after",
+        "commute",
+        "joe",
+        "show",
+        "news",
+        "run",
+        "routine",
+        "america",
+        "game",
+        "the",
+        "pill",
+    }
+)
+_GREETING_VOCATIVE = frozenset(
+    {
+        "everyone",
+        "everybody",
+        "all",
+        "folks",
+        "friends",
+        "friend",
+        "world",
+        "yall",
+        "beautiful",
+        "gorgeous",
+        "lovely",
+        "dear",
+        "buddy",
+    }
+)
+_GREETING_PLEASANTRY_RE = re.compile(
+    r"\b(?:"
+    r"to you(?:\s+too)?|to ya|"
+    r"make it a good day|have a (?:good|great|magnificent|wonderful|nice|relaxing|lazy) day|"
+    r"how are you|hope you|i hope you|wishing you|"
+    r"have a great day|happy (?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)|"
+    r"thats the spirit|that s the spirit|"
+    r"xx|xxx|chaggiful"
+    r")\b",
+    re.IGNORECASE,
+)
+_GREETING_SIGNOFF_TAIL_RE = re.compile(
+    r"\bhave a good (?:evening|night|afternoon|day)\s*\.?\s*$",
+    re.IGNORECASE,
+)
+_GREETING_TOPIC_VERB = frozenset(
+    {
+        "said",
+        "won",
+        "held",
+        "resigned",
+        "stalled",
+        "expands",
+        "ban",
+        "loved",
+        "opens",
+        "interview",
+        "matter",
+        "access",
+        "brutal",
+        "runs",
+        "run",
+        "talks",
+    }
+)
+_GREETING_TAIL_PLEASANTRY_TOKENS = frozenset(
+    {
+        "sleep",
+        "sleeps",
+        "slept",
+        "sleeping",
+        "dream",
+        "dreams",
+        "well",
+        "warm",
+        "warmer",
+        "stay",
+        "safe",
+        "cozy",
+        "coffee",
+        "tea",
+        "vibes",
+        "easy",
+        "kind",
+        "rest",
+        "blessed",
+        "sweet",
+        "today",
+        "tonight",
+        "dear",
+        "folks",
+        "friends",
+        "friend",
+        "everyone",
+        "all",
+        "peaceful",
+        "magnificent",
+        "relaxing",
+        "lazy",
+        "chilly",
+        "sinful",
+        "awesome",
+        "pray",
+        "prays",
+        "hoping",
+        "hope",
+        "hopes",
+        "cold",
+        "feeling",
+        "brings",
+        "thoroughly",
+        "though",
+        "doing",
+        "missed",
+        "animal",
+        "silly",
+        "people",
+        "phone",
+        "travels",
+        "ya",
+        "greeting",
+        "feed",
+        "stuff",
+        "smiles",
+    }
+)
+_GREETING_NEVER_NAME = frozenset(
+    {
+        "storm",
+        "warning",
+        "sale",
+        "downtown",
+        "hearing",
+        "eclipse",
+        "parade",
+        "merger",
+        "launch",
+        "prices",
+        "train",
+        "bakery",
+        "bridge",
+        "aurora",
+        "recital",
+        "ferry",
+        "comet",
+        "choir",
+        "wifi",
+        "tariffs",
+        "vaccine",
+        "landlord",
+        "indictment",
+        "protest",
+        "senator",
+        "congress",
+        "ukraine",
+        "strike",
+        "hurricane",
+        "bill",
+        "passes",
+        "outside",
+        "frost",
+        "fall",
+        "start",
+        "started",
+        "nicely",
+        "legs",
+        "blast",
+        "wait",
+        "update",
+        "feed",
+        "stuff",
+        "smiles",
+        "lord",
+        "forward",
+        "blessings",
+        "help",
+        "phone",
+        "ever",
+        "harvest",
+        "futures",
+        "orders",
+        "money",
+        "oceans",
+        "stops",
+        "potato",
+        "warmer",
+        "wifi",
+        "fi",
+        "wi",
+    }
+)
+_GREETING_SUBSTANCE_ALLOWLIST = frozenset(
+    _GREETING_TAIL_PLEASANTRY_TOKENS
+    | _GREETING_VOCATIVE
+    | {
+        "kinmo",
+        "baron",
+        "richard",
+        "susan",
+        "thakman",
+        "jim",
+        "chaggiful",
+        "pippy",
+        "allie",
+        "amanda",
+        "marcie",
+        "buddy",
+        "kelly",
+        "jamie",
+        "lynn",
+        "stella",
+        "ray",
+        "darren",
+        "gillian",
+        "hiya",
+        "bluesky",
+        "butterflies",
+        "matches",
+        "sunshine",
+        "sun",
+        "mornin",
+        "autumn",
+    }
+)
+_DIRECTED_HOPE_RE = re.compile(
+    r"\bi hope (?:you|this day|your day|everyone|your)\b",
+    re.IGNORECASE,
+)
+_GREETING_HARD_TOPIC_RE = re.compile(
+    r"\b(?:"
+    r"won|held|resigned|stalled|said|interview|ban|expands|access|brutal|"
+    r"lakers|yankees|fed|museum|marathon|rally|pill|coach|exhibit|talks|"
+    r"protect\s+trans|black\s+lives\s+matter|free\s+palestine|"
+    r"see you at the rally"
+    r")\b",
+    re.IGNORECASE,
+)
+_GREETING_WIPE_RE = re.compile(
+    r"\b(?:"
+    r"good\s+morning|goodmorning|good\s+(?:afternoon|evening|night)|goodnight|"
+    r"gm|gn|morning|afternoon|evening|night|"
+    r"to you(?:\s+too)?|to ya|from|dear|"
+    r"everyone|everybody|all|folks|friends|friend|world|yall|"
+    r"make it a good day|have a (?:good|great|magnificent|wonderful|nice|relaxing|lazy) day|"
+    r"how are you|hope you|i hope you|wishing you|have a great day|"
+    r"happy (?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)|"
+    r"thats the spirit|that s the spirit|"
+    r"beautiful|wonderful|lovely|gorgeous|great|nice|happy|the|a|my|"
+    r"xx|xxx|chaggiful|kinmo|cat|kinmo the cat"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _greeting_remainder_tokens(remainder: str) -> list[str]:
+    text = _GREETING_PLEASANTRY_RE.sub(" ", remainder or "")
+    text = re.sub(r"[^\w\s]", " ", text)
+    return [t for t in text.split() if t]
+
+
+def _greeting_remainder_substance(remainder: str) -> list[str]:
+    return _substance(" ".join(_greeting_remainder_tokens(remainder)))
+
+
+def _greeting_tail_has_pleasantry_or_wish(remainder: str) -> bool:
+    """True when the tail is more than a bare addressee (unknown or known)."""
+    text = (remainder or "").strip().lower()
+    if not text:
+        return False
+    if _GREETING_PLEASANTRY_RE.search(text):
+        return True
+    if _DIRECTED_HOPE_RE.search(text):
+        return True
+    if re.search(
+        r"\b(?:"
+        r"sleep well|sweet dreams|peaceful vibes|stay warm|coffee is on|"
+        r"make it a good day|how are you|enjoy your coffee|have a great day"
+        r")\b",
+        text,
+        re.I,
+    ):
+        return True
+    wiped = _greeting_remainder_tokens(text)
+    subs = _substance(" ".join(wiped))
+    return any(token in _GREETING_TAIL_PLEASANTRY_TOKENS for token in subs)
+
+
+def _greeting_tail_only_allowlisted_content(remainder: str) -> bool:
+    """True when every substantive tail token is in the closed greeting allowlist."""
+    if not (remainder or "").strip():
+        return True
+    text = (remainder or "").strip().lower()
+    if _news(text) or _work_topic(text):
+        return False
+    raw_tokens = [token for token in re.sub(r"[^\w\s]", " ", text).split() if token]
+    if raw_tokens and all(token in _GREETING_NEVER_NAME for token in raw_tokens):
+        return False
+    if re.search(r"\bi hope\b", text) and not _DIRECTED_HOPE_RE.search(text):
+        return False
+    if _GREETING_HARD_TOPIC_RE.search(text):
+        return False
+    if re.search(r":\s*\S", text):
+        return False
+    if re.search(r"\bmy friend\s+the\b", text):
+        return False
+    tokens = _greeting_remainder_tokens(text)
+    if any(token in _GREETING_TOPIC_VERB for token in tokens):
+        return False
+    subs = _greeting_remainder_substance(text)
+    if not subs:
+        return True
+    unknown = [token for token in subs if token not in _GREETING_SUBSTANCE_ALLOWLIST]
+    if not unknown:
+        return True
+    name_tokens = [
+        token
+        for token in unknown
+        if token.isalpha()
+        and 2 <= len(token) <= 14
+        and token not in _GREETING_NEVER_NAME
+    ]
+    hard = [token for token in unknown if token not in name_tokens]
+    if hard:
+        return False
+    if not name_tokens:
+        return True
+    if len(name_tokens) > 1:
+        return False
+    return _greeting_tail_has_pleasantry_or_wish(text)
+
+
+def _greeting_remainder_is_topic(remainder: str) -> bool:
+    return not _greeting_tail_only_allowlisted_content(remainder)
+
+
+def _morning_name_greeting_tail(rest: str) -> bool:
+    rest = (rest or "").strip()
+    if rest.startswith(","):
+        rest = rest[1:].strip()
+    return _greeting_tail_only_allowlisted_content(rest)
+
+
+def _greeting_wish_body(plain: str) -> bool:
+    text = plain or ""
+    if _news(text) or _work_topic(text):
+        return False
+    if _EVERY_MORNING_PLATITUDE_RE.search(text) and _word_count(text) <= 40:
+        tail = _EVERY_MORNING_PLATITUDE_RE.sub(" ", text).strip()
+        return not _greeting_remainder_is_topic(tail)
+
+    if _GREETING_SIGNOFF_TAIL_RE.search(text):
+        before = text[: _GREETING_SIGNOFF_TAIL_RE.search(text).start()].strip()
+        if before and (_word_count(before) > 6 or len(_substance(before)) >= 2):
+            return False
+
+    text = _LEADING_HAIL_RE.sub("", text).strip()
+    if not text:
+        return False
+
+    if re.search(r"\bgood\s+night\s+at\s+the\b", text):
+        return False
+    if re.match(r"^a\s+good\s+morning\b", text):
+        return False
+
+    if not _DAYPART_OPEN_RE.match(text) and not _MORNING_ONLY_OPEN_RE.match(text):
+        lead = re.search(r"\bgood\s+(?:morning|afternoon|evening|night)\b", text)
+        if lead and lead.start() <= 10 and _word_count(text[: lead.start()]) <= 2:
+            text = text[lead.start() :].strip()
+
+    remainder = ""
+    if _DAYPART_OPEN_RE.match(text):
+        m = re.match(
+            r"^(?:good\s+(?:morning|afternoon|evening|night)|goodmorning|goodnight|gm|gn)\s*"
+            r"(?:[!.,:]\s*)?(.*)$",
+            text,
+            flags=re.I,
+        )
+        if not m:
+            return False
+        remainder = (m.group(1) or "").strip()
+        head = text[: m.start(1)].lower()
+        if "good morning" in head or "goodmorning" in head.replace(" ", ""):
+            first = remainder.split(None, 1)[0] if remainder else ""
+            if first in _GOOD_MORNING_TOPIC_TAIL:
+                return False
+    elif _MORNING_ONLY_OPEN_RE.match(text):
+        m = re.match(r"^morning\s*(?:[!.,]\s*)?(.*)$", text, flags=re.I)
+        remainder = (m.group(1) or "").strip() if m else ""
+        if not remainder:
+            return _word_count(text) <= 4
+        mname = _MORNING_NAME_OPEN_RE.match(text)
+        if not mname:
+            return False
+        second = mname.group(1).lower()
+        if second in _MORNING_FALSE_SECOND:
+            return False
+        return _morning_name_greeting_tail(mname.group(2) or "")
+    else:
+        return False
+
+    return _greeting_tail_only_allowlisted_content(remainder)
+
+
 def _greeting(plain: str) -> bool:
-    return plain in {
+    exact = {
         "gm",
         "gn",
         "hello",
@@ -843,7 +1278,15 @@ def _greeting(plain: str) -> bool:
         "good night",
         "good evening",
         "good afternoon",
+        "morning",
     }
+    if plain in exact:
+        return True
+    if _news(plain) or _work_topic(plain):
+        return False
+    if _word_count(plain) > 60:
+        return False
+    return _greeting_wish_body(plain)
 
 
 def pleasantry_reason(post: dict) -> str | None:
