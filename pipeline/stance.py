@@ -1081,6 +1081,15 @@ _ENDORSE_CUES = frozenset(
     protecting boost effective favor favour endorse endorsed
     """.split()
 )
+# Verbs someone else can perform. "Trump is supporting Putin" is his act.
+# "Israel deserves support" is the speaker's evaluation, so deserve/worth/effective
+# stay even when a name sits in front of them.
+_ENDORSE_ACTION_CUES = frozenset(
+    """
+    support supports supported supporting defend defends defending
+    endorse endorsed favor favour
+    """.split()
+)
 _NEGATION_CUES = frozenset(
     "not no never nor neither without cannot dont doesnt didnt cant wont".split()
 )
@@ -1174,28 +1183,188 @@ def _title_stems(title: str) -> set[str]:
     return stems
 
 
+# A cue verb owned by someone else is not the speaker's stance. "Trump is
+# supporting Putin" accuses Trump; it does not endorse Putin. Quoted speech
+# ("Israel condemns violence") is the same mistake.
+_SPEAKER_SUBJECTS = frozenset("i we our my us me i'm im ive we've".split())
+_ATTRIBUTED_SUBJECTS = frozenset(
+    """
+    he she they him her his their them
+    trump putin musk israel netanyahu biden hamas tfg zelensky zelenskyy
+    """.split()
+)
+_REPORT_VERBS = frozenset(
+    "say says said saying claim claims claimed claiming write writes wrote according quote quoted".split()
+)
+
+
+def _span_inside_quotes(text: str, start: int) -> bool:
+    before = text[:start]
+    if before.count('"') % 2 == 1:
+        return True
+    return before.count("“") + before.count("«") > before.count("”") + before.count("»")
+
+
+def _cue_is_attributed(
+    text: str,
+    tokens: list[str],
+    spans: list[tuple[int, int]],
+    index: int,
+    *,
+    endorse: bool,
+    action: bool,
+) -> bool:
+    """True when this cue is not the speaker's side.
+
+    A quotation is never the speaker. A report verb attributes the cue unless
+    the speaker is the one reporting ("I say this is wrong"). An endorse
+    action ("supporting", "defends") is someone else's act when the nearest
+    subject in the window is not the speaker, as in "Trump is supporting
+    Putin". An evaluation ("deserves", "worth", "effective") stays the
+    speaker's. A condemn cue next to a name stays too: "Putin ... to kill"
+    is the speaker accusing him.
+    """
+    if index < len(spans) and _span_inside_quotes(text, spans[index][0]):
+        return True
+    window = tokens[max(0, index - 12) : index]
+    speaker_at = None
+    other_at = None
+    report_at = None
+    for offset, token in enumerate(window):
+        if token in _SPEAKER_SUBJECTS:
+            speaker_at = offset
+        elif token in _ATTRIBUTED_SUBJECTS:
+            other_at = offset
+        elif token in _REPORT_VERBS:
+            report_at = offset
+    if report_at is not None:
+        speaker_reports = (
+            speaker_at is not None
+            and speaker_at < report_at
+            and (other_at is None or other_at < speaker_at)
+        )
+        if not speaker_reports and (speaker_at is None or report_at > speaker_at):
+            return True
+    if (
+        endorse
+        and action
+        and other_at is not None
+        and (speaker_at is None or other_at > speaker_at)
+    ):
+        return True
+    return False
+
+
 def _cue_pole(text: str) -> int:
-    """-1 condemn, +1 endorse, 0 when the cues do not pick a side."""
-    tokens = _lex_tokens(text)
+    """-1 condemn, +1 endorse, 0 when the cues do not pick a side.
+
+    An endorse cue attributed to someone else, or any cue inside a quotation
+    or under someone else's report verb, is not the speaker's side.
+    "Supporting Putin" in an accusation of Trump does not endorse Putin.
+    """
+    raw = text or ""
+    tokens = _lex_tokens(raw)
+    spans = [match.span() for match in _WORD_RE.finditer(raw.lower())]
     condemn = 0
     endorse = 0
     for index, token in enumerate(tokens):
-        negated = any(word in _NEGATION_CUES for word in tokens[max(0, index - 3) : index])
+        kind = None
         if token in _CONDEMN_CUES:
-            if negated:
-                endorse += 1
-            else:
-                condemn += 1
+            kind = "condemn"
         elif token in _ENDORSE_CUES:
+            kind = "endorse"
+        if kind is None:
+            continue
+        if _cue_is_attributed(
+            raw,
+            tokens,
+            spans,
+            index,
+            endorse=kind == "endorse",
+            action=token in _ENDORSE_ACTION_CUES,
+        ):
+            continue
+        negated = any(word in _NEGATION_CUES for word in tokens[max(0, index - 3) : index])
+        if kind == "condemn":
             if negated:
-                condemn += 1
-            else:
                 endorse += 1
+            else:
+                condemn += 1
+        elif negated:
+            condemn += 1
+        else:
+            endorse += 1
     if condemn > endorse and condemn >= 1:
         return -1
     if endorse > condemn and endorse >= 1:
         return 1
     return 0
+
+
+_PRONOUN_SUBJECTS = frozenset("he she they him her his their them".split())
+
+
+def _pole_actors(posts: list[dict], pole: int) -> set[str]:
+    """Named actors the posts' pole attaches to. Pronouns are not actors.
+
+    "Israel is committing genocide" attaches the condemn cue to Israel.
+    "Hamas killed civilians" attaches it to Hamas. The same sign on different
+    actors is not the same stance.
+    """
+    actors: set[str] = set()
+    named = _ATTRIBUTED_SUBJECTS - _PRONOUN_SUBJECTS
+    for post in posts:
+        raw = str(post.get("clean_text") or post.get("text") or "")
+        if _cue_pole(raw) != pole:
+            continue
+        tokens = _lex_tokens(raw)
+        spans = [match.span() for match in _WORD_RE.finditer(raw.lower())]
+        for index, token in enumerate(tokens):
+            if token in _CONDEMN_CUES:
+                sign = -1
+                endorse = False
+            elif token in _ENDORSE_CUES:
+                sign = 1
+                endorse = True
+            else:
+                continue
+            if _cue_is_attributed(
+                raw,
+                tokens,
+                spans,
+                index,
+                endorse=endorse,
+                action=token in _ENDORSE_ACTION_CUES,
+            ):
+                continue
+            negated = any(word in _NEGATION_CUES for word in tokens[max(0, index - 3) : index])
+            if negated:
+                sign = -sign
+            if sign != pole:
+                continue
+            window = tokens[max(0, index - 12) : index]
+            actor = next((item for item in reversed(window) if item in named), None)
+            if actor:
+                actors.add(actor)
+    return actors
+
+
+def posts_share_stance(left_posts: list[dict], right_posts: list[dict]) -> bool:
+    """True only on positive evidence that both faces take the same side.
+
+    Both faces need a non-zero pole, and those poles have to match. A face
+    with no poled posts is not agreement. The same sign aimed at different
+    named actors (Israel condemned, Hamas condemned) is not agreement either.
+    """
+    left = _posts_pole(left_posts)
+    right = _posts_pole(right_posts)
+    if not left or not right or left != right:
+        return False
+    left_actors = _pole_actors(left_posts, left)
+    right_actors = _pole_actors(right_posts, right)
+    if left_actors and right_actors and left_actors.isdisjoint(right_actors):
+        return False
+    return True
 
 
 def _claim_blob(face: dict) -> str:

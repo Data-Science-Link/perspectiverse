@@ -2,9 +2,10 @@
 """Guards-off replay of the paraphrase-face gate (issue #286).
 
 Re-scores published within-planet face splits with
-``refused_paraphrase_pairs``. A pair at or above the paraphrase line whose
-posts do not disagree is merged onto the surviving face. Posts are not
-dropped and planets do not change section.
+``refused_paraphrase_pairs``. A pair at or above the paraphrase line merges
+onto the surviving face only when both faces' posts take the same side of
+the same named actors. No pole is not agreement. Posts are not dropped and
+planets do not change section.
 
 Not applied, on purpose: the 30-post floor (#266), the junk filter (#264),
 the post-hoc stance fold (#268), and the exact-title fold (#235). No Jev
@@ -30,7 +31,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.perspectives import refused_paraphrase_pairs  # noqa: E402
-from pipeline.stance import local_faces_disagree  # noqa: E402
+from pipeline.stance import posts_share_stance  # noqa: E402
 
 BLIND_COLUMNS = [
     "pair_id",
@@ -51,7 +52,7 @@ PAIR_COLUMNS = [
     "edition",
     *BLIND_COLUMNS,
     "cosine",
-    "posts_disagree",
+    "same_stance",
     "direct_refused",
     "merged",
     "label_reason",
@@ -74,6 +75,7 @@ SECTION_COLUMNS = [
     "posts_dropped",
     "posts_moved_to_other",
     "posts_kept_on_survivor",
+    "planets_two_to_one",
 ]
 
 
@@ -209,6 +211,7 @@ def _replay_edition(
             "posts_dropped": 0,
             "posts_moved_to_other": 0,
             "posts_kept_on_survivor": 0,
+            "planets_two_to_one": 0,
         }
         for planet in planets:
             faces = list(planet.get("perspectives") or [])
@@ -230,7 +233,7 @@ def _replay_edition(
             groups = _Union(len(faces))
             direct: set[tuple[int, int]] = set()
             cosine_of: dict[tuple[int, int], float] = {}
-            disagree_of: dict[tuple[int, int], bool] = {}
+            same_of: dict[tuple[int, int], bool] = {}
             if len(faces) >= 2 and texts:
                 matrix = np.vstack([vectors[text] for text in texts])
                 for left, right, cosine in refused_paraphrase_pairs(texts, face_labels, matrix):
@@ -238,7 +241,7 @@ def _replay_edition(
                     direct.add(pair)
                     cosine_of[pair] = cosine
                     groups.union(left, right)
-                # Cosine and disagreement for every published pair, including
+                # Cosine and same-stance for every published pair, including
                 # pairs the gate keeps. Centroids use the same representative
                 # vectors the refusal check just scored.
                 centers: list[np.ndarray | None] = []
@@ -257,11 +260,14 @@ def _replay_edition(
                             cosine_of[pair] = float(centers[left] @ centers[right])
                         left_posts = [{"text": str(post.get("text") or "")} for post in face_posts[left]]
                         right_posts = [{"text": str(post.get("text") or "")} for post in face_posts[right]]
-                        disagree_of[pair] = bool(local_faces_disagree({}, {}, left_posts, right_posts))
+                        same_of[pair] = posts_share_stance(left_posts, right_posts)
             roots: dict[int, list[int]] = {}
             for index in range(len(faces)):
                 roots.setdefault(groups.find(index), []).append(index)
-            stats["faces_after"] += len(roots) if faces else 0
+            face_after = len(roots) if faces else 0
+            stats["faces_after"] += face_after
+            if len(faces) == 2 and face_after == 1:
+                stats["planets_two_to_one"] += 1
             for members in roots.values():
                 if len(members) < 2:
                     continue
@@ -313,7 +319,7 @@ def _replay_edition(
                         "sample_texts_b": _samples(face_posts[right]),
                         "is_duplicate": duplicate,
                         "cosine": "" if pair not in cosine_of else round(cosine_of[pair], 4),
-                        "posts_disagree": "yes" if disagree_of.get(pair) else "no",
+                        "same_stance": "yes" if same_of.get(pair) else "no",
                         "direct_refused": "yes" if pair in direct else "no",
                         "merged": "yes" if merged else "no",
                         "label_reason": reason,
@@ -358,8 +364,12 @@ def _replay_edition(
         "posts_dropped": sum(int(row["posts_dropped"]) for row in section_rows),
         "posts_moved_to_other": 0,
         "posts_kept_on_survivor": sum(int(row["posts_kept_on_survivor"]) for row in section_rows),
+        "planets_two_to_one": sum(int(row["planets_two_to_one"]) for row in section_rows),
         "labels_present": labels_present,
         "label_rows_unmatched_or_extra": unmatched,
+        "representative_posts_per_face_max": 36,
+        "member_embeddings_in_snapshot": False,
+        "forced_cut_planets_changed": 0,
     }
     return pair_rows, section_rows, summary
 
@@ -440,9 +450,14 @@ def main() -> int:
         "oct19_last_updated": date19,
         "blind_sheet": _relative(out / "oct20-face-pairs-unlabeled.csv"),
         "note": (
-            "Cosines are MiniLM centroids of published representative posts, "
-            "not the full-membership vectors the live split scored. "
-            "is_duplicate on the later edition is empty."
+            "Cosines are MiniLM centroids of up to 36 published representative "
+            "posts per face, not live full membership. The snapshots have no "
+            "member embeddings and no member texts, so this replay cannot be "
+            "re-run on full membership. forced_cut_planets_changed is 0: "
+            "split_perspectives on main already returns single_view and does "
+            "not call force_two_labels. planets_two_to_one counts planets the "
+            "paraphrase gate takes from 2 faces to 1. is_duplicate on the "
+            "later edition is empty."
         ),
     }
     (out / "replay-summary.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

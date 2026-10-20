@@ -6,13 +6,15 @@ silhouette). A count only competes when every face is a real group: at least
 ``MIN_FACE_POSTS`` posts and ``MIN_FACE_SHARE`` of the planet, no paraphrase
 pair, and every face at least as tight as the planet it came from. A
 paraphrase pair is two face centroids at or above ``_PARAPHRASE_COSINE``
-whose posts do not take opposite sides. Faces do not have to be balanced; a
-small, tight minority is a face.
+whose posts take the same side of the same named actors. A face with no
+poled posts, or the same sign aimed at different actors, is not that
+evidence, so the split stays. Faces do not have to be balanced; a small,
+tight minority is a face.
 
-When no count from two to six passes, the planet is one face and every post
-stays on it. ``choose_n_faces`` returns ``None``. ``split_perspectives`` does
-not force a second face. Representative posts are the closest rows to that
-face's embedding. Likes break a tie.
+When no count from two to six passes, the planet is one face. That path is
+unchanged from main: ``force_two_labels`` is not called, and this issue does
+not add or remove a forced cut. Representative posts are the closest rows to
+that face's embedding. Likes break a tie.
 """
 
 from __future__ import annotations
@@ -34,12 +36,11 @@ from pipeline.schema import MAX_FACES, MIN_FACES
 MIN_FACE_SHARE = 0.05
 # One post is a remark, not a group of people holding a view.
 MIN_FACE_POSTS = 2
-# Planet merge treats 0.72 as the same subject. Centroids from 0.80 up are one
-# stance written two ways unless the posts actually disagree. The old hard
-# ceiling (_FACE_COSINE, 0.90) accepted that 0.80–0.89 band with no
-# disagreement check, which is how paraphrase faces shipped (The Show at
-# 0.849). Issue #286.
-_FACE_COSINE = 0.90
+# Planet merge treats 0.72 as the same subject. From 0.80 up, a second face is
+# a paraphrase only when both faces' posts take the same side. The old hard
+# ceiling was 0.90, which let 0.80–0.89 through with no stance check at all
+# (The Show, representative cosine 0.849). Issue #286. There is no separate
+# 0.90 constant: absence of a disagreement is not a merge.
 _PARAPHRASE_COSINE = 0.80
 # Deterministic k-means restarts per face count. The lowest inertia wins.
 _FACE_RESTARTS = 3
@@ -69,15 +70,15 @@ def _unit_centers(matrix, labels, k: int):
     return np.vstack(centers)
 
 
-def _posts_disagree(left_posts: list[dict], right_posts: list[dict]) -> bool:
-    """True when the free stance lexicon says these posts take opposite sides.
+def _posts_share_stance(left_posts: list[dict], right_posts: list[dict]) -> bool:
+    """True when both faces take the same side. No pole is not agreement.
 
     Titles are empty on purpose. The split has not been labeled, and this
     check must not wait for a title, a fold, or a model call.
     """
-    from pipeline.stance import local_faces_disagree
+    from pipeline.stance import posts_share_stance
 
-    return local_faces_disagree({}, {}, left_posts, right_posts)
+    return posts_share_stance(left_posts, right_posts)
 
 
 def _posts_for_label(texts: list[str], labels, label: int) -> list[dict]:
@@ -85,9 +86,11 @@ def _posts_for_label(texts: list[str], labels, label: int) -> list[dict]:
 
 
 def _refused_given_centers(texts: list[str], labels, unit) -> list[tuple[int, int, float]]:
-    """Face pairs at or above the paraphrase line whose posts do not disagree.
+    """Face pairs at or above the paraphrase line that share a stance.
 
-    ``labels`` and ``unit`` are already numbered 0..k-1.
+    A pair is kept when the poles differ, when either face has no pole, or
+    when the same sign attaches to different named actors. ``labels`` and
+    ``unit`` are already numbered 0..k-1.
     """
     import numpy as np
 
@@ -99,7 +102,9 @@ def _refused_given_centers(texts: list[str], labels, unit) -> list[tuple[int, in
             cosine = float(unit[left] @ unit[right])
             if cosine < _PARAPHRASE_COSINE:
                 continue
-            if _posts_disagree(_posts_for_label(texts, labels, left), _posts_for_label(texts, labels, right)):
+            if not _posts_share_stance(
+                _posts_for_label(texts, labels, left), _posts_for_label(texts, labels, right)
+            ):
                 continue
             refused.append((left, right, cosine))
     return refused
@@ -108,10 +113,11 @@ def _refused_given_centers(texts: list[str], labels, unit) -> list[tuple[int, in
 def refused_paraphrase_pairs(texts: list[str], labels, matrix) -> list[tuple[int, int, float]]:
     """Pairs this split must not publish, as ``(left_label, right_label, cosine)``.
 
-    A pair of face centroids at or above ``_PARAPHRASE_COSINE`` is one stance
-    written two ways, unless the posts take opposite sides. Below that line
-    the geometric gates still decide. The lexicon is the free #268 check. It
-    does not call a model.
+    A pair of face centroids at or above ``_PARAPHRASE_COSINE`` is refused only
+    when both faces' posts take the same side of the same named actors. No
+    pole, opposite poles, or the same sign aimed at different actors keeps
+    the split. Below that line the geometric gates still decide. The lexicon
+    is the free #268 check. It does not call a model.
     """
     import numpy as np
 
@@ -219,7 +225,7 @@ def score_face_counts(
         refused = _refused_given_centers(texts, labels, unit)
         if refused:
             cosine = max(item[2] for item in refused)
-            row["reason"] = f"two faces are paraphrases ({cosine:.3f}; posts do not disagree)"
+            row["reason"] = f"two faces are paraphrases ({cosine:.3f}; posts take the same stance)"
             continue
         cohesion = _cohesion(values, labels, k)
         row["min_cohesion"] = min(cohesion)
