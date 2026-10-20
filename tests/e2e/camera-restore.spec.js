@@ -51,8 +51,35 @@ async function dollySolarView(page, amount = 0.55) {
   await page.waitForTimeout(450)
 }
 
+async function panSolarView(page, x = 4, y = 2) {
+  await page.evaluate(([truckX, truckY]) => {
+    window.__PV_SOLAR_CAMERA__?.truck?.(truckX, truckY)
+  }, [x, y])
+  await page.waitForTimeout(450)
+}
+
 async function homeDistance(page) {
   return page.evaluate(() => window.__PV_SOLAR_CAMERA__?.homeDistance?.() ?? null)
+}
+
+async function expectVisibleOrbitLabelsNoOverlap(page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const labels = [...document.querySelectorAll('.orbit-labels .planet-label')]
+    const visible = labels.filter((node) => getComputedStyle(node).visibility !== 'hidden' && node.offsetWidth >= 8)
+    if (visible.length < 1) return false
+    const boxes = visible.map((node) => {
+      const rect = node.getBoundingClientRect()
+      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }
+    })
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const overlapX = Math.min(boxes[i].right, boxes[j].right) - Math.max(boxes[i].left, boxes[j].left)
+        const overlapY = Math.min(boxes[i].bottom, boxes[j].bottom) - Math.max(boxes[i].top, boxes[j].top)
+        if (overlapX > 0.5 && overlapY > 0.5) return false
+      }
+    }
+    return true
+  }), { timeout: 15_000 }).toBe(true)
 }
 
 async function drillPlanetAndBack(page, testInfo) {
@@ -72,11 +99,35 @@ async function drillPlanetAndBack(page, testInfo) {
   await page.waitForTimeout(700)
 }
 
+async function zoomAndPanSolar(page) {
+  await dollySolarView(page, 0.65)
+  await panSolarView(page, 4, 2)
+}
+
 test.describe('Solar camera restore', () => {
   test('returns to the same zoom and pan after leaving a planet', async ({ page }, testInfo) => {
     await enterSolarSystem(page)
     await waitForCamera(page)
-    await dollySolarView(page, 0.65)
+    await zoomAndPanSolar(page)
+    const before = await readCamera(page)
+    expect(before?.distance).toBeTruthy()
+    expect(Math.abs(before.target[0])).toBeGreaterThan(0.15)
+
+    await drillPlanetAndBack(page, testInfo)
+
+    const after = await readCamera(page)
+    expect(viewsMatch(before, after)).toBe(true)
+    for (let i = 0; i < 3; i += 1) {
+      expect(near(before.position[i], after.position[i])).toBe(true)
+      expect(near(before.target[i], after.target[i])).toBe(true)
+    }
+  })
+
+  test('mobile zoom, pan, and planet exit restore pose and orbit labels', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'Phone-only orbit label overlay')
+    await enterSolarSystem(page)
+    await waitForCamera(page)
+    await zoomAndPanSolar(page)
     const before = await readCamera(page)
     expect(before?.distance).toBeTruthy()
 
@@ -84,6 +135,11 @@ test.describe('Solar camera restore', () => {
 
     const after = await readCamera(page)
     expect(viewsMatch(before, after)).toBe(true)
+    for (let i = 0; i < 3; i += 1) {
+      expect(near(before.position[i], after.position[i])).toBe(true)
+      expect(near(before.target[i], after.target[i])).toBe(true)
+    }
+    await expectVisibleOrbitLabelsNoOverlap(page)
   })
 
   test('browser back from a planet restores the solar camera', async ({ page }, testInfo) => {

@@ -172,16 +172,18 @@ function hideOrbitLabel(node) {
   node._orbitHold = 0
 }
 
-function cameraOnHome(camera, fitKey) {
+function cameraOnHome(camera, fitKey, { relaxed = false } = {}) {
   const home = fitKey.split(',').map(Number)
   if (home.length < 6) return true
   const dx = camera.position.x - home[0]
   const dy = camera.position.y - home[1]
   const dz = camera.position.z - home[2]
+  const posTol = relaxed ? 1.44 : 0.64
+  const aimTol = relaxed ? 0.12 : 0.08
   _labelPoint.set(home[3], home[4], home[5]).project(camera)
-  return dx * dx + dy * dy + dz * dz < 0.64
-    && Math.abs(_labelPoint.x) < 0.08
-    && Math.abs(_labelPoint.y) < 0.08
+  return dx * dx + dy * dy + dz * dz < posTol
+    && Math.abs(_labelPoint.x) < aimTol
+    && Math.abs(_labelPoint.y) < aimTol
     && _labelPoint.z < 1
 }
 
@@ -197,6 +199,7 @@ function placeOrbitLabelsAtCamera(nodes, topics, anchors, layout, camera, canvas
     right: Math.max(40, overlayRect.width - 4),
     bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
   }
+  const visible = []
   nodes.forEach((node, index) => {
     const pos = anchors.current[topics[index].id]
     const width = node.offsetWidth
@@ -220,9 +223,23 @@ function placeOrbitLabelsAtCamera(nodes, topics, anchors, layout, camera, canvas
     }
     const left = Math.round(Math.min(Math.max(x - width / 2, bounds.left), bounds.right - width))
     const top = Math.round(Math.min(Math.max(y - height / 2, bounds.top), bounds.bottom - height))
+    visible.push({ index, box: { x: left, y: top, w: width, h: height } })
+  })
+
+  const nudges = visible.length > 0
+    ? separateLabelBoxes(visible.map((entry) => entry.box), bounds)
+    : []
+  const now = performance.now()
+  visible.forEach((entry, vi) => {
+    const node = nodes[entry.index]
+    const nudge = nudges[vi] || { x: 0, y: 0 }
+    const left = Math.round(entry.box.x + nudge.x)
+    const top = Math.round(entry.box.y + nudge.y)
+    if (node._orbitLeft === left && node._orbitTop === top) return
+    if (node._orbitLeft != null && now < (node._orbitHold || 0)) return
     node._orbitLeft = left
     node._orbitTop = top
-    node._orbitHold = 0
+    node._orbitHold = now + LABEL_HOLD_MS
     node.style.left = `${left}px`
     node.style.top = `${top}px`
     node.style.visibility = 'visible'
@@ -232,6 +249,7 @@ function placeOrbitLabelsAtCamera(nodes, topics, anchors, layout, camera, canvas
 function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
   const nudges = useRef(null)
   const nudgeKey = useRef('')
+  const packAtHome = useRef(true)
 
   useFrame(({ camera, gl }) => {
     if (!enabled) return
@@ -243,7 +261,13 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
     const overlayRect = overlay.getBoundingClientRect()
     if (canvasRect.width < 20 || canvasRect.height < 20) return
 
-    if (!cameraOnHome(camera, fitKey)) {
+    if (cameraOnHome(camera, fitKey, { relaxed: false })) {
+      packAtHome.current = true
+    } else if (!cameraOnHome(camera, fitKey, { relaxed: true })) {
+      packAtHome.current = false
+    }
+
+    if (!packAtHome.current) {
       placeOrbitLabelsAtCamera(nodes, topics, anchors, layout, camera, canvasRect, overlayRect)
       return
     }
