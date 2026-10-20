@@ -307,6 +307,7 @@ class ChitchatRemovalLog:
         self.fetched = 0
         self.spam_blocked = 0
         self.chitchat_blocked = 0
+        self.health_update_blocked = 0
         self.language_blocked = 0
         self.link_blocked = 0
         self.near_duplicate_blocked = 0
@@ -323,6 +324,7 @@ class ChitchatRemovalLog:
         self.fetched = 0
         self.spam_blocked = 0
         self.chitchat_blocked = 0
+        self.health_update_blocked = 0
         self.language_blocked = 0
         self.link_blocked = 0
         self.near_duplicate_blocked = 0
@@ -343,8 +345,11 @@ class ChitchatRemovalLog:
             self.spam_blocked += 1
             return
         if reason.startswith("chitchat:"):
-            self.chitchat_blocked += 1
             kind = reason.split(":", 1)[1]
+            if kind == "health_update":
+                self.health_update_blocked += 1
+            else:
+                self.chitchat_blocked += 1
             if len(self._chitchat_samples) < _SAMPLE_CAP:
                 text = " ".join(str(post_body(post)).split())
                 self._chitchat_samples.append(
@@ -366,6 +371,7 @@ class ChitchatRemovalLog:
         return (
             self.spam_blocked
             + self.chitchat_blocked
+            + self.health_update_blocked
             + self.language_blocked
             + self.link_blocked
             + self.near_duplicate_blocked
@@ -397,6 +403,7 @@ class ChitchatRemovalLog:
             "new_stored": self.new_stored,
             "spam_blocked": self.spam_blocked,
             "chitchat_blocked": self.chitchat_blocked,
+            "health_update_blocked": self.health_update_blocked,
             "language_blocked": self.language_blocked,
             "link_blocked": self.link_blocked,
             "near_duplicate_blocked": self.near_duplicate_blocked,
@@ -1532,13 +1539,15 @@ def filter_chitchat_posts(
     kept: list[dict] = []
     dropped = 0
     for post in posts:
-        if pleasantry_reason(post) is None:
+        kind = pleasantry_reason(post)
+        if kind is None:
             kept.append(post)
             continue
         dropped += 1
         uri = str(post.get("uri") or "")
         if carried_skips is not None and uri in carried:
-            carried_skips["chitchat"] = carried_skips.get("chitchat", 0) + 1
+            bucket = "health_update" if kind == "health_update" else "chitchat"
+            carried_skips[bucket] = carried_skips.get(bucket, 0) + 1
         _LOG.record_block(post, "chitchat:late")
     return kept, dropped
 
