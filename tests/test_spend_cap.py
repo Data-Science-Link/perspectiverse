@@ -745,6 +745,7 @@ def _heuristic_config(path: Path) -> Path:
         "\n".join(
             [
                 "min_cluster_size: 8",
+                "min_planet_posts: 12",
                 "cluster_backend: lexical",
                 "label_backend: heuristic",
                 "sample_size: 200",

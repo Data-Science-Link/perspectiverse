@@ -117,10 +117,10 @@ def test_companies_blob_is_split_only_after_the_check_flags_it(capsys):
     """The published log quotes the check, then splits. The blob is not kept whole."""
     posts, matrix = _posts(
         [
-            ("psychosis", "ai psychosis psychosis delusion delusion", 16),
-            ("factory", "ai factory factory semiconductor semiconductor", 16),
-            ("conference", "ai conference conference academic academic", 16),
-            ("copyright", "ai copyright copyright artist artist", 16),
+            ("psychosis", "ai psychosis psychosis delusion delusion", 30),
+            ("factory", "ai factory factory semiconductor semiconductor", 30),
+            ("conference", "ai conference conference academic academic", 30),
+            ("copyright", "ai copyright copyright artist artist", 30),
         ]
     )
     reasons = catchall_reasons([], posts, "Companies")
@@ -158,8 +158,8 @@ def test_thin_generic_ai_fragments_merge_and_a_specific_story_stays():
 
 
 def test_unsplit_story_is_kept_instead_of_coherence_blocked(capsys):
-    """A named story of 5 or more posts is published when the re-split finds nothing."""
-    words = ["alphaaa", "bravooo", "charlii", "deltaaa", "echoooo", "foxtrot"]
+    """A named story at the planet floor is published when the re-split finds nothing."""
+    words = [f"alpha{index:02d}q" for index in range(30)]
     specs = [(word, f"{word} unique{word}", 1) for word in words]
     posts, matrix = _posts(specs)
     topics, membership, _faces = _build_topics(
@@ -169,8 +169,8 @@ def test_unsplit_story_is_kept_instead_of_coherence_blocked(capsys):
     assert "story stays" in logged
     assert "Coherence blocked" not in logged
     assert len(topics) == 1
-    assert topics[0]["post_count"] == 6
-    assert len(membership) == 6
+    assert topics[0]["post_count"] == 30
+    assert len(membership) == 30
 
 
 def test_split_catchall_posts_separates_ai_stories_and_ignores_glue():
@@ -190,10 +190,10 @@ def test_ai_catchall_becomes_specific_planets_instead_of_a_drop(capsys):
     """Companies/Think shape: one ball, no word in 30% of posts, several real stories."""
     posts, matrix = _posts(
         [
-            ("psychosis", "ai psychosis psychosis delusion delusion", 16),
-            ("factory", "ai factory factory semiconductor semiconductor", 16),
-            ("conference", "ai conference conference academic academic", 16),
-            ("copyright", "ai copyright copyright artist artist", 16),
+            ("psychosis", "ai psychosis psychosis delusion delusion", 30),
+            ("factory", "ai factory factory semiconductor semiconductor", 30),
+            ("conference", "ai conference conference academic academic", 30),
+            ("copyright", "ai copyright copyright artist artist", 30),
         ]
     )
     topics, membership, _faces = _build_topics(
@@ -221,7 +221,7 @@ def test_tiny_catchall_children_do_not_crowd_out_a_later_planet(capsys):
         ]
     )
     large, large_matrix = _posts(
-        [("corruption", "trump corruption corruption bribery scandal", 24)]
+        [("corruption", "trump corruption corruption bribery scandal", 30)]
     )
     posts = small + large
     clustered = {
@@ -262,7 +262,7 @@ def test_merged_thin_fragments_do_not_jump_the_global_queue(capsys):
         ]
     )
     large, large_matrix = _posts(
-        [("corruption", "trump corruption corruption bribery scandal", 24)]
+        [("corruption", "trump corruption corruption bribery scandal", 30)]
     )
     posts = small + large
     clustered = {
@@ -294,7 +294,7 @@ def test_merged_thin_fragments_do_not_jump_the_global_queue(capsys):
 def test_coherent_politics_story_stays_one_planet(capsys):
     """Trump Corruption shape: the label word is the subject, so it is not re-split."""
     posts, matrix = _posts(
-        [("corruption", "trump corruption corruption bribery scandal", 24)]
+        [("corruption", "trump corruption corruption bribery scandal", 30)]
     )
     topics, _membership, _faces = _build_topics(
         posts, _candidate(posts, matrix, ["corruption"]), SETTINGS, keep=10
@@ -308,8 +308,8 @@ def test_coherent_politics_story_stays_one_planet(capsys):
 
 def test_ice_abuse_and_voter_probe_split(capsys):
     """#135: abuse accountability and a voter-roll probe are two stories."""
-    abuse, abuse_matrix = _story("abuse", "ice abuse accountability beating agent", 20, seed=3)
-    voter, voter_matrix = _story("voter", "voter records registration probe", 16, seed=9)
+    abuse, abuse_matrix = _story("abuse", "ice abuse accountability beating agent", 30, seed=3)
+    voter, voter_matrix = _story("voter", "voter records registration probe", 30, seed=9)
     posts = abuse + voter
     matrix = np.vstack([abuse_matrix, voter_matrix])
     topics, membership, _faces = _build_topics(
@@ -328,8 +328,8 @@ def test_ice_abuse_and_voter_probe_split(capsys):
 
 def test_trans_rights_and_site_security_split(capsys):
     """#133: a login-wall face is not a perspective on trans rights."""
-    trans, trans_matrix = _story("trans", "trans rights healthcare erasure", 20, seed=5)
-    login, login_matrix = _story("login", "login security password account", 12, seed=8)
+    trans, trans_matrix = _story("trans", "trans rights healthcare erasure", 30, seed=5)
+    login, login_matrix = _story("login", "login security password account", 30, seed=8)
     posts = trans + login
     matrix = np.vstack([trans_matrix, login_matrix])
     topics, _membership, _faces = _build_topics(

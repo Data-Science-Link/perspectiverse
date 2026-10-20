@@ -15,6 +15,7 @@ def test_live_fixture_writes_contract(tmp_path):
         "\n".join(
             [
                 "min_cluster_size: 8",
+                "min_planet_posts: 12",
                 "cluster_backend: lexical",
                 "label_backend: heuristic",
                 "sample_size: 200",
@@ -309,7 +310,10 @@ def test_run_live_function_matches_cli(tmp_path):
     fixture = tmp_path / "posts.json"
     fixture.write_text(json.dumps(build_tiny_posts()), encoding="utf-8")
     config = tmp_path / "pipeline.yaml"
-    config.write_text("min_cluster_size: 8\ncluster_backend: lexical\nlabel_backend: heuristic\nseed: 0\n", encoding="utf-8")
+    config.write_text(
+        "min_cluster_size: 8\nmin_planet_posts: 12\ncluster_backend: lexical\nlabel_backend: heuristic\nseed: 0\n",
+        encoding="utf-8",
+    )
     path = run_live(fixture=fixture, output=tmp_path / "out.json", config=config, db_path=tmp_path / "p.db")
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert 1 <= len(payload["topics"][0]["perspectives"]) <= 6
@@ -330,6 +334,7 @@ def _heuristic_config(path):
         "\n".join(
             [
                 "min_cluster_size: 8",
+                "min_planet_posts: 12",
                 "cluster_backend: lexical",
                 "label_backend: heuristic",
                 "sample_size: 200",

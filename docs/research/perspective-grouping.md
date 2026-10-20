@@ -153,6 +153,8 @@ If the labeler then merges titles or drops a "Mixed remarks" face and fewer than
 
 ## Planet post floor
 
+Historical, from before #266. The prose and tables in this section describe the floor of 5 that shipped with #79, measured on the Oct 7 corpus. The floor is now 30 posts. See `.factory/DECISIONS.md`, "2026-10-20: Planet floor raised to 30 posts (supersedes #79; partly supersedes #77)".
+
 Splitting a glued candidate keeps both stories. Some of those stories are only a few posts. A published planet now needs at least `min_planet_posts` posts. The shipped value is **5**. It lives next to the other grouping floors (`MIN_PLANET_POSTS` in `pipeline/grouping.py`) and is overridden the same way as the other pipeline settings: `min_planet_posts` in the pipeline config, or `PERSPECTIVERSE_MIN_PLANET_POSTS`.
 
 The check runs before any face label when the post count is already known, and again before the planet name and the briefs if labeling leaves fewer posts than the floor. A piece under the floor is not published, not glued onto a sibling, and not used to fill a catalog slot. The log line is one INFO record with the section, a label hint, and the post count. The catalog ceiling still fills from the remaining candidates in the existing rank order.
