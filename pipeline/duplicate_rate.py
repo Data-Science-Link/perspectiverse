@@ -33,9 +33,9 @@ Before and after the guards
 ----------------------------
 The rate is printed twice. ``before`` is the planets as the grouping left
 them. ``after`` is a copy with the post-hoc guards applied: the post floor,
-the junk filter (``planet_chitchat_reason``), and the face fold
-(``merge_alike_published_faces``, plus ``local_faces_fold`` when #268 has
-landed). The copy is thrown away. A falling after-figure with a flat
+the junk filter (``planet_chitchat_reason``), #268's stance gate
+(``gate_published_perspectives``), and the alike-title face fold.
+The copy is thrown away. A falling after-figure with a flat
 before-figure means those guards hid duplicates. Planets an earlier pipeline
 run already dropped are not in a published snapshot, so they are not in
 that before-figure.
@@ -619,13 +619,24 @@ def _member_posts(planet: dict) -> list[dict]:
     return found
 
 
-def _local_faces_fold():
-    """#268's fold once it is on this tree. None until then."""
-    try:
-        from pipeline import stance
-    except ImportError:
-        return None
-    return getattr(stance, "local_faces_fold", None)
+def _apply_stance_gate(planets: list[dict]) -> int:
+    """#268's local stance gate on the measurement copy.
+
+    ``gate_published_perspectives`` folds faces that share a subject and do
+    not disagree, and locks a pair that does disagree so a later title fold
+    cannot put them back together. No model call.
+    """
+    from pipeline.stance import gate_published_perspectives
+
+    folded = 0
+    for planet in planets:
+        faces = [face for face in (planet.get("perspectives") or []) if isinstance(face, dict)]
+        if len(faces) < 2:
+            continue
+        before = len(faces)
+        planet["perspectives"] = gate_published_perspectives(faces)
+        folded += max(0, before - len(planet["perspectives"]))
+    return folded
 
 
 def _fold_alike_faces(planets: list[dict]) -> int:
@@ -672,7 +683,7 @@ def _fold_alike_faces(planets: list[dict]) -> int:
 
 
 def apply_post_hoc_guards(payload: dict, *, floor: int) -> tuple[dict, dict[str, int]]:
-    """Copy the edition and apply the floor, the junk filter, and the face fold.
+    """Copy the edition and apply the floor, junk filter, stance gate, and title fold.
 
     The input payload is not modified. This is a measurement, not a publish step.
     """
@@ -710,17 +721,8 @@ def apply_post_hoc_guards(payload: dict, *, floor: int) -> tuple[dict, dict[str,
             if isinstance(planets, list):
                 folded_hosts.extend(planet for planet in planets if isinstance(planet, dict))
     faces_before = sum(len(planet.get("perspectives") or []) for planet in folded_hosts)
-    _fold_alike_faces(folded_hosts)
-    fold = _local_faces_fold()
-    if fold is not None:
-        for planet in folded_hosts:
-            try:
-                fold(planet)
-            except TypeError:
-                faces = planet.get("perspectives") or []
-                folded = fold(faces)
-                if isinstance(folded, list):
-                    planet["perspectives"] = folded
+    removed["stance_folded"] = _apply_stance_gate(folded_hosts)
+    removed["title_folded"] = _fold_alike_faces(folded_hosts)
     faces_after = sum(len(planet.get("perspectives") or []) for planet in folded_hosts)
     removed["faces_folded"] = max(0, faces_before - faces_after)
     return guarded, removed
@@ -981,7 +983,7 @@ def duplicate_rates(
         None if prior_after is None else prior_after["faces"]["rate"],
     )
     before["guards"] = "not applied"
-    after["guards"] = "floor, junk filter, face fold"
+    after["guards"] = "floor, junk filter, stance gate, face fold"
     after["removed"] = removed
     readings = [
         text
@@ -1057,7 +1059,7 @@ def render_duplicate_lines(report: dict[str, Any]) -> list[str]:
         "",
         block.get("definition") or "",
         "",
-        "Before is the grouping. After reapplies the floor, the junk filter, and the face fold on a copy. The edition is not changed.",
+        "Before is the grouping. After reapplies the floor, the junk filter, the stance gate, and the face fold on a copy. The edition is not changed.",
         "",
     ]
     lines.extend(side_lines("Before the guards", block.get("before") or {}))
@@ -1066,7 +1068,8 @@ def render_duplicate_lines(report: dict[str, Any]) -> list[str]:
     if removed:
         lines.append(
             f"Guards removed {removed.get('floor', 0)} planets under the floor, "
-            f"{removed.get('junk', 0)} junk planets, and folded {removed.get('faces_folded', 0)} faces."
+            f"{removed.get('junk', 0)} junk planets, folded {removed.get('stance_folded', 0)} faces "
+            f"at the stance gate, and {removed.get('title_folded', 0)} more by title."
         )
         lines.append("")
     for reading in block.get("guard_reading") or []:

@@ -63,6 +63,49 @@ def test_guards_are_a_copy_and_drop_junk_and_the_floor():
     assert names == ["Oil Prices"]
 
 
+def test_after_copy_includes_the_stance_gate():
+    """Same-subject faces fold on the copy. Alike titles that disagree stay two."""
+    import json
+    from pathlib import Path
+
+    excerpt = json.loads(Path("tests/fixtures/stance_issue_excerpts.json").read_text())["256"]
+    same = _planet("Israel", ["Israel is condemned in these posts."], post_count=40)
+    same["perspectives"] = excerpt["perspectives"]
+    guarded, removed = apply_post_hoc_guards(_edition(same), floor=30)
+    assert len(guarded["sections"]["World"][0]["perspectives"]) == 1
+    assert removed["stance_folded"] == 1
+
+    opposed = _planet("Israel Policy", ["A placeholder."], post_count=40)
+    opposed["perspectives"] = [
+        {
+            "id": "a",
+            "title": "Israel Policy",
+            "summary": "Posts about Israel policy",
+            "post_count": 20,
+            "representative_posts": [
+                {"text": "Israel is a genocidal terrorist state."},
+                {"text": "These killings are horrific and wrong."},
+            ],
+        },
+        {
+            "id": "b",
+            "title": "Israel Policy 2",
+            "summary": "Posts about Israel policy",
+            "post_count": 20,
+            "representative_posts": [
+                {"text": "I support and defend Israel. The operation was successful."},
+                {"text": "Israel deserves support. The strikes were effective."},
+            ],
+        },
+    ]
+    guarded, removed = apply_post_hoc_guards(_edition(opposed), floor=30)
+    kept = guarded["sections"]["World"][0]["perspectives"]
+    assert len(kept) == 2
+    assert removed["stance_folded"] == 0
+    assert removed["title_folded"] == 0
+    assert all(face.get("stance_locked") for face in kept)
+
+
 def test_face_fold_keeps_string_planet_ids():
     planet = _planet(
         "Harbor Strike",

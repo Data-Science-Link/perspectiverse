@@ -7,8 +7,8 @@ Each failure names the pipeline stage that should have prevented it, so the
 fix is upstream (Michael, 2026-10-20): ingest, clustering/attach, faces/stance,
 or labeling. A later cleanup pass is not the fix.
 
-The post floor is ``min_planet_posts`` from settings. #266 raises that setting
-to 30; until it merges, planets under 30 are listed as a revisit, not dropped.
+The post floor is ``min_planet_posts`` from settings (30 after #266). The
+check reports planets under that floor. It does not drop them.
 """
 
 from __future__ import annotations

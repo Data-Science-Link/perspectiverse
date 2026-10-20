@@ -78,15 +78,21 @@ def test_alike_face_titles_fail_and_different_titles_pass():
         perspectives=[
             {
                 "title": "Iran War",
-                "summary": "The war is widening.",
-                "post_count": 30,
-                "representative_posts": [{"text": "The Iran war is expanding.", "likes": 1}],
+                "summary": "US war with Iran is unnecessary",
+                "post_count": 10,
+                "representative_posts": [
+                    {"text": "A war with Iran is unnecessary.", "likes": 1},
+                    {"text": "There is no reason for this war.", "likes": 1},
+                ],
             },
             {
                 "title": "Iran Attacks Ships",
-                "summary": "Ships were attacked.",
-                "post_count": 10,
-                "representative_posts": [{"text": "Iran attacked commercial ships.", "likes": 1}],
+                "summary": "Iran attacked ships",
+                "post_count": 8,
+                "representative_posts": [
+                    {"text": "Iran attacked two ships in the strait.", "likes": 1},
+                    {"text": "Missiles hit commercial ships overnight.", "likes": 1},
+                ],
             },
         ]
     )

@@ -775,6 +775,125 @@ def story_groups(faces: list[dict]) -> list[list[int]]:
     return groups
 
 
+# A smaller face stays on the planet only when at least this share of its
+# posts contain the largest face's top stem.
+_MAJORITY_STEM_COVERAGE = 0.5
+
+
+def _face_story_texts(face: dict) -> list[str]:
+    """Posts the stem check reads. A title is used only when the face has no posts."""
+    rows = face.get("member_texts")
+    if rows:
+        return [str(text) for text in rows if str(text).strip()]
+    posts = [
+        str(post.get("text") or "")
+        for post in (face.get("representative_posts") or [])
+        if str(post.get("text") or "").strip()
+    ]
+    if posts:
+        return posts
+    title = " ".join(
+        part
+        for part in (str(face.get("title") or "").strip(), str(face.get("summary") or "").strip())
+        if part
+    )
+    return [title] if title else []
+
+
+def _face_story_size(face: dict) -> int:
+    if face.get("post_count"):
+        return int(face["post_count"])
+    return len(_face_story_texts(face))
+
+
+def _name_stem_bag(text: str) -> list[str]:
+    """Subject stems, including a person's name. Repeats are kept.
+
+    ``specific_shared_words`` drops names so "Trump" cannot glue two stories.
+    This check is the opposite question: does the smaller face still talk
+    about the largest face's subject, which may be a person.
+    """
+    glue = _post_word_glue() | _TOPIC_GLUE | _OFFICE_GLUE
+    stems: list[str] = []
+    # Findall, not the set in content_tokens, so a repeated word counts twice.
+    for token in _TOKEN.findall(str(text or "").lower()):
+        if len(token) < 4 or token in _GROUND_STOP or token in glue:
+            continue
+        stem = subject_stem(token)
+        if len(stem) < 3 or stem in _VERB_STEMS or stem in glue:
+            continue
+        stems.append(stem)
+    return stems
+
+
+def face_top_stem(texts: list[str]) -> str | None:
+    """Most common stem. A tie goes to the stem used more often, then the longer one."""
+    coverage: dict[str, int] = {}
+    frequency: dict[str, int] = {}
+    for text in texts:
+        bag = _name_stem_bag(text)
+        for stem in bag:
+            frequency[stem] = frequency.get(stem, 0) + 1
+        for stem in set(bag):
+            coverage[stem] = coverage.get(stem, 0) + 1
+    if not coverage:
+        return None
+    return max(coverage, key=lambda stem: (coverage[stem], frequency[stem], len(stem), stem))
+
+
+def _text_has_stem(text: str, stem: str) -> bool:
+    for other in _name_stem_bag(text):
+        if other == stem:
+            return True
+        short, long = (other, stem) if len(other) <= len(stem) else (stem, other)
+        if len(short) >= 5 and long.startswith(short):
+            return True
+    return False
+
+
+def majority_story_groups(faces: list[dict]) -> list[list[int]] | None:
+    """Face indexes that are one story, largest face first.
+
+    None when the largest face has no stem, so the caller can fall back to
+    ``story_groups``. A smaller face is its own story when fewer than half
+    of its posts contain the largest face's top stem. Sharing "data" or
+    "canada" does not keep it.
+    """
+    count = len(faces)
+    if count == 0:
+        return []
+    if count == 1:
+        return [[0]]
+    order = sorted(range(count), key=lambda index: (-_face_story_size(faces[index]), index))
+    anchor = order[0]
+    stem = face_top_stem(_face_story_texts(faces[anchor]))
+    if stem is None:
+        return None
+    together = [anchor]
+    apart: list[list[int]] = []
+    for index in order[1:]:
+        rows = _face_story_texts(faces[index])
+        if not rows:
+            apart.append([index])
+            continue
+        covered = sum(1 for text in rows if _text_has_stem(text, stem))
+        if covered / len(rows) >= _MAJORITY_STEM_COVERAGE:
+            together.append(index)
+        else:
+            apart.append([index])
+    if not apart:
+        return [sorted(together)]
+    return [sorted(together), *apart]
+
+
+def faces_are_different_stories(faces: list[dict]) -> bool:
+    """True when the faces should not stay on one planet."""
+    groups = majority_story_groups(faces)
+    if groups is not None and len(groups) >= 2:
+        return True
+    return len(faces) >= 2 and not specific_shared_words(faces)
+
+
 # A planet label whose top word is in fewer than this share of posts is a
 # mislabeled catch-all ("Companies" on an AI blob, "Think" on another).
 CATCHALL_LABEL_COVERAGE = 0.30
@@ -783,8 +902,8 @@ CATCHALL_LABEL_COVERAGE = 0.30
 _CATCHALL_GLUE_SHARE = 0.70
 # A catch-all bucket under this size, named by a generic stem, is a fragment.
 # It is held out of the catalog. It is not glued onto another planet.
-# This is stricter than the 5-post planet floor from #79. Specific stems still
-# publish at 5 posts.
+# Specific stems publish at min_planet_posts (30 by default), per the
+# 2026-10-20 floor decision.
 _THIN_FRAGMENT_POSTS = 8
 _SHORT_SUBJECTS = frozenset({"ai", "eu", "gop", "ice", "uk", "un", "us"})
 # Attitude words and the weak keys that produced AI Concerns/Use/Dangers/Rights
@@ -1075,6 +1194,34 @@ def split_catchall_posts(
         return []
     buckets.sort(key=lambda indexes: (-len(indexes), indexes[0] if indexes else 0))
     return buckets
+
+
+def repeated_stems_below_floor(posts: list[dict], floor: int) -> int:
+    """Stems that repeat and still miss the planet floor.
+
+    Two or more means the cluster is several stories that are each too small
+    to publish, not one story the splitter failed to cut.
+    """
+    floor = max(int(floor), 2)
+    count = len(posts)
+    if count < 2:
+        return 0
+    glue_words = _post_word_glue() | _PERSON_GLUE
+    raw_bags = [
+        _stem_bag(str(post.get("clean_text") or post.get("text") or ""), glue_words) for post in posts
+    ]
+    keyed = [{_stem_key(stem) for stem in bag} for bag in raw_bags]
+    roots = _collapse_stem_roots({stem for bag in keyed for stem in bag})
+    bags = [{roots[stem] for stem in bag} for bag in keyed]
+    counts: dict[str, int] = {}
+    for bag in bags:
+        for stem in bag:
+            counts[stem] = counts.get(stem, 0) + 1
+    return sum(
+        1
+        for stem, seen in counts.items()
+        if 2 <= seen < floor and stem not in _TOPIC_GLUE and stem not in _OFFICE_GLUE
+    )
 
 
 def faces_share_vocabulary(faces: list[dict]) -> bool:

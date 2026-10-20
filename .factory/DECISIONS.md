@@ -721,3 +721,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Why:** Michael (Factory room, 2026-10-20 9:50 AM CT) said to fix root causes rather than cleaning up bad groupings or perspectives afterward.
 **Alternatives:** Keep publishing, then rewrite titles or drop planets in a cleanup step (rejected).
 **Revisit:** If a detector failure cannot be traced to one of those four stages.
+
+### 2026-10-20: Planet floor raised to 30 posts (supersedes #79; partly supersedes #77)
+- **Decision:** A planet, including a face split off into its own planet, is published only if it has at least 30 posts. Planets under the floor are left out of the edition, and their posts are not reassigned. The next-ranked candidate fills the freed slot. The generic thin-fragment hold (`_THIN_FRAGMENT_POSTS = 8`) is unchanged.
+- **Why:** Michael (2026-10-20): small planets were mostly grab-bag junk that looks off to a newcomer; he chose a plain minimum-posts floor over a conditional grab-bag rule, and picked 30 after seeing the 5/8/10/15/20 replay on Oct 19. At 30, the Oct 19 edition drops 53 of 107 planets and 548 of 12,201 posts, with 0 split-caused losses.
+- **Supersedes:** #79 (minimum 5 posts). Partly supersedes #77 (no posts dropped): posts in sub-floor planets now leave the edition. #77 still holds for separate planets above the floor (don't glue or drop them).
+- **Alternatives:** 8 (the Manager's recommendation: drops 23 planets, 1.0% of posts), 10/15/20 (1.7% to 3.5% of posts), and the conditional grab-bag drop (rejected by Michael earlier today).
+- **Revisit:** If real news stories keep falling under the floor, or if the edition looks thin on low-volume days. Also once Michael decides whether a planet that clears 30 whole, but splits into pieces that are all under 30, should stay one planet (0 cases on Oct 19).
