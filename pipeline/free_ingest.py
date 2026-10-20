@@ -247,6 +247,7 @@ def log_fetch_bucket_summary() -> None:
         "Free ingest fetch buckets: "
         f"fetched={log.fetched}, new={log.new_stored}, "
         f"spam={log.spam_blocked}, chitchat={log.chitchat_blocked}, "
+        f"health_update={log.health_update_blocked}, "
         f"link_only={log.link_blocked}, language={log.language_blocked}, "
         f"near_duplicate={log.near_duplicate_blocked}, other={log.other_blocked}, "
         f"already_stored={log.already_stored}, over_daily_cap={log.over_daily_cap}, "
@@ -270,6 +271,8 @@ def _in_window(post: dict, cutoff: datetime) -> bool:
 def _classify_block_reason(reason: str) -> str:
     if reason.startswith("spam:"):
         return "spam"
+    if reason == "chitchat:health_update":
+        return "health_update"
     if reason.startswith("chitchat:"):
         return "chitchat"
     if reason == "link_only":
@@ -289,6 +292,7 @@ def refresh_carried_posts(
         "carried_kept": 0,
         "carried_spam": 0,
         "carried_chitchat": 0,
+        "carried_health_update": 0,
         "carried_link_only": 0,
         "carried_language": 0,
         "carried_other": 0,
@@ -359,6 +363,7 @@ def ingest_free(
             f"kept={carried_stats['carried_kept']}, "
             f"spam={carried_stats['carried_spam']}, "
             f"chitchat={carried_stats['carried_chitchat']}, "
+            f"health_update={carried_stats['carried_health_update']}, "
             f"link_only={carried_stats['carried_link_only']}, "
             f"language={carried_stats['carried_language']}, "
             f"other={carried_stats['carried_other']}."
@@ -418,7 +423,8 @@ def ingest_free(
         print(
             f"Free ingest {since.date().isoformat()}: {day_new} new edition-quality, "
             f"{day_blocked_spam} spam, {day_blocked_other} other filtered "
-            f"(chitchat {log.chitchat_blocked} total), {len(kept)} kept."
+            f"(chitchat {log.chitchat_blocked}, health_update {log.health_update_blocked}), "
+            f"{len(kept)} kept."
         )
     log_fetch_bucket_summary()
     retired = retire_oldest(

@@ -301,6 +301,23 @@ def test_carried_rows_predating_filters_use_clean_text_and_drop_chitchat():
     assert prepared["text"] == "Thanks!!"
 
 
+def test_carried_personal_health_update_has_its_own_bucket():
+    moment = datetime(2026, 10, 16, 12, tzinfo=timezone.utc)
+    cutoff = moment - timedelta(hours=168)
+    legacy = {
+        "uri": "at://legacy-sick",
+        "author": "ada",
+        "text": "I've been sick all week.",
+        "likes": 1,
+        "created_at": "2026-10-16T12:00:00Z",
+    }
+    kept, stats = refresh_carried_posts([legacy], cutoff)
+    assert kept == []
+    assert stats["carried_seen"] == 1
+    assert stats["carried_health_update"] == 1
+    assert stats["carried_chitchat"] == 0
+
+
 def test_workflow_drop_non_quality_end_to_end(tmp_path, capsys):
     """Same path as ``python -m pipeline.store drop-non-quality <db>`` in the workflow."""
     from pipeline.store import main
