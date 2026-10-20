@@ -1,0 +1,932 @@
+{
+  "source": "/tmp/oct19/data.json",
+  "source_commit": "44a537b",
+  "edition_date": "2026-10-19",
+  "min_planet_posts": 5,
+  "catalog_size": 10,
+  "title_overlap_floor": 0.5,
+  "junk_share": 0.55,
+  "stance_signal": "titles_alike",
+  "planets": 107,
+  "passed": 87,
+  "failed": 20,
+  "pass_rate": 0.8131,
+  "failure_counts": {
+    "title_fit": 11,
+    "faces_different": 0,
+    "junk": 3,
+    "label": 7,
+    "post_floor": 0
+  },
+  "stage_counts": {
+    "ingest": 3,
+    "clustering/attach": 0,
+    "faces/stance": 0,
+    "labeling": 17
+  },
+  "thin_sections": [
+    {
+      "section": "World",
+      "stage": "clustering/attach",
+      "planets": 7,
+      "clearing_floor": 7,
+      "detail": "7 published planets, solar system holds 10"
+    },
+    {
+      "section": "Politics",
+      "stage": "clustering/attach",
+      "planets": 7,
+      "clearing_floor": 7,
+      "detail": "7 published planets, solar system holds 10"
+    }
+  ],
+  "floor_revisit": {
+    "shadow_floor": 30,
+    "stage": "clustering/attach",
+    "note": "min_planet_posts is 5, so these are not failures and this check does not drop them. #266 sets the floor to 30 in clustering/attach.",
+    "planets_under_shadow_floor": 53,
+    "planets": [
+      {
+        "scope": "World",
+        "id": "World-4",
+        "name": "WWII Veteran Age",
+        "post_count": 8,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "World",
+        "id": "World-5",
+        "name": "Russia Sanctions",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "World",
+        "id": "World-6",
+        "name": "Trump Krasnov Link",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "World",
+        "id": "World-7",
+        "name": "US Unreliable",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Business",
+        "id": "Business-5",
+        "name": "Ultra Rich",
+        "post_count": 11,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Business",
+        "id": "Business-6",
+        "name": "Trump Gas Prices",
+        "post_count": 15,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Business",
+        "id": "Business-7",
+        "name": "Brent Oil Prices",
+        "post_count": 12,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Business",
+        "id": "Business-8",
+        "name": "The Article",
+        "post_count": 11,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Business",
+        "id": "Business-9",
+        "name": "Trump Regime",
+        "post_count": 9,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Business",
+        "id": "Business-10",
+        "name": "High Prices",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Technology",
+        "id": "Technology-1",
+        "name": "AI Generated Articles",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Technology",
+        "id": "Technology-2",
+        "name": "AI Control",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Technology",
+        "id": "Technology-3",
+        "name": "AI bots",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Technology",
+        "id": "Technology-4",
+        "name": "AI Adoption",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Technology",
+        "id": "Technology-5",
+        "name": "AI Creative Effort",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Technology",
+        "id": "Technology-6",
+        "name": "Crazy",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Technology",
+        "id": "Technology-7",
+        "name": "AI Art",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Sports",
+        "id": "Sports-6",
+        "name": "BYU vs Notre Dame",
+        "post_count": 17,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Sports",
+        "id": "Sports-7",
+        "name": "PS6 Pricing",
+        "post_count": 7,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Sports",
+        "id": "Sports-8",
+        "name": "PS5 Compatibility",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Sports",
+        "id": "Sports-9",
+        "name": "Sony PS5",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Sports",
+        "id": "Sports-10",
+        "name": "Playstation Games Sony",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Culture",
+        "id": "Culture-4",
+        "name": "Tax Purposes",
+        "post_count": 25,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Health",
+        "id": "Health-5",
+        "name": "Mental Health Struggles",
+        "post_count": 17,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Health",
+        "id": "Health-6",
+        "name": "ADHD Struggles",
+        "post_count": 29,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Health",
+        "id": "Health-7",
+        "name": "ADHD Struggles 2",
+        "post_count": 15,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Health",
+        "id": "Health-8",
+        "name": "Gym Workouts",
+        "post_count": 11,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Health",
+        "id": "Health-9",
+        "name": "Pope Leo Recovery",
+        "post_count": 13,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Health",
+        "id": "Health-10",
+        "name": "Medical Appointments",
+        "post_count": 11,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Environment",
+        "id": "Environment-5",
+        "name": "Autumn Foliage",
+        "post_count": 13,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Environment",
+        "id": "Environment-6",
+        "name": "Coffee Building Fire",
+        "post_count": 8,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Environment",
+        "id": "Environment-7",
+        "name": "Pretty Flowers",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Environment",
+        "id": "Environment-8",
+        "name": "Angeles Cities Heat",
+        "post_count": 8,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Environment",
+        "id": "Environment-9",
+        "name": "Fires",
+        "post_count": 8,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Environment",
+        "id": "Environment-10",
+        "name": "Sun Rise Times",
+        "post_count": 12,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-2",
+        "name": "Bar Exam",
+        "post_count": 23,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-3",
+        "name": "Radical Professors",
+        "post_count": 19,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-4",
+        "name": "Bits Limited Neighborhood",
+        "post_count": 9,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-5",
+        "name": "School Medical Care",
+        "post_count": 8,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-6",
+        "name": "Voucher Program",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-7",
+        "name": "Cafeteria Duty",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-8",
+        "name": "Grade School Fashion",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-9",
+        "name": "Bully Bullies Bullying",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Education",
+        "id": "Education-10",
+        "name": "College Republicans",
+        "post_count": 5,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-1",
+        "name": "Good Day",
+        "post_count": 23,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-2",
+        "name": "Good Morning",
+        "post_count": 22,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-3",
+        "name": "Great Day",
+        "post_count": 16,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-4",
+        "name": "Hope For The Day",
+        "post_count": 14,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-5",
+        "name": "Great Time",
+        "post_count": 8,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-6",
+        "name": "wonderful day",
+        "post_count": 8,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-7",
+        "name": "Glad Returns",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-8",
+        "name": "Happy Sunday",
+        "post_count": 6,
+        "stage": "clustering/attach"
+      },
+      {
+        "scope": "Other",
+        "id": "Other-10",
+        "name": "Pet Benefits",
+        "post_count": 17,
+        "stage": "clustering/attach"
+      }
+    ],
+    "thin_sections_at_shadow_floor": [
+      {
+        "section": "World",
+        "stage": "clustering/attach",
+        "planets": 7,
+        "clearing_floor": 3,
+        "detail": "7 published planets, solar system holds 10; 3 planets clear the 30-post floor, solar system holds 10"
+      },
+      {
+        "section": "Politics",
+        "stage": "clustering/attach",
+        "planets": 7,
+        "clearing_floor": 7,
+        "detail": "7 published planets, solar system holds 10"
+      },
+      {
+        "section": "Business",
+        "stage": "clustering/attach",
+        "planets": 10,
+        "clearing_floor": 4,
+        "detail": "4 planets clear the 30-post floor, solar system holds 10"
+      },
+      {
+        "section": "Technology",
+        "stage": "clustering/attach",
+        "planets": 10,
+        "clearing_floor": 3,
+        "detail": "3 planets clear the 30-post floor, solar system holds 10"
+      },
+      {
+        "section": "Sports",
+        "stage": "clustering/attach",
+        "planets": 10,
+        "clearing_floor": 5,
+        "detail": "5 planets clear the 30-post floor, solar system holds 10"
+      },
+      {
+        "section": "Culture",
+        "stage": "clustering/attach",
+        "planets": 10,
+        "clearing_floor": 9,
+        "detail": "9 planets clear the 30-post floor, solar system holds 10"
+      },
+      {
+        "section": "Health",
+        "stage": "clustering/attach",
+        "planets": 10,
+        "clearing_floor": 4,
+        "detail": "4 planets clear the 30-post floor, solar system holds 10"
+      },
+      {
+        "section": "Environment",
+        "stage": "clustering/attach",
+        "planets": 10,
+        "clearing_floor": 4,
+        "detail": "4 planets clear the 30-post floor, solar system holds 10"
+      },
+      {
+        "section": "Education",
+        "stage": "clustering/attach",
+        "planets": 10,
+        "clearing_floor": 1,
+        "detail": "1 planets clear the 30-post floor, solar system holds 10"
+      },
+      {
+        "section": "Other",
+        "stage": "clustering/attach",
+        "planets": 13,
+        "clearing_floor": 4,
+        "detail": "4 planets clear the 30-post floor, solar system holds 10"
+      }
+    ]
+  },
+  "duplicate_rate": {
+    "definition": "Near-duplicate when titles_alike, or when representative-post TF-IDF centroid cosine >= 0.9.",
+    "title_min": 0.8,
+    "centroid_min": 0.9,
+    "use_title_min": false,
+    "planet_stage": "clustering/attach",
+    "face_stage": "faces/stance",
+    "previous_edition": "2026-10-18",
+    "before": {
+      "planets": {
+        "pairs": 5460,
+        "near_duplicates": 5,
+        "rate": 0.0009
+      },
+      "faces": {
+        "pairs": 26,
+        "near_duplicates": 0,
+        "rate": 0.0
+      },
+      "planet_rate_change": 0.0002,
+      "face_rate_change": -0.0455,
+      "guards": "not applied"
+    },
+    "after": {
+      "planets": {
+        "pairs": 5253,
+        "near_duplicates": 5,
+        "rate": 0.001
+      },
+      "faces": {
+        "pairs": 26,
+        "near_duplicates": 0,
+        "rate": 0.0
+      },
+      "planet_rate_change": 0.0003,
+      "face_rate_change": 0.0,
+      "guards": "floor, junk filter, face fold",
+      "removed": {
+        "floor": 0,
+        "junk": 3,
+        "faces_folded": 0
+      }
+    },
+    "guard_reading": [],
+    "examples": [
+      {
+        "pair_type": "planet",
+        "left_key": "planet:catalog:7",
+        "right_key": "planet:Politics:Politics-1",
+        "left_title": "Musk Interference",
+        "right_title": "Musk Accountability",
+        "title_similarity": 0.3889,
+        "centroid_cosine": 0.9978,
+        "titles_alike": false
+      },
+      {
+        "pair_type": "planet",
+        "left_key": "planet:catalog:1",
+        "right_key": "planet:World:World-1",
+        "left_title": "Trump Ukraine Sanctions",
+        "right_title": "US Ukraine War",
+        "title_similarity": 0.5946,
+        "centroid_cosine": 0.9721,
+        "titles_alike": false
+      },
+      {
+        "pair_type": "planet",
+        "left_key": "planet:Culture:Culture-3",
+        "right_key": "planet:Culture:Culture-4",
+        "left_title": "Tax Movie Titles",
+        "right_title": "Tax Purposes",
+        "title_similarity": 0.5,
+        "centroid_cosine": 0.9218,
+        "titles_alike": false
+      },
+      {
+        "pair_type": "planet",
+        "left_key": "planet:World:World-1",
+        "right_key": "planet:World:World-3",
+        "left_title": "US Ukraine War",
+        "right_title": "US Iran War",
+        "title_similarity": 0.8,
+        "centroid_cosine": 0.1957,
+        "titles_alike": true
+      },
+      {
+        "pair_type": "planet",
+        "left_key": "planet:Health:Health-6",
+        "right_key": "planet:Health:Health-7",
+        "left_title": "ADHD Struggles",
+        "right_title": "ADHD Struggles 2",
+        "title_similarity": 1.0,
+        "centroid_cosine": 0.0996,
+        "titles_alike": true
+      }
+    ],
+    "agreement": {
+      "present": false,
+      "path": "/workspace/docs/evidence/275/oct19-pairs.csv",
+      "spot_path": "/workspace/docs/evidence/275/oct19-spot-checks.csv",
+      "seed": 273,
+      "precision": null,
+      "recall": null,
+      "tuned_on": 0,
+      "holdout": 0,
+      "spot_checks": 0,
+      "scored_on": 0,
+      "note": "The labeled sample is not in the tree yet, so the threshold stays at the default and precision and recall are not computed. This rate does not grade itself."
+    }
+  },
+  "failures": [
+    {
+      "scope": "catalog",
+      "id": 5,
+      "name": "Good Morning",
+      "post_count": 383,
+      "stages": [
+        "ingest"
+      ],
+      "checks": [
+        {
+          "check": "junk",
+          "stage": "ingest",
+          "detail": "40% of the posts are social gestures in a large cluster"
+        }
+      ]
+    },
+    {
+      "scope": "World",
+      "id": "World-7",
+      "name": "US Unreliable",
+      "post_count": 5,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "planet title 'US Unreliable': 0% overlap; missing unreliable, us; face title 'US Betrays Allies': 33% overlap; missing betrays, us"
+        }
+      ]
+    },
+    {
+      "scope": "Business",
+      "id": "Business-9",
+      "name": "Trump Regime",
+      "post_count": 9,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "planet title 'Trump Regime': 0% overlap; missing regime, trump"
+        }
+      ]
+    },
+    {
+      "scope": "Technology",
+      "id": "Technology-6",
+      "name": "Crazy",
+      "post_count": 5,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "label",
+          "stage": "labeling",
+          "detail": "planet label: template summary; face 'Crazy': template summary"
+        }
+      ]
+    },
+    {
+      "scope": "Sports",
+      "id": "Sports-10",
+      "name": "Playstation Games Sony",
+      "post_count": 5,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "label",
+          "stage": "labeling",
+          "detail": "planet label: template summary; face 'Playstation Games Sony': template summary"
+        }
+      ]
+    },
+    {
+      "scope": "Culture",
+      "id": "Culture-1",
+      "name": "Twitch Streamers",
+      "post_count": 233,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "face title 'Burnout': 0% overlap; missing burnout"
+        }
+      ]
+    },
+    {
+      "scope": "Culture",
+      "id": "Culture-4",
+      "name": "Tax Purposes",
+      "post_count": 25,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "face title 'Tax Evasion': 0% overlap; missing evasion"
+        }
+      ]
+    },
+    {
+      "scope": "Culture",
+      "id": "Culture-8",
+      "name": "Funny",
+      "post_count": 90,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "label",
+          "stage": "labeling",
+          "detail": "planet label: template summary; face 'Funny': template summary"
+        }
+      ]
+    },
+    {
+      "scope": "Health",
+      "id": "Health-5",
+      "name": "Mental Health Struggles",
+      "post_count": 17,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "planet title 'Mental Health Struggles': 0% overlap; missing health, mental, struggles"
+        }
+      ]
+    },
+    {
+      "scope": "Health",
+      "id": "Health-7",
+      "name": "ADHD Struggles 2",
+      "post_count": 15,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "face title 'Lack Focus': 0% overlap; missing focus, lack"
+        }
+      ]
+    },
+    {
+      "scope": "Health",
+      "id": "Health-10",
+      "name": "Medical Appointments",
+      "post_count": 11,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "face title 'Medical Frustrations': 0% overlap; missing frustrations, medical"
+        }
+      ]
+    },
+    {
+      "scope": "Environment",
+      "id": "Environment-7",
+      "name": "Pretty Flowers",
+      "post_count": 6,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "planet title 'Pretty Flowers': 0% overlap; missing flowers, pretty"
+        }
+      ]
+    },
+    {
+      "scope": "Environment",
+      "id": "Environment-8",
+      "name": "Angeles Cities Heat",
+      "post_count": 8,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "label",
+          "stage": "labeling",
+          "detail": "planet label: template summary; face 'Angeles Cities Heat': template summary"
+        }
+      ]
+    },
+    {
+      "scope": "Education",
+      "id": "Education-4",
+      "name": "Bits Limited Neighborhood",
+      "post_count": 9,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "label",
+          "stage": "labeling",
+          "detail": "planet label: template summary; face 'Bar Bits Limited': template summary"
+        }
+      ]
+    },
+    {
+      "scope": "Education",
+      "id": "Education-5",
+      "name": "School Medical Care",
+      "post_count": 8,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "planet title 'School Medical Care': 33% overlap; missing care, medical; face title 'School Medical Care': 33% overlap; missing care, medical; face title 'Media Literacy': 0% overlap; missing literacy"
+        }
+      ]
+    },
+    {
+      "scope": "Education",
+      "id": "Education-7",
+      "name": "Cafeteria Duty",
+      "post_count": 6,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "face title 'Too': title has no content words"
+        },
+        {
+          "check": "label",
+          "stage": "labeling",
+          "detail": "planet label: template summary; face 'Too': template summary"
+        }
+      ]
+    },
+    {
+      "scope": "Education",
+      "id": "Education-9",
+      "name": "Bully Bullies Bullying",
+      "post_count": 6,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "label",
+          "stage": "labeling",
+          "detail": "planet label: template summary; face 'Bully Bullies Bullying': template summary"
+        }
+      ]
+    },
+    {
+      "scope": "Other",
+      "id": "Other-2",
+      "name": "Good Morning",
+      "post_count": 22,
+      "stages": [
+        "ingest"
+      ],
+      "checks": [
+        {
+          "check": "junk",
+          "stage": "ingest",
+          "detail": "80% of the posts are chit-chat"
+        }
+      ]
+    },
+    {
+      "scope": "Other",
+      "id": "Other-6",
+      "name": "wonderful day",
+      "post_count": 8,
+      "stages": [
+        "ingest"
+      ],
+      "checks": [
+        {
+          "check": "junk",
+          "stage": "ingest",
+          "detail": "67% of the posts are chit-chat"
+        }
+      ]
+    },
+    {
+      "scope": "Other",
+      "id": "Other-10",
+      "name": "Pet Benefits",
+      "post_count": 17,
+      "stages": [
+        "labeling"
+      ],
+      "checks": [
+        {
+          "check": "title_fit",
+          "stage": "labeling",
+          "detail": "planet title 'Pet Benefits': 0% overlap; missing benefits; face title 'Pet Benefits': 0% overlap; missing benefits"
+        }
+      ]
+    }
+  ],
+  "detector_only": true
+}

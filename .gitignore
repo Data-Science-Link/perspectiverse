@@ -102,6 +102,7 @@ htmlcov/
 .tox/
 playwright-report/
 test-results/
+edition-check-out/
 blob-report/
 
 # Jupyter Notebooks

@@ -715,3 +715,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Why:** On #234, #264 and #265 the reviewer wrote fixes (for example 59c47d3, c931e4d and 0626886) that nobody had reviewed, so the agent-review step didn't cover them. Michael (Factory room, 2026-10-20 8:01 AM CT): "OK on the two process checks".
 **Alternatives:** Let reviewers commit fixes as part of review (rejected because it leaves unreviewed code). Always re-review the whole PR (heavier than needed).
 **Revisit:** If review rounds get noticeably slower, or if reviewer-written commits keep needing a second pass anyway.
+
+### 2026-10-20: Fix the pipeline stage that caused a bad planet; do not clean it up afterward
+**Decision:** A bad grouping or a bad perspective is fixed at the stage that produced it (ingest, clustering/attach, faces/stance, or labeling). A later pass does not hide, rewrite, or drop the planet to make the edition look finished. The edition self-check (#273) is a detector only. Each failure names the stage that should change.
+**Why:** Michael (Factory room, 2026-10-20 9:50 AM CT) said to fix root causes rather than cleaning up bad groupings or perspectives afterward.
+**Alternatives:** Keep publishing, then rewrite titles or drop planets in a cleanup step (rejected).
+**Revisit:** If a detector failure cannot be traced to one of those four stages.
