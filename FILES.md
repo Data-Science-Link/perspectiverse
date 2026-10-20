@@ -30,6 +30,7 @@ This document provides a complete listing of all files in the Perspectiverse rep
 | `pipeline/generate_demo_data.py` | Synthetic 10×6 universe (not what the site ships) |
 | `pipeline/live.py` | Rotate corpus, cluster, label, write `data.json` |
 | `pipeline/briefs.py` | Short and long summaries for planets and perspectives, plus the weekly email |
+| `pipeline/dossier.py` | Private 2–4 page planet and perspective briefings in R2; off unless `PERSPECTIVERSE_DOSSIERS=1` |
 | `pipeline/schema.py` | Shared `data.json` contract |
 | `pipeline/settings.py` | YAML config loader |
 | `pipeline/cleaning.py` | URL, handle, and spam cleaning |

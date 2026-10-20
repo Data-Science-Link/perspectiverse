@@ -12,10 +12,18 @@ import time
 from collections import defaultdict, deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 
 from pipeline.assemble import FACE_LETTERS, assemble_payload, face_id, topic_name, write_payload
 from pipeline.briefs import apply_level_summaries
+from pipeline.dossier import (
+    DossierBudget,
+    apply_dossiers_batch,
+    dossier_allowance_usd,
+    dossiers_enabled,
+    open_dossier_store,
+)
 from pipeline.cleaning import clean_posts, clean_text, drop_near_duplicates
 from pipeline.corpus import (
     TARGET_POSTS,
@@ -1082,7 +1090,7 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         if raw_workers is None:
             raw_workers = DEFAULT_LABEL_WORKERS
         workers = max(1, int(raw_workers))
-    return {
+    context = {
         "backend": backend,
         "model": model,
         "chosen": chosen,
@@ -1095,7 +1103,19 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         "workers": workers,
         "min_planet_posts": _planet_post_floor(settings),
         "stance_second_face_share": settings.get("stance_second_face_share"),
+        "dossiers": False,
+        "dossier_store": None,
+        "edition_date": datetime.now(timezone.utc).date().isoformat(),
     }
+    if dossiers_enabled(settings):
+        dossier_store = open_dossier_store()
+        if dossier_store is None:
+            print("Dossiers are on but R2 is not configured; keeping the grounded summaries.")
+        else:
+            context["dossiers"] = True
+            context["dossier_store"] = dossier_store
+            context["dossier_budget"] = DossierBudget(nightly_usd=dossier_allowance_usd(settings))
+    return context
 
 
 # A planet whose labels collapse below MIN_FACES may try this many other
@@ -1861,6 +1881,56 @@ def _wide_label_face_from_posts(
     }
 
 
+def _apply_dossiers_if_enabled(
+    topics: list[dict],
+    posts: list[dict],
+    context: dict,
+    *,
+    reserve_usd: Decimal | int | str | None = None,
+) -> None:
+    """Rewrite public tiers from private briefings when the switch is on.
+
+    Off, or on without R2 or a model: the grounded summary, brief, and detail
+    stay as ``apply_level_summaries`` wrote them. A dossier that does not fit
+    in its budget is deferred. That does not raise, and it does not stop
+    publishing. ``reserve_usd`` is held back for paid work still ahead. The
+    global catalog passes the section-labeling reserve. The section pass,
+    which runs after that labeling, passes 0. Call this after published ids
+    exist and before internal member fields are stripped, so the briefing
+    keys match ``data.json`` and the sample can still see member posts.
+    """
+    if not context.get("dossiers"):
+        return
+    store = context.get("dossier_store")
+    generate = context.get("summary_model")
+    if store is None or generate is None:
+        print("Dossiers are on but storage or the model is missing; keeping the grounded summaries.")
+        return
+    from decimal import Decimal as _Decimal
+
+    from pipeline.dossier import DOSSIER_RUN_RESERVE_USD
+
+    budget = context.get("dossier_budget")
+    if not isinstance(budget, DossierBudget):
+        budget = DossierBudget(nightly_usd=dossier_allowance_usd())
+        context["dossier_budget"] = budget
+    if reserve_usd is None:
+        reserve_usd = DOSSIER_RUN_RESERVE_USD
+    edition = str(context.get("edition_date") or datetime.now(timezone.utc).date().isoformat())
+    try:
+        apply_dossiers_batch(
+            topics,
+            posts,
+            generate=generate,
+            store=store,
+            edition=edition,
+            budget=budget,
+            reserve_usd=_Decimal(str(reserve_usd)),
+        )
+    except Exception as exc:
+        print(f"Dossiers stopped early ({exc}). Keeping the summaries and publishing.")
+
+
 def _strip_internal_planet_fields(topics: list[dict]) -> None:
     for topic in topics:
         topic.pop("_member_uris", None)
@@ -1884,7 +1954,6 @@ def _finalize_published_planets(
         merge_alike_published_faces(topics)
         for line in guard_published_labels(topics, posts):
             print(line)
-        _strip_internal_planet_fields(topics)
         return set()
     jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
     workers = _section_pool_size(context)
@@ -1893,7 +1962,6 @@ def _finalize_published_planets(
     merge_alike_published_faces(topics)
     for line in guard_published_labels(topics, posts):
         print(line)
-    _strip_internal_planet_fields(topics)
     return incomplete
 
 
@@ -1906,7 +1974,6 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
             merge_alike_published_faces(job.built)
             for line in guard_published_labels(job.built, job.posts):
                 print(line)
-            _strip_internal_planet_fields(job.built)
         return set()
     face_jobs: list[_FinalizeFaceJob] = []
     for job in jobs:
@@ -1926,7 +1993,6 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
         merge_alike_published_faces(job.built)
         for line in guard_published_labels(job.built, job.posts):
             print(line)
-        _strip_internal_planet_fields(job.built)
     return incomplete
 
 
@@ -2890,7 +2956,12 @@ def _build_topics(
     built = _publishable_planets(built)
     _finalize_published_planets(built, posts, clustered, context)
     publish_volumes(built)
-    return _renumber_planets(built, membership, face_rows)
+    topics, membership, face_rows = _renumber_planets(built, membership, face_rows)
+    # Published ids are final. Member URIs are still on the planets, so the
+    # briefing can sample them. Strip those fields after the rewrite.
+    _apply_dossiers_if_enabled(topics, posts, context)
+    _strip_internal_planet_fields(topics)
+    return topics, membership, face_rows
 
 
 def _publishable_planets(topics: list[dict]) -> list[dict]:
@@ -3244,6 +3315,13 @@ def _cluster_sections(
         print(f"Section {dest}: accepted {len(assigned)} planet(s) relocated from Politics.")
 
     renormalize_section_catalogs(result)
+    # Section ids (Technology-5) are assigned. Labeling is finished, so this
+    # pass does not hold a reserve. Strip member fields after the rewrite.
+    if context is not None:
+        flat = [topic for topics in result.values() for topic in topics]
+        _apply_dossiers_if_enabled(flat, planet_posts, context, reserve_usd=0)
+    for topics in result.values():
+        _strip_internal_planet_fields(topics)
 
     return {name: result[name] for name in CATEGORIES if name in result}
 

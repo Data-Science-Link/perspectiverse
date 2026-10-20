@@ -96,6 +96,23 @@ A run also stops without publishing when paid calls for the UTC day reach $1.00.
 
 The same commit appends `costs/ledger.csv` and regenerates `costs/README.md` and `costs/daily_spend_14d.svg` on `data-snapshot` (one row per paid service and model, including Cloudflare R2). Each row includes `trigger` (`schedule`, `push`, `workflow_dispatch`, or backfilled from GitHub Actions) so the chart can stack production spend above merge- and test-triggered spend on the same day (#101). Those files are not under `public/`, so Pages does not deploy them. A cost-log error is a warning and does not stop the snapshot.
 
+### Private dossiers (off)
+
+`pipeline/dossier.py` can write a 2–4 page briefing per planet and per perspective from a 40-post sample, store it in R2 at `dossiers/<edition>/<planet-id>.md` (and `.../<perspective-id>.md`), and rebuild `summary`, `brief`, and `detail` from that briefing plus the top 8 posts. Each public tier has to add a sentence the tier above did not already say, and it does not reuse the filler line "is the conversation these views share". A planet tier does not copy a perspective's sentences. The briefing is not written to `public/` or `data.json`. Tools and a future visitor chat read it with `load_dossier_text` / `load_retrieval_pack`. Chat tokens are not this budget. This change does not add a visitor chat.
+
+The switch defaults off (`dossiers: false`, `PERSPECTIVERSE_DOSSIERS` unset), so a normal run does not call the model and does not write those keys. Turning it on uses the same DeepInfra path as labeling, so the dollars count toward the $1/day hard stop. The dossier pass has its own allowance, default **$0.09** (`PERSPECTIVERSE_DOSSIER_BUDGET_USD` or `dossier_budget_usd`). That is the room under the #87 $0.25/day total when a typical night is about $0.16. A $0.25 dossier allowance stacks to about $0.41 and does not fit; $0.14 is the room under the $0.30 fallback. The pass also stops at whatever is left under the $1 hard stop after a reserve for labeling still ahead ($0.15 before section labeling, nothing after it). Planets are rebuilt largest first, then their perspectives, after published ids exist. A briefing that does not fit waits until a later night. The previous briefing stays, or the current summaries stay when there is no briefing yet. That deferral does not stop the run and does not stop publishing. A stored briefing is reused unless more than 20% of the post URIs are new, or a post newly enters the top 8 with more likes than the previous floor. A tie at that floor does not rebuild.
+
+These commands do not call a model unless `--run` is passed:
+
+```bash
+python -m pipeline.dossier quality --data public/data.json
+python -m pipeline.dossier baseline --data public/data.json --out docs/evidence/241/summary-sample.csv
+python -m pipeline.dossier smoke --data public/data.json --seed 241
+python -m pipeline.dossier replay --data public/data.json --sample docs/evidence/241/summary-sample.csv
+```
+
+`quality` counts sentence overlap on the current text. `baseline` draws 20 planets with seed 241, stratified across sections, plus one perspective from each planet that has two or more faces. The checked-in `docs/evidence/241/summary-sample.csv` keeps that draw and then appends the single face on each of the other 14 planets (seed 241; each of those planets has one face, so the pick is that face). Re-running `baseline` would drop those 14 rows. None of the 20 planets has zero faces. `smoke` draws 3 planets with the same seed. It is a smoke test, not the before/after. The before/after is every row in the checked-in sample, all 20 planets and every face, scored with the question in `docs/evidence/241/summary-rubric.md`. Label-vs-top-posts mismatches are #290. They stay in that score. `replay` prices whatever rows are in the sample file. `--run` on `smoke` or `replay` spends, refuses to start while a Daily Discourse Pipeline run is queued, and refuses when R2 is not configured. An extractive outline, with no model, is `python -m pipeline.dossier outline --planets NAME`.
+
 ### When the pipeline triggers
 
 | Trigger | What happens | LLM spend |
