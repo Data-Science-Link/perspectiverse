@@ -13,6 +13,7 @@ from pipeline.chitchat_guard import (
     edition_posts_for_clustering,
     ingest_block_reason,
     is_bare_link_post,
+    is_bare_profile_link_post,
     MODEL_CHITCHAT_SHARE_FLOOR,
     planet_chitchat_reason,
     pleasantry_reason,
@@ -934,3 +935,123 @@ def test_issue_208_morning_patterns_do_not_swallow_topics():
         if reason is not None:
             misclassified.append(f"{reason}: {text}")
     assert misclassified == [], "\n".join(misclassified)
+
+
+def test_issue_208_watch_planets_standalone_day_wishes():
+    """Verbatim Other-section reps from the 2026-10-19 edition."""
+    reps = [
+        "Have a great day! 🙌🏽",
+        "good morning!! have a great day",
+        "Good morning y’all Happy Sunday hope everybody has a great day today☀️🙌🏾🙌🏾🙌🏾",
+        "Happy Sunday Maryann. Have a great day!💚",
+        "good morning and happy sunday!!!!",
+        "Good Morning and Happy Sunday Ms M 🌞🌞💙💙☮️☮️🌈🌈",
+        "Good morning I hope you have a good day.😊",
+        "Dreamcatcher!!! Good morning!!! 👋✌️☕☕🌞😃 I hope you have a fabulous day!!!",
+        "Have a great day.",
+        "Mornin, y’all. Have a great day.",
+        "Hope you have a great day Jim 🥰🫂🧡",
+        "Happy Sunday Funday Allie!Have a fabulous day today!🫂",
+        "You have a happy Sunday too!",
+        "Have a good day 😊 😘",
+        "Good Morning Sherry Hope you have a double dose of Peace today 💙💙 🍁🍁☮️☮️⚡️⚡️🌈🌈",
+    ]
+    for text in reps:
+        assert pleasantry_reason({"text": text}) == "greeting", text
+    keeps = [
+        "HAPPY Monday AFTER the #NoKings #4 March.♥️",
+        "Hope your day was productive and abundant in all ways. Good evening from downtown Toronto! 💙🩵✨️🇨🇦🍁⚾️🏀🥂",
+        "So glad you are becoming a great team. Happy Sunday my friends, hope you have a pawsome day. 🥰💛❤️🐾",
+        "Hope you have a good day LanguageNerd24601 (Can’t donate)!",
+        "Have a great day. The parade starts at noon.",
+        "Good morning, Jean! I'm happy to report 42° here this morning. 😁 Have a great day 🌞",
+        "Today has been a good day as people have raised their voices in protest… have a Good night 🎶🎙️💙🌊🚶🏽‍♂️🚶‍♀️",
+    ]
+    for text in keeps:
+        assert pleasantry_reason({"text": text}) is None, text
+    great_day = _members(
+        [
+            "Good morning y’all Happy Sunday hope everybody has a great day today☀️🙌🏾🙌🏾🙌🏾",
+            "Good morning Allie 💙🫂🌹 have a great Sunday 🌞☕",
+            "Have a great day! 🙌🏽",
+            "A great day for you too 🌹",
+            "good morning!! have a great day",
+            "Good morning, Babble. Good job! Have a great day! 💙",
+            "Happy Sunday Maryann. Have a great day!💚",
+            "Have a great day.",
+            "I hope you have a great Sunday D xx",
+            "Good morning, Jean! I'm happy to report 42° here this morning. 😁 Have a great day 🌞",
+            "Mornin, y’all. Have a great day.",
+            "Hope you have a great day Jim 🥰🫂🧡",
+        ]
+    )
+    assert planet_chitchat_reason(great_day, [], name="Great Day")
+    happy = _members(
+        [
+            "good morning and happy sunday!!!!",
+            "Good Morning and Happy Sunday Ms M 🌞🌞💙💙☮️☮️🌈🌈",
+            "Happy Sunday Funday Allie!Have a fabulous day today!🫂",
+            "You have a happy Sunday too!",
+            "HAPPY Monday AFTER the #NoKings #4 March.♥️",
+        ]
+    )
+    assert planet_chitchat_reason(happy, [], name="Happy Sunday")
+    hope = _members(
+        [
+            "Good morning I hope you have a good day.😊",
+            "Hope your day was productive and abundant in all ways. Good evening from downtown Toronto! 💙🩵✨️🇨🇦🍁⚾️🏀🥂",
+            "Good Morning Sherry Hope you have a double dose of Peace today 💙💙 🍁🍁☮️☮️⚡️⚡️🌈🌈",
+            "Dreamcatcher!!! Good morning!!! 👋✌️☕☕🌞😃 I hope you have a fabulous day!!!",
+            "Hope you have a good day LanguageNerd24601 (Can’t donate)!",
+        ]
+    )
+    assert planet_chitchat_reason(hope, [], name="Hope For The Day")
+
+
+def test_issue_223_profile_samples_and_article_links():
+    """Issue #223 samples, copied verbatim. Commentary stays; a bare majority drops."""
+    bare = "bsky.app/profile/we-a..."
+    commentary = [
+        "There's a lot of that going on on that particular post. bsky.app/profile/mers...",
+        "You should check out both of their posts ❤️ (Wrong link in last one lol) bsky.app/profile/spic... bsky.app/profile/thes...",
+        "well there goes this post bsky.app/profile/next...",
+        "Wait til you see this: bsky.app/profile/papa...",
+    ]
+    assert is_bare_profile_link_post({"text": bare})
+    for text in commentary:
+        assert not is_bare_profile_link_post({"text": text}), text
+    published = [{"text": bare}, *({"text": text} for text in commentary)]
+    assert planet_chitchat_reason(published, [], name="Bsky App Profile") is None
+    heavy = [{"text": bare}] * 4 + [{"text": commentary[0]}]
+    assert planet_chitchat_reason(heavy, [], name="Bsky App Profile")
+    articles = [
+        "The senate tariff vote is here https://www.nytimes.com/2026/10/19/us/tariffs.html",
+        "Court filing on the sanctions https://www.reuters.com/world/ukraine-sanctions",
+    ] * 4
+    assert all(not is_bare_profile_link_post({"text": text}) for text in articles)
+    assert planet_chitchat_reason([{"text": text} for text in articles], [], name="Tariff Vote") is None
+
+
+def test_issue_222_portuguese_planets_drop_and_english_names_stay():
+    """Issue #222 samples, copied verbatim. Names and a few foreign words stay English."""
+    portuguese = [
+        "Resultado da Lotofácil de hoje: veja números e ganhadores do concurso 3806 (sexta, 16/10)",
+        "Veja o resultado da Quina concurso 7141 desta terça-feira (13)",
+        "porra de panelaço velho parem com isso aí vocês acham MESMO que panelaço vai virar um voto sequer a favor? vira é contra",
+        "Fetiches mais populares no brasil é talaricagem e suruba a ceu aberto enquanto foge do careca do metropole coincidencia? acho que não bsky.app/profile/inkd...",
+    ]
+    members = [{"text": text} for text in portuguese] + [{"text": portuguese[0]}] * 2
+    assert planet_chitchat_reason(members, [], name="Lotofácil Concurso")
+    english = [
+        "Trump and Zelenskyy met in Kyiv while Macron and Scholz watched.",
+        "São Paulo fans said the match was fixed, but the Premier League replay is Friday.",
+        "My friend Jürgen said the café on Main Street raised prices again.",
+        "The résumé workshop at the university library is Tuesday. Bring a draft.",
+        "Naomi Osaka and Iga Świątek play tomorrow; the crowd in Montréal was loud.",
+        "A few words: merci, gracias, and then back to the housing bill in Congress.",
+        "The senate should vote on the housing bill before Friday.",
+        "Voters in Milwaukee reported long lines on Tuesday.",
+    ]
+    assert planet_chitchat_reason([{"text": text} for text in english], [], name="Book Enthusiasm") is None
+    mixed = [{"text": text} for text in english] + [{"text": portuguese[0]}] * 2
+    assert planet_chitchat_reason(mixed, [], name="Early Voting") is None
