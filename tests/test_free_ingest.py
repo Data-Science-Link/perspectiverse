@@ -155,6 +155,13 @@ def test_fetch_buckets_reconcile_to_fetched():
                 "likes": 1,
                 "created_at": "2026-10-17T05:00:00Z",
             },
+            {
+                "uri": "at://sick-journal",
+                "author": "eve",
+                "text": "I've been sick all week and I am still home from the hospital.",
+                "likes": 1,
+                "created_at": "2026-10-17T06:00:00Z",
+            },
         ]
 
     reset_chitchat_log()
@@ -171,9 +178,10 @@ def test_fetch_buckets_reconcile_to_fetched():
     assert log.buckets_reconcile()
     assert log.fetched == log.accounted_total()
     assert log.near_duplicate_blocked >= 1
+    assert log.health_update_blocked == 1
     assert log.new_stored == 1
     assert log.over_daily_cap >= 1
-    assert log.fetched == 3
+    assert log.fetched == 4
 
 
 def test_fetch_buckets_already_stored_uri():
@@ -263,6 +271,46 @@ def test_fetch_buckets_over_target_cap():
     assert log.buckets_reconcile()
     assert log.new_stored == 1
     assert log.over_target_cap >= 1
+
+
+def test_health_update_has_its_own_fetch_bucket_without_changing_kept_posts():
+    from pipeline.chitchat_guard import get_chitchat_log, ingest_block_reason, reset_chitchat_log
+    from pipeline.free_ingest import keep_edition_quality
+
+    posts = [
+        {
+            "uri": "at://topic",
+            "author": "ada",
+            "text": "The school board should publish the safety audit before the bond vote next month.",
+            "likes": 1,
+            "created_at": "2026-10-17T04:00:00Z",
+        },
+        {
+            "uri": "at://thanks",
+            "author": "bob",
+            "text": "Thank you so much!",
+            "likes": 1,
+            "created_at": "2026-10-17T04:00:00Z",
+        },
+        {
+            "uri": "at://journal",
+            "author": "cara",
+            "text": "I've been sick all week and I am still home from the hospital.",
+            "likes": 1,
+            "created_at": "2026-10-17T04:00:00Z",
+        },
+    ]
+    baseline_kept = {post["uri"] for post in posts if ingest_block_reason(post) is None}
+
+    reset_chitchat_log()
+    kept, _spam, _other = keep_edition_quality(posts)
+    assert {post["uri"] for post in kept} == baseline_kept
+
+    log = get_chitchat_log()
+    assert log.fetched == 3
+    assert log.chitchat_blocked == 1
+    assert log.health_update_blocked == 1
+    assert len(kept) == 1
 
 
 def test_paced_fetch_backs_off_on_403(monkeypatch):
@@ -381,6 +429,7 @@ def test_run_live_free_ingest_does_not_call_per_post_jev(monkeypatch, tmp_path):
             [
                 "free_ingest: true",
                 "min_cluster_size: 8",
+                "min_planet_posts: 12",
                 "cluster_backend: lexical",
                 "label_backend: heuristic",
                 "sample_size: 200",

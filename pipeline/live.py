@@ -62,7 +62,9 @@ from pipeline.label import (
     name_from_perspectives,
     set_label_deadline,
     shares_claim_word,
+    majority_story_groups,
     specific_shared_words,
+    repeated_stems_below_floor,
     split_catchall_posts,
     story_groups,
     subject_stem,
@@ -77,6 +79,7 @@ from pipeline.label import (
 from pipeline.perspectives import select_representatives, split_perspectives
 from pipeline.stance import (
     apply_stance_pass,
+    local_faces_disagree,
     report_stance_check_failures,
     report_stance_check_incoherent,
     reset_stance_check_failures,
@@ -299,6 +302,7 @@ def run_live(
                 print(
                     "Carried-over clustering filters: "
                     f"chitchat={carried_cluster_skips.get('chitchat', 0)}, "
+                    f"health_update={carried_cluster_skips.get('health_update', 0)}, "
                     f"link_only={carried_cluster_skips.get('link_only', 0)}, "
                     f"language={carried_cluster_skips.get('language', 0)}."
                 )
@@ -1476,7 +1480,7 @@ def _label_faces(
             f"the published face count ({published}). They were on a dropped face "
             "and did not match the kept face."
         )
-    drafted = _merge_alike_drafts(kept, limit)
+    drafted = _merge_alike_drafts(kept, limit, members)
     return drafted, labeled
 
 
@@ -1937,7 +1941,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     is dropped; if one real face remains, the planet is still published. When
     every face fails the shared-claim check, the planet is kept as pending
     (#158). The planet is not dropped for having one face. When the faces are different stories
-    (no specific shared subject word), the candidate is split into one
+    (no specific shared subject word, or a smaller face whose posts mostly
+    lack the largest face's top stem), the candidate is split into one
     planet per story and each story goes through this same split (#78).
     A catch-all (more than one story bucket, no shared claim, or a label
     term in under 30% of posts) is re-split into specific stories instead
@@ -2005,7 +2010,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         )
     drafted = drafted[:MAX_FACES]
     perspectives = [item[0] for item in drafted]
-    if len(perspectives) >= 2 and not specific_shared_words(perspectives):
+    story_faces = _story_faces_from_draft(members, drafted)
+    if len(perspectives) >= 2 and _faces_are_different_stories(story_faces):
         if depth < _STORY_SPLIT_LIMIT:
             detection_faces = int(context["story_calls"]["faces"])
             handled, split_result, split_log = _split_different_stories(
@@ -2326,9 +2332,10 @@ def _resplit_catchall(
     if held:
         _note_uris(None, "held_uris", held)
     if len(buckets) < 1:
-        if held:
-            # Every specific-looking bucket was a thin fragment. Leave those
-            # posts out. Do not publish the catch-all as one planet.
+        if held or repeated_stems_below_floor(members, floor) >= 2:
+            # Every piece is under the floor, or the stems that do repeat are
+            # each too small to be a planet. Leave the grab-bag out. Do not
+            # publish it as one planet.
             return True, {
                 "planets": [],
                 "split": True,
@@ -2552,6 +2559,47 @@ def _return_catchall_split(
     )
 
 
+def _faces_are_different_stories(faces: list[dict]) -> bool:
+    """True when the faces should not stay on one planet.
+
+    ``specific_shared_words`` is looked up on this module so tests can patch it.
+    """
+    groups = majority_story_groups(faces)
+    if groups is not None:
+        return len(groups) >= 2
+    return len(faces) >= 2 and not specific_shared_words(faces)
+
+
+def _story_faces_from_draft(members: list[dict], drafted: list) -> list[dict]:
+    """Face records for the story split, with the member texts the stem check reads."""
+    uri_index = {str(post.get("uri") or ""): index for index, post in enumerate(members)}
+    faces = []
+    for perspective, rows, size in drafted:
+        indices: list[int] = []
+        seen: set[int] = set()
+        for uri, _position, _distance in rows:
+            index = uri_index.get(str(uri))
+            if index is None or index in seen:
+                continue
+            seen.add(index)
+            indices.append(index)
+        texts = [
+            str(members[index].get("clean_text") or members[index].get("text") or "")
+            for index in indices
+        ]
+        faces.append(
+            {
+                "title": perspective.get("title") or "",
+                "summary": perspective.get("summary") or "",
+                "representative_posts": perspective.get("representative_posts") or [],
+                "member_indices": indices,
+                "member_texts": [text for text in texts if text.strip()],
+                "post_count": len(indices) or int(size),
+            }
+        )
+    return faces
+
+
 def _split_different_stories(
     posts: list[dict],
     clustered: dict,
@@ -2570,27 +2618,10 @@ def _split_different_stories(
     """
     del parent_log
     log: list[str] = []
-    uri_index = {str(post.get("uri") or ""): index for index, post in enumerate(members)}
-    faces = []
-    for perspective, rows, size in drafted:
-        indices = []
-        seen: set[int] = set()
-        for uri, _position, _distance in rows:
-            index = uri_index.get(str(uri))
-            if index is None or index in seen:
-                continue
-            seen.add(index)
-            indices.append(index)
-        faces.append(
-            {
-                "title": perspective.get("title") or "",
-                "summary": perspective.get("summary") or "",
-                "representative_posts": perspective.get("representative_posts") or [],
-                "member_indices": indices,
-            }
-        )
-        del size
-    groups = story_groups(faces)
+    faces = _story_faces_from_draft(members, drafted)
+    groups = majority_story_groups(faces)
+    if groups is None:
+        groups = story_groups(faces)
     buckets: list[list[int]] = []
     for group in groups:
         indices = []
@@ -2618,19 +2649,55 @@ def _split_different_stories(
     )
 
 
+def _posts_for_merge(
+    perspective: dict,
+    rows: list[tuple[str, int, float]],
+    by_uri: dict[str, dict],
+) -> list[dict]:
+    posts = []
+    for uri, _position, _distance in rows:
+        post = by_uri.get(str(uri))
+        if post is not None:
+            posts.append(post)
+    if posts:
+        return posts
+    return list(perspective.get("representative_posts") or [])
+
+
 def _merge_alike_drafts(
     drafted: list[tuple[dict, list[tuple[str, int, float]], int]],
     post_limit: int = EXAMPLE_POST_CAP,
+    members: list[dict] | None = None,
 ) -> list[tuple[dict, list[tuple[str, int, float]], int]]:
     """Fold a face into a larger one when the titles are the same stance.
 
     Same rule as ``_merge_alike_faces``, but the membership rows move with
-    the merged face so the database matches what is published.
+    the merged face so the database matches what is published. A title match
+    is not enough when the posts disagree: that fold used to run before the
+    stance gate and could erase a real opposition.
     """
+    by_uri = {str(post.get("uri") or ""): post for post in (members or [])}
     ranked = sorted(drafted, key=lambda item: (-int(item[2]), str(item[0].get("id") or "")))
     kept: list[list] = []
     for perspective, rows, size in ranked:
-        match = next((item for item in kept if titles_alike(item[0].get("title"), perspective.get("title"))), None)
+        incoming_posts = _posts_for_merge(perspective, rows, by_uri)
+        match = None
+        for item in kept:
+            if not titles_alike(item[0].get("title"), perspective.get("title")):
+                continue
+            if local_faces_disagree(
+                item[0],
+                perspective,
+                _posts_for_merge(item[0], item[1], by_uri),
+                incoming_posts,
+            ):
+                # Finalize folds alike titles again. Lock both so that pass
+                # cannot undo a disagreement this merge refused.
+                item[0]["stance_locked"] = True
+                perspective["stance_locked"] = True
+                continue
+            match = item
+            break
         if match is None:
             kept.append([perspective, list(rows), int(size)])
             continue
