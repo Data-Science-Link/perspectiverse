@@ -223,14 +223,9 @@ def test_label_guard_does_not_call_a_model(monkeypatch):
     scan_edition_labels({"topics": [topic], "sections": {}})
 
 
-@pytest.mark.skipif(
-    not Path("/home/ubuntu/.cursor/projects/workspace/uploads/data_2026-10-19_f4b4.json").is_file(),
-    reason="Oct 19 snapshot is not in this checkout",
-)
 def test_oct19_snapshot_replacements_are_readable():
-    payload = json.loads(
-        Path("/home/ubuntu/.cursor/projects/workspace/uploads/data_2026-10-19_f4b4.json").read_text(encoding="utf-8")
-    )
+    fixture = Path(__file__).resolve().parent / "fixtures" / "label_guard_oct19_scan.json"
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
     report = scan_edition_labels(payload)
     assert len(report["flagged"]) == 14
     protected = {

@@ -458,13 +458,6 @@ def _accept_candidate(
     )
 
 
-def _face_posts(face: dict, posts_by_uri: dict[str, dict], member_posts: list[dict]) -> list[dict]:
-    uris = list(face.get("_face_member_uris") or [])
-    if uris:
-        return [posts_by_uri[uri] for uri in uris if uri in posts_by_uri]
-    return list(member_posts)
-
-
 def _representative_posts(holder: dict) -> list[dict]:
     rows: list[dict] = []
     for rep in holder.get("representative_posts") or []:
