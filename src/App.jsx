@@ -88,13 +88,21 @@ export default function App() {
     writeSelectionToURL({ ...next, page: next.page ?? null }, mode)
   }
 
+  const stashSolarCameraIfEntering = (topicId) => {
+    if (topicId != null && selectedTopicId == null) {
+      window.__PV_SOLAR_CAMERA__?.stash?.()
+    }
+  }
+
   const selectTopic = (topicId) => {
+    stashSolarCameraIfEntering(topicId)
     setHighlightedTopicId(topicId)
     setEmailOpen(false)
     commitSelection({ category, topicId, perspectiveId: null, page: null })
   }
 
   const openTopic = (topicId) => {
+    stashSolarCameraIfEntering(topicId)
     setHighlightedTopicId(topicId)
     setEmailOpen(false)
     commitSelection({ category, topicId, perspectiveId: null, page: null })

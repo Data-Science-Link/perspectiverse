@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import {
+  LABEL_NOT_READY,
   PERSPECTIVES_PENDING,
   STANCE_CHECK_FAILED,
   STANCE_CHECK_INCOHERENT,
+  STANCE_CHECK_LABEL_HELD,
   STANCE_CHECK_UNSHARED,
   oneViewNote,
   showStanceFailure,
@@ -30,6 +32,13 @@ assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_INCOHERENT }), 'No clea
 assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_FAILED, perspectives: [{}, {}] }), true)
 assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_INCOHERENT, perspectives: [{}] }), true)
 assert.equal(showStanceFailure({ perspectives: [{}, {}] }), false)
+assert.equal(oneViewNote({ stance_check: STANCE_CHECK_LABEL_HELD }), '')
+assert.equal(showStanceFailure({ stance_check: STANCE_CHECK_LABEL_HELD, perspectives: [{}] }), false)
+assert.equal(
+  oneViewNote({ stance_check: STANCE_CHECK_FAILED }),
+  PERSPECTIVES_PENDING,
+)
+assert.notEqual(oneViewNote({ stance_check: STANCE_CHECK_LABEL_HELD }), PERSPECTIVES_PENDING)
 
 function paragraphs(text) {
   return String(text || '')
@@ -298,36 +307,41 @@ assert.equal(incoherentPlanet.stancePending, true)
 assert.equal(incoherentPlanet.opposingNote, PERSPECTIVES_PENDING)
 assert.equal(/opposing view/i.test(incoherentPlanet.opposingNote), false)
 
-const distinct = presentTopic({
-  id: 1,
-  name: 'Russia Ukraine War',
-  category: 'World',
-  total_volume_percent: 100,
-  post_count: 5,
-  summary: 'Russia Ukraine War is the subject of these posts.',
-  brief: 'The posts name an oil deal tied to the negotiators. A second line questions whether the talks help Ukraine. A third line says the aid was steered aside.',
-  detail: 'One post cites a multibillion-dollar oil deal and names the negotiators in the thread.\n\n@karrieurbanist.bsky.social writes that the talks expanded to an oil deal.\n\nNo post in this sample defends the oil talks or calls them a peace plan.',
-  perspectives: [
+const labelHeldDigest = presentSnapshot({
+  mode: 'live',
+  source: 'bluesky',
+  window_hours: 168,
+  total_posts: 4,
+  last_updated: '2026-10-11',
+  topics: [
     {
-      id: '1A',
-      title: 'Ukraine Oil Deal',
-      summary: 'Trump allies benefit from US-Russia oil deal talks.',
-      brief: 'The posts say allies of the negotiators benefit from the oil talks. They question whether Ukraine is helped. They call the arrangement a grift.',
-      detail: 'The sampled posts cite a multibillion-dollar oil deal and name Kushner and Witkoff.\n\n@karrieurbanist.bsky.social writes that the talks expanded to include an oil deal.\n\nThe posts do not include a defense of the talks as a peace agreement.',
-      volume_percent: 100,
-      representative_posts: [{ author: 'ada', text: 'The talks expanded to an oil deal.', likes: 2 }],
+      id: 2,
+      name: 'Readable Planet',
+      category: 'World',
+      total_volume_percent: 8,
+      post_count: 4,
+      stance_check: STANCE_CHECK_LABEL_HELD,
+      summary: 'Topic label not ready for this edition.',
+      perspectives: [
+        {
+          id: '2A',
+          title: 'Pending',
+          summary: 'Topic label not ready for this edition.',
+          volume_percent: 100,
+          arguments: ['The first reason is concrete and long enough for readers.'],
+          representative_posts: [
+            { author: 'ada', text: 'A readable post about the held label case.', likes: 2 },
+            { author: 'bea', text: 'Another post in the same sample.', likes: 1 },
+          ],
+        },
+      ],
     },
   ],
 })
-assert.equal(distinct.summary, 'Russia Ukraine War is the subject of these posts.')
-assert.equal(distinct.brief.startsWith('The posts name an oil deal'), true)
-assert.equal(distinct.summary === splitSentences(distinct.brief)[0], false)
-
-const repeated = presentTopic({
-  ...distinct,
-  summary: splitSentences(distinct.brief)[0],
-  perspectives: distinct.perspectives,
-})
-assert.equal(repeated.summary, splitSentences(repeated.brief)[0])
+const labelHeldPlanet = labelHeldDigest.digest.planets[0]
+assert.equal(labelHeldPlanet.oneView, true)
+assert.equal(labelHeldPlanet.stancePending, true)
+assert.equal(labelHeldPlanet.opposingNote, LABEL_NOT_READY)
+assert.equal(labelHeldPlanet.opposingNote.includes(PERSPECTIVES_PENDING), false)
 
 console.log('presented planets keep real perspectives and skip stock filler')

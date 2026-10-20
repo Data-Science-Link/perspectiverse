@@ -134,7 +134,7 @@ jobs:
           # MiniLM embeddings are ONNX (fastembed). Skip torch and BERTopic.
           # atproto is required for BLUESKY_HANDLE / BLUESKY_APP_PASSWORD search.
           uv pip install -e . --no-deps
-          uv pip install pyyaml "numpy>=1.24,<2" atproto fastembed
+          uv pip install pyyaml "numpy>=1.24,<2" atproto fastembed langid==1.1.6
 
       - name: Pin pipeline modules for ledger steps after git checkout
         if: github.event_name != 'schedule' || steps.schedule_guard.outputs.skip != 'true'

@@ -678,3 +678,47 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Michael (Factory, 3:07 PM CT): "PLEASE do not build either. They are just big initiatives for the future after refining the sites core functionality... I want to wait until we get everything else polished and really nice."
 - **Alternatives:** Build the email list or chat now. Rejected because core polish comes first.
 - **Revisit:** Only when Michael says the core site is polished and gives an explicit go for a specific build.
+
+### 2026-10-18: Each solar view shows only its 10 largest planets
+**Decision:** Whichever solar system or topic a visitor selects, including "All topics", the view shows the 10 largest planets. The edition may hold more, and that's expected. This applies to desktop and phone, and the phone linear grid only needs to fit those 10.
+**Why:** Michael (Factory room, 8:27 PM CT) said this is the intended behavior.
+**Alternatives:** Show every planet with vertical scrolling on phones (#249, declined).
+**Revisit:** If Michael asks for a way to reach planets past the top 10.
+
+### 2026-10-20: Search for an existing issue before filing a scheduled-run failure
+**Decision:** Before the daily check files a bug for a failed scheduled run, it searches open issues for the same failure (error message, failing step or run). If one matches, it comments on that issue with the new run instead of opening a new one.
+**Why:** On Oct 19 the morning Politics 93.1% failure was filed twice (#257 and #258). That split the evidence and forced a duplicate close. Michael (Factory room, 2026-10-20 5:43 AM CT): "For #2 I am good with that proposed rule".
+**Alternatives:** Keep filing per run and close duplicates later (rejected because it creates noise and splits evidence). Have a human dedupe (rejected because it adds a human step for mechanical work).
+**Revisit:** If a real new failure ever gets folded into an old issue by mistake, or if the search misses a duplicate again.
+
+### 2026-10-20: A failed agent review counts as a failed attempt for model escalation
+**Decision:** When an agent review FAILs a build, that counts as one failed attempt under `MODEL_ROUTING.md`. A `composer-2.5` build that fails review once gets its rework on `grok-4.7` instead of more rounds on the same model.
+**Why:** #260 took 6 review rounds on `composer-2.5` (Oct 19) while the table already said to escalate after one failed attempt. Michael (Factory room, 2026-10-20 5:48 AM CT): "moving off basic model after failed attempt sounds good".
+**Alternatives:** Count only crashed or abandoned runs as failed attempts (the reading that let #260 loop). Leave it to the Manager's judgment (rejected because it didn't happen).
+**Revisit:** If grok-4.7 reworks start costing noticeably more without fewer review rounds.
+
+### 2026-10-20: Escalation after a failed review follows the routing table (supersedes the same-day entry above)
+**Decision:** A failed agent review still counts as a failed attempt. The next round moves one step up `MODEL_ROUTING.md` for the task's complexity and type of work. `grok-4.7` is one allowed step, not the default, and the third-party rule is unchanged.
+**Why:** Michael (Factory room, 2026-10-20 6:03 AM CT): "Make sure to use the factory rules routing table for models depending on task complexity. Definitely feel free to escalate to grok 4.7 but don't just make the whole routing a binary between composer and 4.7." The earlier wording ("the rework moves to grok-4.7") read as that binary.
+**Alternatives:** Keep the fixed composer-to-grok-4.7 step (rejected as the binary Michael warned against).
+**Revisit:** With the routing table itself.
+**Supersedes:** 2026-10-20 "A failed agent review counts as a failed attempt for model escalation", wording only.
+
+### 2026-10-20: Offline replay check before placement and volume merges
+**Decision:** Before merging any PR that changes post placement (filtering, clustering, planet/face assignment) or ingest volume, run it offline against a saved edition replay, confirm the output still matches the edition schema, and put the replay result in the PR body. No paid labeling or Jetstream spend is needed for this check.
+**Why:** A placement or volume change can pass CI and still break the daily edition, which we then find only in the live run. A $0 replay catches that before merge. Michael (Factory room, 2026-10-20 8:01 AM CT): "OK on the two process checks".
+**Alternatives:** Rely on CI plus the live run (rejected because failures show up in front of users and cost a day). A full paid dry run (rejected because it spends money).
+**Revisit:** If the replay check misses a live schema failure, or if it routinely slows trivial PRs.
+
+### 2026-10-20: Reviewers report fixes; builders apply them
+**Decision:** An agent reviewer reports the fixes it finds, and the builder applies them. If a reviewer does write code, that commit gets its own review on a different model before it goes to Michael.
+**Why:** On #234, #264 and #265 the reviewer wrote fixes (for example 59c47d3, c931e4d and 0626886) that nobody had reviewed, so the agent-review step didn't cover them. Michael (Factory room, 2026-10-20 8:01 AM CT): "OK on the two process checks".
+**Alternatives:** Let reviewers commit fixes as part of review (rejected because it leaves unreviewed code). Always re-review the whole PR (heavier than needed).
+**Revisit:** If review rounds get noticeably slower, or if reviewer-written commits keep needing a second pass anyway.
+
+### 2026-10-20: Planet floor raised to 30 posts (supersedes #79; partly supersedes #77)
+- **Decision:** A planet, including a face split off into its own planet, is published only if it has at least 30 posts. Planets under the floor are left out of the edition, and their posts are not reassigned. The next-ranked candidate fills the freed slot. The generic thin-fragment hold (`_THIN_FRAGMENT_POSTS = 8`) is unchanged.
+- **Why:** Michael (2026-10-20): small planets were mostly grab-bag junk that looks off to a newcomer; he chose a plain minimum-posts floor over a conditional grab-bag rule, and picked 30 after seeing the 5/8/10/15/20 replay on Oct 19. At 30, the Oct 19 edition drops 53 of 107 planets and 548 of 12,201 posts, with 0 split-caused losses.
+- **Supersedes:** #79 (minimum 5 posts). Partly supersedes #77 (no posts dropped): posts in sub-floor planets now leave the edition. #77 still holds for separate planets above the floor (don't glue or drop them).
+- **Alternatives:** 8 (the Manager's recommendation: drops 23 planets, 1.0% of posts), 10/15/20 (1.7% to 3.5% of posts), and the conditional grab-bag drop (rejected by Michael earlier today).
+- **Revisit:** If real news stories keep falling under the floor, or if the edition looks thin on low-volume days. Also once Michael decides whether a planet that clears 30 whole, but splits into pieces that are all under 30, should stay one planet (0 cases on Oct 19).

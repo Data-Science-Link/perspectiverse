@@ -3,22 +3,27 @@
 from __future__ import annotations
 
 import json
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 
 import pytest
 
 from pipeline.briefs import sentences
 from pipeline.dossier import (
+    DOSSIER_ALLOWANCE_SUPERSEDED_USD,
     DOSSIER_NIGHTLY_BUDGET_USD,
     DOSSIER_OUTPUT_TOKENS_4PAGE,
     DOSSIER_PROMPT_VERSION,
     DOSSIER_RUN_RESERVE_USD,
     DossierBudget,
     MemoryDossierStore,
+    allowance_fit,
     apply_dossiers,
     apply_dossiers_batch,
     assert_dossier_key,
+    dossier_allowance_usd,
     dossier_night_budget,
+    draw_summary_sample,
+    quality_report,
     edition_markdown_key,
     enforce_no_repeat,
     estimate_tokens,
@@ -285,12 +290,19 @@ def test_price_uses_the_repo_llama_rates():
     assert full["planets"] == 110
     assert full["calls"] == 110 * 3 * 2
     assert full["usd"] > DOSSIER_NIGHTLY_BUDGET_USD
-    assert full["usd"] <= DOSSIER_NIGHTLY_BUDGET_USD * 3
+    nights = (full["usd"] / DOSSIER_NIGHTLY_BUDGET_USD).to_integral_value(rounding=ROUND_CEILING)
+    assert nights > 3
+    assert full["usd"] <= Decimal("0.25") * 3
 
 
 def test_keys_stay_under_dossiers_and_reject_the_corpus():
     assert edition_markdown_key(EDITION, 1) == "dossiers/2026-10-18/1.md"
     assert edition_markdown_key(EDITION, 1, "1A") == "dossiers/2026-10-18/1/1A.md"
+    assert edition_markdown_key(EDITION, "Technology-5") == "dossiers/2026-10-18/Technology-5.md"
+    assert (
+        edition_markdown_key(EDITION, "Technology-5", "Technology-5A")
+        == "dossiers/2026-10-18/Technology-5/Technology-5A.md"
+    )
     key = index_key("World", "Russia Ukraine War", "1A-Ukraine Oil Deal")
     assert key.startswith("dossiers/index/")
     r2_assert_dossier_key(key)
@@ -397,8 +409,12 @@ def test_dossier_night_budget_is_the_min_of_allowance_and_cap_room():
     assert dossier_night_budget(heavy) == Decimal("0")
     assert dossier_night_budget(heavy, reserve_usd=0) == Decimal("0.022")
     assert dossier_night_budget(Decimal("0.168")) == DOSSIER_NIGHTLY_BUDGET_USD
-    assert dossier_night_budget(Decimal("0"), already_usd=Decimal("0.20")) == Decimal("0.05")
+    assert dossier_night_budget(
+        Decimal("0"), already_usd=Decimal("0.20"), nightly_usd=Decimal("0.25")
+    ) == Decimal("0.05")
+    assert dossier_night_budget(Decimal("0"), already_usd=Decimal("0.20")) == Decimal("0")
     assert DOSSIER_RUN_RESERVE_USD == Decimal("0.15")
+    assert DOSSIER_NIGHTLY_BUDGET_USD == Decimal("0.09")
 
 
 def test_budget_exhausted_still_publishes_and_keeps_summaries():
@@ -582,3 +598,143 @@ def test_sample_command_prints_cost_and_does_not_call_the_model(tmp_path, monkey
     text = capsys.readouterr().out
     assert "## Subject" in text
     assert "@user0.bsky.social" in text
+
+
+def test_allowance_defaults_to_the_daily_target_and_is_configurable(monkeypatch):
+    monkeypatch.delenv("PERSPECTIVERSE_DOSSIER_BUDGET_USD", raising=False)
+    assert dossier_allowance_usd() == Decimal("0.09")
+    fit = allowance_fit(DOSSIER_NIGHTLY_BUDGET_USD)
+    assert fit["fits_target"] is True
+    assert fit["total_usd"] == Decimal("0.25")
+    old = allowance_fit(DOSSIER_ALLOWANCE_SUPERSEDED_USD)
+    assert old["superseded_must_drop"] is True
+    assert old["fits_fallback"] is False
+    monkeypatch.setenv("PERSPECTIVERSE_DOSSIER_BUDGET_USD", "0.14")
+    assert dossier_allowance_usd() == Decimal("0.14")
+    assert allowance_fit(dossier_allowance_usd())["fits_fallback"] is True
+    assert dossier_allowance_usd({"dossier_budget_usd": "0.05"}) == Decimal("0.05")
+
+
+def test_filler_sentence_is_dropped_from_the_public_tiers():
+    reader = enforce_no_repeat(
+        summary="Oil Talks is the conversation these views share.",
+        brief="Oil Talks is the conversation these views share. The posts name an oil deal.",
+        detail="Oil Talks is the conversation these views share.\n\nShort.\n\nShort.",
+        dossier=DOSSIER,
+        forbidden=(),
+        posts=_posts(),
+        title="Oil Talks",
+    )
+    assert "conversation these views share" not in reader["summary"]
+    assert "conversation these views share" not in reader["brief"]
+    assert "conversation these views share" not in reader["detail"]
+    _assert_tiers(reader["summary"], reader["brief"], reader["detail"])
+
+
+def _edition_payload():
+    def planet(section, topic_id, name, faces):
+        return {
+            "id": topic_id,
+            "name": name,
+            "category": section,
+            "summary": f"{name} is the conversation these views share.",
+            "brief": (
+                f"{name} is the conversation these views share. "
+                f"{faces[0][1]} says the first claim. "
+                "A third sentence adds nothing new."
+            ),
+            "detail": (
+                f"{name} is the conversation these views share.\n\n"
+                "The second paragraph repeats the first claim in the same words as the brief.\n\n"
+                "The third paragraph names a quote that is not in the posts above."
+            ),
+            "perspectives": [
+                {
+                    "id": face_id,
+                    "title": title,
+                    "summary": summary,
+                    "brief": f"{summary} The brief adds a second sentence here. A third sentence stays.",
+                    "detail": (
+                        f"{summary}\n\n"
+                        "A second paragraph adds a quote from the posts.\n\n"
+                        "A third paragraph names the other view."
+                    ),
+                    "representative_posts": [
+                        {
+                            "uri": f"at://{topic_id}/{face_id}",
+                            "author": "ada.bsky.social",
+                            "text": summary,
+                            "likes": 3,
+                        }
+                    ],
+                }
+                for face_id, title, summary in faces
+            ],
+        }
+
+    world = planet("World", "World-1", "Oil Talks", [("World-1A", "Deal", "The oil deal enriches the negotiators.")])
+    world["perspectives"].append(
+        {
+            "id": "World-1B",
+            "title": "Aid",
+            "summary": "The aid was steered aside.",
+            "brief": "The aid was steered aside. A second sentence adds the harbor. A third names the vote.",
+            "detail": "One.\n\nTwo is long enough to be its own paragraph here.\n\nThree is long enough as well.",
+            "representative_posts": [
+                {"uri": "at://world/b", "author": "bea.bsky.social", "text": "The harbor vote failed.", "likes": 2}
+            ],
+        }
+    )
+    politics = planet(
+        "Politics",
+        "Politics-1",
+        "Vote",
+        [("Politics-1A", "Early", "Early voting hours were cut.")],
+    )
+    return {
+        "topics": [
+            planet("World", 1, "Homepage Oil", [("1A", "Deal", "Homepage posts name the oil deal.")]),
+        ],
+        "sections": {"World": [world], "Politics": [politics]},
+    }
+
+
+def test_seeded_sample_is_stable_and_stratified():
+    payload = _edition_payload()
+    first = draw_summary_sample(payload, planets=3, seed=241)
+    second = draw_summary_sample(payload, planets=3, seed=241)
+    assert [row["item_id"] for row in first] == [row["item_id"] for row in second]
+    sections = {row["section"] for row in first if row["kind"] == "planet"}
+    assert sections == {"All topics", "Politics", "World"}
+    multi = [row for row in first if row["planet_name"] == "Oil Talks" and row["kind"] == "perspective"]
+    assert len(multi) == 1
+
+
+def test_quality_report_counts_overlap_without_a_model():
+    report = quality_report(_edition_payload())
+    assert report["filler_items"] >= 1
+    assert report["brief_overlap_items"] >= 1
+    assert report["planets"] == 3
+
+
+def test_replay_and_quality_commands_do_not_call_the_model(tmp_path, monkeypatch, capsys):
+    def boom(*_args, **_kwargs):
+        raise AssertionError("paid call")
+
+    monkeypatch.setattr("pipeline.label._openai_generate", boom)
+    path = tmp_path / "data.json"
+    payload = _edition_payload()
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    sample = tmp_path / "sample.csv"
+    assert main(["baseline", "--data", str(path), "--out", str(sample), "--planets", "2", "--seed", "241"]) == 0
+    assert main(["quality", "--data", str(path)]) == 0
+    printed = capsys.readouterr().out
+    assert "Before-state" in printed
+    assert main(["replay", "--data", str(path), "--sample", str(sample)]) == 0
+    replay = capsys.readouterr().out
+    assert "Dry run" in replay
+    assert "No model was called" in replay
+    assert main(["smoke", "--data", str(path), "--seed", "241"]) == 0
+    smoke = capsys.readouterr().out
+    assert "Smoke test only" in smoke
+    assert "Dry run" in smoke

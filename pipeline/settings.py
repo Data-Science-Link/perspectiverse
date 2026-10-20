@@ -88,6 +88,8 @@ DEFAULTS: dict[str, Any] = {
     # Private 2–4 page briefings in R2. Off: no dossier model call and no
     # R2 write. On spends against the same $1/day cap as labeling.
     "dossiers": False,
+    # None uses pipeline.dossier.DOSSIER_NIGHTLY_BUDGET_USD ($0.09, the #87 fit).
+    "dossier_budget_usd": None,
 }
 
 
@@ -130,6 +132,9 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
     dossier_flag = (os.getenv("PERSPECTIVERSE_DOSSIERS") or "").strip().lower()
     if dossier_flag:
         settings["dossiers"] = dossier_flag in {"1", "true", "yes", "on"}
+    dossier_budget = (os.getenv("PERSPECTIVERSE_DOSSIER_BUDGET_USD") or "").strip()
+    if dossier_budget:
+        settings["dossier_budget_usd"] = dossier_budget
     ollama_model = (os.getenv("OLLAMA_MODEL") or "").strip()
     if ollama_model:
         settings["ollama_model"] = ollama_model

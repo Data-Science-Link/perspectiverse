@@ -1,7 +1,9 @@
 import {
+  LABEL_NOT_READY,
   PERSPECTIVES_PENDING,
   STANCE_CHECK_FAILED,
   STANCE_CHECK_INCOHERENT,
+  STANCE_CHECK_LABEL_HELD,
   STANCE_CHECK_UNSHARED,
 } from './copy.js'
 
@@ -216,10 +218,6 @@ function stampIds(topicId, faces) {
 
 const FILLER = /that is the position in the posts about|is the claim these posts repeat|the posts gathered here are making that case|the same claim shows up again across the posts|these posts are making that case/i
 
-function _normSentence(text) {
-  return clean(text).replace(/[.!?]+$/g, '').toLowerCase()
-}
-
 function briefReady(text) {
   if (FILLER.test(text || '')) return false
   const count = splitSentences(text).length
@@ -252,14 +250,9 @@ export function presentTopic(topic) {
   const unchanged = (topic.perspectives || []).length === copied.length
     && (topic.perspectives || []).every((face, index) => face.title === copied[index].title)
   const planet = planetCopy(topic, copied)
-  const briefSource = unchanged && topic.brief ? topic.brief : planet.brief
-  const storedSummary = splitSentences(topic.summary || '')[0] || ''
-  const briefLead = splitSentences(briefSource)[0] || ''
-  const summaryStandsAlone = storedSummary
-    && _normSentence(storedSummary) !== _normSentence(briefLead)
-  const summary = summaryStandsAlone
-    ? storedSummary
-    : (briefLead || topic.summary || topic.name)
+  const summary = splitSentences(unchanged && topic.brief ? topic.brief : planet.brief)[0]
+    || topic.summary
+    || topic.name
   return {
     ...topic,
     summary,
@@ -290,13 +283,16 @@ function presentDigest(topics, previous) {
         : faces
             .map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
             .join(' ')
+      const labelHeld = topic.stance_check === STANCE_CHECK_LABEL_HELD
       const pending =
         topic.stance_check === STANCE_CHECK_FAILED ||
         topic.stance_check === STANCE_CHECK_INCOHERENT ||
         topic.stance_check === STANCE_CHECK_UNSHARED
-      const opposingNote = pending
-        ? PERSPECTIVES_PENDING
-        : oneView
+      const opposingNote = labelHeld
+        ? LABEL_NOT_READY
+        : pending
+          ? PERSPECTIVES_PENDING
+          : oneView
           ? topic.opposing_note || 'No clear opposing view found in this sample'
           : null
       return {
@@ -305,7 +301,7 @@ function presentDigest(topics, previous) {
         percent: topic.total_volume_percent,
         arguments: argumentsList.slice(0, 6),
         oneView,
-        stancePending: pending,
+        stancePending: pending || labelHeld,
         opposingNote,
         disagreement,
       }

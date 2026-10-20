@@ -7,9 +7,12 @@ briefing plus the top posts. The briefing itself stays in Cloudflare R2 under
 
 The switch is off. ``dossiers: false`` and an unset ``PERSPECTIVERSE_DOSSIERS``
 make no model call and no R2 write. Turning it on spends against the same
-$1/day pipeline cap as labeling, inside a smaller dossier budget: the minimum
-of $0.25 and whatever is left under that cap after a reserve for the rest of
-the run. A dossier that does not fit is deferred. The previous briefing stays,
+$1/day pipeline cap as labeling. The dossier allowance defaults to $0.09 so a
+typical $0.16 night stays on the #87 $0.25 total. A $0.25 dossier allowance
+does not fit that bar. ``PERSPECTIVERSE_DOSSIER_BUDGET_USD`` overrides it.
+The allowance is also limited by whatever is left under the $1 cap after a
+reserve for the rest of the run. A dossier that does not fit is deferred.
+The previous briefing stays,
 or the current summaries stay when there is no briefing yet. Deferral does
 not stop the run and does not stop publishing. A future visitor chat that
 reads these objects pays for its own calls; this module does not meter a chat.
@@ -25,14 +28,18 @@ then their perspectives, and continues the rest on later nights.
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
+import math
 import os
+import random
 import re
 import sys
+from collections import defaultdict
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from pipeline.briefs import sentences
@@ -57,7 +64,16 @@ READER_OUTPUT_TOKENS = 500
 OUTPUT_OVERSHOOT = Decimal("1.20")
 # One night of dossier model calls. A full rebuild is about $0.53, so the
 # first build takes more than one night on its own.
-DOSSIER_NIGHTLY_BUDGET_USD = Decimal("0.25")
+# #87's bar is $0.25 a day total pipeline spend, $0.30 as the fallback.
+# A typical night is about $0.16, so a $0.25 dossier allowance (about $0.41
+# stacked) does not fit. $0.09 lands a typical night on the $0.25 target.
+# $0.14 is the room under the $0.30 fallback. Override with
+# PERSPECTIVERSE_DOSSIER_BUDGET_USD or dossier_budget_usd in settings.
+DOSSIER_NIGHTLY_BUDGET_USD = Decimal("0.09")
+DOSSIER_ALLOWANCE_SUPERSEDED_USD = Decimal("0.25")
+DAILY_SPEND_TARGET_USD = Decimal("0.25")
+DAILY_SPEND_FALLBACK_USD = Decimal("0.30")
+TYPICAL_PIPELINE_USD = Decimal("0.16")
 # Held back while paid work is still ahead of the dossier pass. Global
 # dossiers run before section labeling. A typical night's DeepInfra labeling
 # is about $0.13 (2026-10-16 $0.117, 2026-10-18 $0.135). $0.15 leaves that
@@ -89,7 +105,12 @@ HEADINGS = (
 )
 
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
-_ID = re.compile(r"[A-Za-z0-9]{1,32}\Z")
+# Published section ids look like Technology-5, and face ids append a letter.
+_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,63}\Z")
+_FILLER = re.compile(r"\bis the conversation these views share\b", re.I)
+SUMMARY_SAMPLE_SEED = 241
+SUMMARY_SAMPLE_PLANETS = 20
+SMOKE_PLANETS = 3
 _URL = re.compile(r"https?://\S+")
 _FENCE = re.compile(r"^```[a-zA-Z]*\n|\n```$")
 
@@ -100,6 +121,55 @@ def dossiers_enabled(settings: dict | None = None) -> bool:
         return bool(settings.get("dossiers"))
     raw = (os.getenv("PERSPECTIVERSE_DOSSIERS") or "").strip().lower()
     return raw in {"1", "true", "yes", "on"}
+
+
+def dossier_allowance_usd(settings: dict | None = None) -> Decimal:
+    """Nightly dossier allowance. The default fits the #87 daily total.
+
+    ``dossier_budget_usd`` in settings wins, then
+    ``PERSPECTIVERSE_DOSSIER_BUDGET_USD``, then ``DOSSIER_NIGHTLY_BUDGET_USD``.
+    """
+    raw = None
+    if settings is not None:
+        raw = settings.get("dossier_budget_usd")
+    if raw is None or str(raw).strip() == "":
+        raw = (os.getenv("PERSPECTIVERSE_DOSSIER_BUDGET_USD") or "").strip() or None
+    if raw is None or str(raw).strip() == "":
+        return DOSSIER_NIGHTLY_BUDGET_USD
+    value = Decimal(str(raw).strip())
+    if value < 0:
+        raise ValueError("dossier allowance must be zero or more")
+    return value
+
+
+def allowance_fit(
+    allowance: Decimal | int | str,
+    pipeline_usd: Decimal | int | str = TYPICAL_PIPELINE_USD,
+) -> dict:
+    """Whether a dossier allowance fits the #87 $0.25 target and $0.30 fallback."""
+    budget = Decimal(str(allowance))
+    pipeline = Decimal(str(pipeline_usd))
+    total = pipeline + budget
+    room_target = DAILY_SPEND_TARGET_USD - pipeline
+    room_fallback = DAILY_SPEND_FALLBACK_USD - pipeline
+    if room_target < 0:
+        room_target = Decimal("0")
+    if room_fallback < 0:
+        room_fallback = Decimal("0")
+    old_total = pipeline + DOSSIER_ALLOWANCE_SUPERSEDED_USD
+    return {
+        "allowance_usd": budget,
+        "pipeline_usd": pipeline,
+        "total_usd": total,
+        "fits_target": total <= DAILY_SPEND_TARGET_USD,
+        "fits_fallback": total <= DAILY_SPEND_FALLBACK_USD,
+        "room_at_target_usd": room_target,
+        "room_at_fallback_usd": room_fallback,
+        "proposed_allowance_usd": room_target,
+        "superseded_allowance_usd": DOSSIER_ALLOWANCE_SUPERSEDED_USD,
+        "superseded_total_usd": old_total,
+        "superseded_must_drop": old_total > DAILY_SPEND_FALLBACK_USD,
+    }
 
 
 def estimate_tokens(text: str) -> int:
@@ -456,6 +526,10 @@ def _norm_sentence(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
 
+def _is_filler(text: str) -> bool:
+    return bool(_FILLER.search(text or ""))
+
+
 def _same_sentence(left: str, right: str) -> bool:
     a = _norm_sentence(left)
     b = _norm_sentence(right)
@@ -573,6 +647,7 @@ def build_reader_prompt(
         "They add evidence, one quote with a handle, and the disagreement. "
         "Do not repeat a sentence from the summary or the brief.\n"
         "Do not add a fact that is not in the briefing or the posts.\n"
+        "Do not write that this is the conversation these views share.\n"
         "If this is a planet, the summary names the subject. It is not a copy of one view's sentence.\n"
         f"Kind: {kind}\n"
         f"Title: {title}\n"
@@ -711,6 +786,15 @@ def _spare_lines(posts: Sequence[dict], title: str) -> list[str]:
     elif authors:
         lines.append(f"One handle in the sample is @{authors[0]}.")
     lines.append(f"Quotes and cited sources for {title} stay in the private briefing.")
+    if posts:
+        shown = len(list(posts))
+        likes = sum(int(post.get("likes") or 0) for post in posts)
+        lines.append(f"The {shown} sampled posts for {title} show {likes} likes in total.")
+        newest = sorted(
+            (str(post.get("created_at") or "") for post in posts if str(post.get("created_at") or "")),
+        )
+        if newest:
+            lines.append(f"The earliest timestamp in this {title} sample is {newest[0]}.")
     return [line if line.endswith(".") else line + "." for line in lines]
 
 
@@ -740,7 +824,7 @@ def enforce_no_repeat(
         kept: list[str] = []
         for sentence in candidates:
             text = _clean(sentence)
-            if not text:
+            if not text or _is_filler(text):
                 continue
             if any(_same_sentence(text, prior) for prior in banned):
                 continue
@@ -867,6 +951,7 @@ def apply_dossiers_batch(
     edition: str,
     budget: DossierBudget | None = None,
     reserve_usd: Decimal | int | str = 0,
+    only: set[tuple[str, str, str]] | None = None,
 ) -> None:
     """Brief every planet and perspective that fits in ``budget``.
 
@@ -883,6 +968,8 @@ def apply_dossiers_batch(
     reserve = Decimal(str(reserve_usd))
     by_uri = {str(post.get("uri")): post for post in posts or [] if post.get("uri")}
     units = _schedule_units(chosen, by_uri)
+    if only is not None:
+        units = [unit for unit in units if _unit_only_key(unit) in only]
     written_planets: list[dict] = []
     try:
         for unit in units:
@@ -944,6 +1031,15 @@ def _member_posts(topic: dict, perspectives: Sequence[dict], by_uri: dict[str, d
             seen.add(key)
             collected.append(post)
     return collected
+
+
+def _unit_only_key(unit: dict) -> tuple[str, str, str]:
+    perspective = unit.get("perspective_id")
+    return (
+        str(unit.get("kind") or ""),
+        str(unit.get("planet_id") or ""),
+        "" if perspective is None else str(perspective),
+    )
 
 
 def _unit_size(target: dict, posts: Sequence[dict]) -> int:
@@ -1108,6 +1204,7 @@ def _apply_one(
         for face in unit["perspectives"]:
             forbidden.append(str(face.get("summary") or ""))
             forbidden.append(str(face.get("brief") or ""))
+            forbidden.append(str(face.get("detail") or ""))
     else:
         forbidden = []
         for face in unit["perspectives"]:
@@ -1207,6 +1304,7 @@ def _refresh_planet_tiers(unit: dict, store: DossierStore) -> None:
     for face in unit["perspectives"]:
         forbidden.append(str(face.get("summary") or ""))
         forbidden.append(str(face.get("brief") or ""))
+        forbidden.append(str(face.get("detail") or ""))
     reader = enforce_no_repeat(
         summary=str(target.get("summary") or ""),
         brief=str(target.get("brief") or ""),
@@ -1400,6 +1498,39 @@ def _format_usd(amount: Decimal) -> str:
     return f"${amount:.6f}"
 
 
+def allowance_fit_lines(
+    allowance: Decimal | int | str,
+    pipeline_usd: Decimal | int | str = TYPICAL_PIPELINE_USD,
+) -> list[str]:
+    """Plain-language fit of a dossier allowance against the #87 daily total."""
+    fit = allowance_fit(allowance, pipeline_usd)
+    lines = [
+        (
+            f"Typical pipeline night {_format_usd(fit['pipeline_usd'])} plus this dossier "
+            f"allowance {_format_usd(fit['allowance_usd'])} is {_format_usd(fit['total_usd'])}. "
+            f"#87 target is {_format_usd(DAILY_SPEND_TARGET_USD)} "
+            f"({'fits' if fit['fits_target'] else 'over'}). "
+            f"Fallback is {_format_usd(DAILY_SPEND_FALLBACK_USD)} "
+            f"({'fits' if fit['fits_fallback'] else 'over'})."
+        ),
+        (
+            f"Room for dossiers: {_format_usd(fit['room_at_target_usd'])} to stay on the target, "
+            f"{_format_usd(fit['room_at_fallback_usd'])} to stay on the fallback."
+        ),
+    ]
+    if fit["superseded_must_drop"]:
+        lines.append(
+            f"The {_format_usd(fit['superseded_allowance_usd'])} dossier allowance must drop. "
+            f"A typical night plus that allowance is {_format_usd(fit['superseded_total_usd'])}, "
+            f"over the {_format_usd(DAILY_SPEND_FALLBACK_USD)} fallback."
+        )
+    lines.append(
+        f"Proposed allowance: {_format_usd(fit['proposed_allowance_usd'])}. "
+        "Set PERSPECTIVERSE_DOSSIER_BUDGET_USD to use another figure."
+    )
+    return lines
+
+
 def format_topic_report(topic_cost: dict) -> str:
     lines = [
         f"{topic_cost['name']}: {topic_cost['faces']} perspective(s), "
@@ -1458,13 +1589,14 @@ def sample_report(topics: list[dict]) -> str:
     )
     blocks.append(
         "A dossier night is capped at "
-        f"{_format_usd(DOSSIER_NIGHTLY_BUDGET_USD)} or whatever is left under the "
-        "$1/day cap after the reserve for the rest of the run, whichever is smaller. "
+        f"{_format_usd(dossier_allowance_usd())} or whatever is left under the "
+        "$1/day hard stop after the reserve for the rest of the run, whichever is smaller. "
         "Largest planets are rebuilt first, then their perspectives. "
         "Anything over that budget waits for a later night. "
         "The previous briefing stays, or the current summaries stay when there is no briefing. "
         "A full rebuild is spread across nights and does not stop publishing."
     )
+    blocks.extend(allowance_fit_lines(dossier_allowance_usd()))
     blocks.append(
         "This spend is pipeline labeling spend and counts against the $1/day cap. "
         "It is not a visitor-chat budget."
@@ -1478,6 +1610,645 @@ def _real_generate(prompt: str) -> str:
 
     guard_before_paid_call("dossier")
     return _openai_generate(prompt, resolve_openai_model(None))
+
+
+def iter_published_planets(payload: dict) -> list[tuple[str, dict]]:
+    """Global catalog first, then each newspaper section, in section-name order."""
+    found: list[tuple[str, dict]] = []
+    for topic in payload.get("topics") or []:
+        if isinstance(topic, dict):
+            found.append(("All topics", topic))
+    sections = payload.get("sections") or {}
+    if isinstance(sections, dict):
+        for name in sorted(sections):
+            for topic in sections.get(name) or []:
+                if isinstance(topic, dict):
+                    found.append((str(name), topic))
+    return found
+
+
+def allocate_slots(sizes: dict[str, int], n: int) -> dict[str, int]:
+    """Largest-remainder seats. When ``n`` covers every stratum, each gets one."""
+    names = [name for name in sorted(sizes) if sizes[name] > 0]
+    seats = {name: 0 for name in sorted(sizes)}
+    total = sum(sizes[name] for name in names)
+    if n <= 0 or total <= 0 or not names:
+        return seats
+    n = min(int(n), total)
+    quotas = {name: sizes[name] * n / total for name in names}
+    for name in names:
+        seats[name] = min(int(math.floor(quotas[name])), sizes[name])
+    if n >= len(names):
+        for name in names:
+            if seats[name] == 0:
+                seats[name] = 1
+        while sum(seats[name] for name in names) > n:
+            donors = [name for name in names if seats[name] > 1]
+            if not donors:
+                break
+            donor = sorted(
+                donors,
+                key=lambda name: (-seats[name], quotas[name] - math.floor(quotas[name]), name),
+            )[0]
+            seats[donor] -= 1
+    leftover = n - sum(seats[name] for name in names)
+    order = sorted(names, key=lambda name: (-(quotas[name] - math.floor(quotas[name])), name))
+    guard = 0
+    while leftover > 0 and guard < n + 2:
+        progressed = False
+        for name in order:
+            if leftover <= 0:
+                break
+            if seats[name] < sizes[name]:
+                seats[name] += 1
+                leftover -= 1
+                progressed = True
+        if not progressed:
+            break
+        guard += 1
+    return seats
+
+
+def draw_planets(
+    payload: dict,
+    *,
+    planets: int = SUMMARY_SAMPLE_PLANETS,
+    seed: int = SUMMARY_SAMPLE_SEED,
+) -> list[tuple[str, dict]]:
+    """Seeded, section-stratified planet draw. Same seed and ``n`` always match."""
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for section, topic in iter_published_planets(payload):
+        grouped[section].append(topic)
+    for section in grouped:
+        grouped[section].sort(key=lambda topic: (str(topic.get("id")), str(topic.get("name") or "")))
+    seats = allocate_slots({section: len(topics) for section, topics in grouped.items()}, planets)
+    rng = random.Random(seed)
+    chosen: list[tuple[str, dict]] = []
+    for section in sorted(seats):
+        if seats[section] <= 0:
+            continue
+        pool = list(grouped[section])
+        rng.shuffle(pool)
+        chosen.extend((section, topic) for topic in pool[: seats[section]])
+    return chosen
+
+
+def _sample_top_posts(posts: Sequence[dict]) -> str:
+    lines = []
+    for post in top_posts(posts, TOP_N):
+        author = str(post.get("author") or "unknown").lstrip("@")
+        likes = int(post.get("likes") or 0)
+        lines.append(f"@{author} ({likes}): {_quote_text(post, 400)}")
+    return " || ".join(lines)
+
+
+def _face_posts_for_sample(topic: dict, face: dict | None = None) -> list[dict]:
+    if face is not None:
+        return list(face.get("representative_posts") or [])
+    posts: list[dict] = []
+    seen: set[str] = set()
+    for item in topic.get("perspectives") or []:
+        if not isinstance(item, dict):
+            continue
+        for post in item.get("representative_posts") or []:
+            key = post_uri(post)
+            if key in seen:
+                continue
+            seen.add(key)
+            posts.append(post)
+    return posts
+
+
+def draw_summary_sample(
+    payload: dict,
+    *,
+    planets: int = SUMMARY_SAMPLE_PLANETS,
+    seed: int = SUMMARY_SAMPLE_SEED,
+) -> list[dict]:
+    """Planet rows, plus one perspective from each drawn planet that has 2+ faces."""
+    chosen = draw_planets(payload, planets=planets, seed=seed)
+    # Perspective picks use a second stream so the planet list depends only on seed.
+    face_rng = random.Random(seed + 1)
+    rows: list[dict] = []
+    for section, topic in chosen:
+        planet_id = str(topic.get("id") or "")
+        name = str(topic.get("name") or "")
+        rows.append(
+            {
+                "item_id": f"{section}:{planet_id}",
+                "kind": "planet",
+                "section": section,
+                "planet_id": planet_id,
+                "planet_name": name,
+                "perspective_id": "",
+                "perspective_title": "",
+                "summary": str(topic.get("summary") or ""),
+                "brief": str(topic.get("brief") or ""),
+                "detail": str(topic.get("detail") or ""),
+                "top_posts": _sample_top_posts(_face_posts_for_sample(topic)),
+            }
+        )
+        faces = [face for face in (topic.get("perspectives") or []) if isinstance(face, dict)]
+        if len(faces) < 2:
+            continue
+        ordered = sorted(faces, key=lambda face: (str(face.get("id")), str(face.get("title") or "")))
+        face = ordered[face_rng.randrange(len(ordered))]
+        face_id_value = str(face.get("id") or "")
+        rows.append(
+            {
+                "item_id": f"{section}:{planet_id}:{face_id_value}",
+                "kind": "perspective",
+                "section": section,
+                "planet_id": planet_id,
+                "planet_name": name,
+                "perspective_id": face_id_value,
+                "perspective_title": str(face.get("title") or ""),
+                "summary": str(face.get("summary") or ""),
+                "brief": str(face.get("brief") or ""),
+                "detail": str(face.get("detail") or ""),
+                "top_posts": _sample_top_posts(_face_posts_for_sample(topic, face)),
+            }
+        )
+    return rows
+
+
+SUMMARY_SAMPLE_COLUMNS = (
+    "item_id",
+    "kind",
+    "section",
+    "planet_id",
+    "planet_name",
+    "perspective_id",
+    "perspective_title",
+    "summary",
+    "brief",
+    "detail",
+    "top_posts",
+)
+
+
+def write_summary_sample(path: Path, rows: Sequence[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(SUMMARY_SAMPLE_COLUMNS), extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({column: row.get(column, "") for column in SUMMARY_SAMPLE_COLUMNS})
+
+
+def read_summary_sample(path: Path) -> list[dict]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _overlap_counts(summary: str, brief: str, detail: str) -> tuple[int, int]:
+    summary_sentences = sentences(summary)
+    brief_sentences = sentences(brief)
+    detail_sentences = sentences(detail)
+    brief_hits = sum(
+        1
+        for sentence in brief_sentences
+        if any(_same_sentence(sentence, prior) for prior in summary_sentences)
+    )
+    banned = summary_sentences + brief_sentences
+    detail_hits = sum(
+        1
+        for sentence in detail_sentences
+        if any(_same_sentence(sentence, prior) for prior in banned)
+    )
+    return brief_hits, detail_hits
+
+
+def _collect_sentences(*parts: str) -> list[str]:
+    found: list[str] = []
+    for part in parts:
+        found.extend(sentences(part))
+    return found
+
+
+def quality_report(payload: dict) -> dict:
+    """Sentence overlap and first-face copying on the current public text.
+
+    No model call. This is the before-state, not a rubric score.
+    """
+    planets = 0
+    perspectives = 0
+    brief_overlap_items = 0
+    detail_overlap_items = 0
+    brief_overlap_sentences = 0
+    detail_overlap_sentences = 0
+    filler_items = 0
+    planet_exact_summary = 0
+    planet_shared_sentences = 0
+    planet_near_sentences = 0
+    for _section, topic in iter_published_planets(payload):
+        planets += 1
+        brief_hits, detail_hits = _overlap_counts(
+            str(topic.get("summary") or ""),
+            str(topic.get("brief") or ""),
+            str(topic.get("detail") or ""),
+        )
+        brief_overlap_sentences += brief_hits
+        detail_overlap_sentences += detail_hits
+        if brief_hits:
+            brief_overlap_items += 1
+        if detail_hits:
+            detail_overlap_items += 1
+        if _is_filler(str(topic.get("summary") or "")) or _is_filler(str(topic.get("brief") or "")):
+            filler_items += 1
+        faces = [face for face in (topic.get("perspectives") or []) if isinstance(face, dict)]
+        if faces:
+            face = faces[0]
+            planet_summary = _norm_sentence(str(topic.get("summary") or ""))
+            face_summary = _norm_sentence(str(face.get("summary") or ""))
+            if planet_summary and planet_summary == face_summary:
+                planet_exact_summary += 1
+            planet_sentences = _collect_sentences(
+                str(topic.get("summary") or ""),
+                str(topic.get("brief") or ""),
+                str(topic.get("detail") or ""),
+            )
+            face_sentences = _collect_sentences(
+                str(face.get("summary") or ""),
+                str(face.get("brief") or ""),
+                str(face.get("detail") or ""),
+            )
+            exact = 0
+            near = 0
+            for sentence in planet_sentences:
+                if any(_norm_sentence(sentence) == _norm_sentence(prior) for prior in face_sentences):
+                    exact += 1
+                elif any(_same_sentence(sentence, prior) for prior in face_sentences):
+                    near += 1
+            planet_shared_sentences += exact
+            planet_near_sentences += near
+        for face in faces:
+            perspectives += 1
+            face_brief, face_detail = _overlap_counts(
+                str(face.get("summary") or ""),
+                str(face.get("brief") or ""),
+                str(face.get("detail") or ""),
+            )
+            brief_overlap_sentences += face_brief
+            detail_overlap_sentences += face_detail
+            if face_brief:
+                brief_overlap_items += 1
+            if face_detail:
+                detail_overlap_items += 1
+            if _is_filler(str(face.get("summary") or "")) or _is_filler(str(face.get("brief") or "")):
+                filler_items += 1
+    items = planets + perspectives
+    return {
+        "planets": planets,
+        "perspectives": perspectives,
+        "items": items,
+        "brief_overlap_items": brief_overlap_items,
+        "detail_overlap_items": detail_overlap_items,
+        "brief_overlap_sentences": brief_overlap_sentences,
+        "detail_overlap_sentences": detail_overlap_sentences,
+        "filler_items": filler_items,
+        "planet_exact_summary_copies": planet_exact_summary,
+        "planet_exact_shared_sentences": planet_shared_sentences,
+        "planet_near_shared_sentences": planet_near_sentences,
+    }
+
+
+def format_quality_report(report: dict) -> str:
+    lines = [
+        "Before-state quality on the current public text. No model call. Not a rubric score.",
+        f"Planets {report['planets']}, perspectives {report['perspectives']}, items {report['items']}.",
+        (
+            f"Brief repeats a summary sentence: {report['brief_overlap_items']} items, "
+            f"{report['brief_overlap_sentences']} sentences."
+        ),
+        (
+            f"Detail repeats a summary or brief sentence: {report['detail_overlap_items']} items, "
+            f"{report['detail_overlap_sentences']} sentences."
+        ),
+        f"Filler 'is the conversation these views share': {report['filler_items']} items.",
+        (
+            f"Planet summary equals the first face summary: {report['planet_exact_summary_copies']} planets."
+        ),
+        (
+            f"Planet sentences copied word for word from the first face: "
+            f"{report['planet_exact_shared_sentences']}."
+        ),
+        (
+            f"Planet sentences near-copied from the first face (same rule as the rewrite): "
+            f"{report['planet_near_shared_sentences']}."
+        ),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _backtest_units(payload: dict) -> dict[str, tuple[dict, list[dict], str, str, list[str]]]:
+    units: dict[str, tuple[dict, list[dict], str, str, list[str]]] = {}
+    for section, topic in iter_published_planets(payload):
+        faces = [face for face in (topic.get("perspectives") or []) if isinstance(face, dict)]
+        bundles = [
+            (
+                "planet",
+                None,
+                _face_posts_for_sample(topic),
+                str(topic.get("name") or "Planet"),
+                _planet_rivals(faces),
+                stable_slug(section, str(topic.get("name") or "")),
+            )
+        ]
+        for face in faces:
+            rivals = [
+                str(other.get("title"))
+                for other in faces
+                if other is not face and other.get("title")
+            ]
+            bundles.append(
+                (
+                    "perspective",
+                    face,
+                    _face_posts_for_sample(topic, face),
+                    str(face.get("title") or "View"),
+                    rivals,
+                    stable_slug(section, str(topic.get("name") or ""), str(face.get("title") or "")),
+                )
+            )
+        for kind, _face, posts, title, rivals, key in bundles:
+            usable = [post for post in posts if str(post.get("text") or post.get("clean_text") or "").strip()]
+            record = {
+                "prompt_version": DOSSIER_PROMPT_VERSION,
+                "summary": "stored",
+                "brief": "Stored one. Stored two. Stored three.",
+                "detail": (
+                    "Stored paragraph one is long enough to stand.\n\n"
+                    "Stored paragraph two is long enough to stand.\n\n"
+                    "Stored paragraph three is long enough to stand."
+                ),
+                "post_uris": [post_uri(post) for post in usable],
+                "top_n": top_n_records(usable),
+            }
+            units[key] = (record, usable, kind, title, rivals)
+    return units
+
+
+def backtest_editions(editions: Sequence[tuple[str, dict]]) -> dict:
+    """Offline rebuild counts. The first edition is the store, not a steady night."""
+    previous: dict | None = None
+    nights = []
+    ordered = sorted(editions, key=lambda item: item[0])
+    for date, payload in ordered:
+        current = _backtest_units(payload)
+        rebuilt = []
+        new_names = 0
+        matched_rebuilt = 0
+        matched_reused = 0
+        if previous is not None:
+            for key, (record, usable, kind, title, rivals) in current.items():
+                stored = previous.get(key)
+                stored_meta = stored[0] if stored else None
+                if stored is None:
+                    new_names += 1
+                if needs_rebuild(stored_meta, record["post_uris"], record["top_n"]):
+                    pair = project_pair(
+                        sample_posts(usable),
+                        kind=kind,
+                        title=title,
+                        rivals=rivals,
+                        output_tokens=DOSSIER_OUTPUT_TOKENS_4PAGE,
+                    )
+                    rebuilt.append(pair["usd"])
+                    if stored is not None:
+                        matched_rebuilt += 1
+                elif stored is not None:
+                    matched_reused += 1
+        nights.append(
+            {
+                "date": date,
+                "units": len(current),
+                "rebuilt": len(rebuilt),
+                "new_names": new_names,
+                "matched_rebuilt": matched_rebuilt,
+                "matched_reused": matched_reused,
+                "usd": sum(rebuilt, Decimal("0")),
+                "initial": previous is None,
+            }
+        )
+        previous = current
+    steady = [night for night in nights if not night["initial"]]
+    if steady:
+        mean_units = sum(night["rebuilt"] for night in steady) / len(steady)
+        mean_usd = sum((night["usd"] for night in steady), Decimal("0")) / Decimal(len(steady))
+    else:
+        mean_units = 0
+        mean_usd = Decimal("0")
+    return {"nights": nights, "steady_nights": len(steady), "mean_rebuilt": mean_units, "mean_usd": mean_usd}
+
+
+def ledger_daily_totals(path: Path, *, trigger: str | None = "schedule") -> dict[str, Decimal]:
+    """Sum ``cost_usd`` by UTC date. ``trigger`` filters; None sums every row."""
+    totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    with path.open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            if trigger is not None and str(row.get("trigger") or "") != trigger:
+                continue
+            day = str(row.get("date_utc") or "")
+            if not day:
+                continue
+            totals[day] += Decimal(str(row.get("cost_usd") or "0"))
+    return dict(totals)
+
+
+def format_backtest(report: dict, pipeline_by_day: dict[str, Decimal] | None = None) -> str:
+    lines = [
+        "Offline dossier backtest. Representative posts only. No model call.",
+        "Identity is the section plus the planet or face name, which is the reuse index.",
+        "A missing name is a new briefing. A stored name rebuilds when more than 20% of its",
+        "post URIs are new, or a new top-8 post clears the like floor.",
+        "The first edition fills the store and is not a steady night.",
+        "Unconstrained dollars are what the policy would spend with no allowance.",
+        "The allowance caps a night, so that is the spend if the switch is on.",
+    ]
+    for night in report["nights"]:
+        if night["initial"]:
+            label = "initial store"
+        else:
+            label = (
+                f"new names {night['new_names']}, matched rebuilt {night['matched_rebuilt']}, "
+                f"reused {night['matched_reused']}"
+            )
+        lines.append(
+            f"{night['date']}: {night['units']} units, {label}, unconstrained {_format_usd(night['usd'])}"
+        )
+    allowance = dossier_allowance_usd()
+    capped = min(report["mean_usd"], allowance)
+    lines.append(
+        f"Steady nights: {report['steady_nights']}. "
+        f"Mean rebuilt units: {report['mean_rebuilt']:.1f}. "
+        f"Unconstrained dossier mean: {_format_usd(report['mean_usd'])}. "
+        f"Capped at the allowance: {_format_usd(capped)}."
+    )
+    design = TYPICAL_PIPELINE_USD
+    lines.append(
+        f"Design typical pipeline {_format_usd(design)} plus capped dossiers {_format_usd(capped)} "
+        f"is {_format_usd(design + capped)}."
+    )
+    lines.extend(allowance_fit_lines(allowance, design))
+    if pipeline_by_day:
+        matched = [
+            (night["date"], pipeline_by_day[night["date"]])
+            for night in report["nights"]
+            if night["date"] in pipeline_by_day
+        ]
+        if matched:
+            values = [amount for _day, amount in matched]
+            mean_all = sum(values, Decimal("0")) / Decimal(len(values))
+            typical_rows = [(day, amount) for day, amount in matched if amount < Decimal("0.50")]
+            lines.append(
+                "Schedule pipeline by date: "
+                + ", ".join(f"{day} {_format_usd(amount)}" for day, amount in matched)
+                + f". Mean {_format_usd(mean_all)}."
+            )
+            if typical_rows and len(typical_rows) != len(matched):
+                typical = sum((amount for _day, amount in typical_rows), Decimal("0")) / Decimal(len(typical_rows))
+                heavy = [day for day, amount in matched if amount >= Decimal("0.50")]
+                lines.append(
+                    f"Typical schedule nights, leaving out {', '.join(heavy)}: "
+                    f"{_format_usd(typical)} across {len(typical_rows)} day(s). "
+                    f"Plus capped dossiers {_format_usd(capped)} is {_format_usd(typical + capped)}."
+                )
+    return "\n".join(lines) + "\n"
+
+
+def project_replay(payload: dict, rows: Sequence[dict]) -> dict:
+    """Cost of rewriting the sampled rows. Does not call a model."""
+    wanted = {
+        (str(row.get("section") or ""), str(row.get("planet_id") or ""))
+        for row in rows
+    }
+    only = {
+        (str(row.get("kind") or ""), str(row.get("planet_id") or ""), str(row.get("perspective_id") or ""))
+        for row in rows
+    }
+    topics = [
+        topic
+        for section, topic in iter_published_planets(payload)
+        if (section, str(topic.get("id") or "")) in wanted
+    ]
+    by_uri: dict[str, dict] = {}
+    for topic in topics:
+        for face in topic.get("perspectives") or []:
+            if not isinstance(face, dict):
+                continue
+            for post in face.get("representative_posts") or []:
+                uri = str(post.get("uri") or "")
+                if uri:
+                    by_uri[uri] = post
+    units = [unit for unit in _schedule_units(topics, by_uri) if _unit_only_key(unit) in only]
+    total = Decimal("0")
+    overshoot = Decimal("0")
+    overshoot_tokens = int(Decimal(DOSSIER_OUTPUT_TOKENS_4PAGE) * OUTPUT_OVERSHOOT)
+    for unit in units:
+        usable = [post for post in unit["posts"] if str(post.get("text") or post.get("clean_text") or "").strip()]
+        sampled = sample_posts(usable)
+        total += project_pair(
+            sampled,
+            kind=unit["kind"],
+            title=unit["title"],
+            rivals=list(unit["rivals"]),
+            output_tokens=DOSSIER_OUTPUT_TOKENS_4PAGE,
+        )["usd"]
+        overshoot += project_pair(
+            sampled,
+            kind=unit["kind"],
+            title=unit["title"],
+            rivals=list(unit["rivals"]),
+            output_tokens=overshoot_tokens,
+        )["usd"]
+    return {
+        "units": len(units),
+        "calls": len(units) * 2,
+        "usd": total,
+        "overshoot_usd": overshoot,
+        "topics": topics,
+        "only": only,
+    }
+
+
+def project_smoke(payload: dict, *, seed: int = SUMMARY_SAMPLE_SEED) -> dict:
+    """Three seeded planets and every perspective on them. A smoke test, not the verdict sample."""
+    chosen = draw_planets(payload, planets=SMOKE_PLANETS, seed=seed)
+    total = Decimal("0")
+    calls = 0
+    names = []
+    for section, topic in chosen:
+        cost = project_topic(topic, output_tokens=DOSSIER_OUTPUT_TOKENS_4PAGE)
+        total += cost["usd"]
+        calls += int(cost["calls"])
+        names.append(f"{section} / {topic.get('name')} ({topic.get('id')})")
+    overshoot_tokens = int(Decimal(DOSSIER_OUTPUT_TOKENS_4PAGE) * OUTPUT_OVERSHOOT)
+    overshoot = Decimal("0")
+    for _section, topic in chosen:
+        overshoot += project_topic(topic, output_tokens=overshoot_tokens)["usd"]
+    return {
+        "names": names,
+        "planets": [topic for _section, topic in chosen],
+        "calls": calls,
+        "usd": total,
+        "overshoot_usd": overshoot,
+    }
+
+
+def _paid_ready() -> int | None:
+    """None when a paid call may start. Otherwise the process exit code."""
+    from pipeline.pipeline_overlap import check_pipeline_overlap
+
+    overlap = check_pipeline_overlap()
+    if overlap.error:
+        print(f"Pipeline overlap check failed: {overlap.error}", file=sys.stderr)
+        print("Not calling the model.", file=sys.stderr)
+        return 3
+    if not overlap.clear:
+        print("A Daily Discourse Pipeline run is queued or in progress. Not calling the model.", file=sys.stderr)
+        return 2
+    return None
+
+
+def _run_paid(topics: list[dict], edition: str, *, only: set[tuple[str, str, str]] | None = None) -> int:
+    from pipeline.pipeline_overlap import EXIT_CLEAR
+
+    blocked = _paid_ready()
+    if blocked is not None:
+        return blocked
+    store = open_dossier_store()
+    if store is None:
+        print("R2 is not configured. Not calling the model.", file=sys.stderr)
+        return 1
+    apply_dossiers_batch(
+        topics,
+        [],
+        generate=_real_generate,
+        store=store,
+        edition=edition,
+        reserve_usd=0,
+        only=only,
+    )
+    for topic in topics:
+        blob = json.dumps(
+            {"summary": topic.get("summary"), "brief": topic.get("brief"), "detail": topic.get("detail")}
+        )
+        if "dossiers/" in blob:
+            raise RuntimeError("Refusing to print a private key in the public fields")
+        print(f"Wrote private briefings for {topic.get('name')} on {edition}. Public fields were not saved to data.json.")
+    return EXIT_CLEAR
+
+
+def _load_edition_dir(path: Path) -> list[tuple[str, dict]]:
+    editions = []
+    for file in sorted(path.glob("*.json")):
+        if not _DATE.fullmatch(file.stem):
+            continue
+        editions.append((file.stem, json.loads(file.read_text(encoding="utf-8"))))
+    if not editions:
+        raise SystemExit(f"No YYYY-MM-DD.json editions in {path}")
+    return editions
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1495,7 +2266,84 @@ def main(argv: list[str] | None = None) -> int:
     outline = commands.add_parser("outline", help="Print an extractive outline from stored posts")
     outline.add_argument("--data", type=Path, default=Path("public/data.json"))
     outline.add_argument("--planets", nargs="+", required=True)
+    quality = commands.add_parser("quality", help="Count tier overlap on current text. No model.")
+    quality.add_argument("--data", type=Path, default=Path("public/data.json"))
+    baseline = commands.add_parser("baseline", help="Write the seeded summary sample. No model.")
+    baseline.add_argument("--data", type=Path, default=Path("public/data.json"))
+    baseline.add_argument("--out", type=Path, required=True)
+    baseline.add_argument("--seed", type=int, default=SUMMARY_SAMPLE_SEED)
+    baseline.add_argument("--planets", type=int, default=SUMMARY_SAMPLE_PLANETS)
+    smoke = commands.add_parser("smoke", help="Price 3 seeded planets. A smoke test, not the verdict.")
+    smoke.add_argument("--data", type=Path, default=Path("public/data.json"))
+    smoke.add_argument("--seed", type=int, default=SUMMARY_SAMPLE_SEED)
+    smoke.add_argument("--edition", default="")
+    smoke.add_argument(
+        "--run",
+        action="store_true",
+        help="Spend: call the labeling model and write R2. Omit to print the cost only.",
+    )
+    replay = commands.add_parser("replay", help="Price the seeded sample with dossiers on. No model unless --run.")
+    replay.add_argument("--data", type=Path, default=Path("public/data.json"))
+    replay.add_argument("--sample", type=Path, required=True)
+    replay.add_argument("--edition", default="")
+    replay.add_argument(
+        "--run",
+        action="store_true",
+        help="Spend: rewrite the sample and write R2. Omit to print the cost only.",
+    )
+    backtest = commands.add_parser("backtest", help="Offline rebuild cost across edition files. No model.")
+    backtest.add_argument("--dir", type=Path, required=True)
+    backtest.add_argument("--ledger", type=Path, default=None)
     args = parser.parse_args(argv)
+    if args.command == "quality":
+        payload = json.loads(args.data.read_text(encoding="utf-8"))
+        print(format_quality_report(quality_report(payload)), end="")
+        return 0
+    if args.command == "baseline":
+        payload = json.loads(args.data.read_text(encoding="utf-8"))
+        rows = draw_summary_sample(payload, planets=args.planets, seed=args.seed)
+        write_summary_sample(args.out, rows)
+        planets = sum(1 for row in rows if row["kind"] == "planet")
+        faces = sum(1 for row in rows if row["kind"] == "perspective")
+        print(f"Wrote {planets} planets and {faces} perspectives to {args.out}. No model was called.")
+        return 0
+    if args.command == "backtest":
+        editions = _load_edition_dir(args.dir)
+        report = backtest_editions(editions)
+        pipeline = ledger_daily_totals(args.ledger) if args.ledger else None
+        print(format_backtest(report, pipeline), end="")
+        return 0
+    if args.command == "smoke":
+        payload = json.loads(args.data.read_text(encoding="utf-8"))
+        priced = project_smoke(payload, seed=args.seed)
+        print("Smoke test only. Seed", args.seed, ". Not the before/after sample.")
+        print("No model was called." if not args.run else "Paid smoke test.")
+        for name in priced["names"]:
+            print(name)
+        print(
+            f"{priced['calls']} model calls, {_format_usd(priced['usd'])} at the 4-page ceiling, "
+            f"{_format_usd(priced['overshoot_usd'])} if output overruns by 20%."
+        )
+        if not args.run:
+            print("Dry run. Re-invoke with --run only after the cost above is approved.")
+            return 0
+        edition = args.edition.strip() or datetime.now(timezone.utc).date().isoformat()
+        return _run_paid(priced["planets"], edition)
+    if args.command == "replay":
+        payload = json.loads(args.data.read_text(encoding="utf-8"))
+        rows = read_summary_sample(args.sample)
+        priced = project_replay(payload, rows)
+        print(
+            f"Replay of {args.sample}: {priced['units']} briefings, {priced['calls']} model calls, "
+            f"{_format_usd(priced['usd'])} at the 4-page ceiling, "
+            f"{_format_usd(priced['overshoot_usd'])} if output overruns by 20%."
+        )
+        print("This is the before/after sample. It is not the 3-planet smoke test.")
+        if not args.run:
+            print("Dry run. No model was called. Re-invoke with --run only after the cost above is approved.")
+            return 0
+        edition = args.edition.strip() or datetime.now(timezone.utc).date().isoformat()
+        return _run_paid(priced["topics"], edition, only=priced["only"])
     topics = _select_topics(_load_topics(args.data), args.planets)
     if args.command == "outline":
         for topic in topics:
@@ -1532,35 +2380,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.run:
         print("Dry run. Re-invoke with --run only after the cost above is approved.")
         return 0
-    from pipeline.pipeline_overlap import EXIT_CLEAR, check_pipeline_overlap
-
-    overlap = check_pipeline_overlap()
-    if overlap.error:
-        print(f"Pipeline overlap check failed: {overlap.error}", file=sys.stderr)
-        print("Not calling the model.", file=sys.stderr)
-        return 3
-    if not overlap.clear:
-        print("A Daily Discourse Pipeline run is queued or in progress. Not calling the model.", file=sys.stderr)
-        return 2
-    store = open_dossier_store()
-    if store is None:
-        print("R2 is not configured. Not calling the model.", file=sys.stderr)
-        return 1
     edition = args.edition.strip() or datetime.now(timezone.utc).date().isoformat()
-    apply_dossiers_batch(
-        topics,
-        [],
-        generate=_real_generate,
-        store=store,
-        edition=edition,
-        reserve_usd=0,
-    )
-    for topic in topics:
-        blob = json.dumps({"summary": topic.get("summary"), "brief": topic.get("brief"), "detail": topic.get("detail")})
-        if "dossiers/" in blob:
-            raise RuntimeError("Refusing to print a private key in the public fields")
-        print(f"Wrote private briefings for {topic.get('name')} on {edition}. Public fields were not saved to data.json.")
-    return EXIT_CLEAR
+    return _run_paid(topics, edition)
 
 
 if __name__ == "__main__":

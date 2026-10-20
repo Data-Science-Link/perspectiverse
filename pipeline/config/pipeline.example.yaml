@@ -55,7 +55,7 @@ catalog_size: 10
 # before face labels, names, and briefs, for split stories and for a whole
 # candidate. Pieces under the floor are not glued onto a sibling and do not
 # fill a catalog slot. 0 disables the floor.
-min_planet_posts: 5
+min_planet_posts: 30
 # Share of the stance sample that a second coherent pole must reach before a
 # one-face planet is split. Every planet is sampled at most 40 posts. The
 # whole planet is used when it is smaller than that cap. One value. Michael
@@ -88,8 +88,11 @@ free_ingest: true
 
 # Private planet and perspective briefings in R2 (dossiers/<edition>/<planet-id>.md).
 # Off: the grounded summary, brief, and detail stay as they are, and nothing
-# is written under dossiers/. On, rebuilds spend at most min($0.25, room left
-# under the $1/day cap after a reserve for the rest of the run). Over-budget
-# briefings wait for a later night and do not stop publishing.
+# is written under dossiers/. On, rebuilds spend at most the dossier allowance
+# or whatever is left under the $1/day hard stop after a reserve, whichever
+# is smaller. The allowance defaults to $0.09 so a typical $0.16 night stays
+# on the #87 $0.25 total. A $0.25 dossier allowance does not fit that bar.
+# PERSPECTIVERSE_DOSSIER_BUDGET_USD overrides the allowance.
 # PERSPECTIVERSE_DOSSIERS=1 turns it on for one run. Leave this false.
 dossiers: false
+# dossier_budget_usd: 0.09

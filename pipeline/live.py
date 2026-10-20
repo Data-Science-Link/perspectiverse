@@ -12,12 +12,19 @@ import time
 from collections import defaultdict, deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 
 from pipeline.assemble import FACE_LETTERS, assemble_payload, face_id, topic_name, write_payload
 from pipeline.briefs import apply_level_summaries
-from pipeline.dossier import DossierBudget, apply_dossiers_batch, dossiers_enabled, open_dossier_store
-from pipeline.cleaning import clean_posts, drop_near_duplicates
+from pipeline.dossier import (
+    DossierBudget,
+    apply_dossiers_batch,
+    dossier_allowance_usd,
+    dossiers_enabled,
+    open_dossier_store,
+)
+from pipeline.cleaning import clean_posts, clean_text, drop_near_duplicates
 from pipeline.corpus import (
     TARGET_POSTS,
     claim_count,
@@ -53,6 +60,7 @@ from pipeline.cluster_math import salient_terms, vectorize
 from pipeline.grouping import MIN_PLANET_POSTS, distinctness_score
 from pipeline.schema import TOP_TERMS_LIMIT
 from pipeline.settings import EXAMPLE_POST_CAP
+from pipeline.label_guard import guard_published_labels, readable_face_label, readable_planet_summary
 from pipeline.label import (
     catchall_reasons,
     content_tokens,
@@ -62,7 +70,9 @@ from pipeline.label import (
     name_from_perspectives,
     set_label_deadline,
     shares_claim_word,
+    majority_story_groups,
     specific_shared_words,
+    repeated_stems_below_floor,
     split_catchall_posts,
     story_groups,
     subject_stem,
@@ -77,6 +87,7 @@ from pipeline.label import (
 from pipeline.perspectives import select_representatives, split_perspectives
 from pipeline.stance import (
     apply_stance_pass,
+    local_faces_disagree,
     report_stance_check_failures,
     report_stance_check_incoherent,
     reset_stance_check_failures,
@@ -94,6 +105,7 @@ from pipeline.schema import (
     category_for_members,
     to_percents,
 )
+from pipeline.section_sanity import partition_politics_planets
 from pipeline.settings import load_settings
 from pipeline.store import (
     LIVE_CORPUS_DB,
@@ -342,7 +354,10 @@ def run_live(
             f"Reclustering {len(planet_posts)} edition-quality posts from scratch "
             f"({len(cleaned)} stored in corpus)."
         )
-        texts = [post["clean_text"] for post in planet_posts]
+        texts = [
+            clean_text(str(post.get("text") or post.get("clean_text") or ""))
+            for post in planet_posts
+        ]
         catalog_size = int(settings.get("catalog_size") or SYSTEM_SIZE)
         # Fixed floor. The corpus size does not raise it, and the group count
         # is not n // floor. Density clustering decides how many groups exist.
@@ -1098,7 +1113,7 @@ def _label_context(settings: dict, *, summaries: bool = True) -> dict:
         else:
             context["dossiers"] = True
             context["dossier_store"] = dossier_store
-            context["dossier_budget"] = DossierBudget()
+            context["dossier_budget"] = DossierBudget(nightly_usd=dossier_allowance_usd(settings))
     return context
 
 
@@ -1436,9 +1451,10 @@ def _label_faces(
         elif _face_has_no_shared_claim(label) and shares:
             renamed = topic_name(list(face.get("terms") or terms))
             if renamed and _title_covers_posts(renamed, sample):
+                fallback_title, fallback_summary = readable_face_label(face_posts, list(face.get("terms") or terms))
                 label = {
-                    "title": renamed,
-                    "summary": summary or f"These posts are about {renamed}.",
+                    "title": renamed if renamed and not _title_needs_repair(renamed) else fallback_title,
+                    "summary": summary or fallback_summary,
                     "label_source": "heuristic",
                 }
                 arguments = []
@@ -1483,7 +1499,7 @@ def _label_faces(
             f"the published face count ({published}). They were on a dropped face "
             "and did not match the kept face."
         )
-    drafted = _merge_alike_drafts(kept, limit)
+    drafted = _merge_alike_drafts(kept, limit, members)
     return drafted, labeled
 
 
@@ -1878,7 +1894,9 @@ def _apply_dossiers_if_enabled(
     in its budget is deferred. That does not raise, and it does not stop
     publishing. ``reserve_usd`` is held back for paid work still ahead. The
     global catalog passes the section-labeling reserve. The section pass,
-    which runs after that labeling, passes 0.
+    which runs after that labeling, passes 0. Call this after published ids
+    exist and before internal member fields are stripped, so the briefing
+    keys match ``data.json`` and the sample can still see member posts.
     """
     if not context.get("dossiers"):
         return
@@ -1893,7 +1911,7 @@ def _apply_dossiers_if_enabled(
 
     budget = context.get("dossier_budget")
     if not isinstance(budget, DossierBudget):
-        budget = DossierBudget()
+        budget = DossierBudget(nightly_usd=dossier_allowance_usd())
         context["dossier_budget"] = budget
     if reserve_usd is None:
         reserve_usd = DOSSIER_RUN_RESERVE_USD
@@ -1910,21 +1928,6 @@ def _apply_dossiers_if_enabled(
         )
     except Exception as exc:
         print(f"Dossiers stopped early ({exc}). Keeping the summaries and publishing.")
-
-
-def _apply_section_dossiers(jobs: list[_SectionLabelJob]) -> None:
-    """One dossier pass for every section planet, largest first.
-
-    Section labeling is already finished, so this pass does not hold a reserve.
-    """
-    if not jobs:
-        return
-    topics: list[dict] = []
-    posts: list[dict] = []
-    for job in jobs:
-        topics.extend(job.built)
-        posts.extend(job.posts)
-    _apply_dossiers_if_enabled(topics, posts, jobs[0].context, reserve_usd=0)
 
 
 def _strip_internal_planet_fields(topics: list[dict]) -> None:
@@ -1948,16 +1951,16 @@ def _finalize_published_planets(
     section = str(context.get("section") or "All topics")
     if context.get("chosen") == "heuristic" or not topics:
         merge_alike_published_faces(topics)
-        _apply_dossiers_if_enabled(topics, posts, context)
-        _strip_internal_planet_fields(topics)
+        for line in guard_published_labels(topics, posts):
+            print(line)
         return set()
     jobs = _collect_finalize_face_jobs(topics, posts, clustered, context, section=section)
     workers = _section_pool_size(context)
     incomplete = _run_finalize_faces_parallel(jobs, workers, deadline, scope=section)
     # Relabel can rename two faces onto one title after the draft merge already ran.
     merge_alike_published_faces(topics)
-    _apply_dossiers_if_enabled(topics, posts, context)
-    _strip_internal_planet_fields(topics)
+    for line in guard_published_labels(topics, posts):
+        print(line)
     return incomplete
 
 
@@ -1968,9 +1971,8 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     if jobs[0].context.get("chosen") == "heuristic":
         for job in jobs:
             merge_alike_published_faces(job.built)
-        _apply_section_dossiers(jobs)
-        for job in jobs:
-            _strip_internal_planet_fields(job.built)
+            for line in guard_published_labels(job.built, job.posts):
+                print(line)
         return set()
     face_jobs: list[_FinalizeFaceJob] = []
     for job in jobs:
@@ -1988,9 +1990,8 @@ def _finalize_section_planets_batch(jobs: list[_SectionLabelJob], deadline: floa
     )
     for job in jobs:
         merge_alike_published_faces(job.built)
-    _apply_section_dossiers(jobs)
-    for job in jobs:
-        _strip_internal_planet_fields(job.built)
+        for line in guard_published_labels(job.built, job.posts):
+            print(line)
     return incomplete
 
 
@@ -2005,7 +2006,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
     is dropped; if one real face remains, the planet is still published. When
     every face fails the shared-claim check, the planet is kept as pending
     (#158). The planet is not dropped for having one face. When the faces are different stories
-    (no specific shared subject word), the candidate is split into one
+    (no specific shared subject word, or a smaller face whose posts mostly
+    lack the largest face's top stem), the candidate is split into one
     planet per story and each story goes through this same split (#78).
     A catch-all (more than one story bucket, no shared claim, or a label
     term in under 30% of posts) is re-split into specific stories instead
@@ -2073,7 +2075,8 @@ def _draft_planet(posts: list[dict], clustered: dict, topic: dict, context: dict
         )
     drafted = drafted[:MAX_FACES]
     perspectives = [item[0] for item in drafted]
-    if len(perspectives) >= 2 and not specific_shared_words(perspectives):
+    story_faces = _story_faces_from_draft(members, drafted)
+    if len(perspectives) >= 2 and _faces_are_different_stories(story_faces):
         if depth < _STORY_SPLIT_LIMIT:
             detection_faces = int(context["story_calls"]["faces"])
             handled, split_result, split_log = _split_different_stories(
@@ -2394,9 +2397,10 @@ def _resplit_catchall(
     if held:
         _note_uris(None, "held_uris", held)
     if len(buckets) < 1:
-        if held:
-            # Every specific-looking bucket was a thin fragment. Leave those
-            # posts out. Do not publish the catch-all as one planet.
+        if held or repeated_stems_below_floor(members, floor) >= 2:
+            # Every piece is under the floor, or the stems that do repeat are
+            # each too small to be a planet. Leave the grab-bag out. Do not
+            # publish it as one planet.
             return True, {
                 "planets": [],
                 "split": True,
@@ -2470,7 +2474,7 @@ def _rescue_named_story(
     perspective = {
         "id": face_id(1, 0),
         "title": title,
-        "summary": f"These posts are about {title}.",
+        "summary": readable_planet_summary(members, title, terms),
         "volume_percent": 100.0,
         "post_count": len(members),
         "representative_posts": representatives,
@@ -2620,6 +2624,47 @@ def _return_catchall_split(
     )
 
 
+def _faces_are_different_stories(faces: list[dict]) -> bool:
+    """True when the faces should not stay on one planet.
+
+    ``specific_shared_words`` is looked up on this module so tests can patch it.
+    """
+    groups = majority_story_groups(faces)
+    if groups is not None:
+        return len(groups) >= 2
+    return len(faces) >= 2 and not specific_shared_words(faces)
+
+
+def _story_faces_from_draft(members: list[dict], drafted: list) -> list[dict]:
+    """Face records for the story split, with the member texts the stem check reads."""
+    uri_index = {str(post.get("uri") or ""): index for index, post in enumerate(members)}
+    faces = []
+    for perspective, rows, size in drafted:
+        indices: list[int] = []
+        seen: set[int] = set()
+        for uri, _position, _distance in rows:
+            index = uri_index.get(str(uri))
+            if index is None or index in seen:
+                continue
+            seen.add(index)
+            indices.append(index)
+        texts = [
+            str(members[index].get("clean_text") or members[index].get("text") or "")
+            for index in indices
+        ]
+        faces.append(
+            {
+                "title": perspective.get("title") or "",
+                "summary": perspective.get("summary") or "",
+                "representative_posts": perspective.get("representative_posts") or [],
+                "member_indices": indices,
+                "member_texts": [text for text in texts if text.strip()],
+                "post_count": len(indices) or int(size),
+            }
+        )
+    return faces
+
+
 def _split_different_stories(
     posts: list[dict],
     clustered: dict,
@@ -2638,27 +2683,10 @@ def _split_different_stories(
     """
     del parent_log
     log: list[str] = []
-    uri_index = {str(post.get("uri") or ""): index for index, post in enumerate(members)}
-    faces = []
-    for perspective, rows, size in drafted:
-        indices = []
-        seen: set[int] = set()
-        for uri, _position, _distance in rows:
-            index = uri_index.get(str(uri))
-            if index is None or index in seen:
-                continue
-            seen.add(index)
-            indices.append(index)
-        faces.append(
-            {
-                "title": perspective.get("title") or "",
-                "summary": perspective.get("summary") or "",
-                "representative_posts": perspective.get("representative_posts") or [],
-                "member_indices": indices,
-            }
-        )
-        del size
-    groups = story_groups(faces)
+    faces = _story_faces_from_draft(members, drafted)
+    groups = majority_story_groups(faces)
+    if groups is None:
+        groups = story_groups(faces)
     buckets: list[list[int]] = []
     for group in groups:
         indices = []
@@ -2686,19 +2714,55 @@ def _split_different_stories(
     )
 
 
+def _posts_for_merge(
+    perspective: dict,
+    rows: list[tuple[str, int, float]],
+    by_uri: dict[str, dict],
+) -> list[dict]:
+    posts = []
+    for uri, _position, _distance in rows:
+        post = by_uri.get(str(uri))
+        if post is not None:
+            posts.append(post)
+    if posts:
+        return posts
+    return list(perspective.get("representative_posts") or [])
+
+
 def _merge_alike_drafts(
     drafted: list[tuple[dict, list[tuple[str, int, float]], int]],
     post_limit: int = EXAMPLE_POST_CAP,
+    members: list[dict] | None = None,
 ) -> list[tuple[dict, list[tuple[str, int, float]], int]]:
     """Fold a face into a larger one when the titles are the same stance.
 
     Same rule as ``_merge_alike_faces``, but the membership rows move with
-    the merged face so the database matches what is published.
+    the merged face so the database matches what is published. A title match
+    is not enough when the posts disagree: that fold used to run before the
+    stance gate and could erase a real opposition.
     """
+    by_uri = {str(post.get("uri") or ""): post for post in (members or [])}
     ranked = sorted(drafted, key=lambda item: (-int(item[2]), str(item[0].get("id") or "")))
     kept: list[list] = []
     for perspective, rows, size in ranked:
-        match = next((item for item in kept if titles_alike(item[0].get("title"), perspective.get("title"))), None)
+        incoming_posts = _posts_for_merge(perspective, rows, by_uri)
+        match = None
+        for item in kept:
+            if not titles_alike(item[0].get("title"), perspective.get("title")):
+                continue
+            if local_faces_disagree(
+                item[0],
+                perspective,
+                _posts_for_merge(item[0], item[1], by_uri),
+                incoming_posts,
+            ):
+                # Finalize folds alike titles again. Lock both so that pass
+                # cannot undo a disagreement this merge refused.
+                item[0]["stance_locked"] = True
+                perspective["stance_locked"] = True
+                continue
+            match = item
+            break
         if match is None:
             kept.append([perspective, list(rows), int(size)])
             continue
@@ -2891,7 +2955,12 @@ def _build_topics(
     built = _publishable_planets(built)
     _finalize_published_planets(built, posts, clustered, context)
     publish_volumes(built)
-    return _renumber_planets(built, membership, face_rows)
+    topics, membership, face_rows = _renumber_planets(built, membership, face_rows)
+    # Published ids are final. Member URIs are still on the planets, so the
+    # briefing can sample them. Strip those fields after the rewrite.
+    _apply_dossiers_if_enabled(topics, posts, context)
+    _strip_internal_planet_fields(topics)
+    return topics, membership, face_rows
 
 
 def _publishable_planets(topics: list[dict]) -> list[dict]:
@@ -3205,6 +3274,7 @@ def _cluster_sections(
             _finalize_section_planets_batch(active_jobs, deadline)
     finally:
         set_label_deadline(None)
+    relocated: dict[str, list[dict]] = {}
     for job in jobs:
         if job.skipped_budget:
             continue
@@ -3216,6 +3286,15 @@ def _cluster_sections(
             deadline=deadline,
             finalize=False,
         )
+        if job.name == "Politics" and topics:
+            topics, moved = partition_politics_planets(topics, job.posts)
+            for dest, planets in moved.items():
+                for planet in planets:
+                    print(
+                        f"Section Politics: moved planet {planet.get('name')} "
+                        f"({planet.get('post_count')} posts) to {dest} (post-label sanity)."
+                    )
+                relocated.setdefault(dest, []).extend(planets)
         if topics:
             result[job.name] = _assign_section_topic_ids(job.name, topics)
             print(f"Section {job.name}: {len(topics)} planet(s) from {job.post_count} posts.")
@@ -3224,7 +3303,32 @@ def _cluster_sections(
         else:
             print(f"Section {job.name}: no publishable planet from {job.post_count} posts.")
 
+    for dest, planets in relocated.items():
+        if not planets:
+            continue
+        base = len(result.get(dest, []))
+        for offset, topic in enumerate(planets, start=1):
+            topic["id"] = base + offset
+        assigned = _assign_section_topic_ids(dest, planets)
+        result.setdefault(dest, []).extend(assigned)
+        print(f"Section {dest}: accepted {len(assigned)} planet(s) relocated from Politics.")
+
+    renormalize_section_catalogs(result)
+    # Section ids (Technology-5) are assigned. Labeling is finished, so this
+    # pass does not hold a reserve. Strip member fields after the rewrite.
+    if context is not None:
+        flat = [topic for topics in result.values() for topic in topics]
+        _apply_dossiers_if_enabled(flat, planet_posts, context, reserve_usd=0)
+    for topics in result.values():
+        _strip_internal_planet_fields(topics)
+
     return {name: result[name] for name in CATEGORIES if name in result}
+
+
+def renormalize_section_catalogs(sections: dict[str, list[dict]]) -> None:
+    """Recompute section topic shares after post-label planets move between catalogs."""
+    for section_topics in sections.values():
+        publish_volumes(section_topics)
 
 
 def publish_volumes(topics: list[dict]) -> None:
@@ -3453,10 +3557,11 @@ def _pending_face_from_members(
         limit=min(int(EXAMPLE_POST_CAP), len(members)),
         vectors=member_matrix,
     )
+    _pending_title, pending_summary = readable_face_label(members, salient_terms(member_texts, limit=TOP_TERMS_LIMIT))
     perspective = {
         "id": face_id(1, 0),
         "title": planet_name,
-        "summary": f"Posts grouped under {planet_name}.",
+        "summary": pending_summary,
         "volume_percent": 100.0,
         "post_count": len(members),
         "representative_posts": representatives,
@@ -3535,8 +3640,18 @@ def _salvage_unshared_pending_faces(topic: dict, faces: list[dict]) -> list[dict
     best = max(faces, key=lambda face: int(face.get("post_count") or 0))
     salvaged = {key: value for key, value in best.items() if not str(key).startswith("_")}
     planet_name = str(topic.get("name") or "").strip() or str(salvaged.get("title") or "Topic")
+    member_texts = [
+        str(rep.get("text") or "")
+        for rep in salvaged.get("representative_posts") or []
+        if str(rep.get("text") or "").strip()
+    ]
+    terms = salient_terms(member_texts, limit=TOP_TERMS_LIMIT)
+    _pending_title, pending_summary = readable_face_label(
+        [{"text": text, "clean_text": text} for text in member_texts],
+        terms,
+    )
     salvaged["title"] = planet_name
-    salvaged["summary"] = f"Posts grouped under {planet_name}."
+    salvaged["summary"] = pending_summary
     salvaged.pop("arguments", None)
     return [salvaged]
 

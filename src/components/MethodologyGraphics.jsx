@@ -15,10 +15,11 @@ export function OverviewGraphic() {
         role="img"
         aria-labelledby="overview-graphic-title overview-graphic-desc"
       >
-        <title id="overview-graphic-title">From Bluesky posts through Jev filters to planets and perspectives</title>
+        <title id="overview-graphic-title">From Bluesky posts through ingest filters to planets and perspectives</title>
         <desc id="overview-graphic-desc">
-          A week of English Bluesky posts passes spam, public-claim, and section filters, clusters into up to
-          ten planets, splits into one to six perspectives by prevalence, then loads in the observatory.
+          A week of English Bluesky posts passes free spam and chit-chat guards, clusters into up to ten
+          planets, Jev tags each planet with a newspaper section, splits into one to six perspectives by
+          prevalence, then loads in the observatory.
         </desc>
         <rect x="12" y="10" width="296" height="64" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(232,230,245,0.12)" />
         <text x="28" y="36" fill="#efeef7" fontSize="14" fontFamily="Instrument Sans, Segoe UI, sans-serif">Bluesky · 7-day English window</text>
@@ -28,9 +29,9 @@ export function OverviewGraphic() {
         <path d="M154 86 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
 
         <rect x="12" y="96" width="296" height="72" rx="16" fill="rgba(244,193,78,0.08)" stroke="rgba(244,193,78,0.45)" />
-        <text x="28" y="120" fill="#f4e2b0" fontSize="13" fontFamily="Instrument Sans, Segoe UI, sans-serif">Jev filters</text>
-        <text x="28" y="140" fill="#efeef7" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Spam drop · public-claim check · newspaper section</text>
-        <text x="28" y="158" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Regex fallback when Jev is off</text>
+        <text x="28" y="120" fill="#f4e2b0" fontSize="13" fontFamily="Instrument Sans, Segoe UI, sans-serif">Ingest guards</text>
+        <text x="28" y="140" fill="#efeef7" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Spam · chit-chat · link &amp; language</text>
+        <text x="28" y="158" fill="#9a98ad" fontSize="11" fontFamily="Instrument Sans, Segoe UI, sans-serif">Up to 100,000 non-spam posts in the week</text>
 
         <path d="M160 168 v18" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
         <path d="M154 180 l6 8 6-8" fill="none" stroke="rgba(244,193,78,0.7)" strokeWidth="2" />
@@ -71,11 +72,13 @@ const STAGES = [
     nodes: [
       {
         name: 'Bluesky search',
-        detail: 'English posts from the last 168 hours. The job holds up to 10,000 that already passed cleaning, dedup, spam, and the public-claim check.',
+        detail:
+          'English posts from the last 168 hours. The job keeps up to 100,000 non-spam posts that passed cleaning, dedup, and the free ingest guards (spam, chit-chat, and link or language checks).',
       },
       {
         name: 'Clean + SQLite',
-        detail: 'Strip URLs and handles, drop spam, and keep public claims. The window stays in SQLite. The site publishes only the snapshot.',
+        detail:
+          'Strip URLs and handles, store edition-quality posts in SQLite, and tag each planet with a newspaper section (Jev when configured). The site publishes only the snapshot.',
       },
     ],
   },
