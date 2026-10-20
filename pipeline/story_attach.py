@@ -34,6 +34,7 @@ from pipeline.label import (
     subject_stem,
     titles_alike,
 )
+from pipeline.face_titles import face_titles_equal
 from pipeline.assemble import face_id
 from pipeline.schema import apply_opposing_note, to_percents
 
@@ -495,7 +496,8 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
                 (
                     item
                     for item in kept
-                    if not item.get("stance_locked") and titles_alike(item.get("title"), face.get("title"))
+                    if not item.get("stance_locked")
+                    and face_titles_equal(item.get("title"), face.get("title"))
                 ),
                 None,
             )
@@ -526,10 +528,15 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
         counts = [max(int(face.get("post_count") or 0), 0) for face in kept]
         topic["post_count"] = sum(counts)
         volumes = to_percents(counts) if sum(counts) else [0.0 for _ in kept]
-        topic_id = int(topic.get("id") or 1)
+        topic_id = topic.get("id") or 1
         for index, (face, volume) in enumerate(zip(kept, volumes)):
             face["volume_percent"] = volume
             face["id"] = face_id(topic_id, index)
         topic["perspectives"] = kept
         apply_opposing_note(topic)
+        # Draft summaries were written before this post-relabel merge. Rebuild
+        # them from the faces that remain. No generator, so this is not a model call.
+        from pipeline.briefs import apply_level_summaries
+
+        apply_level_summaries(topic)
     return folded

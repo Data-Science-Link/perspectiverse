@@ -168,8 +168,40 @@ function perspectiveCopy(face, rivals) {
   }
 }
 
+function titleKey(title) {
+  const words = String(title || '')
+    .toLowerCase()
+    .match(/[a-z0-9]+/g) || []
+  while (words.length && /^\d+$/.test(words[words.length - 1])) words.pop()
+  return words.join(' ')
+}
+
+function hasDuplicateFaceTitles(faces) {
+  const seen = new Set()
+  for (const face of faces) {
+    const key = titleKey(face.title)
+    if (!key) continue
+    if (seen.has(key)) return true
+    seen.add(key)
+  }
+  return false
+}
+
+function copyFaces(faces) {
+  const seen = new Set()
+  const kept = []
+  for (const face of faces) {
+    const key = titleKey(face.title)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    kept.push(face)
+  }
+  return kept
+}
+
 function planetCopy(topic, faces) {
-  const viewLines = faces.map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
+  const titled = copyFaces(faces)
+  const viewLines = titled.map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
   const faceSentences = faces.flatMap((face) => splitSentences(face.brief || face.summary || ''))
   const shared = completeBrief([`${topic.name} is the conversation these views share.`, ...viewLines])
   const brief = faces.length === 1 && faceSentences.length
@@ -177,7 +209,7 @@ function planetCopy(topic, faces) {
     : splitSentences(shared).length >= 3
       ? shared
       : completeBrief([shared, ...faceSentences])
-  const defenses = faces.map((face) => {
+  const defenses = titled.map((face) => {
     const claim = lowerLeading(face.summary || face.title || '')
     const extra = (face.arguments || []).slice(0, 2).map((item) => clipWords(item, 24)).join(' ')
     return `${face.title} argues that ${claim}. ${extra}`.trim()
@@ -193,7 +225,7 @@ function planetCopy(topic, faces) {
       return `@${clean(post.author || 'someone')} writes, “${line}”`
     })
     .filter(Boolean)
-  const split = faces.map((face) => {
+  const split = titled.map((face) => {
     const claim = clean(face.summary).replace(/\.$/, '')
     const share = face.volume_percent == null ? '' : ` (${Number(face.volume_percent).toFixed(1).replace(/\.0$/, '')}%)`
     return `${face.title}${share} says ${claim}.`
@@ -248,14 +280,18 @@ export function presentTopic(topic) {
   const unchanged = (topic.perspectives || []).length === copied.length
     && (topic.perspectives || []).every((face, index) => face.title === copied[index].title)
   const planet = planetCopy(topic, copied)
-  const summary = splitSentences(unchanged && topic.brief ? topic.brief : planet.brief)[0]
+  // A stored detail was written before duplicate titles were folded. Keep it
+  // only when every face title is distinct, so a ready paragraph cannot keep
+  // "Trans Rights (98%) says … Trans Rights (2%) says …".
+  const keepStored = unchanged && !hasDuplicateFaceTitles(copied)
+  const summary = splitSentences(keepStored && topic.brief ? topic.brief : planet.brief)[0]
     || topic.summary
     || topic.name
   return {
     ...topic,
     summary,
-    brief: unchanged && briefReady(topic.brief) ? topic.brief : planet.brief,
-    detail: unchanged && detailReady(topic.detail) ? topic.detail : planet.detail,
+    brief: keepStored && briefReady(topic.brief) ? topic.brief : planet.brief,
+    detail: keepStored && detailReady(topic.detail) ? topic.detail : planet.detail,
     perspectives: copied,
   }
 }
@@ -278,9 +314,12 @@ function presentDigest(topics, previous) {
       }
       const disagreement = oneView
         ? null
-        : faces
-            .map((face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`)
-            .join(' ')
+        : (() => {
+            const lines = copyFaces(faces).map(
+              (face) => `${face.title} says ${clean(face.summary).replace(/\.$/, '')}.`,
+            )
+            return lines.join(' ')
+          })()
       const pending =
         topic.stance_check === STANCE_CHECK_FAILED ||
         topic.stance_check === STANCE_CHECK_INCOHERENT ||

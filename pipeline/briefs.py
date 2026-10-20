@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
+from pipeline.face_titles import normalize_face_title
+
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
 
@@ -330,13 +332,19 @@ def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = N
         paragraphs.append(f"{speaker}“{quote}”")
     if len(perspectives) >= 2:
         split = []
+        seen_titles: set[str] = set()
         for face in perspectives:
+            title = str(face.get("title") or "")
+            key = normalize_face_title(title)
+            if not key or key in seen_titles:
+                continue
+            seen_titles.add(key)
             claim = _lower_article(_clause(str(face.get("summary") or face.get("title") or "")))
             share = face.get("volume_percent")
             if share is None:
-                split.append(f"{face.get('title')} says {claim}.")
+                split.append(f"{title} says {claim}.")
             else:
-                split.append(f"{face.get('title')} ({_percent(share)}) says {claim}.")
+                split.append(f"{title} ({_percent(share)}) says {claim}.")
         paragraphs.append(" ".join(split))
     planet_detail = _three(paragraphs, planet_brief)
     if generate is not None and perspectives:
@@ -406,10 +414,16 @@ def assemble_email(topics: list[dict]) -> dict:
                 if not wrote and face.get("summary"):
                     arguments.append(f"{title}: {_clean(face.get('summary'))}")
             bits = []
+            seen_titles: set[str] = set()
             for face in faces:
+                title = str(face.get("title") or "View")
+                key = normalize_face_title(title)
+                if not key or key in seen_titles:
+                    continue
+                seen_titles.add(key)
                 claim = _lower_article(_clause(str(face.get("summary") or face.get("title") or "")))
                 share = _percent(face.get("volume_percent"))
-                label = f"{face.get('title')} ({share})" if share else str(face.get("title"))
+                label = f"{title} ({share})" if share else title
                 bits.append(f"{label} says {claim}.")
             disagreement = " ".join(bits)
         planets.append(
