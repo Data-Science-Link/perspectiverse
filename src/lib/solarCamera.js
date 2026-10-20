@@ -29,8 +29,13 @@ function poseMatchesHome(view, home, tolerance = HOME_POSE_TOLERANCE) {
 
 export const FREEZE_ORBITS_STORAGE_KEY = 'perspectiverse.freeze-orbits'
 
+let _orbitsFrozen = null
+
 export function solarOrbitsFrozen() {
-  return typeof window !== 'undefined' && window.localStorage?.getItem(FREEZE_ORBITS_STORAGE_KEY) === '1'
+  if (_orbitsFrozen !== null) return _orbitsFrozen
+  _orbitsFrozen = typeof window !== 'undefined'
+    && window.localStorage?.getItem(FREEZE_ORBITS_STORAGE_KEY) === '1'
+  return _orbitsFrozen
 }
 
 export function solarLayoutKey(category = 'all', linear = false, grid = false) {

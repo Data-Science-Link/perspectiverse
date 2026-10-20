@@ -116,7 +116,12 @@ export default function Planet({
         group.current.position.copy(_desired)
       }
       if (anchors?.current) {
-        anchors.current[topic.id] = group.current.position.clone()
+        let slot = anchors.current[topic.id]
+        if (!slot) {
+          slot = new Vector3()
+          anchors.current[topic.id] = slot
+        }
+        slot.copy(group.current.position)
       }
 
       if (linearGrid && isMobile && group.current && typeof window !== 'undefined') {

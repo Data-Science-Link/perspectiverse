@@ -1,0 +1,53 @@
+{
+  "setup": {
+    "viewport": "Pixel 7 412x915",
+    "cpuThrottle": 4,
+    "browser": "Playwright Chromium, --use-gl=angle --use-angle=swiftshader",
+    "note": "Frame times are from isolated runs (one browser). Label still-gaps are wall-clock time a moving pill stays put. The hitch is that hold, not a low frame rate."
+  },
+  "frames": [
+    {
+      "build": "53242b1^",
+      "sha": "f039ef3fb6bd1381e66c668dd7e1e5f56ec03adf",
+      "idle": { "p50": 16.7, "p95": 16.8, "longestFrame": 16.8, "droppedFramesOver32ms": 0 },
+      "cameraMove": { "p50": 16.7, "p95": 16.8, "longestFrame": 16.8, "droppedFramesOver32ms": 0 },
+      "labelStillGapP50ms": 206,
+      "labelStillGapMaxms": 220,
+      "backOutMissingCanvasFrames": 4,
+      "backOutReplacedCanvas": true
+    },
+    {
+      "build": "53242b1",
+      "sha": "53242b1481bbd8f7f81f3b77cd5942b042f60516",
+      "idle": { "p50": 16.7, "p95": 16.7, "longestFrame": 16.8, "droppedFramesOver32ms": 0 },
+      "cameraMove": { "p50": 16.7, "p95": 16.7, "longestFrame": 16.8, "droppedFramesOver32ms": 0 },
+      "labelStillGapP50ms": 205,
+      "labelStillGapMaxms": 220,
+      "backOutMissingCanvasFrames": 3,
+      "backOutReplacedCanvas": true
+    },
+    {
+      "build": "main",
+      "sha": "b6340b38fe33043ecfea62436c3b59b67c8ba7a4",
+      "idle": { "p50": 16.7, "p95": 16.7, "longestFrame": 16.8, "droppedFramesOver32ms": 0 },
+      "cameraMove": { "p50": 16.7, "p95": 16.7, "longestFrame": 16.8, "droppedFramesOver32ms": 0 },
+      "labelStillGapP50ms": 211,
+      "labelStillGapMaxms": 221,
+      "backOutMissingCanvasFrames": 3,
+      "backOutReplacedCanvas": true
+    },
+    {
+      "build": "branch",
+      "idle": { "p50": 16.7, "p95": 16.8, "longestFrame": 16.8, "droppedFramesOver32ms": 0 },
+      "cameraMove": { "p50": 16.7, "p95": 16.8, "longestFrame": 16.8, "droppedFramesOver32ms": 0 },
+      "labelStillGapP50ms": 56,
+      "labelStillGapMaxms": 71,
+      "backOutMissingCanvasFrames": 0,
+      "backOutReplacedCanvas": false
+    }
+  ],
+  "introducedBy": {
+    "blackFlash": "1b25e6b (phone drill unmounts the observatory). Present at 53242b1^ , 53242b1, and main. Not introduced by #234 or #265.",
+    "stopStart": "ea3de96 merged as #252 831d218 (LABEL_HOLD_MS = 220). Present at 53242b1^, 53242b1, and main. Not introduced by #234 or #265."
+  }
+}

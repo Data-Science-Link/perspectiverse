@@ -1,0 +1,55 @@
+{
+  "setup": "Pixel 7 412x915, Playwright Chromium, SwiftShader, CDP CPU throttle 4x, planet open ~30s",
+  "draws": "drawArrays, drawElements, drawArraysInstanced, drawElementsInstanced, drawRangeElements on the observatory canvas",
+  "frames": "requestAnimationFrame callbacks in which that canvas issued at least one draw",
+  "jsHeap": "performance.memory.usedJSHeapSize",
+  "gpuNote": "SwiftShader exposes no GPU-process memory counter. textureBytes are live texStorage2D/texImage2D allocations. drawingBufferBytes is width * height * 4.",
+  "runs": [
+    {
+      "build": "main b6340b3",
+      "windowSeconds": 29.2,
+      "canvasWhileReading": "destroyed",
+      "framesPerSec": 0,
+      "drawsPerSec": 0,
+      "jsHeapUsedMax": 15765292,
+      "jsHeapUsedEnd": 8012948,
+      "cdpJsHeapUsedMax": 12418500,
+      "textureBytesLive": 0,
+      "drawingBufferBytes": 0,
+      "sameCanvasOnBackOut": false
+    },
+    {
+      "build": "branch before pause",
+      "windowSeconds": 29.22,
+      "canvasWhileReading": "mounted, frameloop always",
+      "framesPerSec": 59.99,
+      "drawsPerSec": 289.31,
+      "draws": 8454,
+      "frames": 1753,
+      "jsHeapUsedMax": 16050986,
+      "jsHeapUsedEnd": 9763489,
+      "cdpJsHeapUsedMax": 12725308,
+      "textureBytesLive": 1944248,
+      "drawingBufferBytes": 1426048,
+      "buffer": { "width": 416, "height": 857 }
+    },
+    {
+      "build": "this branch, frameloop never while a phone planet is open",
+      "windowSeconds": 29.2,
+      "canvasWhileReading": "mounted, not drawing",
+      "framesPerSec": 0,
+      "drawsPerSec": 0,
+      "draws": 0,
+      "frames": 0,
+      "jsHeapUsedMax": 13513157,
+      "jsHeapUsedEnd": 9298870,
+      "cdpJsHeapUsedMax": 10187392,
+      "textureBytesLive": 1944248,
+      "drawingBufferBytes": 1426048,
+      "buffer": { "width": 416, "height": 857 },
+      "sameCanvasOnBackOut": true,
+      "drawsInSecondAfterBackOut": 1865,
+      "centerLuminanceAfterBackOut": 210.67
+    }
+  ]
+}

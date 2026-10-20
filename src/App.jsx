@@ -239,7 +239,9 @@ export default function App() {
 
   const sitePage = pageById(page)
   const drilled = Boolean(selectedTopic) || Boolean(sitePage)
-  const showObservatory = !sitePage && !(isMobile && selectedTopic) && !emailOpen
+  // Phone planet reading used to unmount the canvas. That dropped the WebGL
+  // context, so backing out flashed black and built a new scene. Keep it mounted.
+  const showObservatory = !sitePage && !emailOpen
   const showReading = !sitePage && (!isMobile || selectedTopic || emailOpen)
   const chromeTitle = sitePage?.title
     ?? selectedPerspective?.title
