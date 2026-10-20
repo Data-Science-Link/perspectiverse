@@ -143,14 +143,25 @@ test.describe('Solar camera restore', () => {
   })
 
   test('browser back from a planet restores the solar camera', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name === 'mobile', 'Mobile hides the observatory while drilled')
     await enterSolarSystem(page)
     await waitForCamera(page)
     await dollySolarView(page, 0.5)
     const before = await readCamera(page)
+    await page.locator('.observatory canvas').evaluate((node) => {
+      node.dataset.pvCanvas = 'mounted'
+    })
 
-    await page.getByRole('button', { name: 'Perspectives' }).click()
+    if (testInfo.project.name === 'mobile') {
+      await page.locator('.orbit-labels .planet-label').first().click({ force: true })
+    } else {
+      await page.getByRole('button', { name: 'Perspectives' }).click()
+    }
     await expect(page).toHaveURL(/topic=/)
+    if (testInfo.project.name === 'mobile') {
+      await expect(page.locator('.app-shell.is-drilled .observatory')).toHaveCSS('visibility', 'hidden')
+      await expect(page.locator('.orbit-labels')).toHaveAttribute('aria-hidden', 'true')
+      await expect(page.locator('.observatory canvas')).toHaveAttribute('data-pv-canvas', 'mounted')
+    }
 
     await page.goBack()
     await expect(page).not.toHaveURL(/topic=/)

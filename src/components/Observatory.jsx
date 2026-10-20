@@ -207,11 +207,19 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
     nudgeX: null,
     nudgeY: null,
     sig: null,
+    // Hold pills until a frame has run with frameloop back on and fresh layout.
+    held: true,
+    fresh: false,
   })
   const home = useMemo(() => fitKey.split(',').map(Number), [fitKey])
 
   useEffect(() => {
-    if (!enabled) return undefined
+    if (!enabled) {
+      dom.current.held = true
+      dom.current.fresh = false
+      dom.current.nodes?.forEach((node) => hideOrbitLabel(node))
+      return undefined
+    }
     const read = () => {
       const overlay = document.querySelector('.orbit-labels')
       const canvas = document.querySelector('.observatory canvas')
@@ -232,6 +240,7 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
         bottom: Math.max(40, (chrome ? chrome.top - overlayRect.top : overlayRect.height) - 4),
       }
       dom.current.sig = null
+      dom.current.fresh = true
     }
     read()
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(read) : null
@@ -262,11 +271,17 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
     const sizes = state.sizes
     const { canvasRect, overlayRect, bounds } = state
     if (!nodes || nodes.length !== topics.length || !sizes || !canvasRect || !overlayRect || !bounds) return
+    if (!state.fresh) {
+      nodes.forEach((node) => hideOrbitLabel(node))
+      return
+    }
     if (canvasRect.width < 20 || canvasRect.height < 20) return
     if (!(bounds.bottom > bounds.top + 24) || !(bounds.right > bounds.left + 24)) return
     if (sizes.some((size) => size.w < 2 || size.h < 2)) return
 
-    if (cameraOnHome(camera, home, { relaxed: false })) packAtHome.current = true
+    if (state.held) {
+      packAtHome.current = cameraOnHome(camera, home, { relaxed: true })
+    } else if (cameraOnHome(camera, home, { relaxed: false })) packAtHome.current = true
     else if (!cameraOnHome(camera, home, { relaxed: true })) packAtHome.current = false
     const atHome = packAtHome.current
 
@@ -297,7 +312,13 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
       for (let index = 0; index < count; index += 1) {
         if (!_projected[index]) missing = true
       }
-      if (missing) return
+      if (missing) {
+        if (state.held) {
+          state.sig = null
+          nodes.forEach((node) => hideOrbitLabel(node))
+        }
+        return
+      }
     }
 
     const mode = atHome ? 1 : 0
@@ -334,6 +355,16 @@ function OrbitLabelPlacer({ enabled, topics, anchors, layout, fitKey }) {
       slot.w = size.w
       slot.h = size.h
       activeCount += 1
+    }
+
+    if (state.held) {
+      const settled = !atHome || (!missing && activeCount === count)
+      if (!settled) {
+        state.sig = null
+        nodes.forEach((node) => hideOrbitLabel(node))
+        return
+      }
+      state.held = false
     }
 
     if (dirty) {
@@ -386,9 +417,11 @@ function FocusCamera({
 }) {
   const lastId = useRef(null)
   const booted = useRef(false)
+  const pinHome = useRef(false)
 
   useEffect(() => {
     booted.current = false
+    if (isMobile) pinHome.current = true
   }, [isMobile, planetCount, layoutExtent, homeFrame, layoutKey])
 
   useFrame(() => {
@@ -398,21 +431,37 @@ function FocusCamera({
 
     if (!selectedTopic) {
       if (lastId.current !== null) {
-        if (!restoreSolarView(controls, layoutKey, limits, true)) {
-          controls.setLookAt(...home, true)
-        }
+        // Phone resume has to land on the saved pose in this same frame.
+        // An ease leaves the pills unhittable until the damper catches up.
+        const animate = !isMobile
+        const restored = restoreSolarView(controls, layoutKey, limits, animate)
+        if (!restored) controls.setLookAt(...home, animate)
+        controls.update?.(0)
+        pinHome.current = isMobile && !restored
         lastId.current = null
         booted.current = true
         return
       }
       if (!booted.current) {
-        if (!restoreSolarView(controls, layoutKey, limits, false)) {
-          controls.setLookAt(...home, false)
-        }
+        const restored = restoreSolarView(controls, layoutKey, limits, false)
+        if (!restored) controls.setLookAt(...home, false)
+        controls.update?.(0)
+        pinHome.current = isMobile && !restored
         booted.current = true
+        return
+      }
+      if (isMobile && pinHome.current) {
+        controls.camera.updateMatrixWorld()
+        if (!cameraOnHome(controls.camera, home)) {
+          controls.setLookAt(...home, false)
+          controls.update?.(0)
+        } else {
+          pinHome.current = false
+        }
       }
       return
     }
+    pinHome.current = false
 
     if (lastId.current === selectedTopic.id) return
     const position = anchors.current[selectedTopic.id]
@@ -879,7 +928,11 @@ export default function Observatory({
         </div>
       )}
       {isMobile && !linear && (
-        <div className="orbit-labels">
+        <div
+          className="orbit-labels"
+          aria-hidden={selectedTopicId ? true : undefined}
+          {...(selectedTopicId ? { inert: '' } : {})}
+        >
           {topics.map((topic, index) => (
             <button
               key={topic.id}
