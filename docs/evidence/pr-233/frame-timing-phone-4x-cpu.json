@@ -1,0 +1,21 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "cpuThrottleRate": 4,
+  "note": "Throttle applied after load; without uses prefers-reduced-motion (banner off).",
+  "withoutFlyby": {
+    "samples": 300,
+    "p50": 16.7,
+    "p95": 16.7,
+    "max": 16.8
+  },
+  "withFlybyPinned": {
+    "samples": 300,
+    "p50": 16.7,
+    "p95": 16.8,
+    "max": 16.8
+  },
+  "capturedAt": "2026-10-20T15:19:06.925Z"
+}
