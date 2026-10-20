@@ -899,7 +899,10 @@ _GREETING_PLEASANTRY_RE = re.compile(
     r"\b(?:"
     r"to you(?:\s+too)?|to ya|"
     r"make it a good day|have a (?:good|great|magnificent|wonderful|nice|relaxing|lazy|fabulous) day|"
-    r"how are you|hope you|i hope you|wishing you|"
+    r"have a (?:good|great|wonderful|nice) start|"
+    r"such a blast|"
+    r"cant wait|cannot wait|"
+    r"how are you|hope you|i hope you(?:re|ve)?|wishing you|"
     r"have a great day|"
     r"happy (?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)(?:\s+funday)?|"
     r"double dose of peace|"
@@ -1047,10 +1050,8 @@ _GREETING_NEVER_NAME = frozenset(
         "start",
         "started",
         "nicely",
-        "legs",
         "blast",
         "wait",
-        "update",
         "feed",
         "stuff",
         "smiles",
@@ -1071,11 +1072,67 @@ _GREETING_NEVER_NAME = frozenset(
         "wifi",
         "fi",
         "wi",
+        "donate",
+    }
+)
+# Personal weather and a weekend plan after "good morning". These are not
+# headlines: a frost warning, a parade, or a record still sits on
+# ``_GREETING_NEVER_NAME`` or ``_NEWS_RE`` and stays. ``legs`` is a name-like
+# aside ("happy sinful sunday"), not a topic token.
+_GREETING_WEATHER_ASIDE = frozenset(
+    {
+        "outside",
+        "frost",
+        "fall",
+        "rainy",
+        "raining",
+        "rain",
+        "sunny",
+        "snow",
+        "snowy",
+        "snowfall",
+        "breeze",
+        "breezy",
+        "humid",
+        "windy",
+        "wind",
+        "colder",
+        "degrees",
+        "temperature",
+        "serene",
+        "pleasant",
+        "foggy",
+        "muggy",
+        "drizzle",
+        "drizzling",
+        "icy",
+        "freezing",
+    }
+)
+# "hopefully the week ahead, stream schedule" — the plan, not a public topic.
+_GREETING_WEEKEND_PLAN = frozenset(
+    {
+        "hopefully",
+        "ahead",
+        "schedule",
+    }
+)
+# A blessing ("return home safely", "good spirits"), not a place or a bill.
+_GREETING_BLESSING = frozenset(
+    {
+        "safely",
+        "spirits",
+        "waiting",
+        "home",
+        "return",
     }
 )
 _GREETING_SUBSTANCE_ALLOWLIST = frozenset(
     _GREETING_TAIL_PLEASANTRY_TOKENS
     | _GREETING_VOCATIVE
+    | _GREETING_WEATHER_ASIDE
+    | _GREETING_WEEKEND_PLAN
+    | _GREETING_BLESSING
     | {
         "kinmo",
         "baron",
@@ -1107,7 +1164,7 @@ _GREETING_SUBSTANCE_ALLOWLIST = frozenset(
     }
 )
 _DIRECTED_HOPE_RE = re.compile(
-    r"\bi hope (?:you|this day|your day|everyone|your)\b",
+    r"\bi hope (?:you(?:re|ve)?|this day|your day|everyone|your)\b",
     re.IGNORECASE,
 )
 _GREETING_HARD_TOPIC_RE = re.compile(
@@ -1115,7 +1172,8 @@ _GREETING_HARD_TOPIC_RE = re.compile(
     r"won|held|resigned|stalled|said|interview|ban|expands|access|brutal|"
     r"lakers|yankees|fed|museum|marathon|rally|pill|coach|exhibit|talks|"
     r"protect\s+trans|black\s+lives\s+matter|free\s+palestine|"
-    r"see you at the rally"
+    r"see you at the rally|no kings|records broken|"
+    r"corrupt\w*|dictator\w*|trumps?"
     r")\b",
     re.IGNORECASE,
 )
@@ -1169,8 +1227,15 @@ def _greeting_tail_has_pleasantry_or_wish(remainder: str) -> bool:
     return any(token in _GREETING_TAIL_PLEASANTRY_TOKENS for token in subs)
 
 
-def _greeting_tail_only_allowlisted_content(remainder: str) -> bool:
-    """True when every substantive tail token is in the closed greeting allowlist."""
+def _greeting_tail_only_allowlisted_content(remainder: str, *, several_names: bool = False) -> bool:
+    """True when the tail after a daypart greeting is still a greeting.
+
+    Weather and weekend-plan tokens are on the allowlist. A hard token
+    (``_GREETING_NEVER_NAME``, a topic verb, news) rejects the tail. One
+    unknown name needs a wish word. Several names are allowed only when
+    ``several_names`` is set, which is the daypart opener, and a wish word
+    is present. Two bare names ("Taylor Swift") stay.
+    """
     if not (remainder or "").strip():
         return True
     text = (remainder or "").strip().lower()
@@ -1188,7 +1253,11 @@ def _greeting_tail_only_allowlisted_content(remainder: str) -> bool:
     if re.search(r"\bmy friend\s+the\b", text):
         return False
     tokens = _greeting_remainder_tokens(text)
-    if any(token in _GREETING_TOPIC_VERB for token in tokens):
+    verbs = [token for token in tokens if token in _GREETING_TOPIC_VERB]
+    # "I'll go for a run later" is a weekend plan, not "the morning run" headline.
+    if re.search(r"\b(?:go|going) for a run\b|\bfor a run\b", text) and "runs" not in verbs:
+        verbs = [token for token in verbs if token != "run"]
+    if verbs:
         return False
     subs = _greeting_remainder_substance(text)
     if not subs:
@@ -1208,8 +1277,24 @@ def _greeting_tail_only_allowlisted_content(remainder: str) -> bool:
         return False
     if not name_tokens:
         return True
+    # One addressee is a greeting only when the tail is also a wish
+    # ("Good morning, Seima, I hope you have a serene Sunday"). Two bare
+    # names are a headline ("Good morning Taylor Swift") and stay.
+    # Several addressees stay a greeting when the same wish is present and
+    # no hard token already returned above ("Good morning Bob and Asher,
+    # hope you slept well"). Twelve is the cap so a wish cannot carry a
+    # paragraph of content words.
     if len(name_tokens) > 1:
-        return False
+        # Several addressees only on a daypart opener (``several_names``).
+        # A wish later in the post ("Happy Sunday… great team") stays one name,
+        # so a team or a headline is not wiped by the wish.
+        if (
+            not several_names
+            or len(name_tokens) > 12
+            or not _greeting_tail_has_pleasantry_or_wish(text)
+        ):
+            return False
+        return True
     return _greeting_tail_has_pleasantry_or_wish(text)
 
 
@@ -1282,7 +1367,7 @@ def _greeting_wish_body(plain: str) -> bool:
     else:
         return False
 
-    return _greeting_tail_only_allowlisted_content(remainder)
+    return _greeting_tail_only_allowlisted_content(remainder, several_names=True)
 
 
 def _day_wish_prefix_ok(before: str) -> bool:
@@ -1334,6 +1419,92 @@ def _standalone_day_wish_body(plain: str) -> bool:
     return _greeting_tail_only_allowlisted_content(text)
 
 
+def _short_wish_without_topic(plain: str) -> bool:
+    """A day wish that does not open with ``good morning``.
+
+    ``_greeting_wish_body`` only accepts a daypart opener, so "have a good
+    rest of your evening", "I hope you feel good today", and "stay safe …
+    good spirits" never reached the allowlist. A never-name token (downtown,
+    parade, hurricane) or a news word still keeps the post.
+    """
+    if _news(plain) or _work_topic(plain) or _GREETING_HARD_TOPIC_RE.search(plain or ""):
+        return False
+    if _word_count(plain) > 40:
+        return False
+    # A sign-off after an argument is not the post. "Have a good evening"
+    # at the end of a complaint stays, same gate as ``_greeting_wish_body``.
+    sign = _GREETING_SIGNOFF_TAIL_RE.search(plain or "")
+    if sign:
+        before = (plain or "")[: sign.start()].strip()
+        if before and (_word_count(before) > 6 or len(_substance(before)) >= 2):
+            return False
+    if not re.search(
+        r"\b(?:have a good (?:rest|night|evening|afternoon|morning|day)|"
+        r"see you in the morning|"
+        r"i hope you(?:re|ve)? (?:feel|have|are|all)|"
+        r"stay safe|"
+        r"good spirits|"
+        r"pleasant dreams)\b",
+        plain or "",
+    ):
+        return False
+    raw_tokens = [token for token in re.sub(r"[^\w\s]", " ", plain or "").split() if token]
+    if any(token in _GREETING_NEVER_NAME for token in raw_tokens):
+        return False
+    unknown = [token for token in _substance(plain) if token not in _GREETING_SUBSTANCE_ALLOWLIST]
+    # A wish with a handful of content words is a complaint or a joke
+    # ("re-rack your weights", "Have A Good Day switch"), not a greeting card.
+    if len(unknown) > 4:
+        return False
+    for token in unknown:
+        if not (token.isalpha() and 2 <= len(token) <= 14 and token not in _GREETING_NEVER_NAME):
+            return False
+        if token in _GREETING_TOPIC_VERB:
+            return False
+    return True
+
+
+_SOCIAL_GOOD_RE = re.compile(
+    r"\b(?:good for you|good day to you|good to (?:see|have) you|such a good (?:boy|girl|dog|pup)|good ol|"
+    r"have a good trip|good day to be here|how was your day|"
+    r"have a (?:great|good|wonderful) time|had a (?:great|good|wonderful) time|"
+    r"was a good time|glad you(?:re| are) back|glad i got home)\b",
+    re.IGNORECASE,
+)
+
+
+def _short_social_good(plain: str) -> bool:
+    """``Have a great time`` / ``good for you`` / ``glad you're back``.
+
+    These are the Other-section planets Great Time, Good Day, and Glad
+    Returns. A news word, a never-name token, or more than two content words
+    keeps the post ("glad the senate passed", "have a great time at the parade",
+    "glad you are becoming a great team").
+    """
+    if _news(plain) or _work_topic(plain) or _GREETING_HARD_TOPIC_RE.search(plain or ""):
+        return False
+    if _word_count(plain) > 18:
+        return False
+    match = _SOCIAL_GOOD_RE.search(plain or "")
+    if not match:
+        return False
+    raw_tokens = [token for token in re.sub(r"[^\w\s]", " ", plain or "").split() if token]
+    if any(token in _GREETING_NEVER_NAME for token in raw_tokens):
+        return False
+    unknown = [token for token in _substance(plain) if token not in _GREETING_SUBSTANCE_ALLOWLIST]
+    # "Good for you!" is the whole post. "Good for you, Wisconsin" names a subject.
+    if match.group(0).lower() == "good for you" and unknown:
+        return False
+    if len(unknown) > 2:
+        return False
+    for token in unknown:
+        if not (token.isalpha() and 2 <= len(token) <= 14):
+            return False
+        if token in _GREETING_TOPIC_VERB or token in _GREETING_NEVER_NAME:
+            return False
+    return True
+
+
 def _greeting(plain: str) -> bool:
     exact = {
         "gm",
@@ -1358,7 +1529,11 @@ def _greeting(plain: str) -> bool:
         return True
     if _embedded_daypart_greeting(plain):
         return True
-    return _standalone_day_wish_body(plain)
+    if _standalone_day_wish_body(plain):
+        return True
+    if _short_wish_without_topic(plain):
+        return True
+    return _short_social_good(plain)
 
 
 def pleasantry_reason(post: dict) -> str | None:
