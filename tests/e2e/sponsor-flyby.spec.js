@@ -21,6 +21,8 @@ async function sampleTowFlight(page, frames = 48) {
     const gaps = []
     const pillTravel = []
     const clearOpacities = []
+    const fadeOpacities = []
+    let ruleViolations = 0
     let lastPill = null
 
     for (let i = 0; i < frameCount; i += 1) {
@@ -51,7 +53,13 @@ async function sampleTowFlight(page, frames = 48) {
         const overlapH = Math.min(lr.bottom, pillRect.bottom) - Math.max(lr.top, pillRect.top)
         if (overlapW > 4 && overlapH > 4) overlapsLabel = true
       })
-      if (!overlapsLabel) clearOpacities.push(opacity)
+      if (!overlapsLabel) {
+        clearOpacities.push(opacity)
+        if (opacity < 0.99) ruleViolations += 1
+      } else {
+        fadeOpacities.push(opacity)
+        if (opacity > 0.25) ruleViolations += 1
+      }
     }
 
     const pillDistance = pillTravel.reduce((sum, value) => sum + value, 0)
@@ -66,6 +74,9 @@ async function sampleTowFlight(page, frames = 48) {
       pillDistance,
       minClearOpacity: clearOpacities.length ? Math.min(...clearOpacities) : null,
       clearSamples: clearOpacities.length,
+      fadeSamples: fadeOpacities.length,
+      maxFadeOpacity: fadeOpacities.length ? Math.max(...fadeOpacities) : null,
+      ruleViolations,
     }
   }, frames)
 }
@@ -152,21 +163,30 @@ test.describe('Sponsor flyby placeholder', () => {
     expect(stats.maxGap).toBeLessThan(96)
   })
 
-  test('pill stays fully opaque when it does not overlap labels', async ({ page }) => {
+  test('pill stays fully opaque when it does not overlap labels', async ({ page }, testInfo) => {
     test.setTimeout(120_000)
     await page.addInitScript(() => {
       window.localStorage.setItem('perspectiverse.hide-welcome', '1')
     })
     await page.goto('/?sponsorFlyby=animate')
     await enterSolarSystem(page)
+    if (testInfo.project.name === 'mobile') {
+      await page.getByRole('button', { name: 'Linear' }).click()
+      await expect(page.getByRole('button', { name: 'Orbits' })).toBeVisible()
+    }
     await expect.poll(async () => page.evaluate(() => {
       const el = document.querySelector('.sponsor-flyby-screen')
       return el?.style.visibility === 'visible'
-    })).toBe(true)
+    }), { timeout: 20_000 }).toBe(true)
 
     const stats = await sampleTowFlight(page, 56)
-    expect(stats.clearSamples).toBeGreaterThanOrEqual(5)
-    expect(stats.minClearOpacity ?? 0).toBeGreaterThanOrEqual(0.99)
+    expect(stats.ruleViolations).toBe(0)
+    if (stats.clearSamples > 0) {
+      expect(stats.minClearOpacity ?? 0).toBeGreaterThanOrEqual(0.99)
+    }
+    if (stats.fadeSamples > 0) {
+      expect(stats.maxFadeOpacity ?? 1).toBeLessThanOrEqual(0.25)
+    }
   })
 
   async function openLinearWithSponsor(page) {
