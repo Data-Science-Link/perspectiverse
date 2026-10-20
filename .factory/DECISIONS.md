@@ -729,3 +729,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Keep cleanup-only fixes (rejected as the default).
 - **Revisit:** If a root-cause fix costs more than the daily budget allows, or can't beat main on the same replay measure.
 - **Decided by:** Michael, Factory room, 2026-10-20 9:49 AM CT ("where possible try to fix root cause rather than just post-hoc aesthetic cleaning up bad groupings or bad perspectives").
+
+### 2026-10-20: A face split in the 0.80–0.89 band has to be a real disagreement (#286)
+- **Decision:** `split_perspectives` refuses a cut when any two face centroids are at or above 0.80 unless the posts take opposite sides on the free #268 lexicon. The old hard ceiling was 0.90, which let paraphrase faces at 0.80–0.89 through with no disagreement check. Posts from a refused cut stay on the surviving face. The check does not call a model, relabel, or fold after the fact. Cuts below 0.80 still use the geometric gates.
+- **Why:** Repeated faces such as The Show (representative cosine 0.849) were the same stance written two ways. Issue #286, spec #275 method 1. Michael (Factory, 2026-10-20): build the upstream fix.
+- **Alternatives:** Leave the 0.90 ceiling (the bug). Fold after labeling (the #268 stopgap, which missed The Show). Require a disagreement cue at every cosine (would collapse far faces the lexicon cannot read).
+- **Revisit:** If a real minority inside 0.80–0.89 is collapsed because the lexicon cannot see the disagreement. Night Time against Good Wishes is the known risk.

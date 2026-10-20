@@ -94,16 +94,80 @@ def test_choose_n_faces_does_not_slice_a_uniform_topic():
     assert split["distinctness"] == 0.0
 
 
-def test_choose_n_faces_splits_two_stances_of_one_subject():
-    """MiniLM puts two stances of one subject well above the planet-merge line."""
+def _two_blob(cosine: float, left_text: str, right_text: str, count: int = 12):
     import numpy as np
 
     left = np.array([1.0, 0.0])
-    # Cosine 0.82 is the same subject, and a different stance.
-    right = np.array([0.82, (1 - 0.82**2) ** 0.5])
-    matrix = np.vstack([left] * 12 + [right] * 12)
-    texts = ["alpha stance"] * 12 + ["beta stance"] * 12
+    right = np.array([cosine, (1 - cosine**2) ** 0.5])
+    matrix = np.vstack([left] * count + [right] * count)
+    texts = [left_text] * count + [right_text] * count
+    return texts, matrix
+
+
+def test_choose_n_faces_splits_two_stances_of_one_subject():
+    """Cosine 0.82 stays a split only when the posts take opposite sides."""
+    texts, matrix = _two_blob(0.82, "we support the policy", "we oppose the policy")
     assert choose_n_faces(texts, seed=0, matrix=matrix) == 2
+
+
+def test_paraphrase_band_without_disagreement_stays_one_face():
+    """0.80–0.89 used to pass the 0.90 ceiling. Agreeing posts do not split."""
+    from pipeline.perspectives import _FACE_COSINE, _PARAPHRASE_COSINE
+
+    cosine = 0.85
+    assert _PARAPHRASE_COSINE <= cosine < _FACE_COSINE
+    texts, matrix = _two_blob(cosine, "the show is frustrating", "the show is frustrating too")
+    assert choose_n_faces(texts, seed=0, matrix=matrix) is None
+    split = split_perspectives(texts, seed=0, matrix=matrix)
+    assert split["single_view"] is True
+    assert split["forced"] is False
+    assert sorted(split["faces"][0]["member_indices"]) == list(range(len(texts)))
+    assert sum(face["size"] for face in split["faces"]) == len(texts)
+
+
+def test_disagreement_keeps_a_split_past_the_old_ceiling():
+    """Opposite posts stay two faces even when the centroids clear 0.90."""
+    texts, matrix = _two_blob(0.96, "we support the policy", "we oppose the policy")
+    assert choose_n_faces(texts, seed=0, matrix=matrix) == 2
+    split = split_perspectives(texts, seed=0, matrix=matrix)
+    assert sorted(index for face in split["faces"] for index in face["member_indices"]) == list(range(len(texts)))
+
+
+def test_faces_below_the_paraphrase_line_still_split_without_a_cue():
+    """A cut under 0.80 is still a geometric split. The lexicon is not required."""
+    texts, matrix = _two_blob(0.75, "alpha remark", "beta remark")
+    assert choose_n_faces(texts, seed=0, matrix=matrix) == 2
+
+
+def test_refused_paraphrase_pair_is_only_the_agreeing_one():
+    """A far third face is not refused. The close agreeing pair is."""
+    import numpy as np
+
+    from pipeline.perspectives import refused_paraphrase_pairs
+
+    agree = np.array([1.0, 0.0, 0.0])
+    close = np.array([0.85, (1 - 0.85**2) ** 0.5, 0.0])
+    far = np.array([0.0, 0.0, 1.0])
+    matrix = np.vstack([agree] * 6 + [close] * 6 + [far] * 6)
+    texts = ["the show is fine"] * 12 + ["we oppose the war"] * 6
+    labels = [0] * 6 + [1] * 6 + [2] * 6
+    refused = refused_paraphrase_pairs(texts, labels, matrix)
+    assert [(left, right) for left, right, _cosine in refused] == [(0, 1)]
+
+
+def test_close_agreeing_pair_collapses_and_the_far_face_keeps_its_posts():
+    import numpy as np
+
+    agree = np.array([1.0, 0.0, 0.0])
+    close = np.array([0.85, (1 - 0.85**2) ** 0.5, 0.0])
+    far = np.array([0.0, 0.0, 1.0])
+    matrix = np.vstack([agree] * 12 + [close] * 12 + [far] * 12)
+    texts = ["the show is fine"] * 24 + ["we oppose the war"] * 12
+    split = split_perspectives(texts, seed=0, matrix=matrix)
+    assert len(split["faces"]) == 2
+    assert sorted(index for face in split["faces"] for index in face["member_indices"]) == list(range(len(texts)))
+    sizes = sorted(face["size"] for face in split["faces"])
+    assert sizes == [12, 24]
 
 
 def test_choose_n_faces_keeps_a_far_minority():
