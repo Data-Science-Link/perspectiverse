@@ -267,11 +267,12 @@ export default function ReadingScreen({
               {postCount ? ` · ${formatNumber(postCount)} posts` : ''}
             </p>
             <h1>{title}</h1>
-            {topic && (topic.perspectives.length === 1 || showStanceFailure(topic)) && (
-              <p className="reading-opposing">
-                {oneViewNote(topic)}
-              </p>
-            )}
+            {(() => {
+              const opposing = topic ? oneViewNote(topic) : ''
+              return topic && (topic.perspectives.length === 1 || showStanceFailure(topic)) && opposing ? (
+                <p className="reading-opposing">{opposing}</p>
+              ) : null
+            })()}
             {brief && <p className="reading-brief">{brief}</p>}
             {topic && perspective && <TopTerms terms={faceTerms} />}
             <div className="reading-actions">
