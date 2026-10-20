@@ -9,6 +9,7 @@ from pathlib import Path
 from pipeline import live
 from pipeline.face_titles import (
     count_duplicate_title_faces,
+    face_title_changes,
     face_titles_equal,
     normalize_face_title,
     repair_payload_face_titles,
@@ -150,3 +151,14 @@ def test_snapshot_fixture_duplicate_faces_go_to_zero():
     assert before > 0
     assert after == 0
     assert stats["merged"] >= 1
+
+
+def test_face_title_changes_lists_merged_planet_only():
+    data = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload = copy.deepcopy(data)
+    repair_payload_face_titles(payload)
+    changes = face_title_changes(data, payload)
+    assert len(changes) == 1
+    assert changes[0]["planet"] == "WWII Veterans"
+    assert changes[0]["before"] == ["WWII Veterans", "WWII Veterans"]
+    assert changes[0]["after"] == ["WWII Veterans"]

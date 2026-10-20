@@ -130,6 +130,43 @@ def repair_published_face_titles(
     return stats
 
 
+def planet_face_title_rows(data: dict[str, Any]) -> list[dict[str, str]]:
+    """One row per face: planet name, face id, title (for before/after diffs)."""
+    rows: list[dict[str, str]] = []
+    for planet in iter_all_planets(data):
+        name = str(planet.get("name") or "")
+        for face in planet.get("perspectives") or []:
+            rows.append(
+                {
+                    "planet": name,
+                    "face_id": str(face.get("id") or ""),
+                    "title": str(face.get("title") or ""),
+                }
+            )
+    return rows
+
+
+def face_title_changes(before: dict[str, Any], after: dict[str, Any]) -> list[dict[str, Any]]:
+    """Planets whose face title lists changed after repair (merges, renames)."""
+    changes: list[dict[str, Any]] = []
+    for planet_before, planet_after in zip(iter_all_planets(before), iter_all_planets(after)):
+        name = str(planet_before.get("name") or "")
+        before_faces = planet_before.get("perspectives") or []
+        after_faces = planet_after.get("perspectives") or []
+        before_titles = [str(face.get("title") or "") for face in before_faces]
+        after_titles = [str(face.get("title") or "") for face in after_faces]
+        if before_titles == after_titles:
+            continue
+        changes.append(
+            {
+                "planet": name,
+                "before": before_titles,
+                "after": after_titles,
+            }
+        )
+    return changes
+
+
 def repair_payload_face_titles(data: dict[str, Any]) -> dict[str, Any]:
     """Offline pass on published JSON: merge exact duplicates, list unsupported faces."""
     totals: dict[str, Any] = {"merged": 0, "unsupported_faces": []}

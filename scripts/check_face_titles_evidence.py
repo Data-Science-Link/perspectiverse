@@ -14,7 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.face_titles import count_duplicate_title_faces, repair_payload_face_titles
+from pipeline.face_titles import (
+    count_duplicate_title_faces,
+    face_title_changes,
+    repair_payload_face_titles,
+)
 from scripts.baseline_metrics import posts_unsupported_title
 
 LIVE_URL = "https://data-science-link.github.io/perspectiverse/data.json"
@@ -43,6 +47,13 @@ def _report(label: str, data: dict) -> None:
     )
     print(f"{label} unsupported_faces_reported: {len(stats.get('unsupported_faces') or [])}")
     print(f"{label} merged_exact_duplicates: {stats.get('merged')}")
+    title_changes = face_title_changes(data, payload)
+    if title_changes:
+        print(f"{label} face_title_changes:")
+        for row in title_changes:
+            print(f"  - {row['planet']}: {row['before']} -> {row['after']}")
+    else:
+        print(f"{label} face_title_changes: (none)")
 
 
 def main() -> int:
