@@ -89,6 +89,41 @@ def test_merge_alike_works_with_section_string_planet_id():
     assert len(topic["perspectives"]) == 1
 
 
+def test_exact_merge_refreshes_stale_disagreement_copy():
+    stale = (
+        "WWII Veterans argues that the country should honor them today.\n\n"
+        "@ada: “WWII veterans deserve honor from the country.”\n\n"
+        "WWII Veterans (50%) says honor the veterans. WWII Veterans (50%) says remember the veterans."
+    )
+    topic = {
+        "id": 1,
+        "name": "WWII Veterans",
+        "post_count": 10,
+        "brief": "WWII Veterans is the conversation. One face says honor. Another face says remember.",
+        "detail": stale,
+        "perspectives": [
+            {
+                "id": "1A",
+                "title": "WWII Veterans",
+                "summary": "Honor the veterans.",
+                "post_count": 5,
+                "representative_posts": [{"text": "WWII veterans deserve honor.", "likes": 1}],
+            },
+            {
+                "id": "1B",
+                "title": "WWII Veterans",
+                "summary": "Remember the veterans.",
+                "post_count": 5,
+                "representative_posts": [{"text": "Remember WWII veterans today.", "likes": 1}],
+            },
+        ],
+    }
+    assert merge_alike_published_faces([topic]) == 1
+    assert len(topic["perspectives"]) == 1
+    assert stale not in topic["detail"]
+    assert "WWII Veterans (50%) says remember the veterans." not in topic["detail"]
+
+
 def test_frost_advisory_and_ended_stay_separate():
     topic = {
         "id": 1,

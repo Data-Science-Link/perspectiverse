@@ -1627,13 +1627,6 @@ def _apply_wide_label_to_face(face: dict, draft: dict, wide: dict) -> None:
         face["arguments"] = wide["arguments"]
     else:
         face.pop("arguments", None)
-    face["_draft_face_label"] = {
-        "title": face["title"],
-        "summary": face["summary"],
-        "representative_posts": list(face["representative_posts"]),
-        **({"arguments": list(face["arguments"])} if face.get("arguments") else {}),
-    }
-    face["_wide_finalize_applied"] = True
 
 
 def _run_one_finalize_job(job: _FinalizeFaceJob) -> dict | None:
@@ -1870,7 +1863,6 @@ def _strip_internal_planet_fields(topics: list[dict]) -> None:
             face.pop("_draft_face_label", None)
             face.pop("_face_member_uris", None)
             face.pop("stance_locked", None)
-            face.pop("_wide_finalize_applied", None)
 
 
 def _finalize_published_planets(

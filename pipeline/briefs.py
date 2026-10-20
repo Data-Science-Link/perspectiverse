@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
+from pipeline.face_titles import normalize_face_title
+
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
 
@@ -333,8 +335,8 @@ def apply_level_summaries(topic: dict, generate: Callable[[str], str] | None = N
         seen_titles: set[str] = set()
         for face in perspectives:
             title = str(face.get("title") or "")
-            key = title.lower()
-            if not title or key in seen_titles:
+            key = normalize_face_title(title)
+            if not key or key in seen_titles:
                 continue
             seen_titles.add(key)
             claim = _lower_article(_clause(str(face.get("summary") or face.get("title") or "")))
@@ -415,8 +417,8 @@ def assemble_email(topics: list[dict]) -> dict:
             seen_titles: set[str] = set()
             for face in faces:
                 title = str(face.get("title") or "View")
-                key = title.lower()
-                if key in seen_titles:
+                key = normalize_face_title(title)
+                if not key or key in seen_titles:
                     continue
                 seen_titles.add(key)
                 claim = _lower_article(_clause(str(face.get("summary") or face.get("title") or "")))

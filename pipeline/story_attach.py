@@ -534,4 +534,9 @@ def merge_alike_published_faces(topics: list[dict], *, post_limit: int = 36) -> 
             face["id"] = face_id(topic_id, index)
         topic["perspectives"] = kept
         apply_opposing_note(topic)
+        # Draft summaries were written before this post-relabel merge. Rebuild
+        # them from the faces that remain. No generator, so this is not a model call.
+        from pipeline.briefs import apply_level_summaries
+
+        apply_level_summaries(topic)
     return folded

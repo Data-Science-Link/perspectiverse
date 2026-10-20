@@ -320,5 +320,39 @@ const duplicateTitlePlanet = presentTopic({
 })
 assert.match(duplicateTitlePlanet.detail, /Trans Rights \(98%\) says/)
 assert.doesNotMatch(duplicateTitlePlanet.detail, /\(2%\) says/)
+assert.equal(duplicateTitlePlanet.perspectives.length, 2)
+
+const storedDetail = [
+  'Trans Rights argues that people face discrimination in public life every day.',
+  '@ada writes, “Trans rights matter and the law should protect them now.”',
+  'Trans Rights (98%) says trans people face discrimination. Trans Rights (2%) says democrats abandoned trans people.',
+].join('\n\n')
+const storedDuplicate = presentTopic({
+  id: 5,
+  name: 'Trans Rights Debate',
+  brief: 'Trans rights are debated in public. One view defends legal protection. Another view blames a party.',
+  detail: storedDetail,
+  perspectives: [
+    {
+      id: '5A',
+      title: 'Trans Rights',
+      summary: 'Trans people face discrimination.',
+      volume_percent: 98,
+      representative_posts: [{ author: 'ada', text: 'Trans rights matter.', likes: 2 }],
+    },
+    {
+      id: '5B',
+      title: 'Trans Rights 2',
+      summary: 'Democrats abandoned trans people.',
+      volume_percent: 2,
+      representative_posts: [{ author: 'bea', text: 'Democrats walked away from trans people.', likes: 1 }],
+    },
+  ],
+})
+assert.equal(storedDuplicate.perspectives.length, 2)
+assert.notEqual(storedDuplicate.detail, storedDetail)
+assert.match(storedDuplicate.detail, /Trans Rights \(98%\) says/)
+assert.doesNotMatch(storedDuplicate.detail, /\(2%\) says/)
+assert.doesNotMatch(storedDuplicate.detail, /Trans Rights 2/)
 
 console.log('presented planets keep real perspectives and skip stock filler')
