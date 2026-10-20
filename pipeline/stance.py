@@ -23,6 +23,14 @@ topic noun of the planet or the majority face: it is one of the planet's top
 terms, it is in that face's title or summary, or it shows up in about 40% of
 that face's posts. A word in the minority title is the claim, so it still
 counts. That check is local and does not call the model.
+
+After that, a second local check publishes two or more faces only when the
+posts disagree. Same-subject faces with no disagreement fold into the larger
+face and keep its title. A title whose polarity contradicts its posts is
+rewritten onto the posts' side. A denial title such as "Not Genocidal" is
+left alone. A second face from the model is kept only when this check agrees.
+The check does not call a model. Exact duplicate titles are a separate
+finalize fold and are not handled here.
 """
 
 from __future__ import annotations
@@ -1049,6 +1057,676 @@ def split_second_stance(
     return [split[0], split[1]], True
 
 
+# Same cue lists as scripts/baseline_metrics.py. "against" is not a negator.
+_CONDEMN_CUES = frozenset(
+    """
+    condemn condemned condemnation accuse accused accusation racist racism
+    genocide genocidal kill kills killing killed murder murdered inhumane
+    fascist fascism despise despised abuse abused cruel cruelty appalled
+    barbaric repugnant cowardly oppose opposed opposition reject rejected
+    hate hated hatred threat threats poorly illegal illegally propaganda
+    harm harms harmful flawed terrorism terrorist disproportionate violence
+    violent horrific horror sick wrong idiot idiots moron moronic pedophile
+    pedophiles piss liar lies lying corrupt corruption ashamed garbage stupid
+    evil criminal criminals apartheid
+    """.split()
+)
+_ENDORSE_CUES = frozenset(
+    """
+    support supports supported supporters supporting defend defends defending
+    deserve deserves deserved success successful worth protect protection
+    protecting boost effective favor favour endorse endorsed
+    """.split()
+)
+_NEGATION_CUES = frozenset(
+    "not no never nor neither without cannot dont doesnt didnt cant wont".split()
+)
+_SUBJECT_GLUE = frozenset(
+    """
+    about argue been being claim from have many most other people post posts
+    should some that their there these they this those which with would
+    various individual reason indicate current also just really into over
+    than then discuss comment remark preference share update
+    """.split()
+)
+_TITLE_STOP = frozenset(
+    """
+    the and for has was are not its but you his her our who how why can may
+    did had any all one two per via
+    """.split()
+)
+_WORD_RE = re.compile(r"[a-z0-9']+")
+_UP_WORDS = frozenset(
+    "rising rise rises risen high higher increase increased increasing".split()
+)
+_DOWN_WORDS = frozenset(
+    "decrease decreased decreasing lower lowered lowering falling fall down".split()
+)
+_ATTACK_WORDS = frozenset(
+    "attack attacks attacking strike strikes sank sink sinking kill kills killed bomb bombed missile ship ships".split()
+)
+_ANTIWAR_WORDS = frozenset("unnecessary oppose opposed opposition wrong".split())
+# Enjoyment versus a quality complaint is a different claim, even on one show.
+_VALENCE_STEMS = frozenset(
+    "enjoy love excit loved loves loving enjoyed enjoys excited exciting excitement".split()
+)
+# A protest thread and a language joke share a nationality word and still differ.
+_TOPIC_FAMILIES = (
+    frozenset({"protest", "riot"}),
+    frozenset({"languag", "translation", "misunderstood"}),
+)
+_POLE_SHARE = 0.15
+
+
+def _lex_tokens(text: str) -> list[str]:
+    return _WORD_RE.findall((text or "").lower())
+
+
+def _near_stem(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    if len(left) < 4 or len(right) < 4:
+        return False
+    return left.startswith(right) or right.startswith(left)
+
+
+def _share_stems(left: set[str], right: set[str]) -> set[str]:
+    shared: set[str] = set()
+    for item in left:
+        for other in right:
+            if _near_stem(item, other):
+                shared.add(item)
+                shared.add(other)
+    return shared
+
+
+def _content_stems(text: str) -> set[str]:
+    stems: set[str] = set()
+    for token in content_tokens(text or ""):
+        if token in _SUBJECT_GLUE:
+            continue
+        stem = subject_stem(token)
+        if len(stem) < 4 or stem in _SUBJECT_GLUE:
+            continue
+        stems.add(stem)
+    return stems
+
+
+def _title_stems(title: str) -> set[str]:
+    stems = _content_stems(title)
+    for token in _lex_tokens(title):
+        if token in _TITLE_STOP:
+            continue
+        stem = subject_stem(token)
+        # "ice" would otherwise strip to "ic" and disappear. Keep the short token.
+        if len(stem) < 3:
+            stem = token
+        if len(token) == 3 and len(stem) >= 3 and stem not in _SUBJECT_GLUE:
+            stems.add(stem)
+        elif 3 <= len(stem) < 4 and stem not in _SUBJECT_GLUE:
+            stems.add(stem)
+    return stems
+
+
+def _cue_pole(text: str) -> int:
+    """-1 condemn, +1 endorse, 0 when the cues do not pick a side."""
+    tokens = _lex_tokens(text)
+    condemn = 0
+    endorse = 0
+    for index, token in enumerate(tokens):
+        negated = any(word in _NEGATION_CUES for word in tokens[max(0, index - 3) : index])
+        if token in _CONDEMN_CUES:
+            if negated:
+                endorse += 1
+            else:
+                condemn += 1
+        elif token in _ENDORSE_CUES:
+            if negated:
+                condemn += 1
+            else:
+                endorse += 1
+    if condemn > endorse and condemn >= 1:
+        return -1
+    if endorse > condemn and endorse >= 1:
+        return 1
+    return 0
+
+
+def _claim_blob(face: dict) -> str:
+    parts = [str(face.get("title") or ""), str(face.get("summary") or "")]
+    for item in face.get("arguments") or []:
+        parts.append(str(item))
+    return " ".join(parts)
+
+
+def _posts_pole(posts: list[dict]) -> int:
+    """The posts' side when at least two of them take it and they are not stray cues."""
+    if not posts:
+        return 0
+    signs = [_cue_pole(str(post.get("clean_text") or post.get("text") or "")) for post in posts]
+    negative = sum(1 for sign in signs if sign < 0)
+    positive = sum(1 for sign in signs if sign > 0)
+    count = len(posts)
+
+    def holds(found: int, other: int) -> bool:
+        if found < 2 or found <= other:
+            return False
+        if found / count >= _POLE_SHARE:
+            return True
+        return count <= 6 and other == 0
+
+    if holds(negative, positive):
+        return -1
+    if holds(positive, negative):
+        return 1
+    return 0
+
+
+def _title_is_denial(title: str) -> bool:
+    """True when every polarity cue in the title is negated, as in 'Not Genocidal'."""
+    tokens = _lex_tokens(title)
+    cues = 0
+    negated_cues = 0
+    for index, token in enumerate(tokens):
+        if token not in _CONDEMN_CUES and token not in _ENDORSE_CUES:
+            continue
+        cues += 1
+        window = tokens[max(0, index - 3) : index]
+        if any(word in _NEGATION_CUES or word in {"stop", "anti"} for word in window):
+            negated_cues += 1
+    return cues > 0 and negated_cues == cues
+
+
+def _title_denies(title: str, other: str) -> bool:
+    left = _lex_tokens(title)
+    right = [word for word in _lex_tokens(other) if len(word) >= 3]
+    negators = _NEGATION_CUES | {"stop", "anti"}
+    for index, word in enumerate(left):
+        if len(word) < 3 or word in negators:
+            continue
+        window = left[max(0, index - 3) : index]
+        if not any(item in negators for item in window):
+            continue
+        if any(_near_stem(subject_stem(word), subject_stem(other_word)) for other_word in right):
+            return True
+    return False
+
+
+def _posts_affirm(posts: list[dict], word: str) -> bool:
+    """True when the posts state the word unnegated often enough to mean the claim."""
+    if not posts or len(word) < 3:
+        return False
+    hits = 0
+    for post in posts:
+        tokens = _lex_tokens(str(post.get("clean_text") or post.get("text") or ""))
+        for index, token in enumerate(tokens):
+            if not _near_stem(subject_stem(token), subject_stem(word)):
+                continue
+            if any(item in _NEGATION_CUES for item in tokens[max(0, index - 3) : index]):
+                continue
+            hits += 1
+            break
+    if len(posts) == 1:
+        return hits >= 1
+    needed = max(2, (len(posts) * 40 + 99) // 100)
+    return hits >= needed
+
+
+def _denial_conflict(left: dict, right: dict, left_posts: list[dict], right_posts: list[dict]) -> bool:
+    """One title negates a claim the other affirms, and the posts do not affirm it."""
+    if _title_denies(str(left.get("title") or ""), str(right.get("title") or "")):
+        denied = [word for word in _lex_tokens(str(right.get("title") or "")) if len(word) >= 4]
+        if denied and not any(_posts_affirm(left_posts, word) for word in denied):
+            return True
+    if _title_denies(str(right.get("title") or ""), str(left.get("title") or "")):
+        denied = [word for word in _lex_tokens(str(left.get("title") or "")) if len(word) >= 4]
+        if denied and not any(_posts_affirm(right_posts, word) for word in denied):
+            return True
+    return False
+
+
+def _plain_direction(text: str, vocab: frozenset[str]) -> bool:
+    tokens = _lex_tokens(text)
+    for index, token in enumerate(tokens):
+        if token in vocab and not any(word in _NEGATION_CUES for word in tokens[max(0, index - 3) : index]):
+            return True
+    lowered = (text or "").lower()
+    if "down" in vocab and ("coming way down" in lowered or "way down" in lowered):
+        return True
+    return False
+
+
+def _negates_price_effect(text: str) -> bool:
+    """'prices will not come down' / 'not about relief' denies a price effect."""
+    effects = _DOWN_WORDS | {"relief"}
+    for sentence in re.split(r"[.!?]", text or ""):
+        tokens = _lex_tokens(sentence)
+        for index, token in enumerate(tokens):
+            if token not in effects:
+                continue
+            if any(word in _NEGATION_CUES for word in tokens[:index]):
+                return True
+    return False
+
+
+def _direction_conflict(left: dict, right: dict, left_posts: list[dict], right_posts: list[dict]) -> bool:
+    """Rising versus falling, including a negated effect such as 'will not come down'."""
+    left_blob = f"{left.get('title') or ''} {left.get('summary') or ''}"
+    right_blob = f"{right.get('title') or ''} {right.get('summary') or ''}"
+    left_posts_blob = " ".join(str(post.get("text") or "") for post in left_posts)
+    right_posts_blob = " ".join(str(post.get("text") or "") for post in right_posts)
+    left_up = _plain_direction(left_blob, _UP_WORDS)
+    right_up = _plain_direction(right_blob, _UP_WORDS)
+    left_down = _plain_direction(left_blob, _DOWN_WORDS) or _negates_price_effect(left_blob) or _negates_price_effect(left_posts_blob)
+    right_down = _plain_direction(right_blob, _DOWN_WORDS) or _negates_price_effect(right_blob) or _negates_price_effect(right_posts_blob)
+    return (left_up and right_down and not left_down and not right_up) or (
+        right_up and left_down and not right_down and not left_up
+    )
+
+
+def _is_attack_report(face: dict) -> bool:
+    blob = f"{face.get('title') or ''} {face.get('summary') or ''}"
+    return any(token in _ATTACK_WORDS for token in _lex_tokens(blob))
+
+
+def _is_antiwar(face: dict) -> bool:
+    blob = f"{face.get('title') or ''} {face.get('summary') or ''}".lower()
+    if "anti war" in blob or "anti-war" in blob:
+        return True
+    return any(token in _ANTIWAR_WORDS for token in _lex_tokens(blob))
+
+
+def _attack_versus_antiwar(left: dict, right: dict) -> bool:
+    """Attack headlines stay apart from a face that calls the war unnecessary."""
+    left_attack = _is_attack_report(left) and not _is_antiwar(left)
+    right_attack = _is_attack_report(right) and not _is_antiwar(right)
+    return (left_attack and _is_antiwar(right)) or (right_attack and _is_antiwar(left))
+
+
+def local_faces_disagree(left: dict, right: dict, left_posts: list[dict], right_posts: list[dict]) -> bool:
+    """True when the pair is a real opposition and both faces should stay."""
+    if _denial_conflict(left, right, left_posts, right_posts):
+        return True
+    left_posts_pole = _posts_pole(left_posts)
+    right_posts_pole = _posts_pole(right_posts)
+    if left_posts_pole and right_posts_pole and left_posts_pole == -right_posts_pole:
+        return True
+    left_claim = _cue_pole(_claim_blob(left))
+    right_claim = _cue_pole(_claim_blob(right))
+    if left_claim and right_claim and left_claim == -right_claim:
+        return True
+    if _direction_conflict(left, right, left_posts, right_posts):
+        return True
+    if _attack_versus_antiwar(left, right):
+        return True
+    return False
+
+
+def _stem_counts(posts: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for post in posts:
+        seen: set[str] = set()
+        for stem in _content_stems(str(post.get("clean_text") or post.get("text") or "")):
+            seen.add(stem)
+        for stem in seen:
+            counts[stem] = counts.get(stem, 0) + 1
+    return counts
+
+
+def _greeting_count(posts: list[dict]) -> int:
+    count = 0
+    pattern = re.compile(r"\bgood (morning|evening|night|day)\b|\bhappy\b")
+    for post in posts:
+        if pattern.search(str(post.get("clean_text") or post.get("text") or "").lower()):
+            count += 1
+    return count
+
+
+def _family_hits(face: dict, posts: list[dict], family: frozenset[str]) -> bool:
+    summary = _content_stems(str(face.get("summary") or "")) | _content_stems(str(face.get("title") or ""))
+    if any(any(_near_stem(stem, item) for item in family) for stem in summary):
+        return True
+    counts = _stem_counts(posts)
+    for stem, found in counts.items():
+        if found < 2:
+            continue
+        if any(_near_stem(stem, item) for item in family):
+            return True
+    return False
+
+
+def _different_family(left: dict, right: dict, left_posts: list[dict], right_posts: list[dict]) -> bool:
+    for family in _TOPIC_FAMILIES:
+        left_hit = _family_hits(left, left_posts, family)
+        right_hit = _family_hits(right, right_posts, family)
+        if left_hit == right_hit:
+            continue
+        other_families = [item for item in _TOPIC_FAMILIES if item is not family]
+        other_left = any(_family_hits(left, left_posts, item) for item in other_families)
+        other_right = any(_family_hits(right, right_posts, item) for item in other_families)
+        if (left_hit and other_right) or (right_hit and other_left):
+            return True
+    return False
+
+
+def _evidenced(count: int, total: int) -> bool:
+    if total <= 0 or count <= 0:
+        return False
+    if total <= 4:
+        return count / total >= 0.5
+    return count >= 2 and count / total >= 0.5
+
+
+def _exclusive_blocks(
+    left: dict,
+    right: dict,
+    left_posts: list[dict],
+    right_posts: list[dict],
+    shared: set[str],
+) -> bool:
+    """A rival subject on one face, unless both faces take the same claim pole."""
+    if _cue_pole(_claim_blob(left)) and _cue_pole(_claim_blob(left)) == _cue_pole(_claim_blob(right)):
+        return False
+    left_counts = _stem_counts(left_posts)
+    right_counts = _stem_counts(right_posts)
+    left_claim = _title_stems(str(left.get("title") or "")) | _content_stems(str(left.get("summary") or ""))
+    right_claim = _title_stems(str(right.get("title") or "")) | _content_stems(str(right.get("summary") or ""))
+
+    def blocks(claim: set[str], own: dict[str, int], other: dict[str, int], own_posts: list[dict]) -> bool:
+        total = max(len(own_posts), 1)
+        shared_counts = [
+            found for stem, found in own.items() if any(_near_stem(stem, item) for item in shared)
+        ]
+        for stem in claim:
+            if any(_near_stem(stem, item) for item in shared):
+                continue
+            found = max((count for key, count in own.items() if _near_stem(stem, key)), default=0)
+            other_found = any(_near_stem(stem, key) and count > 0 for key, count in other.items())
+            valence = stem in _VALENCE_STEMS or any(_near_stem(stem, item) for item in _VALENCE_STEMS)
+            if valence and found >= 2 and not other_found:
+                return True
+            if other_found or not _evidenced(found, total):
+                continue
+            # A name that outranks the shared subject is a different story (SpaceX vs the car).
+            if shared_counts and found > max(shared_counts):
+                return True
+            if not shared and found >= 2:
+                return True
+        return False
+
+    return blocks(left_claim, left_counts, right_counts, left_posts) or blocks(
+        right_claim, right_counts, left_counts, right_posts
+    )
+
+
+def _both_titles_have_their_own_claim(
+    left_title: set[str],
+    right_title: set[str],
+    left_posts: list[dict],
+    right_posts: list[dict],
+) -> bool:
+    """Each title has a stem the other face's posts never say."""
+
+    def owns(stems: set[str], own_posts: list[dict], other_posts: list[dict]) -> bool:
+        own = _stem_counts(own_posts)
+        other = _stem_counts(other_posts)
+        total = max(len(own_posts), 1)
+        for stem in stems:
+            found = max((count for key, count in own.items() if _near_stem(stem, key)), default=0)
+            if not _evidenced(found, total):
+                continue
+            if any(_near_stem(stem, key) and count > 0 for key, count in other.items()):
+                continue
+            return True
+        return False
+
+    return owns(left_title, left_posts, right_posts) and owns(right_title, right_posts, left_posts)
+
+
+def local_faces_same_subject(left: dict, right: dict, left_posts: list[dict], right_posts: list[dict]) -> bool:
+    """True when the faces are one thread rather than two subjects."""
+    if _different_family(left, right, left_posts, right_posts):
+        return False
+    left_title = _title_stems(str(left.get("title") or ""))
+    right_title = _title_stems(str(right.get("title") or ""))
+    left_summary = _content_stems(str(left.get("summary") or ""))
+    right_summary = _content_stems(str(right.get("summary") or ""))
+    shared_titles = _share_stems(left_title, right_title)
+    # Titles that name two claims, and each claim shows up in that face's posts
+    # and not the other's, are different subjects even when a summary noun overlaps.
+    if not shared_titles and _both_titles_have_their_own_claim(left_title, right_title, left_posts, right_posts):
+        return False
+    shared = shared_titles | _share_stems(left_summary, right_summary)
+    left_greet = _greeting_count(left_posts)
+    right_greet = _greeting_count(right_posts)
+    greetings = bool(left_posts and right_posts) and (
+        (left_greet / len(left_posts) >= 0.5 and right_greet >= 2)
+        or (right_greet / len(right_posts) >= 0.5 and left_greet >= 2)
+    )
+    post_shared = False
+    if left_posts and right_posts:
+        left_counts = _stem_counts(left_posts)
+        right_counts = _stem_counts(right_posts)
+        claim = left_title | right_title | left_summary | right_summary
+        for stem, found in left_counts.items():
+            if found / len(left_posts) < 0.5 or right_counts.get(stem, 0) / len(right_posts) < 0.5:
+                continue
+            if any(_near_stem(stem, item) for item in claim):
+                post_shared = True
+                shared |= {stem}
+                break
+    if not shared and not greetings and not post_shared:
+        return False
+    if _exclusive_blocks(left, right, left_posts, right_posts, shared):
+        return False
+    return bool(shared or greetings or post_shared)
+
+
+def local_faces_fold(left: dict, right: dict, left_posts: list[dict], right_posts: list[dict]) -> bool:
+    """Fold when they share a subject and none of the disagreement signals fire."""
+    if local_faces_disagree(left, right, left_posts, right_posts):
+        return False
+    return local_faces_same_subject(left, right, left_posts, right_posts)
+
+
+def _swap_polarity_word(word: str, table: dict[str, str]) -> str | None:
+    replacement = table.get(word.lower())
+    if not replacement:
+        return None
+    if word[:1].isupper():
+        return replacement[:1].upper() + replacement[1:]
+    return replacement.lower()
+
+
+def align_contradicting_title(face: dict, posts: list[dict]) -> bool:
+    """Rewrite a title that takes the opposite side from its posts. Denial titles stay."""
+    title = " ".join(str(face.get("title") or "").split())
+    if not title or _title_is_denial(title):
+        return False
+    title_pole = _cue_pole(title)
+    posts_pole = _posts_pole(posts)
+    if not title_pole or not posts_pole or title_pole == posts_pole:
+        return False
+    table = {
+        "support": "Opposed",
+        "supports": "Opposed",
+        "supported": "Opposed",
+        "supporters": "Opponents",
+        "supporting": "Opposing",
+        "defend": "Condemn",
+        "defends": "Condemns",
+        "defending": "Condemning",
+        "pro": "Anti",
+    }
+    if posts_pole > 0:
+        table = {
+            "oppose": "Support",
+            "opposes": "Support",
+            "opposed": "Supported",
+            "condemn": "Defend",
+            "condemns": "Defends",
+            "condemned": "Defended",
+            "anti": "Pro",
+        }
+    words = title.split()
+    rewritten = []
+    swapped = False
+    for word in words:
+        replacement = _swap_polarity_word(word, table)
+        if replacement is None:
+            rewritten.append(word)
+            continue
+        rewritten.append(replacement)
+        swapped = True
+    if not swapped:
+        rewritten.append("Opposed" if posts_pole < 0 else "Supported")
+    face["title"] = " ".join(rewritten)
+    summary = " ".join(str(face.get("summary") or "").split())
+    if summary and _cue_pole(summary) == title_pole:
+        subject = " ".join(word for word in words if _swap_polarity_word(word, table) is None) or face["title"]
+        side = "oppose" if posts_pole < 0 else "support"
+        face["summary"] = f"These posts {side} {subject}."
+    if face.get("_draft_face_label"):
+        face["_draft_face_label"] = {
+            **face["_draft_face_label"],
+            "title": face["title"],
+            "summary": face.get("summary") or "",
+        }
+    return True
+
+
+def _cluster_faces(count: int, fold, disagree) -> list[list[int]]:
+    """Join faces that share a subject. A disagreement anywhere in the pair blocks the join."""
+    groups = [[index] for index in range(count)]
+    changed = True
+    while changed:
+        changed = False
+        left = 0
+        while left < len(groups):
+            right = left + 1
+            while right < len(groups):
+                pairs = [(a, b) for a in groups[left] for b in groups[right]]
+                if any(disagree(a, b) for a, b in pairs):
+                    right += 1
+                    continue
+                if not any(fold(a, b) for a, b in pairs):
+                    right += 1
+                    continue
+                groups[left].extend(groups[right])
+                groups.pop(right)
+                changed = True
+                break
+            if changed:
+                break
+            left += 1
+    return groups
+
+
+def _posts_for_draft(perspective: dict, rows: list, members: list[dict]) -> list[dict]:
+    by_uri = {str(post.get("uri") or ""): post for post in members}
+    posts = []
+    for uri, _position, _distance in rows:
+        post = by_uri.get(str(uri))
+        if post is not None:
+            posts.append(post)
+    if posts:
+        return posts
+    return list(perspective.get("representative_posts") or [])
+
+
+def apply_local_stance_gate(
+    drafted: list,
+    members: list[dict],
+    *,
+    subject: str = "",
+    post_limit: int = 36,
+) -> list:
+    """Fold same-subject faces that do not disagree, then align contradicting titles.
+
+    ``subject`` is the planet name, kept for callers. The check does not use it
+    as a cue and does not call a model.
+    """
+    del subject
+    if len(drafted) < 1:
+        return drafted
+    post_sets = [_posts_for_draft(item[0], item[1], members) for item in drafted]
+
+    def fold(left: int, right: int) -> bool:
+        return local_faces_fold(drafted[left][0], drafted[right][0], post_sets[left], post_sets[right])
+
+    def disagree(left: int, right: int) -> bool:
+        return local_faces_disagree(drafted[left][0], drafted[right][0], post_sets[left], post_sets[right])
+
+    if len(drafted) == 1:
+        grouped = [drafted[0]]
+    else:
+        grouped = []
+        for indexes in _cluster_faces(len(drafted), fold, disagree):
+            if len(indexes) == 1:
+                grouped.append(drafted[indexes[0]])
+                continue
+            grouped.append(_fold(drafted, indexes, post_limit))
+        grouped.sort(key=lambda item: -int(item[2]))
+    aligned = []
+    for perspective, rows, size in grouped:
+        face = dict(perspective)
+        align_contradicting_title(face, _posts_for_draft(face, rows, members))
+        aligned.append((face, rows, size))
+    return aligned
+
+
+def gate_published_perspectives(faces: list[dict], *, post_limit: int = 36) -> list[dict]:
+    """The same local gate on a published planet. Uses representative posts and post counts."""
+    if len(faces) < 1:
+        return [dict(face) for face in faces]
+    copied = [dict(face) for face in faces]
+    post_sets = [list(face.get("representative_posts") or []) for face in copied]
+
+    def fold(left: int, right: int) -> bool:
+        return local_faces_fold(copied[left], copied[right], post_sets[left], post_sets[right])
+
+    def disagree(left: int, right: int) -> bool:
+        return local_faces_disagree(copied[left], copied[right], post_sets[left], post_sets[right])
+
+    grouped: list[dict] = []
+    if len(copied) == 1:
+        grouped = copied
+    else:
+        for indexes in _cluster_faces(len(copied), fold, disagree):
+            ranked = sorted(indexes, key=lambda index: (-int(copied[index].get("post_count") or 0), index))
+            base = dict(copied[ranked[0]])
+            posts = list(base.get("representative_posts") or [])
+            seen = {str(post.get("text") or "") for post in posts}
+            total = int(base.get("post_count") or 0)
+            for index in ranked[1:]:
+                other = copied[index]
+                total += int(other.get("post_count") or 0)
+                for post in other.get("representative_posts") or []:
+                    text = str(post.get("text") or "")
+                    if text in seen:
+                        continue
+                    posts.append(post)
+                    seen.add(text)
+            base["representative_posts"] = posts[: max(int(post_limit), 1)]
+            base["post_count"] = total
+            grouped.append(base)
+    for face in grouped:
+        align_contradicting_title(face, list(face.get("representative_posts") or []))
+    counts = [max(int(face.get("post_count") or 0), 0) for face in grouped]
+    if sum(counts) > 0 and len(grouped) > 1:
+        from pipeline.schema import to_percents
+
+        for face, volume in zip(grouped, to_percents(counts)):
+            face["volume_percent"] = volume
+    elif len(grouped) == 1:
+        grouped[0]["volume_percent"] = 100.0
+    return grouped
+
+
+def _gate_signature(drafted: list) -> list[tuple[str, int]]:
+    return [(str(item[0].get("title") or ""), int(item[2])) for item in drafted]
+
+
 def apply_stance_pass(
     drafted: list,
     members: list[dict],
@@ -1112,11 +1790,21 @@ def apply_stance_pass(
                 f"={float(last.get('share') or 0):.1%} vs {float(last.get('threshold') or 0):.0%}"
                 f", title {last.get('title')!r}"
             )
+        gated = apply_local_stance_gate(drafted, members, subject=subject, post_limit=int(context.get("limit") or 36))
+        if _gate_signature(gated) == _gate_signature(drafted):
+            log.append(
+                f"Second side not coherent on {subject or 'planet'}:{detail}. "
+                f"Pre-pass faces kept ({before})."
+            )
+            return drafted, log
         log.append(
             f"Second side not coherent on {subject or 'planet'}:{detail}. "
-            f"Pre-pass faces kept ({before})."
+            f"Local gate kept {len(gated)} face(s); the geometric split did not come back on its own."
         )
-        return drafted, log
+        return gated, log
+    current = apply_local_stance_gate(
+        current, members, subject=subject, post_limit=int(context.get("limit") or 36)
+    )
     if _uri_key(current) != original_uris:
         return drafted, [f"Stance pass skipped on {subject or 'planet'}: post count changed."]
     last = context.get("stance_last") or {}
