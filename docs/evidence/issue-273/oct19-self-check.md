@@ -31,17 +31,19 @@ The labeled sample is not in the tree yet, so the threshold stays at the default
 
 ## Kind counts
 
-Report only. These counts do not change the edition and do not replace the duplicate score.
+Report only. These counts do not change the edition and do not replace the duplicate score. Each signal is different from the fix it is watching, so the fix cannot zero the count by being the same rule.
 
-- Greeting titles: 9 published planets in the pleasantry family.
-- Fragments: 23 same-section pairs, both under 20 posts, whose titles share a content stem or entity.
-- Face stance agreement: 13 within-planet pairs on the same subject with no disagreement.
+- Greeting planets: 11. Per-post sparsity or pairwise agreement inside the planet. Not the greeting matcher, the daypart gate, or a title list.
+- Fragments: 16 same-section pairs whose titles share an acronym or a digit token, both under the tuned post cap. Not stem overlap and not the attach gate's 20-post parent.
+- Face agreement: 21 within-planet pairs. Highest cosine between one post on each face. Not the face centroid and not the stance fold.
 
-Oct 19 labeled sample:
+Held-out recall, seed 273. Tuned on two-thirds of each band. Recall is the held-out third plus spot-check ids.
 
-- Greeting titles: 11 of 11 labeled yes, 4 false flags on 38 labeled no.
-- Fragments: 2 of 9 labeled yes, 1 false flag on 38 labeled no.
-- Face stance agreement: 9 of 13 labeled yes, 3 false flags on 13 labeled no.
+- Greeting planets: 6 of 6 labeled yes, 0 false flags on 16 labeled no.
+- Fragments: 1 of 5 labeled yes, 0 false flags on 16 labeled no.
+- Face agreement: 8 of 8 labeled yes, 7 false flags on 9 labeled no.
+
+Weekly blind sample is off: 20 planet pairs and 10 face pairs, seed 27343 (273 plus the ISO week). Expected second-model cost at $0.042 per million input tokens (2026-10-08): $0.000907 per week, $0.000130 per day. The daily budget is $0.25 to $0.30. No paid call is made in this check.
 
 ## Where to fix
 

@@ -31,6 +31,7 @@ from pipeline.language import edition_filter_reason
 from pipeline.schema import ALLOWED_CATEGORIES
 from pipeline.duplicate_rate import duplicate_rates, render_duplicate_lines
 from pipeline.kind_counts import measure_kind_counts, render_kind_count_lines, score_labeled_kinds
+from pipeline.label_kinds import FACE_SPOT_IDS, PLANET_SPOT_IDS, greeting_pair_ids
 from pipeline.settings import load_settings
 from pipeline.spam_guard import guard_reason
 
@@ -510,6 +511,7 @@ def check_edition(
     labeled_path: Path | None = None,
     kind_planet_rows: list[dict[str, str]] | None = None,
     kind_face_rows: list[dict[str, str]] | None = None,
+    kind_bands: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Check one published snapshot. Returns the report dict."""
     chosen = settings if settings is not None else load_settings()
@@ -584,7 +586,15 @@ def check_edition(
             floor=floor,
         ),
         "kind_counts": (
-            score_labeled_kinds(payload, kind_planet_rows, kind_face_rows or [])
+            score_labeled_kinds(
+                payload,
+                kind_planet_rows,
+                kind_face_rows or [],
+                greeting_ids=greeting_pair_ids(kind_planet_rows),
+                planet_spot_ids=set(PLANET_SPOT_IDS),
+                face_spot_ids=set(FACE_SPOT_IDS),
+                bands=kind_bands,
+            )
             if kind_planet_rows is not None
             else measure_kind_counts(payload)
         ),
@@ -682,6 +692,17 @@ def _print_github_warning(report: dict[str, Any]) -> None:
     print(f"::warning::{text}")
 
 
+def _bands_from_design(path: str | None) -> dict[str, str] | None:
+    if not path:
+        return None
+    design = json.loads(Path(path).read_text(encoding="utf-8"))
+    bands: dict[str, str] = {}
+    for side in ("planets", "faces"):
+        for row in (design.get(side) or {}).get("sample") or []:
+            bands[str(row.get("pair_id") or "")] = str(row.get("band") or "")
+    return bands
+
+
 def _read_csv(path: str | None) -> list[dict[str, str]] | None:
     if not path:
         return None
@@ -698,7 +719,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--previous", help="Yesterday's data.json, or a previous self-check JSON")
     parser.add_argument("--labeled", help="Labeled pair CSV. Defaults to docs/evidence/275/oct19-pairs.csv")
     parser.add_argument("--kind-labeled", help="Planet label CSV for the three kind counts")
-    parser.add_argument("--kind-faces", help="Face census CSV for the stance-agreement count")
+    parser.add_argument("--kind-faces", help="Face census CSV for the face-agreement count")
+    parser.add_argument("--kind-design", help="Band shares for the seed-273 kind-count split")
     parser.add_argument(
         "--report-only",
         action="store_true",
@@ -727,6 +749,7 @@ def main(argv: list[str] | None = None) -> int:
     labeled = Path(args.labeled) if args.labeled else None
     kind_planets = _read_csv(args.kind_labeled)
     kind_faces = _read_csv(args.kind_faces)
+    kind_bands = _bands_from_design(args.kind_design)
     report = check_edition(
         payload,
         source=str(path),
@@ -735,6 +758,7 @@ def main(argv: list[str] | None = None) -> int:
         labeled_path=labeled,
         kind_planet_rows=kind_planets,
         kind_face_rows=kind_faces,
+        kind_bands=kind_bands,
     )
     rendered = render_markdown(report)
     if args.json_path:

@@ -27,7 +27,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.kind_counts import GREETING_TITLES, render_kind_count_lines, score_labeled_kinds
+from pipeline.kind_counts import render_kind_count_lines, score_labeled_kinds
+from pipeline.label_kinds import FACE_SPOT_IDS, GREETING_TITLES, PLANET_SPOT_IDS, greeting_pair_ids
 from pipeline.duplicate_rate import (
     SPLIT_SEED,
     agreement_with_labels,
@@ -40,13 +41,7 @@ from pipeline.duplicate_rate import (
     _pair_identity,
 )
 
-# Rebuilt spot-check sheet (spot-check-20.md). Michael's column is blank there.
-PLANET_SPOT_IDS = frozenset(
-    {"p006", "p060", "p002", "p003", "p004", "p001", "p007", "p009", "p011", "p015"}
-)
-FACE_SPOT_IDS = frozenset(
-    {"c001", "c003", "c005", "c010", "c018", "c020", "c022", "c023", "c026", "c027"}
-)
+# Spot-check ids live in pipeline.label_kinds. Michael's column on the sheet is blank.
 # One day of within-planet faces holds out about 9 pairs. A percentage on
 # that few rows is not a rate. 30 is the smallest held-out set that gets one.
 MIN_FACE_HOLDOUT = 30
@@ -63,17 +58,15 @@ _NEAR_ZERO_FACTOR = 5
 KIND_TRACKER = {
     "greeting": (
         "The nightly check can't track this fix. "
-        "A $0 greeting-title count can: published planets whose name is in this family."
+        "The kind count uses per-post agreement, not a greeting-title list."
     ),
     "same_story": (
         "The nightly check can't track this fix. "
-        "A $0 fragment count can: same-section planet pairs where both are under "
-        "20 posts and their titles share a content stem or entity."
+        "The kind count uses shared surface entities, not stems."
     ),
     "paraphrase_face": (
         "The nightly check can't track this fix. "
-        "A $0 face stance-agreement count can: within-planet face pairs whose posts "
-        "share a subject and do not disagree."
+        "The kind count uses per-post agreement, not the face centroid."
     ),
     "other": (
         "The nightly check can't track this fix. "
@@ -457,7 +450,15 @@ def main(argv: list[str] | None = None) -> int:
             counts_only=True,
         ),
         "kind_recall": kind_recall(list(labeled) + list(faces), scored),
-        "kind_counts": score_labeled_kinds(payload, labeled, faces),
+        "kind_counts": score_labeled_kinds(
+            payload,
+            labeled,
+            faces,
+            greeting_ids=greeting_pair_ids(labeled),
+            planet_spot_ids=set(PLANET_SPOT_IDS),
+            face_spot_ids=set(FACE_SPOT_IDS),
+            bands=_band_by_id(design),
+        ),
     }
     lines = [
         "# Oct 19 duplicate-threshold calibration",

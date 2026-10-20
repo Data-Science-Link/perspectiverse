@@ -143,17 +143,17 @@ def test_kind_recall_is_raw_counts_and_names_a_cheap_tracker_when_near_zero():
     by_label = {kind["label"]: kind for kind in report["kinds"]}
     assert by_label["Greeting/chit-chat planets (#288)"]["flagged"] == 0
     assert by_label["Greeting/chit-chat planets (#288)"]["total"] == 2
-    assert "greeting-title count" in by_label["Greeting/chit-chat planets (#288)"]["tracker"]
+    assert "not a greeting-title list" in by_label["Greeting/chit-chat planets (#288)"]["tracker"]
     assert by_label["Same-story fragments (#287)"]["flagged"] == 0
     assert by_label["Same-story fragments (#287)"]["total"] == 1
-    assert "under 20 posts" in by_label["Same-story fragments (#287)"]["tracker"]
+    assert "not stems" in by_label["Same-story fragments (#287)"]["tracker"]
     assert by_label["Paraphrase faces (#286)"]["flagged"] == 0
     assert by_label["Paraphrase faces (#286)"]["total"] == 1
-    assert "stance-agreement count" in by_label["Paraphrase faces (#286)"]["tracker"]
+    assert "not the face centroid" in by_label["Paraphrase faces (#286)"]["tracker"]
     assert by_label["Other"]["total"] == 0
     assert by_label["Other"]["tracker"] is None
     rendered = "\n".join(render_kind_recall(report))
     assert "0 of 2" in rendered
     assert "0 of 1" in rendered
-    assert "greeting-title count" in rendered
-    assert "stance-agreement count" in rendered
+    assert "not a greeting-title list" in rendered
+    assert "not the face centroid" in rendered
