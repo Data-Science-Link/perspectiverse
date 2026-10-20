@@ -24,7 +24,7 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 0. **Rate complexity first.** Every issue gets a triage line on the issue and in the PR body (`Complexity: simple|standard|complex — reason; Risk: …; Model: …`) before any launch. Complexity words are separate from risk class (trivial/normal/high), which sets the merge gate. When in doubt between standard and complex, pick complex (`grok-4.7`): a failed cheap attempt costs more than the difference.
 1. **Always pin the model** on every launch. Don't leave it on Auto — Auto can route to a third-party model and draw from Other Models.
 2. **No Fast mode, no long-context (500k / 1M) variants** unless a human asks; both roughly double the price.
-3. Escalate one step at a time, and say why on the issue. A failed agent review counts as a failed attempt: after one FAIL on `composer-2.5`, the rework moves to `grok-4.7`.
+3. Escalate one step at a time, and say why on the issue. A failed agent review counts as a failed attempt. The next round moves one step up this table for the task's complexity and type of work (e.g. Standard: `composer-2.5` to `grok-4.7` medium; Complex: raise effort or reach the Stuck row). `grok-4.7` is one allowed step, not the automatic one, and routing is never just a choice between `composer-2.5` and `grok-4.7`.
 4. Record the model used and the cloud agent run ID(s) in the PR body (AI disclosure). The run IDs let dev cost be matched to each PR later. A cloud agent's token can't comment, so the manager posts that agent's review and report.
 
 ## When limits are hit
