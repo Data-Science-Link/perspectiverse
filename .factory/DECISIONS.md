@@ -704,6 +704,18 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Revisit:** With the routing table itself.
 **Supersedes:** 2026-10-20 "A failed agent review counts as a failed attempt for model escalation", wording only.
 
+### 2026-10-20: Offline replay check before placement and volume merges
+**Decision:** Before merging any PR that changes post placement (filtering, clustering, planet/face assignment) or ingest volume, run it offline against a saved edition replay, confirm the output still matches the edition schema, and put the replay result in the PR body. No paid labeling or Jetstream spend is needed for this check.
+**Why:** A placement or volume change can pass CI and still break the daily edition, which we then find only in the live run. A $0 replay catches that before merge. Michael (Factory room, 2026-10-20 8:01 AM CT): "OK on the two process checks".
+**Alternatives:** Rely on CI plus the live run (rejected because failures show up in front of users and cost a day). A full paid dry run (rejected because it spends money).
+**Revisit:** If the replay check misses a live schema failure, or if it routinely slows trivial PRs.
+
+### 2026-10-20: Reviewers report fixes; builders apply them
+**Decision:** An agent reviewer reports the fixes it finds, and the builder applies them. If a reviewer does write code, that commit gets its own review on a different model before it goes to Michael.
+**Why:** On #234, #264 and #265 the reviewer wrote fixes (for example 59c47d3, c931e4d and 0626886) that nobody had reviewed, so the agent-review step didn't cover them. Michael (Factory room, 2026-10-20 8:01 AM CT): "OK on the two process checks".
+**Alternatives:** Let reviewers commit fixes as part of review (rejected because it leaves unreviewed code). Always re-review the whole PR (heavier than needed).
+**Revisit:** If review rounds get noticeably slower, or if reviewer-written commits keep needing a second pass anyway.
+
 ### 2026-10-20 — Published planets need 30 posts
 - **Decision:** `MIN_PLANET_POSTS` is 30. A planet with exactly 30 posts is published. The same floor applies to a story split out of a glued candidate: a piece under 30 is left out. This supersedes the five-post floor from #79 for every published planet. `min_planet_posts` and `PERSPECTIVERSE_MIN_PLANET_POSTS` still override the constant. The generic thin-fragment hold (`_THIN_FRAGMENT_POSTS = 8`) is unchanged.
 - **Decided by:** Michael (Factory room, 2026-10-20 8:14 AM CT): "Let's make the floor 30 posts".
