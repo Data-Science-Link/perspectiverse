@@ -1,6 +1,6 @@
 # Summary rubric (Refs #237, PR #241)
 
-Score the rows in `docs/evidence/241/summary-sample.csv`. One row is one item (a planet or one perspective). For each item, read that row's `summary`, `brief`, `detail`, and `top_posts` (up to 8 posts, separated by ` || `). Do not look up other planets. Do not score from memory of the pipeline.
+Score the rows in `docs/evidence/241/summary-sample.csv`. One row is one item (a planet or one perspective). The file has 40 rows: the original 26, unchanged, plus one face for each of the 14 planets that did not already have one. Every sampled planet has exactly one face row. None of the 20 planets has zero faces. For each item, read that row's `summary`, `brief`, `detail`, and `top_posts` (up to 8 posts, separated by ` || `). Do not look up other planets. Do not score from memory of the pipeline.
 
 This file is the question sheet. It is not a score. The builder does not fill it in. A separate blind scorer on a different model answers it, once on this before-state file and once on the after-state from the replay.
 

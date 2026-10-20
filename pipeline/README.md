@@ -111,7 +111,7 @@ python -m pipeline.dossier smoke --data public/data.json --seed 241
 python -m pipeline.dossier replay --data public/data.json --sample docs/evidence/241/summary-sample.csv
 ```
 
-`quality` counts sentence overlap on the current text. `baseline` draws 20 planets with seed 241, stratified across sections, plus one perspective from each planet that has two or more faces. `smoke` draws 3 planets with the same seed. It is a smoke test, not the before/after. `replay` prices the 20-planet sample. `--run` on `smoke` or `replay` spends, refuses to start while a Daily Discourse Pipeline run is queued, and refuses when R2 is not configured. An extractive outline, with no model, is `python -m pipeline.dossier outline --planets NAME`.
+`quality` counts sentence overlap on the current text. `baseline` draws 20 planets with seed 241, stratified across sections, plus one perspective from each planet that has two or more faces. The checked-in `docs/evidence/241/summary-sample.csv` keeps that draw and then appends the single face on each of the other 14 planets (seed 241; each of those planets has one face, so the pick is that face). Re-running `baseline` would drop those 14 rows. None of the 20 planets has zero faces. `smoke` draws 3 planets with the same seed. It is a smoke test, not the before/after. `replay` prices whatever rows are in the sample file. `--run` on `smoke` or `replay` spends, refuses to start while a Daily Discourse Pipeline run is queued, and refuses when R2 is not configured. An extractive outline, with no model, is `python -m pipeline.dossier outline --planets NAME`.
 
 ### When the pipeline triggers
 
