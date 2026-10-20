@@ -1,0 +1,27 @@
+item_id,kind,primary,primary_reason,brief_adds_facts,detail_adds_beyond_brief,specific,faithful_to_posts,free_of_filler,newcomer_1_5
+All topics:3,planet,no,Summary is meta filler and detail smuggles claims (e.g. gender apartheid) not in the top posts while missing most post specifics.,yes,yes,no,no,no,2
+All topics:3:3B,perspective,yes,Face text matches trans-rights defenses in the sample (backlash, healthcare, dems, family acceptance) with quoted specifics.,yes,yes,yes,no,yes,4
+All topics:4,planet,no,Frames Musk as foreign-policy interference for a hostile power but top posts are mostly US elections/oligarchy; detail quotes posts not in the top eight.,yes,yes,yes,no,no,2
+Business:Business-3,planet,no,Treats hospital billing debt as US national debt; only one federal-interest post supports the planet label.,yes,yes,no,no,no,1
+Business:Business-8,planet,yes,Accurately reflects hypotheticals about using vast wealth versus Musk, with matching quotes.,yes,yes,yes,yes,no,4
+Culture:Culture-6,planet,no,Meta planet summary; six of eight top posts are about other films not Street Fighter.,yes,yes,no,no,no,2
+Culture:Culture-6:Culture-6A,perspective,no,Movie-praise face but top posts are mostly unrelated titles; only one post matches the brief.,yes,yes,no,no,no,2
+Culture:Culture-7,planet,yes,Captures Twitter-as-toxic-platform themes (culture, algorithm, bots, propaganda) present across posts.,yes,yes,yes,yes,no,4
+Education:Education-4,planet,yes,Book-ban censorship framing matches the substantive posts and quotes.,yes,yes,yes,yes,no,3
+Environment:Environment-6,planet,no,Claims posts are about animals but sample is fragmentary “for …” phrases not animal advocacy.,no,no,no,no,no,1
+Environment:Environment-10,planet,unsure,Wind speeds match several advisories but text overstates a single “today” while some posts report subsiding winds or unrelated transit text.,yes,yes,yes,no,no,3
+Health:Health-9,planet,yes,Two-face overview fits therapy-help limits versus misuse/refusal themes in posts.,yes,yes,yes,yes,no,3
+Health:Health-9:Health-9B,perspective,yes,Both top posts support misuse-of-therapy-language and refusal-to-go claims.,yes,yes,yes,yes,yes,4
+Health:Health-1,planet,no,Brief claims military spending drives lack of universal care; that is absent from top posts and detail cites a non-US thread.,yes,yes,yes,no,no,2
+Other:Other-15,planet,no,Only one post rejects spend-based playoffs; others cheer teams or want larger brackets.,yes,yes,yes,no,no,2
+Other:Other-3,planet,yes,Meta summary but correctly separates getting-blocked experiences from blocking-as-norm posts.,yes,yes,yes,yes,no,3
+Other:Other-3:Other-3B,perspective,yes,Blocking norms and justified blocks are what the face posts argue.,yes,yes,yes,yes,yes,4
+Other:Other-9,planet,no,Top posts are about follower motives or counts, not gratitude despite the planet label.,yes,yes,no,no,no,2
+Politics:Politics-3,planet,yes,MAGA voting loyalty, distraction, and vote-access themes appear across posts with usable specifics.,yes,yes,yes,yes,no,4
+Sports:Sports-6,planet,yes,Planet text reflects both finals buzz/snark and Valkyries praise present in the mix.,yes,yes,yes,yes,no,3
+Sports:Sports-6:Sports-6A,perspective,no,Reads as earnest league growth prose while most top posts are sarcastic WNBA reactions without those claims.,yes,yes,no,no,no,2
+Sports:Sports-9,planet,yes,Jeremiah Smith excellence/offense claims are directly supported by nearly every post.,yes,yes,yes,yes,no,4
+Technology:Technology-9,planet,yes,Two-face split matches anti-datacenter harm versus data-collection threads in posts.,yes,yes,yes,yes,no,3
+Technology:Technology-9:Technology-9A,perspective,yes,Anti-datacenter environmental and local opposition claims match the sample posts and quotes.,yes,yes,yes,yes,yes,4
+Technology:Technology-7,planet,no,Only one petition post opposes an AI centre; other top posts discuss AI stocks or creative AI not centre harm.,yes,yes,yes,no,no,2
+World:World-4,planet,yes,Houthi strikes on Saudi Arabia and Iran pressure themes are supported by headlines in top posts.,yes,yes,yes,no,no,3
