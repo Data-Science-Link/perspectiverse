@@ -7,6 +7,11 @@ import pytest
 from pipeline.corpus_persist import persist_paid_corpus
 from pipeline.jev import apply_jev, known_scored_uris, reset_jev_state
 from pipeline.costs import reset_meter
+from pipeline.chitchat_guard import (
+    edition_posts_for_clustering,
+    ingest_block_reason,
+    planet_chitchat_reason,
+)
 from pipeline.free_ingest import prepare_post, refresh_carried_posts
 from pipeline.store import (
     connect,
@@ -16,6 +21,12 @@ from pipeline.store import (
     save_jev_verdicts,
     should_drop_stored_post,
     write_quality_posts,
+)
+from pipeline.stored_purge import (
+    PURGE_STORED_REASONS_ENV,
+    purge_stored_reasons_list,
+    should_purge_stored_for_ingest_reason,
+    stored_purge_key_for_ingest_reason,
 )
 
 
@@ -61,6 +72,52 @@ def test_write_quality_posts_skips_spam_and_non_claims(tmp_path):
     connection.close()
 
 
+def test_stored_link_and_language_purge_switch(tmp_path, monkeypatch):
+    link_post = {
+        "uri": "at://stored-bare-link",
+        "author": "ada",
+        "text": "youtu.be/VAWjsVoDpm0",
+        "clean_text": "#musicsky",
+        "likes": 1,
+        "created_at": "2026-10-16T12:00:00Z",
+        "is_claim": True,
+    }
+    lang_post = {
+        "uri": "at://stored-pt",
+        "author": "ada",
+        "text": "O governo do Brasil anunciou novas medidas econômicas hoje",
+        "clean_text": "O governo do Brasil anunciou novas medidas econômicas hoje",
+        "likes": 1,
+        "created_at": "2026-10-16T12:00:00Z",
+        "is_claim": True,
+    }
+    keep_post = _post("at://claim", claim=True, spam=0.1)
+    connection = connect(tmp_path / "corpus.db")
+    replace_posts(connection, [keep_post, link_post, lang_post])
+
+    monkeypatch.delenv("PERSPECTIVERSE_PURGE_STORED_REASONS", raising=False)
+    assert purge_stored_reasons_list() == frozenset()
+    assert should_purge_stored_for_ingest_reason("link_only") is False
+    assert ingest_block_reason(link_post) == "link_only"
+    assert ingest_block_reason(lang_post) == "language"
+    assert should_drop_stored_post(link_post) is False
+    assert should_drop_stored_post(lang_post) is False
+    assert drop_non_quality_posts(connection) == 0
+    assert _uris(connection) == {"at://claim", "at://stored-bare-link", "at://stored-pt"}
+    kept, language, links, chitchat = edition_posts_for_clustering(load_posts(connection))
+    assert [post["uri"] for post in kept] == ["at://claim"]
+    assert (language, links, chitchat) == (1, 1, 0)
+
+    monkeypatch.setenv("PERSPECTIVERSE_PURGE_STORED_REASONS", "link_only,language")
+    assert purge_stored_reasons_list() == frozenset({"link_only", "language"})
+    assert should_drop_stored_post(link_post) is True
+    assert should_drop_stored_post(lang_post) is True
+    dropped = drop_non_quality_posts(connection)
+    assert dropped == 2
+    assert _uris(connection) == {"at://claim"}
+    connection.close()
+
+
 def test_cleanup_keeps_cached_non_claims_drops_spam_and_filters(tmp_path):
     connection = connect(tmp_path / "corpus.db")
     replace_posts(
@@ -82,14 +139,32 @@ def test_cleanup_keeps_cached_non_claims_drops_spam_and_filters(tmp_path):
     )
     assert should_drop_stored_post(_post("at://cached-aside", claim=False, spam=0.2)) is False
     dropped = drop_non_quality_posts(connection)
-    assert dropped == 2
-    assert _uris(connection) == {"at://claim", "at://cached-aside", "at://uncached-aside"}
+    assert dropped == 1
+    assert _uris(connection) == {
+        "at://claim",
+        "at://cached-aside",
+        "at://uncached-aside",
+        "at://thanks",
+    }
     cached = {row[0] for row in connection.execute("SELECT uri FROM jev_verdicts")}
     assert {"at://cached-aside", "at://cached-spam"} <= cached
     assert drop_non_quality_posts(connection) == 0
     write_quality_posts(connection, [_post("at://later", claim=True, spam=0.1)])
     assert _uris(connection) == {"at://later", "at://uncached-aside"}
     connection.close()
+
+
+def test_stored_chitchat_purge_is_opt_in(tmp_path, monkeypatch):
+    thanks = _post("at://thanks", claim=True, spam=0.1, text="Thank you!!")
+    block = ingest_block_reason(thanks)
+    assert block.startswith("chitchat:")
+    assert stored_purge_key_for_ingest_reason(block) == "chitchat"
+    monkeypatch.delenv(PURGE_STORED_REASONS_ENV, raising=False)
+    assert should_drop_stored_post(thanks) is False
+    monkeypatch.setenv(PURGE_STORED_REASONS_ENV, "chitchat")
+    assert should_drop_stored_post(thanks) is True
+    planet = [{"text": "Thank you!!"}] * 16
+    assert planet_chitchat_reason(planet, [], name="Thank")
 
 
 def test_cleanup_drops_cached_spam_when_row_has_no_scores(tmp_path):
@@ -142,10 +217,8 @@ def test_kept_non_claim_counts_cached_verdict_without_row_label(tmp_path, capsys
         ],
     )
     dropped = drop_non_quality_posts(connection)
-    assert dropped == 1
-    assert _uris(connection) == {"at://cached-aside"}
-    logged = capsys.readouterr().out
-    assert "kept_non_claim=1" in logged
+    assert dropped == 0
+    assert _uris(connection) == {"at://cached-aside", "at://thanks"}
     connection.close()
 
 
@@ -296,16 +369,68 @@ def test_workflow_drop_non_quality_end_to_end(tmp_path, capsys):
     assert main(["drop-non-quality", str(db)]) == 0
     captured = capsys.readouterr().out
     assert (
-        "Stored corpus cleanup: spam=1, filtered=3 "
+        "Stored corpus cleanup: spam=1, filtered=0 "
         "(chit-chat, link-only, language, or free spam guard), "
-        "kept_non_claim=1; 2 row(s) remain."
+        "kept_non_claim=1; 5 row(s) remain."
     ) in captured
-    assert captured.strip().splitlines()[-1] == "4"
+    assert captured.strip().splitlines()[-1] == "1"
 
     connection = connect(db)
-    assert _uris(connection) == {"at://claim", "at://cached-aside"}
+    assert _uris(connection) == {
+        "at://claim",
+        "at://cached-aside",
+        "at://thanks",
+        "at://link-only",
+        "at://non-english",
+    }
     verdicts = {row[0] for row in connection.execute("SELECT uri FROM jev_verdicts")}
     assert verdicts == {"at://cached-spam", "at://cached-aside"}
+    connection.close()
+
+
+def test_workflow_drop_non_quality_purges_when_reasons_listed(tmp_path, capsys, monkeypatch):
+    from pipeline.store import main
+
+    monkeypatch.setenv(PURGE_STORED_REASONS_ENV, "chitchat,link_only,language")
+    db = tmp_path / "live_corpus.db"
+    connection = connect(db)
+    dutch = "Het is niet een goed plan want de regering heeft geen meerderheid in het parlement."
+    replace_posts(
+        connection,
+        [
+            {
+                "uri": "at://thanks",
+                "author": "ada",
+                "text": "Thank you so much!",
+                "clean_text": "Thank you so much!",
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            {
+                "uri": "at://link-only",
+                "author": "ada",
+                "text": "https://example.com/only",
+                "clean_text": "https://example.com/only",
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            {
+                "uri": "at://non-english",
+                "author": "ada",
+                "text": dutch,
+                "clean_text": dutch,
+                "likes": 1,
+                "created_at": "2026-10-16T12:00:00Z",
+            },
+            _post("at://claim", claim=True, spam=0.1),
+        ],
+    )
+    connection.close()
+    assert main(["drop-non-quality", str(db)]) == 0
+    captured = capsys.readouterr().out
+    assert "filtered=3" in captured
+    connection = connect(db)
+    assert _uris(connection) == {"at://claim"}
     connection.close()
 
 

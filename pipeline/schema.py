@@ -60,8 +60,10 @@ STANCE_CHECK_FAILED = "stance check failed"
 STANCE_CHECK_INCOHERENT = "second side not coherent"
 # Every face failed the shared-claim check; planet is kept for readers as pending.
 STANCE_CHECK_UNSHARED = "no shared claim on any face"
+# Label guard could not ship readable copy; do not imply stance analysis is running.
+STANCE_CHECK_LABEL_HELD = "label held"
 _STANCE_CHECK_VALUES = frozenset(
-    {STANCE_CHECK_FAILED, STANCE_CHECK_INCOHERENT, STANCE_CHECK_UNSHARED}
+    {STANCE_CHECK_FAILED, STANCE_CHECK_INCOHERENT, STANCE_CHECK_UNSHARED, STANCE_CHECK_LABEL_HELD}
 )
 # Salient tokens stored on each published face (pipeline + demo).
 TOP_TERMS_LIMIT = 8
