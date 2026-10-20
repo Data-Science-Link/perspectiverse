@@ -1,0 +1,28 @@
+pair_id,section,planet,title_a,title_b,post_count_a,post_count_b,is_duplicate,label_reason
+c001,Business,Brent Oil Prices,High Oil,Oil Prices,9,3,yes,Both report or react to oil-price moves with the same market-worry stance.
+c002,Business,Tesla Flying Car,Tesla Fails,Tesla SpaceX Merger,126,15,no,Product mockery vs merger speculation are different Tesla stances.
+c003,Business,Thirty Thousand,Thirty Thousand,Debt Impact,84,66,yes,Both argue the same personal-scale meaning of the $30k wealth meme.
+c004,Business,Ultra Rich,Ultra Rich,Fundraising Progress,8,3,no,Defining ultra-rich vs campaign fundraising progress are different takes.
+c005,Culture,French Protests,French Protests,French Stereotypes,64,27,no,Protest politics vs stereotype jokes are different stances.
+c006,Culture,Hair Preferences,Hair Preferences,Hair Remarks,67,43,yes,Both trade hair-style preferences from the same grooming stance.
+c007,Culture,The Show,Show Quality,Show Enjoyment,111,89,yes,Both discuss watching/enjoying the show from the same audience stance.
+c008,Culture,Twitch Streamers,Stream Plans,Burnout,223,10,yes,Both express the same streaming hiatus and burnout stance.
+c009,Culture,Voice Training,Great Voice,Voice Acting,30,16,no,Celebrating someone's voice vs industry voice-acting talk are different stances.
+c010,Culture,Voice Training,Voice Care,Great Voice,51,30,no,Practice/training progress vs swooning over a voice are different angles.
+c011,Culture,Voice Training,Voice Care,Voice Acting,51,16,yes,Voice-care practice and voice-acting praise share the same training stance.
+c012,Education,College Republicans,College Indoctrination,Voting Matters,3,2,no,Indoctrination debate vs student voting panel are different campus-GOP angles.
+c013,Education,Radical Professors,Education Politics,Curricular Changes,15,4,no,Campus politics vs curriculum fights are related but distinct stances.
+c014,Education,School Medical Care,School Medical Care,Media Literacy,6,2,no,Nurse-medication debunk vs media-literacy angle are different stances.
+c015,Education,School Surgeries,School Medication,School Medical Care,28,5,yes,Both debunk school medical hoaxes with the same incredulous stance.
+c016,Environment,Cold Weather,Weather Changes,Weather Reports,72,61,unsure,Automated weather posts vs change reports may be the same bot stance or slightly different.
+c017,Health,ADHD Struggles,ADHD Struggles,ADHD Effects,15,14,yes,Both vent lived ADHD difficulty with the same personal-experience stance.
+c018,Health,Asthma Attacks,Asthma Fatal,Asthma Ban,49,6,yes,Both stress asthma severity and policy urgency from the same advocacy stance.
+c019,Sports,AEW WrestleDream,Wrestling Appeal,Wrestle Dream,45,43,yes,Both share excited WrestleDream viewing/fandom stance.
+c020,Sports,Brewers Dodgers,Brewers Success,Dodgers Performance,52,38,no,Rooting for Milwaukee vs enjoying the Dodgers are opposing fan stances.
+c021,Sports,PS5 Compatibility,PS6 Release,PS5 Compatibility,3,3,no,PS6 release timing vs backward-compatibility worries are different hardware stances.
+c022,Sports,PS6 Pricing,PS6 Pricing,PS3 Nostalgia,4,3,no,PS6 price talk vs PS3 nostalgia are different console stances.
+c023,Technology,AI Art,AI Art Rejected,Bad Writing,3,2,yes,Both reject AI writing/art for the same quality-and-ethics stance.
+c024,Technology,Account Security,Account Suspensions,Account Deletions,60,33,yes,Both complain about Bluesky account enforcement the same way.
+c025,Technology,Twitter Exodus,Twitter Sucks,Bluesky vs Twitter,94,42,yes,Both push the same leave-Twitter-for-Bluesky stance.
+c026,World,US Iran War,Iran War,Iran Attacks Ships,133,22,no,General Iran-war takes vs shipping-attack angle are different stances.
+c027,global,Good Morning,Good Wishes,Night Time,376,7,no,Morning cheer vs evening sign-off are different social stances on one planet.
