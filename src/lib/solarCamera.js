@@ -11,8 +11,21 @@ const _offset = new Vector3()
 const _fitCamera = new PerspectiveCamera(48, 1, 0.1, 800)
 const _fitPoint = new Vector3()
 
-/** @type {{ key: string | null, view: SolarView | null }} */
-let _stash = { key: null, view: null }
+/** @type {{ key: string | null, view: SolarView | null, atHome: boolean }} */
+let _stash = { key: null, view: null, atHome: false }
+
+const HOME_POSE_TOLERANCE = 0.2
+
+function poseMatchesHome(view, home, tolerance = HOME_POSE_TOLERANCE) {
+  if (!view?.position || !view?.target || !Array.isArray(home) || home.length < 6) return false
+  const homeDistance = Math.hypot(home[0] - home[3], home[1] - home[4], home[2] - home[5])
+  if (Math.abs(view.distance - homeDistance) > tolerance) return false
+  for (let i = 0; i < 3; i += 1) {
+    if (Math.abs(view.position[i] - home[i]) > tolerance) return false
+    if (Math.abs(view.target[i] - home[i + 3]) > tolerance) return false
+  }
+  return true
+}
 
 export const FREEZE_ORBITS_STORAGE_KEY = 'perspectiverse.freeze-orbits'
 
@@ -302,11 +315,18 @@ export function clampSolarView(view, limits = {}) {
   }
 }
 
-export function stashSolarView(controls, layoutKey) {
+export function stashSolarView(controls, layoutKey, limits) {
   if (!layoutKey) return null
   const snapshot = readCameraLookAt(controls)
   if (!snapshot) return null
-  _stash = { key: layoutKey, view: snapshot }
+  _stash = {
+    key: layoutKey,
+    view: snapshot,
+    // Phone orbit home is recomputed from the planets' current angles. Keeping
+    // a stash that was still that home pose would restore the old framing and
+    // leave the orbit labels unplaced.
+    atHome: poseMatchesHome(snapshot, limits?.home),
+  }
   return snapshot
 }
 
@@ -319,7 +339,7 @@ export function peekSolarLayoutKey() {
 }
 
 export function clearSolarView() {
-  _stash = { key: null, view: null }
+  _stash = { key: null, view: null, atHome: false }
 }
 
 export function applySolarView(controls, view, transition = false) {
@@ -332,6 +352,7 @@ export function applySolarView(controls, view, transition = false) {
 
 export function restoreSolarView(controls, layoutKey, limits, transition = false) {
   if (!_stash.view || !_stash.key || _stash.key !== layoutKey) return false
+  if (_stash.atHome) return false
   const clamped = clampSolarView(_stash.view, limits)
   if (!clamped) return false
   return applySolarView(controls, clamped, transition)
@@ -346,7 +367,7 @@ export function installSolarCameraTestHooks(getControls, getContext) {
     layoutKey: () => getContext()?.layoutKey ?? null,
     homeDistance: () => homeDistanceFromLookAt(getContext()?.limits?.home),
     limits: () => getContext()?.limits ?? null,
-    stash: () => stashSolarView(getControls(), getContext()?.layoutKey),
+    stash: () => stashSolarView(getControls(), getContext()?.layoutKey, getContext()?.limits),
     dolly: (amount = 0.45) => {
       const controls = getControls()
       if (controls?.dolly) controls.dolly(amount, true)

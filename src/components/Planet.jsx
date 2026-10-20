@@ -15,6 +15,7 @@ import {
   setOrbitPosition,
   topicScale,
 } from '../lib/layout'
+import { solarOrbitsFrozen } from '../lib/solarCamera'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import SpikyCube from './SpikyCube'
 
@@ -80,8 +81,9 @@ export default function Planet({
   const focusIndex = ranked.findIndex((face) => face.id === selectedPerspectiveId)
 
   useFrame((state, delta) => {
+    const frozen = solarOrbitsFrozen()
     const linear = Boolean(anchor)
-    if (!linear && !isSun && !selected) {
+    if (!frozen && !linear && !isSun && !selected) {
       angle.current += delta * orbit.speed
     }
     if (!linear && !isSun) {
