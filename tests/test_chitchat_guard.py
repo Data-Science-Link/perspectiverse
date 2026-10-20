@@ -783,3 +783,154 @@ def _planet_texts(payload: dict, section: str, name: str) -> list[str]:
         if planet["section"] == section and planet["name"] == name:
             return list(planet["texts"])
     raise AssertionError(f"missing {section}:{name}")
+
+
+def test_issue_208_good_morning_greeting_variants():
+    """Live miss 2026-10-19: Good Morning planet (#208 comment)."""
+    greetings = [
+        "Good morning to you!",
+        "Good morning from",
+        "Good morning from Kinmo the cat.",
+        "Hiya Baron! Good morning to you.",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Every Morning is a Good Morning…",
+    ]
+    for text in greetings:
+        assert pleasantry_reason({"text": text}) == "greeting", text
+    keeps = [
+        "The Senate met this morning to debate the healthcare bill.",
+        "Good morning! Protect Trans Kids",
+    ]
+    for text in keeps:
+        assert pleasantry_reason({"text": text}) is None, text
+
+
+def test_issue_208_good_morning_planet_representatives_drop():
+    """Fifteen published Good Morning representatives must hit the planet guard."""
+    reps = [
+        "Good morning to you!",
+        "Good morning from Kinmo the cat.",
+        "Hiya Baron! Good morning to you.",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Every Morning is a Good Morning…",
+        "Good morning to you!",
+        "Good morning from",
+        "Good morning!",
+        "Morning!",
+        "Good morning friend!",
+        "Good morning everyone!",
+        "Good morning beautiful!",
+        "Good morning to you too!",
+        "Good morning! Protect Trans Kids",
+    ]
+    members = _members(reps)
+    share = sum(1 for m in members if pleasantry_reason(m)) / len(members)
+    assert share >= PLEASANTRY_SHARE_DROP
+    assert planet_chitchat_reason(members, [], name="Good Morning") is not None
+
+
+def test_issue_208_morning_patterns_do_not_swallow_topics():
+    """Reviewer strings (bc-44865100) for #208 greeting guard, verbatim."""
+    must_catch = [
+        "Good morning everyone, have a great day ☀️",
+        "Good morning to you!",
+        "Morning Richard, how are you? Xx",
+        "Good morning Susan, make it a good day.",
+        "Good morning from Kinmo the cat.",
+        "Good morning from",
+        "Hiya Baron! Good morning to you.",
+        "Every Morning is a Good Morning…",
+        "Good morning, I hope everyone sleeps well",
+        "Good morning all, peaceful vibes today",
+        "Morning friends, enjoy your coffee",
+        "Good morning dear, sleep well",
+        "Good morning everyone, stay warm",
+        "Good night, sweet dreams",
+        "Good morning folks, coffee is on",
+        "Good morning, I hope your day is easy",
+    ]
+    for text in must_catch:
+        assert pleasantry_reason({"text": text}) == "greeting", text
+    keeps = [
+        # Original 16 (a31e73d)
+        "Morning Joe said viewers loved the opening interview.",
+        "Morning commute was brutal today",
+        "good morning america interview with the coach",
+        "Morning after pill ban",
+        "Morning after pill access expands",
+        "Good morning, the Lakers won",
+        "Good morning! The Yankees won again",
+        "Good afternoon, the Fed held rates steady",
+        "Good night at the museum, the new exhibit opens Friday",
+        "You are so far out of touch, I'm just not going to waste anymore time. Have a good evening.",
+        "Good morning! Black Lives Matter",
+        "Good morning! Free Palestine",
+        "Good morning world news: talks stalled",
+        "A good morning run before the marathon",
+        "Morning after the game the coach resigned",
+        "Good night folks, see you at the rally tomorrow",
+        # Nine news-tail keeps (77ed247)
+        "Good morning, I hope the bill passes",
+        "Good morning, I hope the strike ends",
+        "Good evening, I hope the senate confirms the judge",
+        "Good afternoon, I hope the hurricane turns offshore",
+        "Good morning, the peaceful protest grew overnight",
+        "Good morning, my friend the senator spoke",
+        "Good morning, enjoy your indictment",
+        "Good morning, I hope Congress votes tonight",
+        "Good morning, I hope Ukraine holds the line",
+        # Fourteen fresh topic probes (bc-44865100, exact wording)
+        "Good morning, I hope my landlord fixes the heat",
+        "Good morning, enjoy the eclipse today",
+        "Good morning, I hope the vaccine works",
+        "Good morning, the tariffs start today",
+        "Good evening, I hope my landlord fixes the heat",
+        "Good morning, the parade starts at noon",
+        "Good morning, I hope the train is on time",
+        "Good afternoon, the bakery on Main burned",
+        "Good morning, the bridge is closed for repairs",
+        "Good evening, the aurora is visible tonight",
+        "Good morning, I hope the recital sells out",
+        "Good morning, the ferry is cancelled",
+        "Good morning, enjoy the comet tonight",
+        "Good morning, the choir concert sold out",
+        "Good morning, I hope the Wi-Fi comes back",
+        # Eleven vocabulary probes kept (b66dc85)
+        "Good morning, coffee prices doubled",
+        "Good morning, warm weather records broken in Texas",
+        "Morning friends, the coffee shop union won",
+        "Good night, the heat wave continues",
+        "Good morning, the tea harvest is late",
+        "Good morning, warmer oceans are bleaching the reef",
+        "Good morning, rest stops closed on the highway",
+        "Morning friends, coffee futures jumped overnight",
+        "Good morning, stay orders halted the project",
+        "Good morning, easy money flooded the market",
+        "Good morning, sweet potato harvest failed",
+        # Seven judgment / headline tails (d446d06 re-review, exact wording)
+        "Good morning, Ozempic shortage",
+        "Good morning, Bitcoin crashed",
+        "Good morning, Moderna recalled",
+        "Good morning Taylor Swift",
+        "Good evening Hezbollah",
+        "Good night Kamala",
+        "Good morning Iran",
+        # Seven wish-phrase + topic tails (b66dc85 re-review)
+        "Good morning, I hope everyone sleeps through the storm warning",
+        "Good morning, coffee is on sale downtown",
+        "Good morning, enjoy your coffee before the hearing",
+        "Good morning, I hope everyone sleeps through the eclipse",
+        "Good morning, peaceful vibes before the parade",
+        "Good night, sweet dreams about the merger",
+        "Good morning, sleep well before the launch",
+        # Nice-to-catch: no daypart open; must stay kept
+        "Have a wonderful morning everyone",
+    ]
+    misclassified = []
+    for text in keeps:
+        reason = pleasantry_reason({"text": text})
+        if reason is not None:
+            misclassified.append(f"{reason}: {text}")
+    assert misclassified == [], "\n".join(misclassified)
