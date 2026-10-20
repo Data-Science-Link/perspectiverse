@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from pipeline.kind_counts import GREETING_TITLES, render_kind_count_lines, score_labeled_kinds
 from pipeline.duplicate_rate import (
     SPLIT_SEED,
     agreement_with_labels,
@@ -50,20 +51,6 @@ FACE_SPOT_IDS = frozenset(
 # that few rows is not a rate. 30 is the smallest held-out set that gets one.
 MIN_FACE_HOLDOUT = 30
 
-# Planet titles the #275 spec calls one pleasantry family (Good Sunday and the rest).
-GREETING_TITLES = frozenset(
-    {
-        "good day",
-        "good morning",
-        "great day",
-        "hope for the day",
-        "wonderful day",
-        "great time",
-        "glad returns",
-        "happy sunday",
-        "good sunday",
-    }
-)
 KIND_ORDER = ("greeting", "same_story", "paraphrase_face", "other")
 KIND_LABEL = {
     "greeting": "Greeting/chit-chat planets (#288)",
@@ -80,8 +67,8 @@ KIND_TRACKER = {
     ),
     "same_story": (
         "The nightly check can't track this fix. "
-        "A $0 fragment count can: same-section planets under 20 posts, "
-        "the size the attach gate will not use as a parent."
+        "A $0 fragment count can: same-section planet pairs where both are under "
+        "20 posts and their titles share a content stem or entity."
     ),
     "paraphrase_face": (
         "The nightly check can't track this fix. "
@@ -470,6 +457,7 @@ def main(argv: list[str] | None = None) -> int:
             counts_only=True,
         ),
         "kind_recall": kind_recall(list(labeled) + list(faces), scored),
+        "kind_counts": score_labeled_kinds(payload, labeled, faces),
     }
     lines = [
         "# Oct 19 duplicate-threshold calibration",
@@ -483,6 +471,7 @@ def main(argv: list[str] | None = None) -> int:
     lines.extend(render_level("Planets", report["planet"]))
     lines.extend(render_level("Faces", report["face"]))
     lines.extend(render_kind_recall(report["kind_recall"]))
+    lines.extend(render_kind_count_lines(report["kind_counts"]))
     rendered = "\n".join(lines)
     if args.json_path:
         Path(args.json_path).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

@@ -29,6 +29,20 @@ Guards removed 53 planets under the floor, 1 junk planets, folded 9 faces at the
 
 The labeled sample is not in the tree yet, so the threshold stays at the default and precision and recall are not computed. When it lands, the headline weights each similarity band by that band's real share of pairs. This rate does not grade itself.
 
+## Kind counts
+
+Report only. These counts do not change the edition and do not replace the duplicate score.
+
+- Greeting titles: 9 published planets in the pleasantry family.
+- Fragments: 23 same-section pairs, both under 20 posts, whose titles share a content stem or entity.
+- Face stance agreement: 13 within-planet pairs on the same subject with no disagreement.
+
+Oct 19 labeled sample:
+
+- Greeting titles: 11 of 11 labeled yes, 4 false flags on 38 labeled no.
+- Fragments: 2 of 9 labeled yes, 1 false flag on 38 labeled no.
+- Face stance agreement: 9 of 13 labeled yes, 3 false flags on 13 labeled no.
+
 ## Where to fix
 
 - ingest: 6 planets

@@ -47,7 +47,21 @@ Every model-labeled duplicate on the Oct 19 planet sheet and the face census. Th
   The nightly check can't track this fix. A $0 greeting-title count can: published planets whose name is in this family.
 - Same-story fragments (#287): 1 of 9
   Flagged: US Ukraine War | US Iran War.
-  The nightly check can't track this fix. A $0 fragment count can: same-section planets under 20 posts, the size the attach gate will not use as a parent.
+  The nightly check can't track this fix. A $0 fragment count can: same-section planet pairs where both are under 20 posts and they share a content stem or entity.
 - Paraphrase faces (#286): 0 of 13
   The nightly check can't track this fix. A $0 face stance-agreement count can: within-planet face pairs whose posts share a subject and do not disagree.
 - Other: 0 of 0
+
+## Kind counts
+
+Report only. These counts do not change the edition and do not replace the duplicate score.
+
+- Greeting titles: 9 published planets in the pleasantry family.
+- Fragments: 23 same-section pairs, both under 20 posts, whose titles share a content stem or entity.
+- Face stance agreement: 13 within-planet pairs on the same subject with no disagreement.
+
+Oct 19 labeled sample:
+
+- Greeting titles: 11 of 11 labeled yes, 4 false flags on 38 labeled no.
+- Fragments: 2 of 9 labeled yes, 1 false flag on 38 labeled no.
+- Face stance agreement: 9 of 13 labeled yes, 3 false flags on 13 labeled no.

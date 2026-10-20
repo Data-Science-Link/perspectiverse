@@ -14,6 +14,7 @@ check reports planets under that floor. It does not drop them.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import re
@@ -29,6 +30,7 @@ from pipeline.label_guard import PENDING_TITLE, reader_label_issue
 from pipeline.language import edition_filter_reason
 from pipeline.schema import ALLOWED_CATEGORIES
 from pipeline.duplicate_rate import duplicate_rates, render_duplicate_lines
+from pipeline.kind_counts import measure_kind_counts, render_kind_count_lines, score_labeled_kinds
 from pipeline.settings import load_settings
 from pipeline.spam_guard import guard_reason
 
@@ -506,6 +508,8 @@ def check_edition(
     source_commit: str | None = None,
     previous: dict | None = None,
     labeled_path: Path | None = None,
+    kind_planet_rows: list[dict[str, str]] | None = None,
+    kind_face_rows: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Check one published snapshot. Returns the report dict."""
     chosen = settings if settings is not None else load_settings()
@@ -579,6 +583,11 @@ def check_edition(
             labeled_path=labeled_path,
             floor=floor,
         ),
+        "kind_counts": (
+            score_labeled_kinds(payload, kind_planet_rows, kind_face_rows or [])
+            if kind_planet_rows is not None
+            else measure_kind_counts(payload)
+        ),
         "failures": failures,
         "detector_only": True,
     }
@@ -604,6 +613,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
     ]
     lines.extend(render_duplicate_lines(report))
+    lines.extend(render_kind_count_lines(report.get("kind_counts")))
     lines.extend([
         "## Where to fix",
         "",
@@ -672,6 +682,13 @@ def _print_github_warning(report: dict[str, Any]) -> None:
     print(f"::warning::{text}")
 
 
+def _read_csv(path: str | None) -> list[dict[str, str]] | None:
+    if not path:
+        return None
+    with Path(path).open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Free per-edition planet self-check")
     parser.add_argument("data", nargs="?", default="public/data.json", help="Path to data.json")
@@ -680,6 +697,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-commit", help="Commit the snapshot was taken from, stored in the report")
     parser.add_argument("--previous", help="Yesterday's data.json, or a previous self-check JSON")
     parser.add_argument("--labeled", help="Labeled pair CSV. Defaults to docs/evidence/275/oct19-pairs.csv")
+    parser.add_argument("--kind-labeled", help="Planet label CSV for the three kind counts")
+    parser.add_argument("--kind-faces", help="Face census CSV for the stance-agreement count")
     parser.add_argument(
         "--report-only",
         action="store_true",
@@ -706,12 +725,16 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         previous = json.loads(previous_path.read_text(encoding="utf-8"))
     labeled = Path(args.labeled) if args.labeled else None
+    kind_planets = _read_csv(args.kind_labeled)
+    kind_faces = _read_csv(args.kind_faces)
     report = check_edition(
         payload,
         source=str(path),
         source_commit=args.source_commit,
         previous=previous,
         labeled_path=labeled,
+        kind_planet_rows=kind_planets,
+        kind_face_rows=kind_faces,
     )
     rendered = render_markdown(report)
     if args.json_path:
@@ -724,7 +747,10 @@ def main(argv: list[str] | None = None) -> int:
         f"thin_sections={len(report['thin_sections'])} "
         f"floor={report['min_planet_posts']} "
         f"dup_before={report['duplicate_rate']['before']['planets']['rate']:.4f} "
-        f"dup_after={report['duplicate_rate']['after']['planets']['rate']:.4f}"
+        f"dup_after={report['duplicate_rate']['after']['planets']['rate']:.4f} "
+        f"greetings={report['kind_counts']['greeting_titles']['count']} "
+        f"fragments={report['kind_counts']['fragments']['count']} "
+        f"stance={report['kind_counts']['stance_agreement']['count']}"
     )
     print(rendered)
     _print_github_warning(report)

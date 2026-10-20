@@ -209,6 +209,377 @@
       "note": "The labeled sample is not in the tree yet, so the threshold stays at the default and precision and recall are not computed. When it lands, the headline weights each similarity band by that band's real share of pairs. This rate does not grade itself."
     }
   },
+  "kind_counts": {
+    "report_only": true,
+    "changes_edition": false,
+    "greeting_titles": {
+      "count": 9,
+      "planets": [
+        {
+          "scope": "Other",
+          "name": "Glad Returns",
+          "post_count": 6
+        },
+        {
+          "scope": "Other",
+          "name": "Good Day",
+          "post_count": 23
+        },
+        {
+          "scope": "Other",
+          "name": "Good Morning",
+          "post_count": 22
+        },
+        {
+          "scope": "Other",
+          "name": "Great Day",
+          "post_count": 16
+        },
+        {
+          "scope": "Other",
+          "name": "Great Time",
+          "post_count": 8
+        },
+        {
+          "scope": "Other",
+          "name": "Happy Sunday",
+          "post_count": 6
+        },
+        {
+          "scope": "Other",
+          "name": "Hope For The Day",
+          "post_count": 14
+        },
+        {
+          "scope": "Other",
+          "name": "wonderful day",
+          "post_count": 8
+        },
+        {
+          "scope": "catalog",
+          "name": "Good Morning",
+          "post_count": 383
+        }
+      ],
+      "rule": "Published planets whose name is in the pleasantry family."
+    },
+    "fragments": {
+      "count": 23,
+      "pairs": [
+        {
+          "scope": "Business",
+          "left_title": "Brent Oil Prices",
+          "right_title": "High Prices",
+          "left_posts": 12,
+          "right_posts": 6
+        },
+        {
+          "scope": "Business",
+          "left_title": "Brent Oil Prices",
+          "right_title": "Trump Gas Prices",
+          "left_posts": 12,
+          "right_posts": 15
+        },
+        {
+          "scope": "Business",
+          "left_title": "High Prices",
+          "right_title": "Trump Gas Prices",
+          "left_posts": 6,
+          "right_posts": 15
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI Art",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI bots",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI Control",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI Creative Effort",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Art",
+          "right_title": "AI bots",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Art",
+          "right_title": "AI Control",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Art",
+          "right_title": "AI Creative Effort",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Art",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI bots",
+          "right_title": "AI Control",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI bots",
+          "right_title": "AI Creative Effort",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI bots",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Control",
+          "right_title": "AI Creative Effort",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Control",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Creative Effort",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Sports",
+          "left_title": "Playstation Games Sony",
+          "right_title": "Sony PS5",
+          "left_posts": 5,
+          "right_posts": 5
+        },
+        {
+          "scope": "Sports",
+          "left_title": "PS5 Compatibility",
+          "right_title": "Sony PS5",
+          "left_posts": 6,
+          "right_posts": 5
+        },
+        {
+          "scope": "Health",
+          "left_title": "ADHD Struggles 2",
+          "right_title": "Mental Health Struggles",
+          "left_posts": 15,
+          "right_posts": 17
+        },
+        {
+          "scope": "Education",
+          "left_title": "Grade School Fashion",
+          "right_title": "School Medical Care",
+          "left_posts": 6,
+          "right_posts": 8
+        },
+        {
+          "scope": "Other",
+          "left_title": "Great Day",
+          "right_title": "Great Time",
+          "left_posts": 16,
+          "right_posts": 8
+        }
+      ],
+      "rule": "Same-section planet pairs where both are under 20 posts and their titles share a content stem or entity."
+    },
+    "stance_agreement": {
+      "count": 13,
+      "pairs": [
+        {
+          "scope": "catalog",
+          "planet": "Good Morning",
+          "left_title": "Good Wishes",
+          "right_title": "Night Time"
+        },
+        {
+          "scope": "Technology",
+          "planet": "AI Art",
+          "left_title": "AI Art Rejected",
+          "right_title": "Bad Writing"
+        },
+        {
+          "scope": "Technology",
+          "planet": "Twitter Exodus",
+          "left_title": "Twitter Sucks",
+          "right_title": "Bluesky vs Twitter"
+        },
+        {
+          "scope": "Technology",
+          "planet": "Account Security",
+          "left_title": "Account Suspensions",
+          "right_title": "Account Deletions"
+        },
+        {
+          "scope": "Sports",
+          "planet": "AEW WrestleDream",
+          "left_title": "Wrestling Appeal",
+          "right_title": "Wrestle Dream"
+        },
+        {
+          "scope": "Culture",
+          "planet": "Twitch Streamers",
+          "left_title": "Stream Plans",
+          "right_title": "Burnout"
+        },
+        {
+          "scope": "Culture",
+          "planet": "Hair Preferences",
+          "left_title": "Hair Preferences",
+          "right_title": "Hair Remarks"
+        },
+        {
+          "scope": "Culture",
+          "planet": "Voice Training",
+          "left_title": "Voice Care",
+          "right_title": "Great Voice"
+        },
+        {
+          "scope": "Culture",
+          "planet": "Voice Training",
+          "left_title": "Voice Care",
+          "right_title": "Voice Acting"
+        },
+        {
+          "scope": "Culture",
+          "planet": "Voice Training",
+          "left_title": "Great Voice",
+          "right_title": "Voice Acting"
+        },
+        {
+          "scope": "Health",
+          "planet": "ADHD Struggles",
+          "left_title": "ADHD Struggles",
+          "right_title": "ADHD Effects"
+        },
+        {
+          "scope": "Environment",
+          "planet": "Cold Weather",
+          "left_title": "Weather Changes",
+          "right_title": "Weather Reports"
+        },
+        {
+          "scope": "Education",
+          "planet": "School Surgeries",
+          "left_title": "School Medication",
+          "right_title": "School Medical Care"
+        }
+      ],
+      "rule": "Within-planet face pairs on the same subject with no disagreement."
+    },
+    "labeled": {
+      "greeting_titles": {
+        "recall": "11 of 11",
+        "flagged_yes": 11,
+        "yes": 11,
+        "false_flags": 4,
+        "no": 38,
+        "flagged_yes_ids": [
+          "p002",
+          "p007",
+          "p010",
+          "p028",
+          "p030",
+          "p031",
+          "p033",
+          "p040",
+          "p045",
+          "p049",
+          "p051"
+        ],
+        "false_flag_ids": [
+          "p001",
+          "p016",
+          "p029",
+          "p043"
+        ]
+      },
+      "fragments": {
+        "recall": "2 of 9",
+        "flagged_yes": 2,
+        "yes": 9,
+        "false_flags": 1,
+        "no": 38,
+        "flagged_yes_ids": [
+          "p011",
+          "p041"
+        ],
+        "false_flag_ids": [
+          "p026"
+        ]
+      },
+      "stance_agreement": {
+        "recall": "9 of 13",
+        "flagged_yes": 9,
+        "yes": 13,
+        "false_flags": 3,
+        "no": 13,
+        "flagged_yes_ids": [
+          "c006",
+          "c008",
+          "c011",
+          "c015",
+          "c017",
+          "c019",
+          "c023",
+          "c024",
+          "c025"
+        ],
+        "false_flag_ids": [
+          "c009",
+          "c010",
+          "c027"
+        ]
+      }
+    }
+  },
   "failures": [
     {
       "scope": "catalog",
