@@ -1,8 +1,20 @@
 # Can a dossier fix this item? (Refs #237, PR #241)
 
-A dossier rewrites `summary`, `brief`, and `detail` from the posts already on that planet or face. It does not rename the planet, retitle the face, or move posts. This file is not a score. It says whether a dossier can plausibly fix the item, given the blind baseline's top failure: **planet label doesn't match top posts**.
+## Headline
 
-That failure is a clustering or labeling problem. Better prose about the same posts leaves the wrong name in place.
+The before/after covers **all 20 planets and every face in the sample** (40 rows in `summary-sample.csv`). Score each row with the locked question in `summary-rubric.md`, word for word:
+
+Does this text accurately say what these posts argue, with their specifics, in a way that tells a newcomer something useful?
+
+Answer yes / no / unsure, per item, with the text and its top 8 posts. Do not drop a row. A label that does not match its top posts stays in this score.
+
+## Secondary breakdown
+
+The yes/no column below is a side note only. It does not change the headline and it does not remove an item from the replay.
+
+A dossier rewrites `summary`, `brief`, and `detail` from the posts already on that planet or face. It does not rename the planet, retitle the face, or move posts. Where the column says no, the likely failure is the label or the cluster, so a dossier may not be what fixes it. The row is still scored.
+
+Label-vs-top-posts mismatches are tracked in #290. From the first 26 rows, #290 names six items: `Business:Business-3`, `Environment:Environment-6`, `Culture:Culture-6`, `Culture:Culture-6:Culture-6A`, `Other:Other-9`, `Other:Other-15`. Those six stay in the headline. The two extra "no" rows in the table (Environment-6A, Other-15A) were appended after that score. They are this note's inference from the same posts, not a second finding, and they stay in the headline too.
 
 ## Sample
 
@@ -24,7 +36,7 @@ The file is now 40 rows: 20 planets and 20 faces, one face each.
 | Faces | 20 | 18 | 2 |
 | Total | 40 | 33 | 7 |
 
-The five planet rows a dossier cannot fix are the ones the blind baseline named: Business-3, Environment-6, Culture-6, Other-9, Other-15. Two of their faces have the same mismatch (Environment-6A, Other-15A). The other three faces can still have their own text rewritten.
+This count is the secondary note, not the headline. The headline is 40 of 40. #290 names five of these planets plus face Culture-6A. This table still marks Culture-6A as text a dossier can rewrite, because the face title is "Movie praise". That does not take Culture-6A out of the headline, and #290 still owns the label mismatch. Environment-6A and Other-15A are marked no here because they share the planet's posts. They were not in #290's six.
 
 ## The five label misses
 
@@ -42,7 +54,7 @@ The five planet rows a dossier cannot fix are the ones the blind baseline named:
 
 `yes` means the posts are about the labeled subject and the public text is thin, repetitive, filler, or missing the specifics. A briefing can say what those posts argue.
 
-`no` means the label or the membership is the failure. A dossier would describe the posts it is given and would leave that failure in place.
+`no` means the label or the membership is the likely failure. A dossier would describe the posts it is given and would leave that failure in place. Either way the row stays in the headline score.
 
 | Item | Kind | Dossier can fix it | Why |
 |---|---|---|---|

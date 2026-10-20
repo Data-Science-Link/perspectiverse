@@ -4,6 +4,8 @@ Score the rows in `docs/evidence/241/summary-sample.csv`. One row is one item (a
 
 This file is the question sheet. It is not a score. The builder does not fill it in. A separate blind scorer on a different model answers it, once on this before-state file and once on the after-state from the replay.
 
+The headline before/after is every row: all 20 planets and every face. Do not skip a row whose label may not match its top posts. Those mismatches are tracked in #290. They stay in this score. The locked question in the next section is the score. Any note about whether a dossier can fix the label is secondary and is not a reason to drop an item.
+
 ## Primary question
 
 Answer this first, word for word, once per item. Show the item's summary, brief, detail, and its top 8 posts next to the answer.
