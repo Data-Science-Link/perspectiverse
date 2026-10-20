@@ -834,6 +834,9 @@ export default function Observatory({
     >
       <Canvas
         key={`${epoch}-${isMobile ? 'm' : 'd'}`}
+        // The phone reading screen covers this canvas. Drawing it would
+        // burn a frame every tick for a layer the user cannot see.
+        frameloop={isMobile && selectedTopicId ? 'never' : 'always'}
         camera={{
           position: [home[0], home[1], home[2]],
           fov: isMobile ? 48 : 42,
