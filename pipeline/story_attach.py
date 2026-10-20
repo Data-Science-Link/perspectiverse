@@ -9,6 +9,10 @@ Three direct checks, none of them a chain:
   passes against that larger planet's original center. A planet that is
   itself folding into someone else is not a parent, so stories cannot
   chain.
+- Two fragments under ``BIG_PLANET`` join before the publish floor when
+  they share an allowlisted short subject (``ai``). The cosine cut does
+  not move. A generic stem such as ``pric`` does not join them, and
+  ``ps5`` / ``ps6`` / ``bar`` / ``us`` are not subjects.
 - A face the claim gate drops gives a post back to a kept face only when
   that post's main subject is the kept face's subject.
 
@@ -26,6 +30,7 @@ import numpy as np
 from pipeline.label import (
     _OFFICE_GLUE,
     _PERSON_GLUE,
+    _TOKEN,
     _TOPIC_GLUE,
     _VERB_STEMS,
     _is_specific_subject_word,
@@ -60,6 +65,11 @@ COOCCUR_WITH_TOP = 0.50
 SIBLING_MAJORITY = 0.60
 # An all-caps token this common is the planet's name ("ICE").
 ACRONYM_SHARE = 0.40
+# content_tokens drops anything under 4 characters, so "ai" never reaches
+# specific_stems. Only these short tokens are subjects. Left out on purpose:
+# "ps5"/"ps6" (console history is not one story), "bar" (the exam vs a
+# place that says bar), "us" (different wars).
+_SHORT_SUBJECT_ALLOWLIST = frozenset({"ai"})
 
 _ACRONYM = re.compile(r"\b[A-Z]{3}\b")
 _ACRONYM_STOP = frozenset(
@@ -119,6 +129,10 @@ def specific_stems(text: str) -> set[str]:
         if not _is_specific_subject_word(stem):
             continue
         found.add(stem)
+    # content_tokens already dropped these. Put the allowlist back.
+    for token in _TOKEN.findall(str(text or "").lower()):
+        if token in _SHORT_SUBJECT_ALLOWLIST:
+            found.add(token)
     for token in _ACRONYM.findall(str(text or "")):
         lowered = token.lower()
         if lowered not in _ACRONYM_STOP:
@@ -157,7 +171,16 @@ def story_of(texts: list[str]) -> tuple[str | None, set[str]]:
     if count == 0:
         return None, set()
     counts = _stem_counts(texts)
-    ranked = sorted(counts, key=lambda stem: (-counts[stem], -len(stem), stem))
+    # A tied allowlisted subject ("ai") beats a longer mood word ("anyway").
+    ranked = sorted(
+        counts,
+        key=lambda stem: (
+            -counts[stem],
+            0 if stem in _SHORT_SUBJECT_ALLOWLIST else 1,
+            -len(stem),
+            stem,
+        ),
+    )
     dominant = []
     for stem in ranked:
         seen = counts[stem]
@@ -250,7 +273,13 @@ def _without_global_glue(
     for _top, stems in stories.values():
         for stem in stems:
             counts[stem] = counts.get(stem, 0) + 1
-    glue = {stem for stem, seen in counts.items() if seen >= GLOBAL_GLUE_PLANETS}
+    # An allowlisted short subject is the story, even when several fragments
+    # share it. Stripping "ai" would leave no parent for the other fragments.
+    glue = {
+        stem
+        for stem, seen in counts.items()
+        if seen >= GLOBAL_GLUE_PLANETS and stem not in _SHORT_SUBJECT_ALLOWLIST
+    }
     if not glue:
         return {label: set(stems) for label, (_top, stems) in stories.items()}
     owner: dict[str, int] = {}
@@ -274,40 +303,64 @@ def _without_global_glue(
     return cleaned
 
 
-def _fold_targets(
+def _group_size(label: int, members: np.ndarray, sizes: dict[int, int] | None) -> int:
+    if sizes is not None and label in sizes:
+        return int(sizes[label])
+    return int(members.size)
+
+
+def _matching_parents(
+    child: int,
+    members: np.ndarray,
     groups: dict[int, np.ndarray],
     story_stems: dict[int, set[str]],
     tops: dict[int, str | None],
     centroids: dict[int, np.ndarray],
     texts: list[str],
-) -> dict[int, int]:
-    """Map a sibling onto one larger planet. No parent is itself a sibling."""
+    sizes: dict[int, int] | None,
+    *,
+    fragments: bool,
+) -> list[tuple[float, int]]:
+    """Parents whose original center and top stem this sibling actually matches."""
+    child_size = _group_size(child, members, sizes)
+    if child_size < MIN_SIBLING or members.size == 0:
+        return []
+    ranked: list[tuple[float, int]] = []
+    for parent, parent_members in groups.items():
+        if parent == child:
+            continue
+        parent_size = _group_size(parent, parent_members, sizes)
+        if fragments:
+            if parent_size >= BIG_PLANET or child_size >= BIG_PLANET:
+                continue
+            if tops.get(parent) not in _SHORT_SUBJECT_ALLOWLIST:
+                continue
+        else:
+            if parent_size < BIG_PLANET or parent_size <= child_size:
+                continue
+        cosine = float(centroids[child] @ centroids[parent])
+        if cosine < FOLD_COSINE:
+            continue
+        hits = sum(
+            1
+            for index in members
+            if post_matches(texts[int(index)], story_stems[parent], required=tops.get(parent))
+        )
+        if hits / members.size < SIBLING_MAJORITY:
+            continue
+        ranked.append((cosine, parent))
+    ranked.sort(reverse=True)
+    return ranked
+
+
+def _choose_without_chains(ranked: dict[int, list[tuple[float, int]]]) -> dict[int, int]:
+    """Keep a fold only when the parent is not itself folding away."""
     candidates: list[tuple[float, int, int]] = []
-    for child, members in groups.items():
-        if members.size < MIN_SIBLING:
+    for child, options in ranked.items():
+        if not options:
             continue
-        ranked: list[tuple[float, int]] = []
-        for parent, parent_members in groups.items():
-            if parent == child or parent_members.size < BIG_PLANET:
-                continue
-            if parent_members.size <= members.size:
-                continue
-            cosine = float(centroids[child] @ centroids[parent])
-            if cosine < FOLD_COSINE:
-                continue
-            hits = sum(
-                1
-                for index in members
-                if post_matches(texts[int(index)], story_stems[parent], required=tops.get(parent))
-            )
-            if hits / members.size < SIBLING_MAJORITY:
-                continue
-            ranked.append((cosine, parent))
-        if not ranked:
-            continue
-        ranked.sort(reverse=True)
-        best_cosine, best_parent = ranked[0]
-        if len(ranked) > 1 and best_cosine - ranked[1][0] < AMBIGUITY:
+        best_cosine, best_parent = options[0]
+        if len(options) > 1 and best_cosine - options[1][0] < AMBIGUITY:
             continue
         candidates.append((best_cosine, child, best_parent))
     children = {child for _cosine, child, _parent in candidates}
@@ -316,6 +369,111 @@ def _fold_targets(
         if parent in children:
             continue
         chosen[child] = parent
+    return chosen
+
+
+def _fragment_folds(
+    groups: dict[int, np.ndarray],
+    story_stems: dict[int, set[str]],
+    tops: dict[int, str | None],
+    centroids: dict[int, np.ndarray],
+    texts: list[str],
+    sizes: dict[int, int] | None,
+    already: set[int],
+) -> dict[int, int]:
+    """Join sub-floor fragments that share an allowlisted subject.
+
+    The parent is the fragment the most others match directly, not a chain
+    through a neighbor. A fragment already folding into a big planet stays
+    on that planet.
+    """
+    options: dict[int, list[tuple[float, int]]] = {}
+    for child, members in groups.items():
+        if child in already:
+            continue
+        options[child] = [
+            item
+            for item in _matching_parents(
+                child,
+                members,
+                groups,
+                story_stems,
+                tops,
+                centroids,
+                texts,
+                sizes,
+                fragments=True,
+            )
+            if item[1] not in already
+        ]
+    linked: dict[int, set[int]] = {label: set() for label in options}
+    for child, ranked in options.items():
+        for _cosine, parent in ranked:
+            linked.setdefault(child, set()).add(parent)
+            linked.setdefault(parent, set()).add(child)
+    remaining = {label for label, ranked in options.items() if _group_size(label, groups[label], sizes) < BIG_PLANET}
+    chosen: dict[int, int] = {}
+    while True:
+        roots = [
+            label
+            for label in remaining
+            if tops.get(label) in _SHORT_SUBJECT_ALLOWLIST and (linked.get(label) or set()) & remaining
+        ]
+        if not roots:
+            break
+        root = max(
+            roots,
+            key=lambda label: (
+                len((linked.get(label) or set()) & remaining),
+                _group_size(label, groups[label], sizes),
+                -label,
+            ),
+        )
+        for child in list(remaining):
+            if child == root or child in chosen:
+                continue
+            direct = [item for item in options.get(child, ()) if item[1] == root]
+            if not direct:
+                continue
+            # Every candidate parent here already has the same allowlisted
+            # subject. A 0.03 gap inside that clique is not two stories.
+            chosen[child] = root
+        remaining.discard(root)
+        for child in chosen:
+            remaining.discard(child)
+    return chosen
+
+
+def _fold_targets(
+    groups: dict[int, np.ndarray],
+    story_stems: dict[int, set[str]],
+    tops: dict[int, str | None],
+    centroids: dict[int, np.ndarray],
+    texts: list[str],
+    sizes: dict[int, int] | None = None,
+) -> dict[int, int]:
+    """Map a sibling onto one planet. No parent is itself a sibling.
+
+    A planet of at least ``BIG_PLANET`` posts can still take a strictly
+    smaller sibling. Fragments under that size join each other only when
+    the parent's subject is on ``_SHORT_SUBJECT_ALLOWLIST``.
+    """
+    big: dict[int, list[tuple[float, int]]] = {}
+    for child, members in groups.items():
+        big[child] = _matching_parents(
+            child,
+            members,
+            groups,
+            story_stems,
+            tops,
+            centroids,
+            texts,
+            sizes,
+            fragments=False,
+        )
+    chosen = _choose_without_chains(big)
+    fragments = _fragment_folds(groups, story_stems, tops, centroids, texts, sizes, set(chosen))
+    chosen.update(fragments)
     return chosen
 
 
@@ -369,6 +527,7 @@ def attach_same_story(
     skip: list[int] | set[int] | None = None,
     noise: bool = True,
     fold: bool = True,
+    sizes: dict[int, int] | None = None,
 ) -> tuple[list[int], dict[str, int]]:
     """Return labels after the direct same-story checks.
 
@@ -381,12 +540,20 @@ def attach_same_story(
         return [], {"attached": 0, "folded_planets": 0, "folded_posts": 0}
     unit = _l2(matrix)
     groups = _groups(original)
-    sizes = {label: int(members.size) for label, members in groups.items()}
+    member_sizes = {label: int(members.size) for label, members in groups.items()}
+    # Callers replaying a published edition pass post_count. Production uses
+    # the member count, which is the cluster size before the publish floor.
+    if sizes is None:
+        gate_sizes = member_sizes
+    else:
+        gate_sizes = {
+            label: int(sizes.get(label, member_sizes[label])) for label in member_sizes
+        }
     stories = {label: story_of([texts[int(index)] for index in members]) for label, members in groups.items()}
     tops = {label: top for label, (top, _stems) in stories.items()}
-    story_stems = _without_global_glue(stories, sizes)
+    story_stems = _without_global_glue(stories, gate_sizes)
     centroids = {label: _center(unit, members) for label, members in groups.items()}
-    folded = _fold_targets(groups, story_stems, tops, centroids, texts) if fold else {}
+    folded = _fold_targets(groups, story_stems, tops, centroids, texts, gate_sizes) if fold else {}
     updated = original.copy()
     folded_posts = 0
     for child, parent in folded.items():
