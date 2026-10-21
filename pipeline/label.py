@@ -1911,20 +1911,46 @@ def resolve_openai_model(explicit: str | None = None) -> str:
 # Planets are labeled concurrently (pipeline.live), so a rate limit, a
 # gateway blip, or a timeout is retried with a short bounded backoff instead
 # of becoming a fallback label (which drops the face). 429 and 5xx get two
-# retries, 2s then 6s. A timeout gets one retry: run 39038944044's second
-# timeout retry of the same read never succeeded, and each one held a worker
-# for the full request timeout. A retry that would run past the section
-# deadline is not started. A timeout retry needs another full request timeout
-# still inside the ceiling. 90s: prompts are capped at 40 posts. The old 120s
-# timeout was for a 100-post stance sample that took 83s and, under 12-way
-# concurrency, still read-timed out.
-OPENAI_REQUEST_TIMEOUT = 90.0
+# retries, 2s then 6s. A timeout is retried up to four times (2s, 4s, 8s,
+# 16s). Each retry is a new POST with no idempotency key. Run 39072480258
+# held workers for 90s on reads that never returned, and the section phase
+# ran past 30 minutes. Every attempt, including the first read of a call,
+# starts only when the time left covers the backoff plus the read timeout.
+# After TIMEOUT_CIRCUIT_LIMIT consecutive timeouts in the phase, later
+# timeouts are not retried. The read timeout is sized from recent successful
+# call latency (p95 × margin, clamped 30–45s by default; LABEL_READ_TIMEOUT_MAX
+# raises the cap). The cap stays 45s until a run's histogram shows successes
+# between 45s and 90s. Logs from 39072480258 and 39417351709 do not have that
+# histogram.
+LABEL_READ_TIMEOUT_MIN = 30.0
+LABEL_READ_TIMEOUT_MAX = 45.0
+LABEL_READ_TIMEOUT_DEFAULT = 40.0
+LABEL_READ_TIMEOUT_PCTL = 0.95
+LABEL_READ_TIMEOUT_MARGIN = 1.5
+_LABEL_LATENCY_MIN_SAMPLES = 8
+_LABEL_LATENCY_MAX_SAMPLES = 256
+# Consecutive timeouts, across workers, before timeout retries stop for the phase.
+TIMEOUT_CIRCUIT_LIMIT = 6
+# Histogram edges. 45–90s is the band the default cap might be cutting off.
+_LATENCY_HISTOGRAM_EDGES = (30.0, 45.0, 90.0)
+OPENAI_REQUEST_TIMEOUT = LABEL_READ_TIMEOUT_MAX
 _RETRY_CLASSES = frozenset({"429", "5xx", "timeout"})
 _RETRY_DELAYS = (2.0, 6.0)
-_TIMEOUT_RETRY_DELAYS = (2.0,)
+_TIMEOUT_RETRY_DELAYS = (2.0, 4.0, 8.0, 16.0)
+
+
+class LabelBudgetExceeded(Exception):
+    """The next read would finish after the labeling deadline. No request was sent."""
+
+_latency_lock = threading.Lock()
+_latency_samples: list[float] = []
 
 _label_deadline_lock = threading.Lock()
 _label_deadline_monotonic: float | None = None
+
+_circuit_lock = threading.Lock()
+_consecutive_timeouts = 0
+_timeout_circuit_open = False
 
 
 def set_label_deadline(deadline: float | None) -> None:
@@ -1942,6 +1968,168 @@ def set_label_deadline(deadline: float | None) -> None:
 def get_label_deadline() -> float | None:
     with _label_deadline_lock:
         return _label_deadline_monotonic
+
+
+def reset_label_latency_samples() -> None:
+    """Clear in-run success latency samples (global and section labeling)."""
+    with _latency_lock:
+        _latency_samples.clear()
+
+
+def reset_label_timeout_circuit() -> None:
+    """Close the timeout circuit. Call at the start of a labeling phase."""
+    global _consecutive_timeouts, _timeout_circuit_open
+    with _circuit_lock:
+        _consecutive_timeouts = 0
+        _timeout_circuit_open = False
+
+
+def timeout_circuit_is_open() -> bool:
+    with _circuit_lock:
+        return _timeout_circuit_open
+
+
+def note_label_timeout() -> bool:
+    """Count one timed-out read. True means this timeout must not be retried.
+
+    The count is shared by every worker in the phase. A success before the
+    limit clears the streak. Once the circuit opens it stays open until the
+    next phase, so a dead provider cannot keep paying for four retries.
+    """
+    global _consecutive_timeouts, _timeout_circuit_open
+    with _circuit_lock:
+        if _timeout_circuit_open:
+            return True
+        _consecutive_timeouts += 1
+        if _consecutive_timeouts >= TIMEOUT_CIRCUIT_LIMIT:
+            _timeout_circuit_open = True
+            print(
+                f"DeepInfra timeout circuit open after {_consecutive_timeouts} "
+                "consecutive timeouts; timeout retries stop for this phase.",
+                file=sys.stderr,
+            )
+            return True
+        return False
+
+
+def note_label_success() -> None:
+    """A success clears the timeout streak unless the circuit is already open."""
+    global _consecutive_timeouts
+    with _circuit_lock:
+        if not _timeout_circuit_open:
+            _consecutive_timeouts = 0
+
+
+def configured_label_read_timeout_max() -> float:
+    """Cap on the adaptive read timeout. ``LABEL_READ_TIMEOUT_MAX`` overrides it.
+
+    The default is 45s. Set the env var higher only after a run's histogram
+    shows successful calls in the 45–90s bucket. A non-numeric value keeps
+    the default. The cap is never below ``LABEL_READ_TIMEOUT_MIN``.
+    """
+    raw = (os.getenv("LABEL_READ_TIMEOUT_MAX") or "").strip()
+    if not raw:
+        return LABEL_READ_TIMEOUT_MAX
+    try:
+        value = float(raw)
+    except ValueError:
+        return LABEL_READ_TIMEOUT_MAX
+    if value <= 0:
+        return LABEL_READ_TIMEOUT_MAX
+    return max(LABEL_READ_TIMEOUT_MIN, value)
+
+
+def record_label_latency(seconds: float) -> None:
+    """Track one successful OpenAI-compatible labeling round-trip."""
+    elapsed = float(seconds)
+    if elapsed <= 0:
+        return
+    with _latency_lock:
+        _latency_samples.append(elapsed)
+        if len(_latency_samples) > _LABEL_LATENCY_MAX_SAMPLES:
+            del _latency_samples[: len(_latency_samples) - _LABEL_LATENCY_MAX_SAMPLES]
+
+
+def compute_read_timeout(samples: list[float] | None = None) -> float:
+    """Return the per-request read timeout from recent successful-call latency.
+
+    Clean run 39065623599 averaged well under 20s per successful call at
+    12-way concurrency; preview 39072480258 spent 90s on each timeout. The
+    cap stays at 45s so a normal night does not time out healthy calls.
+    """
+    data = [float(item) for item in (samples or []) if float(item) > 0]
+    if len(data) < _LABEL_LATENCY_MIN_SAMPLES:
+        return LABEL_READ_TIMEOUT_DEFAULT
+    ordered = sorted(data)
+    index = min(len(ordered) - 1, int((len(ordered) - 1) * LABEL_READ_TIMEOUT_PCTL))
+    p95 = ordered[index]
+    target = p95 * LABEL_READ_TIMEOUT_MARGIN + 5.0
+    return max(LABEL_READ_TIMEOUT_MIN, min(configured_label_read_timeout_max(), target))
+
+
+def label_read_timeout() -> float:
+    with _latency_lock:
+        return compute_read_timeout(_latency_samples)
+
+
+def retry_budget_seconds(delay: float, error_class: str, *, read_timeout: float) -> float:
+    """Wall time until the next read can finish: backoff plus a full read.
+
+    Every attempt can block for the read timeout, including a 429 retry and
+    the first read of a call (``delay`` 0). Counting the read only for
+    timeouts let a retry start in the last two seconds and run through the
+    relabel reserve. ``error_class`` is kept so callers can still name the
+    failure they are budgeting.
+    """
+    del error_class
+    return float(delay) + float(read_timeout)
+
+
+def format_label_latency_summary() -> str | None:
+    """One line with success-call latency percentiles and the active read timeout."""
+    with _latency_lock:
+        samples = list(_latency_samples)
+    if not samples:
+        return None
+    ordered = sorted(samples)
+    count = len(ordered)
+
+    def percentile(p: float) -> float:
+        index = min(count - 1, int((count - 1) * p))
+        return ordered[index]
+
+    timeout = compute_read_timeout(samples)
+    return (
+        f"DeepInfra labeling latency (successful calls, n={count}): "
+        f"p50={percentile(0.50):.1f}s, p90={percentile(0.90):.1f}s, "
+        f"p95={percentile(0.95):.1f}s, max={ordered[-1]:.1f}s; "
+        f"histogram {format_latency_histogram(ordered)}; "
+        f"read_timeout={timeout:.0f}s."
+    )
+
+
+def format_latency_histogram(samples: list[float]) -> str:
+    """Bucket successful-call latency, including the 45–90s band above the default cap."""
+    edges = _LATENCY_HISTOGRAM_EDGES
+    labels = ("<30s", "30-45s", "45-90s", ">90s")
+    counts = [0, 0, 0, 0]
+    for value in samples:
+        seconds = float(value)
+        if seconds < edges[0]:
+            counts[0] += 1
+        elif seconds <= edges[1]:
+            counts[1] += 1
+        elif seconds <= edges[2]:
+            counts[2] += 1
+        else:
+            counts[3] += 1
+    return ", ".join(f"{label}={count}" for label, count in zip(labels, counts))
+
+
+def log_label_latency_summary() -> None:
+    line = format_label_latency_summary()
+    if line:
+        print(line)
 
 
 def classify_label_error(exc: BaseException) -> str:
@@ -1979,20 +2167,30 @@ def _looks_like_timeout(exc: BaseException) -> bool:
     return False
 
 
-def _retry_fits_budget(delay: float, error_class: str) -> tuple[bool, str]:
-    """A retry must finish inside the section ceiling when one is set."""
+def _attempt_fits_budget(delay: float, *, read_timeout: float) -> tuple[bool, str]:
+    """True when this read, including its backoff, can finish before the deadline.
+
+    The first read of a call passes ``delay`` 0. A deadline of ``None`` (global
+    labeling) does not gate. The comparison is ``remaining >= read_timeout +
+    delay``, so a read that starts finishes by the deadline if the socket
+    honors the timeout.
+    """
     deadline = get_label_deadline()
     if deadline is None:
         return True, ""
     remaining = deadline - time.monotonic()
-    needed = float(delay)
-    if error_class == "timeout":
-        needed += OPENAI_REQUEST_TIMEOUT
+    needed = retry_budget_seconds(delay, "read", read_timeout=read_timeout)
     if remaining >= needed:
         return True, ""
     return False, (
-        f"retry skipped; {remaining:.1f}s left in the section time budget, need {needed:.1f}s"
+        f"{remaining:.1f}s left in the section time budget, need {needed:.1f}s"
     )
+
+
+def _retry_fits_budget(delay: float, error_class: str) -> tuple[bool, str]:
+    """A retry must finish inside the section ceiling when one is set."""
+    del error_class
+    return _attempt_fits_budget(delay, read_timeout=label_read_timeout())
 
 
 def _log_label_error(exc: BaseException, error_class: str, *, retried: bool, skip_reason: str) -> None:
@@ -2024,19 +2222,34 @@ def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str
     payload: dict | None = None
     timeout_retries = 0
     other_retries = 0
+    pending_delay = 0.0
     while True:
+        read_timeout = label_read_timeout()
+        fits, skip_reason = _attempt_fits_budget(pending_delay, read_timeout=read_timeout)
+        if not fits:
+            # No POST. A started draft stops here instead of reading through
+            # the relabel reserve.
+            raise LabelBudgetExceeded(skip_reason)
+        if pending_delay:
+            time.sleep(float(pending_delay))
+        started = time.monotonic()
         try:
             payload = read_json(
                 f"{base}/chat/completions",
-                timeout=OPENAI_REQUEST_TIMEOUT,
+                timeout=read_timeout,
                 data=body,
                 headers=headers,
             )
         except RuntimeError as exc:
             error_class = classify_label_error(exc)
             if error_class == "timeout":
-                delays = _TIMEOUT_RETRY_DELAYS
-                used = timeout_retries
+                # The circuit counts this POST. Opening it skips the retry.
+                if note_label_timeout():
+                    delays = ()
+                    used = 0
+                else:
+                    delays = _TIMEOUT_RETRY_DELAYS
+                    used = timeout_retries
             elif error_class in _RETRY_CLASSES:
                 delays = _RETRY_DELAYS
                 used = other_retries
@@ -2047,7 +2260,7 @@ def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str
             fits = False
             skip_reason = ""
             if delay is not None:
-                fits, skip_reason = _retry_fits_budget(delay, error_class)
+                fits, skip_reason = _attempt_fits_budget(float(delay), read_timeout=label_read_timeout())
             will_retry = delay is not None and fits
             _remember_label_cost(
                 model,
@@ -2062,12 +2275,130 @@ def _openai_generate(prompt: str, model: str, *, seed: int | None = None) -> str
                 timeout_retries += 1
             else:
                 other_retries += 1
-            time.sleep(float(delay))
+            pending_delay = float(delay)
             continue
+        note_label_success()
+        record_label_latency(time.monotonic() - started)
         _remember_label_cost(model, payload, "success")
         break
     assert payload is not None
     return str(payload["choices"][0]["message"]["content"])
+
+
+def dead_provider_worst_case(
+    *,
+    workers: int = 12,
+    draft_ceiling: float = 24 * 60,
+    section_ceiling: float = 30 * 60,
+    read_timeout: float = LABEL_READ_TIMEOUT_DEFAULT,
+    retry_delays: tuple[float, ...] = _TIMEOUT_RETRY_DELAYS,
+    calls_per_planet: int = 16,
+    circuit_limit: int = TIMEOUT_CIRCUIT_LIMIT,
+) -> dict:
+    """POSTs and wall time when every labeling read times out.
+
+    12 workers is the section pool. 16 calls is one planet's wave from run
+    37696485020 (about 175s at 11s per call). The draft ceiling is 24 minutes:
+    the 30 minute section budget minus the 6 minute relabel reserve. A new
+    planet is not started at that ceiling.
+
+    ``before`` is the reviewed behavior: the first read is not gated, so the
+    planet already in flight keeps issuing reads past the ceiling, and each
+    timeout still retries up to four times while the retry fits.
+
+    ``after`` gates every read on the ceiling and opens the timeout circuit
+    at ``circuit_limit`` consecutive timeouts, shared across workers.
+
+    ``unbounded_extra_posts`` is one full wave with four retries and no
+    ceiling: 12 × 16 × 4 = 768, the "~800 extra POSTs" case. Those retries
+    are new POSTs with no idempotency key.
+    """
+
+    def _before_one_worker() -> tuple[float, int, int]:
+        clock = 0.0
+        posts = 0
+        extra = 0
+        left = 0
+        while True:
+            if left == 0:
+                if clock >= draft_ceiling:
+                    break
+                left = calls_per_planet
+            if left == calls_per_planet and clock >= draft_ceiling:
+                break
+            clock += read_timeout
+            posts += 1
+            left -= 1
+            if clock >= draft_ceiling:
+                continue
+            for delay in retry_delays:
+                if draft_ceiling - clock < delay + read_timeout:
+                    break
+                clock += delay + read_timeout
+                posts += 1
+                extra += 1
+        return clock, posts, extra
+
+    before_clock, before_posts_one, before_extra_one = _before_one_worker()
+    before = {
+        "wall_seconds": before_clock,
+        "posts": before_posts_one * workers,
+        "extra_posts": before_extra_one * workers,
+    }
+
+    clocks = [0.0] * workers
+    left = [0] * workers
+    posts = 0
+    extra = 0
+    consecutive = 0
+    circuit_open = False
+    while True:
+        ready: list[tuple[float, int]] = []
+        for index, clock in enumerate(clocks):
+            if left[index] == 0 and clock < draft_ceiling:
+                left[index] = calls_per_planet
+            if left[index] > 0 and draft_ceiling - clock >= read_timeout:
+                ready.append((clock, index))
+        if not ready:
+            break
+        ready.sort()
+        clock, index = ready[0]
+        clocks[index] = clock + read_timeout
+        posts += 1
+        left[index] -= 1
+        if circuit_open:
+            continue
+        consecutive += 1
+        if consecutive >= circuit_limit:
+            circuit_open = True
+            continue
+        for delay in retry_delays:
+            if circuit_open:
+                break
+            if draft_ceiling - clocks[index] < delay + read_timeout:
+                break
+            clocks[index] += delay + read_timeout
+            posts += 1
+            extra += 1
+            consecutive += 1
+            if consecutive >= circuit_limit:
+                circuit_open = True
+                break
+    after = {
+        "wall_seconds": max(clocks) if clocks else 0.0,
+        "posts": posts,
+        "extra_posts": extra,
+        "circuit_open": circuit_open,
+    }
+    return {
+        "before": before,
+        "after": after,
+        "draft_ceiling": draft_ceiling,
+        "section_ceiling": section_ceiling,
+        "unbounded_extra_posts": workers * calls_per_planet * len(retry_delays),
+        "unbounded_wall_seconds": calls_per_planet
+        * (read_timeout * (len(retry_delays) + 1) + sum(retry_delays)),
+    }
 
 
 def _remember_label_cost(

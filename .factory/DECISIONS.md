@@ -723,6 +723,19 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** 8 (the Manager's recommendation: drops 23 planets, 1.0% of posts), 10/15/20 (1.7% to 3.5% of posts), and the conditional grab-bag drop (rejected by Michael earlier today).
 - **Revisit:** If real news stories keep falling under the floor, or if the edition looks thin on low-volume days. Also once Michael decides whether a planet that clears 30 whole, but splits into pieces that are all under 30, should stay one planet (0 cases on Oct 19).
 
+### 2026-10-20: Fix root causes of bad groupings and perspectives where possible
+- **Decision:** For bad planets (groupings) or bad faces (perspectives), fix the upstream cause first (filtering, clustering, stance and labeling). Post-hoc cleanup such as hiding, folding, dropping or relabeling at publish time is fine as a stopgap only when the PR names the root cause and links an open issue for it.
+- **Why:** Michael wants quality improved at the source, not masked on the page.
+- **Alternatives:** Keep cleanup-only fixes (rejected as the default).
+- **Revisit:** If a root-cause fix costs more than the daily budget allows, or can't beat main on the same replay measure.
+- **Decided by:** Michael, Factory room, 2026-10-20 9:49 AM CT ("where possible try to fix root cause rather than just post-hoc aesthetic cleaning up bad groupings or bad perspectives").
+
+### 2026-10-20: Labeling reads stop at the section ceiling; timeout retries trip a circuit
+- **Decision:** Every DeepInfra labeling read, including the first of a call, starts only when the time left covers the backoff plus the read timeout. After 6 consecutive timeouts in a phase, further timeout retries stop. The main section-draft pass holds back one max read (45s) so a skipped section or a timed-out planet can be retried once before the relabel reserve. The default read-timeout cap stays 45s until a run logs successes in the 45–90s histogram bucket; `LABEL_READ_TIMEOUT_MAX` can raise it.
+- **Why:** Run 39072480258 spent the section budget on 90s read timeouts (section phase to about 1,970s, wide relabel 0/71). Four ungated timeout retries on a dead provider add hundreds of POSTs, and those retries are new requests with no idempotency key.
+- **Alternatives:** Leave the end-of-draft retry in place without a reserved window (it never ran on the night it was written). Drop the retry entirely. Keep a flat 90s read.
+- **Revisit:** When a production histogram shows whether successful calls land between 45s and 90s. Raise the cap if that bucket is regularly non-empty on a healthy night.
+
 ### 2026-10-20: Build planet dossiers to improve summaries and perspectives
 - **Decision:** Build planet dossiers (#241, issue #237) now, as an input to planet summaries and face perspectives. The future visitor chat (#240) will reuse them later (#240 stays on hold). Close the stale drafts #198, #184, #170, #142 and #145; their issues stay open (#151, #168, #172 linked to #275).
 - **Why:** Michael (Factory room, 2026-10-20 10:45 AM CT): "This should feed better summaries and perspectives as well as the future chat. The summaries right now are poor quality." The closed drafts were superseded or built for paths that no longer run.

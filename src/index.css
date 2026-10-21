@@ -1660,6 +1660,96 @@ h3 {
   cursor: pointer;
 }
 
+.sponsor-flyby-screen {
+  position: fixed;
+  z-index: 6;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
+  overflow: visible;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55));
+}
+
+.sponsor-flyby-tow-row {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transform: translateY(-50%);
+}
+
+.sponsor-flyby-tow-row.is-left {
+  left: auto;
+  right: 0;
+  flex-direction: row-reverse;
+}
+
+.sponsor-flyby-ship {
+  pointer-events: none;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 8px;
+  border-radius: 50% 12% 12% 50%;
+  background: linear-gradient(135deg, #c8d4f5 0%, #7f93c8 55%, #4a5f94 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  position: relative;
+}
+
+.sponsor-flyby-ship::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 5px;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 2px 0 0 2px;
+  background: linear-gradient(90deg, #ffb86a, transparent);
+  opacity: 0.75;
+}
+
+.sponsor-flyby-towline {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgba(214, 220, 240, 0.45), rgba(244, 226, 176, 0.95));
+}
+
+.sponsor-flyby-banner {
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(244, 193, 78, 0.85);
+  background: rgba(4, 6, 12, 0.92);
+  text-align: center;
+}
+
+.sponsor-flyby-banner-text {
+  display: inline-block;
+  color: #fff4d6;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 900px) {
+  .sponsor-flyby-banner-text {
+    font-size: 14px;
+    white-space: normal;
+    max-width: min(72vw, 16rem);
+  }
+
+  .sponsor-flyby-towline--screen {
+    width: 10px;
+  }
+}
+
 .observatory-empty {
   position: absolute;
   inset: 0;
@@ -1805,7 +1895,7 @@ h3 {
     min-height: 0;
   }
 
-  .app-shell.is-orbits .observatory > div:not(.observatory-chrome),
+  .app-shell.is-orbits .observatory > div:not(.observatory-chrome):not(.sponsor-flyby-screen),
   .app-shell.is-orbits .observatory canvas {
     width: 100% !important;
     height: 100% !important;

@@ -51,6 +51,7 @@ class EditionRoundLog:
     posts_fetched: int
     spam_blocked: int
     chitchat_blocked: int
+    health_update_blocked: int
     language_blocked: int
     link_blocked: int
     near_duplicate_dropped: int
@@ -92,6 +93,7 @@ class EditionFillResult:
                     "posts_fetched": row.posts_fetched,
                     "spam_blocked": row.spam_blocked,
                     "chitchat_blocked": row.chitchat_blocked,
+                    "health_update_blocked": row.health_update_blocked,
                     "language_blocked": row.language_blocked,
                     "link_blocked": row.link_blocked,
                     "near_duplicate_dropped": row.near_duplicate_dropped,
@@ -156,6 +158,7 @@ def _log_snapshot() -> dict[str, int]:
         "fetched": log.fetched,
         "spam_blocked": log.spam_blocked,
         "chitchat_blocked": log.chitchat_blocked,
+        "health_update_blocked": log.health_update_blocked,
         "language_blocked": log.language_blocked,
         "link_blocked": log.link_blocked,
     }
@@ -186,6 +189,7 @@ def measure_edition(
         print(
             "Carried-over clustering filters: "
             f"chitchat={cluster_skips.get('chitchat', 0)}, "
+            f"health_update={cluster_skips.get('health_update', 0)}, "
             f"link_only={cluster_skips.get('link_only', 0)}, "
             f"language={cluster_skips.get('language', 0)}."
         )
@@ -298,6 +302,7 @@ def _print_round(row: EditionRoundLog) -> None:
         "Edition fill round "
         f"{row.round}: fetched={row.posts_fetched}, "
         f"kept spam={row.spam_blocked} chitchat={row.chitchat_blocked} "
+        f"health_update={row.health_update_blocked} "
         f"language={row.language_blocked} link={row.link_blocked} "
         f"near_dup={row.near_duplicate_dropped} late_chitchat={row.late_chitchat_skipped}, "
         f"stored={row.stored_count}, edition_quality={row.edition_quality_count}, "
@@ -457,6 +462,7 @@ def _round_log(
         posts_fetched=int(delta.get("fetched", 0)),
         spam_blocked=int(delta.get("spam_blocked", 0)),
         chitchat_blocked=int(delta.get("chitchat_blocked", 0)),
+        health_update_blocked=int(delta.get("health_update_blocked", 0)),
         language_blocked=int(delta.get("language_blocked", 0)),
         link_blocked=int(delta.get("link_blocked", 0)),
         near_duplicate_dropped=int(near_dup),
