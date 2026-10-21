@@ -182,7 +182,11 @@ def _ask_model(generate: Callable[[str], str], prompt: str) -> dict | None:
         raw = generate(prompt)
     except SpendCapExceeded:
         raise
-    except Exception:
+    except Exception as exc:
+        from pipeline.label import LabelBudgetExceeded
+
+        if isinstance(exc, LabelBudgetExceeded):
+            raise
         return None
     start = str(raw or "").find("{")
     end = str(raw or "").rfind("}")

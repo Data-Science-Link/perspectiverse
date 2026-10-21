@@ -729,3 +729,9 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Keep cleanup-only fixes (rejected as the default).
 - **Revisit:** If a root-cause fix costs more than the daily budget allows, or can't beat main on the same replay measure.
 - **Decided by:** Michael, Factory room, 2026-10-20 9:49 AM CT ("where possible try to fix root cause rather than just post-hoc aesthetic cleaning up bad groupings or bad perspectives").
+
+### 2026-10-20: Labeling reads stop at the section ceiling; timeout retries trip a circuit
+- **Decision:** Every DeepInfra labeling read, including the first of a call, starts only when the time left covers the backoff plus the read timeout. After 6 consecutive timeouts in a phase, further timeout retries stop. The main section-draft pass holds back one max read (45s) so a skipped section or a timed-out planet can be retried once before the relabel reserve. The default read-timeout cap stays 45s until a run logs successes in the 45–90s histogram bucket; `LABEL_READ_TIMEOUT_MAX` can raise it.
+- **Why:** Run 39072480258 spent the section budget on 90s read timeouts (section phase to about 1,970s, wide relabel 0/71). Four ungated timeout retries on a dead provider add hundreds of POSTs, and those retries are new requests with no idempotency key.
+- **Alternatives:** Leave the end-of-draft retry in place without a reserved window (it never ran on the night it was written). Drop the retry entirely. Keep a flat 90s read.
+- **Revisit:** When a production histogram shows whether successful calls land between 45s and 90s. Raise the cap if that bucket is regularly non-empty on a healthy night.

@@ -229,10 +229,17 @@ def report_label_health(summary: dict | None) -> str | None:
 
     Returns the warning text when one was emitted.
     """
+    from pipeline.label import format_label_latency_summary
+
     line = format_deepinfra_error_log(summary)
     print(line)
+    latency_line = format_label_latency_summary()
+    if latency_line:
+        print(latency_line)
     warning = final_failure_warning(summary)
     body = "## DeepInfra labeling errors\n\n" + line + "\n"
+    if latency_line:
+        body += latency_line + "\n"
     if warning:
         print(f"WARNING: {warning}", file=sys.stderr)
         if os.environ.get("GITHUB_ACTIONS"):
