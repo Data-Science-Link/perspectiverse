@@ -748,3 +748,15 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Michael: "Build all three" (Factory room, 2026-10-20 10:56 AM CT). Composer-2.5 model labels put duplicate planet pairs at about 6.8 per section and about 0.12 true face repeats per planet. These fixes address root causes rather than publish-time cleanup (DECISIONS 2026-10-20, root causes over stopgaps).
 - **Alternatives:** Build only the top-ranked fix; keep relying on the publish-time stopgaps (#266, #268).
 - **Revisit:** If a fix fails its replay on either day, drop or rework that fix alone. Revisit once #273 has human labels to calibrate against, because every figure so far comes from a model.
+
+### 2026-10-20: Three lessons from Oct 20 (agent cap, evidence by head SHA, guard fixtures)
+- **Decision:** (1) Run at most 4 cloud agents at once, and when usage stops a run, leave a restart note on its issue. (2) Save UI screenshot evidence under `docs/evidence/pr-N/head-<sha>/` at the code head shown; retake only when a catch-up touches front-end files or changes the PR's own diff. (3) Every guard fix ships with regression fixture tests built from the last 3 editions' missed planets, and before it is called done it also counts its misses on the next fresh edition it was not built from.
+- **Why:** On Oct 20 Cursor usage ran out with about 6 workers in flight, and they all stalled together. #233's evidence check failed only because the screenshots lacked the head SHA. The greeting guard missed Good Sunday (349 posts) and Twitch (250 posts), the same blind spot as #260 and #264. Michael (Factory room, 2026-10-20 11:42 PM CT): "All those suggestions sound good to me."
+- **Alternatives:** Retake screenshots after every catch-up (rejected: contradicts the clean-catch-up rule and spends usage on unchanged UI). Judge guard fixes only on the fixtures they were tuned on (rejected: breaks the hold-out rule used on #273 and #276).
+- **Revisit:** If 4 concurrent agents proves too slow or still overruns usage.
+
+### 2026-10-20: Coding paused until the Cursor limit resets
+- **Decision:** No new cloud-agent coding until Cursor usage resets (about 18 days, around 2026-11-07). The Manager keeps doing basic work without cloud agents: docs PRs, merges Michael approves, the daily pipeline check, and issue upkeep. Stalled runs (#247 re-review, #288, #276, #292 rework, #241 paid test) restart after the reset. On-demand spending stays off.
+- **Why:** Michael (Factory room, 2026-10-20 11:42 PM CT): "Let's wait on doing anymore coding besides basic stuff you all can do. I will await the cursor limits being lifted in about 18 days."
+- **Alternatives:** Enable on-demand spending; use a coding agent outside Cursor with its own billing (both not chosen).
+- **Revisit:** When the limit resets, or earlier if Michael raises it.

@@ -25,7 +25,7 @@ Also follow `liability-gates.md` on every change.
 - Follow repo conventions via `.factory/DOCS.md` and any repo-specific skills here.
 - **Fill the whole PR template**, especially the **Factory loop** section (steps 1–8). That checklist is how humans audit process adherence — leave it blank only if a step is truly N/A, with a one-line note.
 - Fill risk class, AI disclosure, safety checklist, and evidence.
-- **UI / frontend / website / pages:** put screenshots in the PR **Evidence** section of the description (embed or link; before/after when practical). Thread-only comments do **not** count. No Evidence screenshots → do not treat the PR as ready.
+- **UI / frontend / website / pages:** put screenshots in the PR **Evidence** section of the description (embed or link; before/after when practical). Thread-only comments do **not** count. No Evidence screenshots → do not treat the PR as ready. Save shots under `docs/evidence/pr-N/head-<sha>/`, named for the code head they show. Retake them only if a catch-up touches front-end files or changes the PR's own diff; a clean catch-up keeps the evidence.
 
 ## Review & verify
 

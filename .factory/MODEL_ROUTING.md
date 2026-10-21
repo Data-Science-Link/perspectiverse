@@ -32,6 +32,7 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 - **Other Models used up** → keep working on Cursor Models only. Don't ask; don't enable on-demand.
 - **Cursor Models used up** → finish nothing new. Tell the human and ask: enable on-demand spending, or wait for the monthly reset.
 - **Never turn on on-demand spending yourself.**
+- **At most 4 cloud agents running at once.** When usage stops a run, comment a restart note on its issue (agent ID, model, head SHA, what was left) so it can be relaunched cleanly.
 
 ## Human's editor default
 
