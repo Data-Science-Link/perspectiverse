@@ -735,3 +735,16 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Run 39072480258 spent the section budget on 90s read timeouts (section phase to about 1,970s, wide relabel 0/71). Four ungated timeout retries on a dead provider add hundreds of POSTs, and those retries are new requests with no idempotency key.
 - **Alternatives:** Leave the end-of-draft retry in place without a reserved window (it never ran on the night it was written). Drop the retry entirely. Keep a flat 90s read.
 - **Revisit:** When a production histogram shows whether successful calls land between 45s and 90s. Raise the cap if that bucket is regularly non-empty on a healthy night.
+
+### 2026-10-20: Build planet dossiers to improve summaries and perspectives
+- **Decision:** Build planet dossiers (#241, issue #237) now, as an input to planet summaries and face perspectives. The future visitor chat (#240) will reuse them later (#240 stays on hold). Close the stale drafts #198, #184, #170, #142 and #145; their issues stay open (#151, #168, #172 linked to #275).
+- **Why:** Michael (Factory room, 2026-10-20 10:45 AM CT): "This should feed better summaries and perspectives as well as the future chat. The summaries right now are poor quality." The closed drafts were superseded or built for paths that no longer run.
+- **Done bar:** a blind, seeded before/after score of summary quality against main using a written question, plus Michael's spot-check, plus the added paid $/day measured against #87's ≤$0.25/day bar. Dossiers existing is not the bar.
+- **Alternatives:** Park #241 until the visitor chat resumes (the Manager's recommendation); improve summaries without dossiers.
+- **Revisit:** If the measured summary-quality comparison shows no gain over main, or the extra paid calls push daily spend over #87's bar.
+
+### 2026-10-20: Build three upstream fixes for duplicate planets and faces (#275)
+- **Decision:** Build all three $0 fixes from the #284 spec, each as its own PR: (1) stop splitting a planet into paraphrase faces (#286), (2) join same-story fragments upstream (#287, from #272), and (3) fix the greeting matcher (#288). Each merges only on Michael's "approve #N" and only if its replay on Oct 19 and a fresh Oct 20 sample, scored with grok-4.7 blind labels, shows duplicates dropping on both days with no rise in different-labeled pairs joined or removed, or in posts/planets pushed into Other.
+- **Why:** Michael: "Build all three" (Factory room, 2026-10-20 10:56 AM CT). Composer-2.5 model labels put duplicate planet pairs at about 6.8 per section and about 0.12 true face repeats per planet. These fixes address root causes rather than publish-time cleanup (DECISIONS 2026-10-20, root causes over stopgaps).
+- **Alternatives:** Build only the top-ranked fix; keep relying on the publish-time stopgaps (#266, #268).
+- **Revisit:** If a fix fails its replay on either day, drop or rework that fix alone. Revisit once #273 has human labels to calibrate against, because every figure so far comes from a model.
