@@ -781,3 +781,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** Rely on the existing name-replacement rule only.
 - **Revisit:** When the check finds nothing for two weeks.
 - **Decided by:** Michael Link, Factory room, 2026-10-23 about 6:09 AM CT ("Yes to the rest").
+
+### 2026-10-23 — Hold the 30-post floor; fix thin sections upstream (#294)
+- **Decision:** Keep the 30-post planet floor as is. Thin sections like Education (1 planet on Oct 22) are fixed upstream in grouping (#272, #287), not with a publish-time or per-section floor.
+- **Why:** Both recent Education planets were the same Oregon school shooting story, so thinness is a grouping problem. This follows Michael's Oct 20 root-cause rule (DECISIONS 2026-10-20, fix root causes where possible).
+- **Alternatives:** A lower floor for sections with fewer than 3 planets (e.g. 10 posts); lower the floor everywhere.
+- **Revisit:** At the Nov 7 coding restart, or after #272/#287 ship.
+- **Decided by:** Michael Link, Factory room, 2026-10-23 ("30 posts as is now").
