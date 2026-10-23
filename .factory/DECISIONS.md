@@ -788,3 +788,15 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** A lower floor for sections with fewer than 3 planets (e.g. 10 posts); lower the floor everywhere.
 - **Revisit:** At the Nov 7 coding restart, or after #272/#287 ship.
 - **Decided by:** Michael Link, Factory room, 2026-10-23 ("30 posts as is now").
+
+### 2026-10-23 — Factory rules from the Oct 23 retro (rules 2–8; usage ledger declined)
+- **Decision:** Adopt as written rules, in both the factory template and this repo:
+  - No hidden faults: a reporting change can't mute a recurring problem unless that problem has its own fix issue. Example: #253.
+  - Outside coding agents run the same loop and need Michael's own cost OK before any launch. This rule is not that OK.
+  - Date-proof tests: tests never pair a hardcoded date with the real clock. Pin the clock or seed relative to it.
+  - Questions to Michael are (a)/(b) choices with a recommended pick.
+  - The agent cap and restart lists, evidence by head SHA, and fresh-sample proof stay as decided on 2026-10-20.
+- **Why:** Lessons from Oct 20 to 23: the credit wall, the late-cron note, the expiring-cache test (#296), and the three messages it took to settle "Do the 30 section floor".
+- **Alternatives:** A spend ledger with a weekly check of the Cursor usage dashboard. Michael declined it ("I'm ok with how it is now").
+- **Revisit:** If Cursor credits run out unexpectedly again.
+- **Decided by:** Michael Link, Factory room, 2026-10-23 8:07 AM CT.

@@ -26,6 +26,7 @@ Also follow `liability-gates.md` on every change.
 - **Fill the whole PR template**, especially the **Factory loop** section (steps 1–8). That checklist is how humans audit process adherence — leave it blank only if a step is truly N/A, with a one-line note.
 - Fill risk class, AI disclosure, safety checklist, and evidence.
 - **UI / frontend / website / pages:** put screenshots in the PR **Evidence** section of the description (embed or link; before/after when practical). Thread-only comments do **not** count. No Evidence screenshots → do not treat the PR as ready. Save shots under `docs/evidence/pr-N/head-<sha>/`, named for the code head they show. Retake them only if a catch-up touches front-end files or changes the PR's own diff; a clean catch-up keeps the evidence.
+- **Evidence is tied to code.** Test results and replay or score outputs used as evidence go under the same `docs/evidence/pr-N/head-<sha>/` folder as screenshots, for the exact commit they ran on (or link the CI run for that SHA).
 
 ## Review & verify
 
@@ -34,6 +35,8 @@ Also follow `liability-gates.md` on every change.
 - A cloud agent's token can't comment. The manager posts that agent's reviews and reports on the PR.
 - Run tests/CI; put evidence on the PR (CI links, tests, **screenshots for UI**).
 - Any reader-facing change shows the top 10 before and after before approval. A done claim waits for a hand audit of the real top 10 planets.
+- **Date-proof tests.** A test never pairs a hard-coded date with the real clock. Pin the clock (pass a fixed `now`, or patch the clock) or seed dates relative to it, and test expiry boundaries (TTLs, windows) on purpose, just inside and just past (example: #296).
+- **Fresh-sample proof.** A quality or guard fix is not done until it is scored on a fresh edition it was not built from: regression fixtures from the last 3 editions' misses, plus a miss count on the next fresh edition (DECISIONS 2026-10-20, three lessons).
 - Do not merge if required CI is red, pending, or skipped.
 
 ### Merge authority (do not invent exceptions)

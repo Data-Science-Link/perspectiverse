@@ -34,6 +34,11 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 - **Never turn on on-demand spending yourself.**
 - **At most 4 cloud agents running at once.** When usage stops a run, comment a restart note on its issue (agent ID, model, head SHA, what was left) so it can be relaunched cleanly.
 
+## Outside coding agents (not Cursor)
+
+- None approved today. Before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
+- They run the same loop as Cursor agents: triage line, review by a different model, verify (CI and evidence), and the human gate for normal/high work. Record the tool, model and run ID in the PR's AI disclosure.
+
 ## Human's editor default
 
 Recommended Cursor default model: `composer-2.5` (cheapest, Cursor pool, and the fallback for any unpinned launch). Switch to Grok 4.7 by hand for hard work.
