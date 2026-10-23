@@ -760,3 +760,24 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Michael (Factory room, 2026-10-20 11:42 PM CT): "Let's wait on doing anymore coding besides basic stuff you all can do. I will await the cursor limits being lifted in about 18 days."
 - **Alternatives:** Enable on-demand spending; use a coding agent outside Cursor with its own billing (both not chosen).
 - **Revisit:** When the limit resets, or earlier if Michael raises it.
+
+### 2026-10-23 — Backup republish counts against the spend bar (#294)
+- **Decision:** When the first scheduled run is held or fails, a guarded backup cron slot may run and republish (about $0.15 extra). Backup days DO count against the $0.25/day bar (#87), so a backup day like 2026-10-21 (about $0.29) misses the bar knowingly; the daily check reports it as over.
+- **Why:** A fresh edition by 10 AM CT (#97) matters more than one day's spend; counting backup days keeps the bar honest.
+- **Alternatives:** No backup republish; exclude backup days from the bar.
+- **Revisit:** When backups happen more than about twice a week, or #253 (late cron start) is fixed.
+- **Decided by:** Michael Link, Factory room, 2026-10-23 about 6:09 AM CT ("Yes to the rest").
+
+### 2026-10-23 — Freshness judged by publish time, not start time (#97, #253)
+- **Decision:** The daily check judges freshness by whether a successful run published by 10 AM CT. A late start alone isn't a staleness flag, but it is not muted: every daily check reports the scheduled-run start delay and how many days in a row it has been over 1 hour. The repeating late start is its own root-cause issue, #253 (all five cron slots deferred about 4h40m–5h45m Oct 17–22; only one retry fits before 10 AM).
+- **Why:** Readers care whether the edition is fresh by 10 AM CT (#97); a late start that still publishes on time isn't stale. Reporting the delay every day keeps the root cause (#253) visible instead of muted.
+- **Alternatives:** Flag every late start as a failure; stop reporting delays.
+- **Revisit:** When #253 closes.
+- **Decided by:** Michael Link, Factory room, 2026-10-23 about 6:09 AM CT ("Yes to the rest").
+
+### 2026-10-23 — Newcomer review checks planet names against their own text
+- **Decision:** The newcomer-review checklist includes "a planet's name (especially global/All topics planets) matches its own body text, briefs and faces".
+- **Why:** On 2026-10-22 the top global planet "AI Models" described itself as "AI Limitations" and quoted a product ad as support.
+- **Alternatives:** Rely on the existing name-replacement rule only.
+- **Revisit:** When the check finds nothing for two weeks.
+- **Decided by:** Michael Link, Factory room, 2026-10-23 about 6:09 AM CT ("Yes to the rest").
