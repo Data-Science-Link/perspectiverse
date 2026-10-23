@@ -732,6 +732,18 @@ def test_morning_fetch_and_topup_skip_already_scored_uris(monkeypatch, tmp_path)
         return [{**post, "is_claim": True, "section": "Politics"} for post in posts]
 
     monkeypatch.setattr("pipeline.live.apply_jev", fake_jev)
+
+    # _topup_claims reads the real clock. Pin it to the test's moment so the
+    # 2026-10-08 verdict stays inside its 14-day TTL whatever today's date is.
+    clock = {"now": moment}
+
+    class _PinnedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            pinned = clock["now"]
+            return pinned if tz is None else pinned.astimezone(tz)
+
+    monkeypatch.setattr("pipeline.live.datetime", _PinnedClock)
     skips.clear()
     result, _corpus = _topup_claims(
         [existing],
@@ -743,6 +755,23 @@ def test_morning_fetch_and_topup_skip_already_scored_uris(monkeypatch, tmp_path)
     assert scored not in scored_by_jev
     assert fresh in scored_by_jev
     assert scored not in {post["uri"] for post in result}
+
+    # One day past the 14-day TTL the verdict expires, so the URI is fetched and scored again.
+    from datetime import timedelta
+
+    from pipeline.store import JEV_VERDICT_TTL_DAYS
+
+    clock["now"] = moment + timedelta(days=JEV_VERDICT_TTL_DAYS + 1)
+    skips.clear()
+    scored_by_jev.clear()
+    _topup_claims(
+        [existing],
+        target=4,
+        settings={"seed": 1, "neutral_queries": ["the"], "refresh_hours": 24},
+        connection=connection,
+    )
+    assert scored not in skips[0]
+    assert scored in scored_by_jev
     connection.close()
 
 
