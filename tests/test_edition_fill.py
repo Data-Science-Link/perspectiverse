@@ -105,7 +105,11 @@ def test_stop_reached_target(monkeypatch):
         return _ingest_result(corpus[: max(target, 1)])
 
     monkeypatch.setattr("pipeline.edition_fill.ingest_free", fake_ingest)
-    result = run_edition_fill_loop([], _settings(), None, target=target)
+    # Pin the clock to the fixture posts' date; on the real clock they leave the
+    # 168-hour window on 2026-10-24 12:00 UTC and the loop never reaches target.
+    result = run_edition_fill_loop(
+        [], _settings(), None, target=target, now=datetime(2026, 10, 17, 12, 0, tzinfo=timezone.utc)
+    )
     assert result.stop_reason == STOP_REACHED_TARGET
     assert len(result.planet_posts) == target
     assert result.rounds[-1].edition_quality_count == target
