@@ -788,3 +788,18 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** A lower floor for sections with fewer than 3 planets (e.g. 10 posts); lower the floor everywhere.
 - **Revisit:** At the Nov 7 coding restart, or after #272/#287 ship.
 - **Decided by:** Michael Link, Factory room, 2026-10-23 ("30 posts as is now").
+
+### 2026-10-23 — Factory rules from the Oct 23 retro (rules 2–8; usage ledger declined)
+- **Decision:** Adopt rules 2–8 from the Software Factory Builder's Oct 23 retro in this repo's `.factory/` docs:
+  - (2) At most 4 cloud agents at once, with a restart note on each issue. Already in `MODEL_ROUTING.md` ("When limits are hit", from #293); not duplicated.
+  - (3) Evidence tied to code under `docs/evidence/pr-N/head-<sha>/`. Already in `skills/factory-loop.md` for screenshots (#293); now extended to test results and replay outputs.
+  - (4) No hidden faults: a reporting change can't mute a recurring problem unless it has its own linked fix issue and is revisited when that issue closes (example #253). `FACTORY.md` Rules.
+  - (5) Outside (non-Cursor) coding agents run the same loop, are recorded here and in `MODEL_ROUTING.md`, and need Michael's explicit cost OK before first use. `MODEL_ROUTING.md` new section; summary in `FACTORY.md` Rules.
+  - (6) Date-proof tests: never pair a hard-coded date with the real clock; pin or seed relative to it; test expiry boundaries on purpose (example #296). `skills/factory-loop.md` Review & verify.
+  - (7) Fresh-sample proof for quality and guard fixes. Already decided in "2026-10-20: Three lessons from Oct 20" (#293); now also in `skills/factory-loop.md` Review & verify.
+  - (8) Questions to Michael are an (a)/(b) choice with a recommended pick. `FACTORY.md` Rules.
+  - Rule 1 (a spend/usage ledger that monitors Cursor usage) was declined: no usage monitoring is added.
+- **Why:** Each rule comes from an Oct 20–23 slip: agents stalling together when usage ran out, evidence not tied to a head SHA, late cron starts at risk of being muted, a date-bound test breaking CI (#296), guard fixes judged on their own fixtures, and a short answer ("Do the 30 section floor") that took three messages to settle. Michael is fine with how Cursor usage is handled today.
+- **Alternatives:** Adopt all eight, including the usage ledger (declined); keep the rules in chat only.
+- **Revisit:** If a rule costs more than it catches, or if usage runs out again without warning (reconsider rule 1).
+- **Decided by:** Michael Link, Factory room, 2026-10-23 8:07 AM CT ("Implement all those in the factory default and this repo except monitoring cursor usage. I'm ok with how it is now").
