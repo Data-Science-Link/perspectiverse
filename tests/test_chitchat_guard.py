@@ -1055,3 +1055,87 @@ def test_issue_222_portuguese_planets_drop_and_english_names_stay():
     assert planet_chitchat_reason([{"text": text} for text in english], [], name="Book Enthusiasm") is None
     mixed = [{"text": text} for text in english] + [{"text": portuguese[0]}] * 2
     assert planet_chitchat_reason(mixed, [], name="Early Voting") is None
+
+
+def test_issue_288_good_sunday_representatives_and_lookalikes():
+    """The rule that missed Good Sunday was ``_greeting_tail_only_allowlisted_content``.
+
+    A daypart tail was a greeting only when every substantive token was on
+    ``_GREETING_SUBSTANCE_ALLOWLIST``, or there was exactly one unknown name
+    and a wish word. Weather asides (``outside``, ``frost``, ``fall``) sit on
+    ``_GREETING_NEVER_NAME``, so they were hard rejects. A weekend plan or a
+    second soft word (``serene``, ``hopefully``, ``schedule``) tripped
+    ``len(name_tokens) > 1``. Wishes that do not open on a daypart never
+    reached that function: ``_greeting_wish_body`` returns false unless
+    ``_DAYPART_OPEN_RE`` matches.
+
+    The twelfth representative stays. ``downtown`` is on ``_GREETING_NEVER_NAME``,
+    the same guard as a price headline ("coffee is on sale downtown").
+    """
+    greetings = [
+        "Good morning Kelly. It’s going to be a relaxing day today. It’s chilly outside this morning probably our first little frost of the fall. ￼",
+        "Good night everynyan! I had a very fun and relaxing weekend, hopefully you all did too! Should be another good work week ahead. Take care and have a good night, sleep well! I'll see you tomorrow morning with my stream schedule ❤️",
+        "Good morning, Seima!🌞☕️💙☮️ I hope you have a serene and relaxing Sunday!",
+        "Good morning Bob and little ladies🐾🐾🤗☕️☕️☕️ Hope you guys slept well Asher let me know I was 5 minutes late for breakfast 🤣🐾💕 yes I got up pronto It’s a bit chilly here 38😳 I’ll go for a run later this morning Two loads of laundry and a meatloaf is in order today Have a great start to the morning 🤗🫂",
+        "Have a good rest of your evening. See you in the morning!😴",
+        "A very good and happy Thursday night 💤 to you all from Liverpool. I hope you all have pleasant dreams tonight and whatever you all are doing tonight please stay safe strong healthy and blessed tonight 😊👻🎃😈🍂✨🌙💫🪐🍁🙏",
+        "I hope you feel good today 🍃",
+        "Good morning ❤️ yes the legs 😈🍆💦 Safe travels today for both of you… Happy Sinful Sunday 💋",
+        "good afternoon my friends <:3c! i hope you’re all feeling okie today!! 💗 i’ve been a little distracted lately, but i’m very excited for all the new madoka goodies i just bought and have on the way <:D! i can’t wait to share them with you guys hehe… thank you all for being here and being AWESOME!! 💞🎀",
+        "Good morning 💋 last night was such a blast, I can't wait to update you all about my adventures 🤭",
+        "Please stay safe from those who look down on others today. May everyone return home safely and in good spirits. I will be here waiting for you. 🕊️✨🍀",
+        "Have a great time!",
+        "Omggg have a great time!!",
+        "Yes that was a good time!",
+        "Glad you're back, dawg. Hope all is going well.",
+        "Good for you!",
+        "Good day to you all",
+        "Such a good boy!",
+    ]
+    for text in greetings:
+        assert pleasantry_reason({"text": text}) == "greeting", text
+    keeps = [
+        # Place sign-off. ``downtown`` is a never-name, so this is not a greeting.
+        "Hope your day was productive and abundant in all ways. Good evening from downtown Toronto! 💙🩵✨️🇨🇦🍁⚾️🏀🥂",
+        "Good morning, coffee is on sale downtown",
+        "Good morning, warm weather records broken in Texas",
+        "Good morning, I hope you saw the warm weather records broken in Texas",
+        "Good morning Taylor Swift",
+        "Good evening Hezbollah",
+        "Good night Kamala",
+        "Good morning Iran",
+        "Have a great day. The parade starts at noon.",
+        "You are so far out of touch, I'm just not going to waste anymore time. Have a good evening.",
+        "Good morning, the frost warning closed the bridge",
+        "Good morning, fall enrollment at the university doubled",
+        # Opinion and a protest report that open like a day wish.
+        "Good morning everyone! I hope you have a great Sunday. Let's share some #BLUELOVE during this sad time of tRump's corruption and dictatorship.",
+        "Good morning dear Carly! You have a good Sunday. No Kings in Orono was a success - 120 of us!",
+        "If you’re a gym-goer and you don’t re-rack your weights, I hope you have a splinter in your finger for the rest of your days.",
+        'The gremlins who oversee how a day goes saw that they left my "Have A Good Day" switch on, so they had to get their bad day quota in for the afternoon',
+        # A glad-word inside a real topic is not a welcome-back.
+        "Glad someone got wet out of watching it.",
+        "I’m sorry, Ted. Glad you have a solid memory.",
+        "So glad you are becoming a great team. Happy Sunday my friends, hope you have a pawsome day.",
+        "Have a great time at the parade tomorrow.",
+        "Glad the senate passed the housing bill.",
+        "Such a good movie about the strike.",
+        "4. Blade Wolf. He's a very good boy",
+        "i have such a good name for them like i literally look like this irl",
+        "This is such a good timeline",
+        "Don't threaten me with a good time!!",
+        "Good for you Wisconsin!",
+        "Y'all for real, go check this out. It is going to be a good time. Guaranteed!",
+        # Health stays on the health_update split, not greeting.
+        "Good morning, my fever broke and I feel awful",
+    ]
+    misclassified = []
+    for text in keeps:
+        reason = pleasantry_reason({"text": text})
+        if text.startswith("Good morning, my fever"):
+            if reason != "health_update":
+                misclassified.append(f"{reason}: {text}")
+            continue
+        if reason is not None:
+            misclassified.append(f"{reason}: {text}")
+    assert misclassified == [], "\n".join(misclassified)
