@@ -14,7 +14,7 @@ Do not implement the feature in the coordinator chat.
 ## Steps
 
 1. Confirm the target repo (and labels if used).
-2. Create or refine one issue: title (outcome), body (context, constraints, done-when), links.
+2. Create or refine one issue: title (outcome), body (context, constraints, done-when), links. When it's ready to work, add the **handoff block** (see `factory-loop.md` → Triage), including its `Model: Cursor … · Local open-weights …` line and the cloud-vs-local lines under it (cloud agents ignore the Local open-weights model; local agents use it and follow `local-open-weights-run.md`).
 3. Reply in chat with the issue URL.
 4. **Kick the line:** message the factory manager (same room, SendToAgent, or project convention) with the issue URL and “run factory-loop.” If you *are* also the manager for this repo, start `factory-loop` yourself after filing.
 5. Coordinator stops building; manager owns triage → PR → verify.

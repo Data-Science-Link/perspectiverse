@@ -62,6 +62,10 @@ Scheduled workflows (daily data jobs, nightly builds) can fail with no PR in fli
 
 **Daily check freshness.** The daily check judges freshness by publish time, not start time: the edition is fresh if a successful run published by 10 AM CT (#97). A late start alone is not a staleness flag, but it is not muted: every daily check reports the scheduled-run start delay and how many days in a row it has been over 1 hour. The repeating late start is tracked as its own root-cause issue, [#253](https://github.com/Data-Science-Link/perspectiverse/issues/253); this note is revisited when that issue closes (DECISIONS 2026-10-23).
 
+## Local open-weights run
+
+When Cursor usage runs out, Michael can work a ready issue himself on a Local open-weights model (`MODEL_ROUTING.md` → Local open-weights harness has the setup and models). Steps: `skills/local-open-weights-run.md`. Cloud agents ignore the Local open-weights line in the handoff block and use the model they were launched with.
+
 ## Folder map
 
 ```
@@ -75,6 +79,7 @@ Scheduled workflows (daily data jobs, nightly builds) can fail with no PR in fli
     intake-from-coordinator.md    ← coordinator: chat → issue → hand off to manager
     giver.md                      ← giver: asks ledger, decision drafts, healthy challenge
     liability-gates.md            ← hard stops (secrets, license, CI, over-claims, merge authority)
+    local-open-weights-run.md     ← local agents only: run an issue on a Local open-weights model
   sketches/                       ← copy these into the repo root / .github/
     CONTRIBUTING.md
     github/pull_request_template.md

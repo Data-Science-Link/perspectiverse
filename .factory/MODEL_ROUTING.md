@@ -30,14 +30,39 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 ## When limits are hit
 
 - **Other Models used up** → keep working on Cursor Models only. Don't ask; don't enable on-demand.
-- **Cursor Models used up** → finish nothing new. Tell the human and ask: enable on-demand spending, or wait for the monthly reset.
+- **Cursor Models used up** → finish nothing new. Tell the human and ask: enable on-demand spending, wait for the monthly reset, or run ready issues himself on the Local open-weights harness below.
 - **Never turn on on-demand spending yourself.**
 - **At most 4 cloud agents running at once.** When usage stops a run, comment a restart note on its issue (agent ID, model, head SHA, what was left) so it can be relaunched cleanly.
 
 ## Outside coding agents (not Cursor)
 
-- None approved today. Before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
+- Documented, not turned on: the **Local open-weights** harness below (desktop Cursor + DeepInfra), per Michael's 2026-10-27 ask (DECISIONS 2026-10-27). Michael chose (b) docs only for now, 2026-10-27; Local open-weights runs are not turned on, no DeepInfra spend approved. Turning it on needs his explicit cost OK (expected cost per issue, monthly cap) and a call on whether it may run during a coding pause. Any other agent: before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
 - They run the same loop as Cursor agents: triage line, review by a different model, verify (CI and evidence), and the human gate for normal/high work. Record the tool, model and run ID in the PR's AI disclosure.
+
+## Local open-weights harness (when Cursor usage runs out)
+
+When Cursor usage runs out, Michael can run a ready issue himself in **desktop Cursor** with his own DeepInfra key, using the model in the issue's handoff block. Steps: `skills/local-open-weights-run.md`. Same loop, agent review, CI and human gates as cloud runs.
+
+**Cloud vs local:** cloud agents ignore the Local open-weights line in an issue's handoff block and use the model they were launched with. Local agents (Cursor desktop or another harness on Michael's machine using an open-weights provider such as DeepInfra) use the Local open-weights model the handoff block names and follow `skills/local-open-weights-run.md`.
+
+**Setup (once).** Per [Cursor help: bring your own API key](https://cursor.com/help/models-and-usage/api-keys) (checked 2026-10-27): in Cursor Settings → Models, put the DeepInfra key in the OpenAI API key field and turn it on, turn on the OpenAI base-URL override with `https://api.deepinfra.com/v1/openai`, and add each model ID below as a custom model (name must match the ID exactly). While the override is on, Cursor's own OpenAI-family models also go to DeepInfra; turn it off to go back. Own keys work only in desktop Chat and Agent, not cloud agents or Auto. Menu names change; follow Cursor's current page if it differs.
+
+**The key is never committed** — local Cursor settings or env only; never in the repo, an issue, a PR, a workflow or chat.
+
+**Default model:** `Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo` for every tier and all agentic runs (approved by Michael, 2026-10-27). The other rows are kept but each needs a test first.
+
+| Use | DeepInfra model ID (pin it) | Price / 1M tokens (in / out) | Status |
+|---|---|---|---|
+| **Default — every tier (S / M / L), all agentic runs** | `Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo` | $0.30 / $1.00 | **Default** |
+| **S** — small fix (Simple) | `deepseek-ai/DeepSeek-V4-Flash` | $0.09 / $0.18 | Needs test¹ |
+| **L** — high-risk or complex code, specs, user-facing copy (Complex, Writing) | `deepseek-ai/DeepSeek-V4-Pro` | $1.30 / $2.60 | Needs test¹ |
+| **Agent review** (a different model than the builder) | `moonshotai/Kimi-K2.6` | $0.75 / $3.50 | Needs test¹ |
+
+¹ **Needs test:** known Cursor custom-key bug - reasoning_content not returned after tool calls, thinking-mode DeepSeek V4/Kimi fail with 400 (Cursor staff, Jul 2026: https://forum.cursor.com/t/the-deepseek-v4-pro-api-cannot-be-used-normally/159042). Use only after a short local test with thinking off passes.
+
+Checked 2026-10-27 on the DeepInfra model pages (https://deepinfra.com/models) and https://api.deepinfra.com/v1/openai/models. Recheck IDs and prices every 3 months. High-risk work and specs use the **L** row once it has passed the local test; until then they run on the default model with the full review and human gates. No priority or long-context tiers unless Michael asks.
+
+**Caching and context.** DeepInfra prefix caching is automatic (https://docs.deepinfra.com/chat/prompt-caching), so keep the shared prefix stable: put the handoff prompt first and keep it stable, with no timestamps; don't switch models, rules or tools mid-run; keep issues small; start a new chat at about 60-70% of the context window; verify caching with `usage.prompt_tokens_details.cached_tokens` in the API response and the DeepInfra usage page.
 
 ## Human's editor default
 
