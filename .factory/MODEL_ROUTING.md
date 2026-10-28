@@ -30,18 +30,20 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 ## When limits are hit
 
 - **Other Models used up** → keep working on Cursor Models only. Don't ask; don't enable on-demand.
-- **Cursor Models used up** → finish nothing new. Tell the human and ask: enable on-demand spending, wait for the monthly reset, or run ready issues himself on the local fallback below.
+- **Cursor Models used up** → finish nothing new. Tell the human and ask: enable on-demand spending, wait for the monthly reset, or run ready issues himself on the Local open-weights harness below.
 - **Never turn on on-demand spending yourself.**
 - **At most 4 cloud agents running at once.** When usage stops a run, comment a restart note on its issue (agent ID, model, head SHA, what was left) so it can be relaunched cleanly.
 
 ## Outside coding agents (not Cursor)
 
-- Proposed, not yet usable: the **local fallback** below (desktop Cursor + DeepInfra), per Michael's 2026-10-27 ask (DECISIONS 2026-10-27). It needs his explicit cost OK (expected cost per issue, monthly cap) and a call on whether it may run during a coding pause. Any other agent: before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
+- Proposed, not yet usable: the **Local open-weights** harness below (desktop Cursor + DeepInfra), per Michael's 2026-10-27 ask (DECISIONS 2026-10-27). It needs his explicit cost OK (expected cost per issue, monthly cap) and a call on whether it may run during a coding pause. Any other agent: before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
 - They run the same loop as Cursor agents: triage line, review by a different model, verify (CI and evidence), and the human gate for normal/high work. Record the tool, model and run ID in the PR's AI disclosure.
 
-## Local fallback (desktop Cursor + DeepInfra)
+## Local open-weights harness (when Cursor usage runs out)
 
-When Cursor usage runs out, Michael can run a ready issue himself in **desktop Cursor** with his own DeepInfra key, using the model in the issue's handoff block. Steps: `FACTORY.md` → Local fallback run. Same loop, agent review, CI and human gates as cloud runs.
+When Cursor usage runs out, Michael can run a ready issue himself in **desktop Cursor** with his own DeepInfra key, using the model in the issue's handoff block. Steps: `skills/local-open-weights-run.md`. Same loop, agent review, CI and human gates as cloud runs.
+
+**Cloud vs local:** cloud agents ignore the Local open-weights line in an issue's handoff block and use the model they were launched with. Local agents (Cursor desktop or another harness on Michael's machine using an open-weights provider such as DeepInfra) use the Local open-weights model the handoff block names and follow `skills/local-open-weights-run.md`.
 
 **Setup (once).** Per [Cursor help: bring your own API key](https://cursor.com/help/models-and-usage/api-keys) (checked 2026-10-27): in Cursor Settings → Models, put the DeepInfra key in the OpenAI API key field and turn it on, turn on the OpenAI base-URL override with `https://api.deepinfra.com/v1/openai`, and add each model ID below as a custom model (name must match the ID exactly). While the override is on, Cursor's own OpenAI-family models also go to DeepInfra; turn it off to go back. Own keys work only in desktop Chat and Agent, not cloud agents or Auto. Menu names change; follow Cursor's current page if it differs.
 

@@ -808,3 +808,7 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Why:** Cursor usage ran out and work stopped; the issue already is the handoff point, so a cheap open-weights route keeps it moving under the same gates.
 - **Alternatives:** Wait for the monthly reset; enable Cursor on-demand spend; cheaper models for high-risk work (rejected: a failed cheap attempt costs more).
 - **Revisit:** After the first local run, if Cursor's own-key support changes, or every 3 months to recheck DeepInfra picks and prices.
+
+### 2026-10-27 — Local fallback renamed to Local open-weights
+- **Decision:** Renamed the DeepInfra local fallback to Local open-weights (handoff line, MODEL_ROUTING section, skill renamed to local-open-weights-run.md). Handoff block now tells cloud agents to ignore it and local agents to use it. Michael's ask, 2026-10-27 11:17 PM CT. Repo note: there was no `skills/local-fallback-run.md` here (the steps lived in `FACTORY.md` → Local fallback run), so the steps moved into the new `skills/local-open-weights-run.md` and FACTORY.md now points to it. Made directly by Grok Bot (git/gh), not a Cursor agent, because Cursor usage had run out. The route is still pending Michael's (a)/(b) choice (cost OK and coding-pause call) recorded in the 2026-10-27 entry above; this rename doesn't change that.
+- **Decided by:** Michael Link, 2026-10-27 11:17 PM CT.
