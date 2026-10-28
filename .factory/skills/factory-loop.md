@@ -24,7 +24,7 @@ Also follow `liability-gates.md` on every change.
   Read first (on main): <e.g. .factory/FACTORY.md, .factory/skills/liability-gates.md, relevant docs and code paths>
   Done checks: <tests / CI / evidence that count as done>
   Complexity: S | M | L; Risk: trivial | normal | high
-  Model: Cursor `<model + effort>` · Local open-weights `<provider model ID>` (MODEL_ROUTING.md)
+  Model: Cursor `<model + effort>` · Local open-weights `<provider model ID; default Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo>` (MODEL_ROUTING.md)
   Cloud agents: ignore the Local open-weights line and use the model you were launched with.
   Local agents (Cursor desktop or another harness on Michael's machine using an open-weights provider such as DeepInfra): use the Local open-weights model named above and follow skills/local-open-weights-run.md.
   ```

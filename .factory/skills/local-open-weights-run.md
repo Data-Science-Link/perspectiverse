@@ -6,6 +6,8 @@ Use when Cursor usage runs out and Michael works a ready issue himself in deskto
 
 **Status:** Michael chose (b) docs only for now, 2026-10-27; Local open-weights runs are not turned on, no DeepInfra spend approved. Don't start a local run until Michael gives an explicit cost OK (expected cost per issue, monthly cap) and it is recorded in `DECISIONS.md`.
 
+**Model:** default `Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo` (a non-thinking coder model). Other models in `MODEL_ROUTING.md` are marked *Needs test*; use one only after a short local test with thinking off passes. Keep the handoff prompt first and unchanged, don't switch models, rules or tools mid-run, and start a new chat at about 60-70% of context (`MODEL_ROUTING.md` → Caching and context).
+
 ## Per issue
 
 1. Open the repo in desktop Cursor and pick the Local open-weights model the issue's handoff block names (DeepInfra by default).

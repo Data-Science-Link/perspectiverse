@@ -49,14 +49,20 @@ When Cursor usage runs out, Michael can run a ready issue himself in **desktop C
 
 **The key is never committed** — local Cursor settings or env only; never in the repo, an issue, a PR, a workflow or chat.
 
-| Tier | Routing row | DeepInfra model ID (pin it) | Price / 1M tokens (in / out) |
-|---|---|---|---|
-| **S** — small fix | Simple | `deepseek-ai/DeepSeek-V4-Flash` | $0.09 / $0.18 |
-| **M** — normal code | Standard | `Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo` | $0.30 / $1.00 |
-| **L** — high-risk or complex code, specs, user-facing copy | Complex, Writing | `deepseek-ai/DeepSeek-V4-Pro` | $1.30 / $2.60 |
-| **Agent review** | Agent review | `moonshotai/Kimi-K2.6` (a different model than the builder) | $0.75 / $3.50 |
+**Default model:** `Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo` for every tier and all agentic runs (approved by Michael, 2026-10-27). The other rows are kept but each needs a test first.
 
-Checked 2026-10-27 on the DeepInfra model pages (https://deepinfra.com/models) and https://api.deepinfra.com/v1/openai/models. Recheck IDs and prices every 3 months. High-risk work and specs always use the **L** row, never a cheaper one. No priority or long-context tiers unless Michael asks.
+| Use | DeepInfra model ID (pin it) | Price / 1M tokens (in / out) | Status |
+|---|---|---|---|
+| **Default — every tier (S / M / L), all agentic runs** | `Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo` | $0.30 / $1.00 | **Default** |
+| **S** — small fix (Simple) | `deepseek-ai/DeepSeek-V4-Flash` | $0.09 / $0.18 | Needs test¹ |
+| **L** — high-risk or complex code, specs, user-facing copy (Complex, Writing) | `deepseek-ai/DeepSeek-V4-Pro` | $1.30 / $2.60 | Needs test¹ |
+| **Agent review** (a different model than the builder) | `moonshotai/Kimi-K2.6` | $0.75 / $3.50 | Needs test¹ |
+
+¹ **Needs test:** known Cursor custom-key bug - reasoning_content not returned after tool calls, thinking-mode DeepSeek V4/Kimi fail with 400 (Cursor staff, Jul 2026: https://forum.cursor.com/t/the-deepseek-v4-pro-api-cannot-be-used-normally/159042). Use only after a short local test with thinking off passes.
+
+Checked 2026-10-27 on the DeepInfra model pages (https://deepinfra.com/models) and https://api.deepinfra.com/v1/openai/models. Recheck IDs and prices every 3 months. High-risk work and specs use the **L** row once it has passed the local test; until then they run on the default model with the full review and human gates. No priority or long-context tiers unless Michael asks.
+
+**Caching and context.** DeepInfra prefix caching is automatic (https://docs.deepinfra.com/chat/prompt-caching), so keep the shared prefix stable: put the handoff prompt first and keep it stable, with no timestamps; don't switch models, rules or tools mid-run; keep issues small; start a new chat at about 60-70% of the context window; verify caching with `usage.prompt_tokens_details.cached_tokens` in the API response and the DeepInfra usage page.
 
 ## Human's editor default
 
