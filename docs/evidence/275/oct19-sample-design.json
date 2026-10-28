@@ -1,0 +1,1503 @@
+{
+  "edition": "2026-10-19",
+  "snapshot": "44a537b",
+  "seed": 275,
+  "rng": "Each level starts its own random.Random(275). For each band in B0..B4 order, shuffle that band's pairs and take the allocation. Then shuffle the chosen rows and number them. Oct 19 planet pairs named in the #272 trace are removed before the draw and written only to handpicked-pairs.csv. Band shares and the similarity headline still count every same-section pair.",
+  "similarity": "Cosine of MiniLM (all-MiniLM-L6-v2) centroids of representative posts. Title Jaccard is stored on the design file only.",
+  "bands": [
+    {
+      "id": "B0",
+      "lo_inclusive": -1.01,
+      "hi_exclusive": 0.4
+    },
+    {
+      "id": "B1",
+      "lo_inclusive": 0.4,
+      "hi_exclusive": 0.55
+    },
+    {
+      "id": "B2",
+      "lo_inclusive": 0.55,
+      "hi_exclusive": 0.7
+    },
+    {
+      "id": "B3",
+      "lo_inclusive": 0.7,
+      "hi_exclusive": 0.85
+    },
+    {
+      "id": "B4",
+      "lo_inclusive": 0.85,
+      "hi_exclusive": 1.01
+    }
+  ],
+  "secondary_near_duplicate_rule": "representative centroid cosine >= 0.7",
+  "reweight": "Headline = sum over bands of (near-dup rate inside the band) * (band's share of all pairs in that population). The sample mean is not the headline.",
+  "guards": "off for the sample and the headline. guards_on drops planets under 30 posts or flagged by planet_chitchat_reason on representative posts.",
+  "planets": {
+    "level": "planet",
+    "population_pairs": 480,
+    "sampled_pairs": 60,
+    "allocation": {
+      "B3": 9,
+      "B0": 17,
+      "B1": 17,
+      "B2": 16,
+      "B4": 1
+    },
+    "headline": {
+      "pair_rate_reweighted": 0.05625,
+      "near_dup_pairs": 27,
+      "near_duplicate_planet_pairs_per_section": 2.4545,
+      "planets_in_a_near_dup_pair_per_section": 1.9091,
+      "sections": 11,
+      "bands": [
+        {
+          "band": "B0",
+          "lo": -1.01,
+          "hi": 0.4,
+          "pairs": 353,
+          "share": 0.735417,
+          "secondary_near_dup_pairs": 0,
+          "secondary_near_dup_rate": 0.0,
+          "contribution": 0.0
+        },
+        {
+          "band": "B1",
+          "lo": 0.4,
+          "hi": 0.55,
+          "pairs": 54,
+          "share": 0.1125,
+          "secondary_near_dup_pairs": 0,
+          "secondary_near_dup_rate": 0.0,
+          "contribution": 0.0
+        },
+        {
+          "band": "B2",
+          "lo": 0.55,
+          "hi": 0.7,
+          "pairs": 46,
+          "share": 0.095833,
+          "secondary_near_dup_pairs": 0,
+          "secondary_near_dup_rate": 0.0,
+          "contribution": 0.0
+        },
+        {
+          "band": "B3",
+          "lo": 0.7,
+          "hi": 0.85,
+          "pairs": 26,
+          "share": 0.054167,
+          "secondary_near_dup_pairs": 26,
+          "secondary_near_dup_rate": 1.0,
+          "contribution": 0.054167
+        },
+        {
+          "band": "B4",
+          "lo": 0.85,
+          "hi": 1.01,
+          "pairs": 1,
+          "share": 0.002083,
+          "secondary_near_dup_pairs": 1,
+          "secondary_near_dup_rate": 1.0,
+          "contribution": 0.002083
+        }
+      ]
+    },
+    "sample": [
+      {
+        "pair_id": "p001",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.716,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p002",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.7297,
+        "title_jaccard": 0.3333,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p003",
+        "section": "Business",
+        "band": "B0",
+        "cosine": 0.255,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p004",
+        "section": "Business",
+        "band": "B1",
+        "cosine": 0.4039,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p005",
+        "section": "Other",
+        "band": "B0",
+        "cosine": 0.0739,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p006",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.588,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p007",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.6749,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p008",
+        "section": "global",
+        "band": "B0",
+        "cosine": 0.1811,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p009",
+        "section": "World",
+        "band": "B1",
+        "cosine": 0.4957,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p010",
+        "section": "Other",
+        "band": "B4",
+        "cosine": 0.8524,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p011",
+        "section": "Technology",
+        "band": "B1",
+        "cosine": 0.53,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p012",
+        "section": "Business",
+        "band": "B2",
+        "cosine": 0.6238,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p013",
+        "section": "Education",
+        "band": "B2",
+        "cosine": 0.566,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p014",
+        "section": "Sports",
+        "band": "B1",
+        "cosine": 0.4038,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p015",
+        "section": "Business",
+        "band": "B2",
+        "cosine": 0.577,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p016",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.5872,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p017",
+        "section": "Business",
+        "band": "B2",
+        "cosine": 0.5841,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p018",
+        "section": "Education",
+        "band": "B0",
+        "cosine": 0.2714,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p019",
+        "section": "Business",
+        "band": "B0",
+        "cosine": 0.1482,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p020",
+        "section": "Health",
+        "band": "B1",
+        "cosine": 0.4048,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p021",
+        "section": "Technology",
+        "band": "B1",
+        "cosine": 0.4168,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p022",
+        "section": "Business",
+        "band": "B2",
+        "cosine": 0.6336,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p023",
+        "section": "Business",
+        "band": "B1",
+        "cosine": 0.5209,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p024",
+        "section": "Health",
+        "band": "B1",
+        "cosine": 0.4386,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p025",
+        "section": "Culture",
+        "band": "B0",
+        "cosine": 0.0298,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p026",
+        "section": "Business",
+        "band": "B1",
+        "cosine": 0.441,
+        "title_jaccard": 0.25,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p027",
+        "section": "Sports",
+        "band": "B0",
+        "cosine": 0.0319,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p028",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.6847,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p029",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.6899,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p030",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.8034,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p031",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.7549,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p032",
+        "section": "Technology",
+        "band": "B1",
+        "cosine": 0.4349,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p033",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.7658,
+        "title_jaccard": 0.3333,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p034",
+        "section": "global",
+        "band": "B0",
+        "cosine": 0.1828,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p035",
+        "section": "global",
+        "band": "B1",
+        "cosine": 0.4475,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p036",
+        "section": "Culture",
+        "band": "B0",
+        "cosine": 0.2627,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p037",
+        "section": "Sports",
+        "band": "B1",
+        "cosine": 0.4242,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p038",
+        "section": "Education",
+        "band": "B2",
+        "cosine": 0.6467,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p039",
+        "section": "global",
+        "band": "B0",
+        "cosine": 0.0541,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p040",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.6138,
+        "title_jaccard": 0.3333,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p041",
+        "section": "Technology",
+        "band": "B2",
+        "cosine": 0.6401,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p042",
+        "section": "Health",
+        "band": "B0",
+        "cosine": 0.2496,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p043",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.7013,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p044",
+        "section": "Politics",
+        "band": "B0",
+        "cosine": 0.2573,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p045",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.8122,
+        "title_jaccard": 0.3333,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p046",
+        "section": "Education",
+        "band": "B2",
+        "cosine": 0.5772,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p047",
+        "section": "Culture",
+        "band": "B0",
+        "cosine": 0.2914,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p048",
+        "section": "World",
+        "band": "B2",
+        "cosine": 0.6019,
+        "title_jaccard": 0.3333,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p049",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.7959,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p050",
+        "section": "Politics",
+        "band": "B1",
+        "cosine": 0.478,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p051",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.7441,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p052",
+        "section": "Environment",
+        "band": "B0",
+        "cosine": 0.2211,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p053",
+        "section": "Sports",
+        "band": "B0",
+        "cosine": 0.0908,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p054",
+        "section": "Education",
+        "band": "B1",
+        "cosine": 0.4596,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p055",
+        "section": "Education",
+        "band": "B0",
+        "cosine": 0.1739,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p056",
+        "section": "Business",
+        "band": "B1",
+        "cosine": 0.4055,
+        "title_jaccard": 0.25,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p057",
+        "section": "Education",
+        "band": "B0",
+        "cosine": 0.2379,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p058",
+        "section": "Environment",
+        "band": "B1",
+        "cosine": 0.4159,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p059",
+        "section": "Environment",
+        "band": "B1",
+        "cosine": 0.4717,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "p060",
+        "section": "World",
+        "band": "B2",
+        "cosine": 0.5769,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      }
+    ],
+    "excluded_trace_pairs": 46,
+    "sample_pool_pairs": 434
+  },
+  "faces": {
+    "level": "face",
+    "population_pairs": 774,
+    "sampled_pairs": 60,
+    "allocation": {
+      "B0": 14,
+      "B2": 14,
+      "B4": 4,
+      "B1": 14,
+      "B3": 14
+    },
+    "headline": {
+      "within_planet_pairs": 27,
+      "pair_rate_reweighted": 0.592593,
+      "near_dup_face_pairs": 16,
+      "near_duplicate_face_pairs_per_planet": 0.1495,
+      "planets": 107,
+      "planets_with_a_near_dup_face_pair": 15,
+      "bands": [
+        {
+          "band": "B0",
+          "lo": -1.01,
+          "hi": 0.4,
+          "pairs": 0,
+          "share": 0.0,
+          "secondary_near_dup_pairs": 0,
+          "secondary_near_dup_rate": 0.0,
+          "contribution": 0.0
+        },
+        {
+          "band": "B1",
+          "lo": 0.4,
+          "hi": 0.55,
+          "pairs": 3,
+          "share": 0.111111,
+          "secondary_near_dup_pairs": 0,
+          "secondary_near_dup_rate": 0.0,
+          "contribution": 0.0
+        },
+        {
+          "band": "B2",
+          "lo": 0.55,
+          "hi": 0.7,
+          "pairs": 8,
+          "share": 0.296296,
+          "secondary_near_dup_pairs": 0,
+          "secondary_near_dup_rate": 0.0,
+          "contribution": 0.0
+        },
+        {
+          "band": "B3",
+          "lo": 0.7,
+          "hi": 0.85,
+          "pairs": 14,
+          "share": 0.518519,
+          "secondary_near_dup_pairs": 14,
+          "secondary_near_dup_rate": 1.0,
+          "contribution": 0.518519
+        },
+        {
+          "band": "B4",
+          "lo": 0.85,
+          "hi": 1.01,
+          "pairs": 2,
+          "share": 0.074074,
+          "secondary_near_dup_pairs": 2,
+          "secondary_near_dup_rate": 1.0,
+          "contribution": 0.074074
+        }
+      ],
+      "same_section_including_cross_planet": {
+        "pairs": 774,
+        "bands": [
+          {
+            "band": "B0",
+            "lo": -1.01,
+            "hi": 0.4,
+            "pairs": 575,
+            "share": 0.742894,
+            "secondary_near_dup_pairs": 0,
+            "secondary_near_dup_rate": 0.0,
+            "contribution": 0.0
+          },
+          {
+            "band": "B1",
+            "lo": 0.4,
+            "hi": 0.55,
+            "pairs": 88,
+            "share": 0.113695,
+            "secondary_near_dup_pairs": 0,
+            "secondary_near_dup_rate": 0.0,
+            "contribution": 0.0
+          },
+          {
+            "band": "B2",
+            "lo": 0.55,
+            "hi": 0.7,
+            "pairs": 69,
+            "share": 0.089147,
+            "secondary_near_dup_pairs": 0,
+            "secondary_near_dup_rate": 0.0,
+            "contribution": 0.0
+          },
+          {
+            "band": "B3",
+            "lo": 0.7,
+            "hi": 0.85,
+            "pairs": 38,
+            "share": 0.049096,
+            "secondary_near_dup_pairs": 38,
+            "secondary_near_dup_rate": 1.0,
+            "contribution": 0.049096
+          },
+          {
+            "band": "B4",
+            "lo": 0.85,
+            "hi": 1.01,
+            "pairs": 4,
+            "share": 0.005168,
+            "secondary_near_dup_pairs": 4,
+            "secondary_near_dup_rate": 1.0,
+            "contribution": 0.005168
+          }
+        ],
+        "pair_rate_reweighted": 0.054264
+      }
+    },
+    "sample": [
+      {
+        "pair_id": "f001",
+        "section": "Politics",
+        "band": "B0",
+        "cosine": 0.1169,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f002",
+        "section": "Environment",
+        "band": "B0",
+        "cosine": 0.3599,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f003",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.6052,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f004",
+        "section": "Sports",
+        "band": "B4",
+        "cosine": 0.8509,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f005",
+        "section": "Technology",
+        "band": "B0",
+        "cosine": 0.363,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f006",
+        "section": "Education",
+        "band": "B1",
+        "cosine": 0.4097,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f007",
+        "section": "Environment",
+        "band": "B0",
+        "cosine": 0.2357,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f008",
+        "section": "Business",
+        "band": "B1",
+        "cosine": 0.479,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f009",
+        "section": "Education",
+        "band": "B2",
+        "cosine": 0.6382,
+        "title_jaccard": 0.0,
+        "same_planet": true
+      },
+      {
+        "pair_id": "f010",
+        "section": "World",
+        "band": "B1",
+        "cosine": 0.5171,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f011",
+        "section": "Environment",
+        "band": "B1",
+        "cosine": 0.4452,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f012",
+        "section": "Education",
+        "band": "B1",
+        "cosine": 0.4239,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f013",
+        "section": "Technology",
+        "band": "B0",
+        "cosine": 0.0682,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f014",
+        "section": "Sports",
+        "band": "B2",
+        "cosine": 0.6307,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f015",
+        "section": "Environment",
+        "band": "B1",
+        "cosine": 0.5032,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f016",
+        "section": "Technology",
+        "band": "B1",
+        "cosine": 0.4132,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f017",
+        "section": "World",
+        "band": "B1",
+        "cosine": 0.4778,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f018",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.716,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f019",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.5872,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f020",
+        "section": "Sports",
+        "band": "B1",
+        "cosine": 0.4359,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f021",
+        "section": "Technology",
+        "band": "B2",
+        "cosine": 0.5767,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f022",
+        "section": "Sports",
+        "band": "B0",
+        "cosine": 0.0781,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f023",
+        "section": "Culture",
+        "band": "B3",
+        "cosine": 0.7011,
+        "title_jaccard": 0.3333,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f024",
+        "section": "Technology",
+        "band": "B3",
+        "cosine": 0.732,
+        "title_jaccard": 0.3333,
+        "same_planet": true
+      },
+      {
+        "pair_id": "f025",
+        "section": "Business",
+        "band": "B1",
+        "cosine": 0.4093,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f026",
+        "section": "Sports",
+        "band": "B3",
+        "cosine": 0.715,
+        "title_jaccard": 0.0,
+        "same_planet": true
+      },
+      {
+        "pair_id": "f027",
+        "section": "Business",
+        "band": "B1",
+        "cosine": 0.4584,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f028",
+        "section": "Culture",
+        "band": "B3",
+        "cosine": 0.8488,
+        "title_jaccard": 0.3333,
+        "same_planet": true
+      },
+      {
+        "pair_id": "f029",
+        "section": "Education",
+        "band": "B0",
+        "cosine": 0.1564,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f030",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.813,
+        "title_jaccard": 1.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f031",
+        "section": "Sports",
+        "band": "B0",
+        "cosine": 0.0307,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f032",
+        "section": "Culture",
+        "band": "B3",
+        "cosine": 0.7817,
+        "title_jaccard": 0.3333,
+        "same_planet": true
+      },
+      {
+        "pair_id": "f033",
+        "section": "Education",
+        "band": "B3",
+        "cosine": 0.7339,
+        "title_jaccard": 0.25,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f034",
+        "section": "Health",
+        "band": "B0",
+        "cosine": 0.285,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f035",
+        "section": "Culture",
+        "band": "B3",
+        "cosine": 0.7603,
+        "title_jaccard": 0.3333,
+        "same_planet": true
+      },
+      {
+        "pair_id": "f036",
+        "section": "Technology",
+        "band": "B2",
+        "cosine": 0.6498,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f037",
+        "section": "global",
+        "band": "B4",
+        "cosine": 0.8562,
+        "title_jaccard": 0.0,
+        "same_planet": true
+      },
+      {
+        "pair_id": "f038",
+        "section": "Business",
+        "band": "B2",
+        "cosine": 0.612,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f039",
+        "section": "World",
+        "band": "B2",
+        "cosine": 0.5812,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f040",
+        "section": "Sports",
+        "band": "B0",
+        "cosine": 0.0329,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f041",
+        "section": "Business",
+        "band": "B2",
+        "cosine": 0.5598,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f042",
+        "section": "Other",
+        "band": "B4",
+        "cosine": 0.8524,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f043",
+        "section": "Technology",
+        "band": "B2",
+        "cosine": 0.6936,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f044",
+        "section": "Politics",
+        "band": "B1",
+        "cosine": 0.4057,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f045",
+        "section": "Culture",
+        "band": "B0",
+        "cosine": 0.0905,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f046",
+        "section": "Other",
+        "band": "B2",
+        "cosine": 0.6859,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f047",
+        "section": "Culture",
+        "band": "B4",
+        "cosine": 0.8954,
+        "title_jaccard": 0.0,
+        "same_planet": true
+      },
+      {
+        "pair_id": "f048",
+        "section": "Sports",
+        "band": "B2",
+        "cosine": 0.5905,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f049",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.8332,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f050",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.7174,
+        "title_jaccard": 0.3333,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f051",
+        "section": "Education",
+        "band": "B1",
+        "cosine": 0.4893,
+        "title_jaccard": 0.25,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f052",
+        "section": "Sports",
+        "band": "B0",
+        "cosine": -0.0332,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f053",
+        "section": "Sports",
+        "band": "B0",
+        "cosine": -0.0351,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f054",
+        "section": "Technology",
+        "band": "B2",
+        "cosine": 0.5564,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f055",
+        "section": "World",
+        "band": "B2",
+        "cosine": 0.6016,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f056",
+        "section": "World",
+        "band": "B1",
+        "cosine": 0.4804,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f057",
+        "section": "Health",
+        "band": "B0",
+        "cosine": 0.2548,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f058",
+        "section": "Technology",
+        "band": "B3",
+        "cosine": 0.7058,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f059",
+        "section": "Other",
+        "band": "B3",
+        "cosine": 0.7959,
+        "title_jaccard": 0.0,
+        "same_planet": false
+      },
+      {
+        "pair_id": "f060",
+        "section": "Culture",
+        "band": "B3",
+        "cosine": 0.7734,
+        "title_jaccard": 0.3333,
+        "same_planet": true
+      }
+    ]
+  },
+  "headline_guards_off": {
+    "near_duplicate_planet_pairs_per_section": 2.4545,
+    "planets_in_a_near_dup_pair_per_section": 1.9091,
+    "planet_pair_rate_reweighted": 0.05625,
+    "near_duplicate_face_pairs_per_planet": 0.1495,
+    "face_pair_rate_reweighted_within_planet": 0.592593,
+    "planet_bands": [
+      {
+        "band": "B0",
+        "lo": -1.01,
+        "hi": 0.4,
+        "pairs": 353,
+        "share": 0.735417,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B1",
+        "lo": 0.4,
+        "hi": 0.55,
+        "pairs": 54,
+        "share": 0.1125,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B2",
+        "lo": 0.55,
+        "hi": 0.7,
+        "pairs": 46,
+        "share": 0.095833,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B3",
+        "lo": 0.7,
+        "hi": 0.85,
+        "pairs": 26,
+        "share": 0.054167,
+        "secondary_near_dup_pairs": 26,
+        "secondary_near_dup_rate": 1.0,
+        "contribution": 0.054167
+      },
+      {
+        "band": "B4",
+        "lo": 0.85,
+        "hi": 1.01,
+        "pairs": 1,
+        "share": 0.002083,
+        "secondary_near_dup_pairs": 1,
+        "secondary_near_dup_rate": 1.0,
+        "contribution": 0.002083
+      }
+    ],
+    "within_planet_face_bands": [
+      {
+        "band": "B0",
+        "lo": -1.01,
+        "hi": 0.4,
+        "pairs": 0,
+        "share": 0.0,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B1",
+        "lo": 0.4,
+        "hi": 0.55,
+        "pairs": 3,
+        "share": 0.111111,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B2",
+        "lo": 0.55,
+        "hi": 0.7,
+        "pairs": 8,
+        "share": 0.296296,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B3",
+        "lo": 0.7,
+        "hi": 0.85,
+        "pairs": 14,
+        "share": 0.518519,
+        "secondary_near_dup_pairs": 14,
+        "secondary_near_dup_rate": 1.0,
+        "contribution": 0.518519
+      },
+      {
+        "band": "B4",
+        "lo": 0.85,
+        "hi": 1.01,
+        "pairs": 2,
+        "share": 0.074074,
+        "secondary_near_dup_pairs": 2,
+        "secondary_near_dup_rate": 1.0,
+        "contribution": 0.074074
+      }
+    ]
+  },
+  "headline_guards_on_floor30_and_junk": {
+    "planets_dropped": 54,
+    "near_duplicate_planet_pairs_per_section": 0.0,
+    "planet_pair_rate_reweighted": 0.0,
+    "near_duplicate_face_pairs_per_planet": 0.2407,
+    "face_pair_rate_reweighted_within_planet": 0.764706,
+    "planet_bands": [
+      {
+        "band": "B0",
+        "lo": -1.01,
+        "hi": 0.4,
+        "pairs": 113,
+        "share": 0.849624,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B1",
+        "lo": 0.4,
+        "hi": 0.55,
+        "pairs": 18,
+        "share": 0.135338,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B2",
+        "lo": 0.55,
+        "hi": 0.7,
+        "pairs": 2,
+        "share": 0.015038,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B3",
+        "lo": 0.7,
+        "hi": 0.85,
+        "pairs": 0,
+        "share": 0.0,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B4",
+        "lo": 0.85,
+        "hi": 1.01,
+        "pairs": 0,
+        "share": 0.0,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      }
+    ],
+    "within_planet_face_bands": [
+      {
+        "band": "B0",
+        "lo": -1.01,
+        "hi": 0.4,
+        "pairs": 0,
+        "share": 0.0,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B1",
+        "lo": 0.4,
+        "hi": 0.55,
+        "pairs": 1,
+        "share": 0.058824,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B2",
+        "lo": 0.55,
+        "hi": 0.7,
+        "pairs": 3,
+        "share": 0.176471,
+        "secondary_near_dup_pairs": 0,
+        "secondary_near_dup_rate": 0.0,
+        "contribution": 0.0
+      },
+      {
+        "band": "B3",
+        "lo": 0.7,
+        "hi": 0.85,
+        "pairs": 12,
+        "share": 0.705882,
+        "secondary_near_dup_pairs": 12,
+        "secondary_near_dup_rate": 1.0,
+        "contribution": 0.705882
+      },
+      {
+        "band": "B4",
+        "lo": 0.85,
+        "hi": 1.01,
+        "pairs": 1,
+        "share": 0.058824,
+        "secondary_near_dup_pairs": 1,
+        "secondary_near_dup_rate": 1.0,
+        "contribution": 0.058824
+      }
+    ]
+  },
+  "per_section_guards_off": [
+    {
+      "section": "Business",
+      "planets": 10,
+      "pairs": 45,
+      "near_dup_pairs": 0,
+      "planets_in_a_near_dup_pair": 0
+    },
+    {
+      "section": "Culture",
+      "planets": 10,
+      "pairs": 45,
+      "near_dup_pairs": 1,
+      "planets_in_a_near_dup_pair": 2
+    },
+    {
+      "section": "Education",
+      "planets": 10,
+      "pairs": 45,
+      "near_dup_pairs": 1,
+      "planets_in_a_near_dup_pair": 2
+    },
+    {
+      "section": "Environment",
+      "planets": 10,
+      "pairs": 45,
+      "near_dup_pairs": 0,
+      "planets_in_a_near_dup_pair": 0
+    },
+    {
+      "section": "Health",
+      "planets": 10,
+      "pairs": 45,
+      "near_dup_pairs": 0,
+      "planets_in_a_near_dup_pair": 0
+    },
+    {
+      "section": "Other",
+      "planets": 13,
+      "pairs": 78,
+      "near_dup_pairs": 14,
+      "planets_in_a_near_dup_pair": 7
+    },
+    {
+      "section": "Politics",
+      "planets": 7,
+      "pairs": 21,
+      "near_dup_pairs": 0,
+      "planets_in_a_near_dup_pair": 0
+    },
+    {
+      "section": "Sports",
+      "planets": 10,
+      "pairs": 45,
+      "near_dup_pairs": 4,
+      "planets_in_a_near_dup_pair": 4
+    },
+    {
+      "section": "Technology",
+      "planets": 10,
+      "pairs": 45,
+      "near_dup_pairs": 7,
+      "planets_in_a_near_dup_pair": 6
+    },
+    {
+      "section": "World",
+      "planets": 7,
+      "pairs": 21,
+      "near_dup_pairs": 0,
+      "planets_in_a_near_dup_pair": 0
+    },
+    {
+      "section": "global",
+      "planets": 10,
+      "pairs": 45,
+      "near_dup_pairs": 0,
+      "planets_in_a_near_dup_pair": 0
+    }
+  ]
+}
