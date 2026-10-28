@@ -30,14 +30,31 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 ## When limits are hit
 
 - **Other Models used up** → keep working on Cursor Models only. Don't ask; don't enable on-demand.
-- **Cursor Models used up** → finish nothing new. Tell the human and ask: enable on-demand spending, or wait for the monthly reset.
+- **Cursor Models used up** → finish nothing new. Tell the human and ask: enable on-demand spending, wait for the monthly reset, or run ready issues himself on the local fallback below.
 - **Never turn on on-demand spending yourself.**
 - **At most 4 cloud agents running at once.** When usage stops a run, comment a restart note on its issue (agent ID, model, head SHA, what was left) so it can be relaunched cleanly.
 
 ## Outside coding agents (not Cursor)
 
-- None approved today. Before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
+- Approved: the **local fallback** below (desktop Cursor + DeepInfra), per Michael's 2026-10-27 ask (DECISIONS 2026-10-27). Any other agent: before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
 - They run the same loop as Cursor agents: triage line, review by a different model, verify (CI and evidence), and the human gate for normal/high work. Record the tool, model and run ID in the PR's AI disclosure.
+
+## Local fallback (desktop Cursor + DeepInfra)
+
+When Cursor usage runs out, Michael can run a ready issue himself in **desktop Cursor** with his own DeepInfra key, using the model in the issue's handoff block. Steps: `FACTORY.md` → Local fallback run. Same loop, agent review, CI and human gates as cloud runs.
+
+**Setup (once).** Per [Cursor help: bring your own API key](https://cursor.com/help/models-and-usage/api-keys) (checked 2026-10-27): in Cursor Settings → Models, put the DeepInfra key in the OpenAI API key field and turn it on, turn on the OpenAI base-URL override with `https://api.deepinfra.com/v1/openai`, and add each model ID below as a custom model (name must match the ID exactly). While the override is on, Cursor's own OpenAI-family models also go to DeepInfra; turn it off to go back. Own keys work only in desktop Chat and Agent, not cloud agents or Auto. Menu names change; follow Cursor's current page if it differs.
+
+**The key is never committed** — local Cursor settings or env only; never in the repo, an issue, a PR, a workflow or chat.
+
+| Tier | Routing row | DeepInfra model ID (pin it) | Price / 1M tokens (in / out) |
+|---|---|---|---|
+| **S** — small fix | Simple | `deepseek-ai/DeepSeek-V4-Flash` | $0.09 / $0.18 |
+| **M** — normal code | Standard | `Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo` | $0.30 / $1.00 |
+| **L** — high-risk or complex code, specs, user-facing copy | Complex, Writing | `deepseek-ai/DeepSeek-V4-Pro` | $1.30 / $2.60 |
+| **Agent review** | Agent review | `moonshotai/Kimi-K2.6` (a different model than the builder) | $0.75 / $3.50 |
+
+Checked 2026-10-27 on the DeepInfra model pages (https://deepinfra.com/models) and https://api.deepinfra.com/v1/openai/models. Recheck IDs and prices every 3 months. High-risk work and specs always use the **L** row, never a cheaper one. No priority or long-context tiers unless Michael asks.
 
 ## Human's editor default
 

@@ -14,7 +14,7 @@ Do not implement the feature in the coordinator chat.
 ## Steps
 
 1. Confirm the target repo (and labels if used).
-2. Create or refine one issue: title (outcome), body (context, constraints, done-when), links.
+2. Create or refine one issue: title (outcome), body (context, constraints, done-when), links. When it's ready to work, add the **handoff block** (see `factory-loop.md` → Triage).
 3. Reply in chat with the issue URL.
 4. **Kick the line:** message the factory manager (same room, SendToAgent, or project convention) with the issue URL and “run factory-loop.” If you *are* also the manager for this repo, start `factory-loop` yourself after filing.
 5. Coordinator stops building; manager owns triage → PR → verify.

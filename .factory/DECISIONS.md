@@ -800,3 +800,10 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 - **Alternatives:** A spend ledger with a weekly check of the Cursor usage dashboard. Michael declined it ("I'm ok with how it is now").
 - **Revisit:** If Cursor credits run out unexpectedly again.
 - **Decided by:** Michael Link, Factory room, 2026-10-23 8:07 AM CT.
+
+### 2026-10-27 — Local DeepInfra fallback when Cursor usage runs out
+- **Decision:** Every ready-to-work issue carries a handoff block (goal, self-contained prompt, files to read on main, done checks, complexity S/M/L, Cursor model + DeepInfra fallback model). When Cursor usage runs out, Michael can run an issue in desktop Cursor with his own DeepInfra key ("do issue #N"); `MODEL_ROUTING.md` maps S/M/L/review to DeepInfra model IDs with prices checked 2026-10-27. High-risk code and specs always use the strongest tier. Agent review, CI and human gates are unchanged. The API key is never committed. This change was made directly by Grok Bot (git/gh), not a Cursor agent, because Cursor usage had run out.
+- **Decided by:** Michael Link, Link PR Factory room, 2026-10-27 11:53 PM ET: "please add this to the template and all other repos you have been helping with. Make sure to do the work fully as grok bot since cursor has no usage left." This is his cost OK for this outside-agent route.
+- **Why:** Cursor usage ran out and work stopped; the issue already is the handoff point, so a cheap open-weights route keeps it moving under the same gates.
+- **Alternatives:** Wait for the monthly reset; enable Cursor on-demand spend; cheaper models for high-risk work (rejected: a failed cheap attempt costs more).
+- **Revisit:** After the first local run, if Cursor's own-key support changes, or every 3 months to recheck DeepInfra picks and prices.

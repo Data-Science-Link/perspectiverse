@@ -17,6 +17,15 @@ Also follow `liability-gates.md` on every change.
 - **High-risk** (license, secrets, auth, crypto, safety, workflows): treat as hard; human review required before merge.
 - Assign a **risk class** on the PR: `trivial` | `normal` | `high` (see merge authority).
 - **Rate complexity, then pick the model** (required before any launch). Post a one-line triage note on the issue: `Complexity: simple | standard | complex — <reason>; Risk: trivial | normal | high; Model: <pinned model + effort>`. Complexity picks the model; risk class alone decides the merge gate. Never use risk words (trivial/normal/high) for complexity. Judge by what the change touches, not its size (workflows, algorithms, data stores, spend paths, security, multi-file logic are **complex**). Then pick the model from the full `.factory/MODEL_ROUTING.md` table — its writing, review, escalation and stuck rows included — not a two-model shortcut. Pin the model on every cloud-agent launch, including restarts and reviews (never Auto, never Fast). An unpinned or mismatched launch is stopped and relaunched pinned. Copy the triage line into the PR body.
+- **Handoff block** on every ready-to-work issue, so any agent or harness (including the local fallback, `FACTORY.md` → Local fallback run) can pick it up:
+  ```
+  Goal: <one sentence>
+  Prompt: <self-contained prompt: repo, issue #N, what to change, constraints; sync latest main, branch, open a PR that references the issue, fill the PR template>
+  Read first (on main): <e.g. .factory/FACTORY.md, .factory/skills/liability-gates.md, relevant docs and code paths>
+  Done checks: <tests / CI / evidence that count as done>
+  Complexity: S | M | L; Risk: trivial | normal | high
+  Model: Cursor `<model + effort>` · DeepInfra fallback `<model ID>` (MODEL_ROUTING.md)
+  ```
 
 ## Build
 

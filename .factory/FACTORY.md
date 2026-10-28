@@ -62,6 +62,14 @@ Scheduled workflows (daily data jobs, nightly builds) can fail with no PR in fli
 
 **Daily check freshness.** The daily check judges freshness by publish time, not start time: the edition is fresh if a successful run published by 10 AM CT (#97). A late start alone is not a staleness flag, but it is not muted: every daily check reports the scheduled-run start delay and how many days in a row it has been over 1 hour. The repeating late start is tracked as its own root-cause issue, [#253](https://github.com/Data-Science-Link/perspectiverse/issues/253); this note is revisited when that issue closes (DECISIONS 2026-10-23).
 
+## Local fallback run
+
+When Cursor usage runs out, Michael can work a ready issue himself (`MODEL_ROUTING.md` → Local fallback has the setup and models):
+1. Open the repo in desktop Cursor and pick the DeepInfra model the issue's handoff block names.
+2. Say "do issue #N" (or paste the handoff prompt).
+3. The agent syncs to latest `main`, branches, and opens a PR linked to the issue; the PR's AI disclosure names the harness (local Cursor + DeepInfra) and model ID.
+4. Agent review (different model), CI, evidence and the human gates apply unchanged. The DeepInfra key stays in local Cursor settings only.
+
 ## Folder map
 
 ```
