@@ -36,7 +36,7 @@ Prices per million tokens (input / output): Composer 2.5 $0.50 / $2.50 · Grok 4
 
 ## Outside coding agents (not Cursor)
 
-- Proposed, not yet usable: the **Local open-weights** harness below (desktop Cursor + DeepInfra), per Michael's 2026-10-27 ask (DECISIONS 2026-10-27). It needs his explicit cost OK (expected cost per issue, monthly cap) and a call on whether it may run during a coding pause. Any other agent: before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
+- Documented, not turned on: the **Local open-weights** harness below (desktop Cursor + DeepInfra), per Michael's 2026-10-27 ask (DECISIONS 2026-10-27). Michael chose (b) docs only for now, 2026-10-27; Local open-weights runs are not turned on, no DeepInfra spend approved. Turning it on needs his explicit cost OK (expected cost per issue, monthly cap) and a call on whether it may run during a coding pause. Any other agent: before first use, Michael gives an explicit cost OK, and the agent, model and expected cost are logged in `DECISIONS.md` and in the routing table above.
 - They run the same loop as Cursor agents: triage line, review by a different model, verify (CI and evidence), and the human gate for normal/high work. Record the tool, model and run ID in the PR's AI disclosure.
 
 ## Local open-weights harness (when Cursor usage runs out)

@@ -4,7 +4,7 @@
 
 Use when Cursor usage runs out and Michael works a ready issue himself in desktop Cursor (or another local harness on his machine) with his own open-weights provider key. Default provider: DeepInfra. Setup, model IDs and prices: `MODEL_ROUTING.md` → Local open-weights harness. The key stays in local settings only; never commit, paste or log it.
 
-**Status:** pending Michael's (a)/(b) choice: an explicit cost OK (expected cost per issue, monthly cap) and whether a local run is allowed during the coding pause (DECISIONS 2026-10-27). Don't start a local run until both are recorded there.
+**Status:** Michael chose (b) docs only for now, 2026-10-27; Local open-weights runs are not turned on, no DeepInfra spend approved. Don't start a local run until Michael gives an explicit cost OK (expected cost per issue, monthly cap) and it is recorded in `DECISIONS.md`.
 
 ## Per issue
 
