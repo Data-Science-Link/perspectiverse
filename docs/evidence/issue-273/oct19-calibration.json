@@ -1,0 +1,1104 @@
+{
+  "source_commit": "2082bf1",
+  "labeled_csv": "/tmp/275/oct19-pairs-labeled.csv",
+  "design_json": "/tmp/275/oct19-sample-design.json",
+  "edition": "2026-10-19",
+  "label_source": "Planet yes/no labels from cursor/root-cause-duplicates-3988 docs/evidence/275/oct19-pairs-labeled.csv. Face yes/no labels from docs/evidence/275/oct19-face-census.csv, the within-planet census. The 60-row face sample is not used: 51 of those rows were planet pairs. The labeler is composer-2.5, not Michael. spot-check-20.md has an empty Michael column, so those ids use the composer label and stay out of the tune split. Unsure is excluded. Planet bands and shares come from oct19-sample-design.json. A face percentage is withheld below 30 held-out pairs.",
+  "face_census": "/tmp/275/oct19-face-census.csv",
+  "planet": {
+    "tuned_threshold": {
+      "title_min": 0.5,
+      "centroid_min": 0.9,
+      "tune_f1": 0.1517
+    },
+    "split": {
+      "seed": 273,
+      "tuned_on": 31,
+      "holdout": 19,
+      "spot_checks": 8,
+      "tune_ids": [
+        "p008",
+        "p052",
+        "p005",
+        "p019",
+        "p018",
+        "p057",
+        "p055",
+        "p034",
+        "p036",
+        "p025",
+        "p021",
+        "p058",
+        "p014",
+        "p032",
+        "p050",
+        "p056",
+        "p059",
+        "p024",
+        "p054",
+        "p048",
+        "p046",
+        "p038",
+        "p013",
+        "p022",
+        "p017",
+        "p040",
+        "p041",
+        "p051",
+        "p043",
+        "p045",
+        "p033"
+      ],
+      "holdout_ids": [
+        "p044",
+        "p053",
+        "p039",
+        "p047",
+        "p042",
+        "p027",
+        "p026",
+        "p020",
+        "p023",
+        "p037",
+        "p035",
+        "p016",
+        "p028",
+        "p012",
+        "p029",
+        "p049",
+        "p030",
+        "p031",
+        "p010"
+      ],
+      "spot_ids": [
+        "p001",
+        "p002",
+        "p003",
+        "p004",
+        "p007",
+        "p009",
+        "p011",
+        "p015"
+      ]
+    },
+    "headline": {
+      "weighted": true,
+      "precision": 0.3251,
+      "recall": 0.0512,
+      "counts_only": false,
+      "agree": 17,
+      "judged": 27,
+      "held_out": 27,
+      "withheld_because": null
+    },
+    "bands": [
+      {
+        "band": "B0",
+        "share": 0.7354,
+        "matched": 7,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 0,
+        "true_negative": 7,
+        "precision": null,
+        "recall": null
+      },
+      {
+        "band": "B1",
+        "share": 0.1125,
+        "matched": 8,
+        "true_positive": 0,
+        "false_positive": 1,
+        "false_negative": 2,
+        "true_negative": 5,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "band": "B2",
+        "share": 0.0958,
+        "matched": 6,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 3,
+        "true_negative": 3,
+        "precision": null,
+        "recall": 0.0
+      },
+      {
+        "band": "B3",
+        "share": 0.0542,
+        "matched": 5,
+        "true_positive": 1,
+        "false_positive": 0,
+        "false_negative": 3,
+        "true_negative": 1,
+        "precision": 1.0,
+        "recall": 0.25
+      },
+      {
+        "band": "B4",
+        "share": 0.0021,
+        "matched": 1,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 1,
+        "true_negative": 0,
+        "precision": null,
+        "recall": 0.0
+      }
+    ],
+    "matched": 27,
+    "unmatched": 0,
+    "sample_mix_not_headline": {
+      "precision": 0.5,
+      "recall": 0.1,
+      "note": "Raw sample mix. Not the headline. The sample does not match each band's real share."
+    },
+    "labels": {
+      "yes_no_rows": 58,
+      "unsure_excluded": 2,
+      "planet_leak_excluded": 0,
+      "missing_population_bands": [],
+      "band_shares": {
+        "B0": 0.735417,
+        "B1": 0.1125,
+        "B2": 0.095833,
+        "B3": 0.054167,
+        "B4": 0.002083
+      }
+    }
+  },
+  "face": {
+    "tuned_threshold": {
+      "title_min": 0.5,
+      "centroid_min": 0.55,
+      "tune_f1": 0.8889
+    },
+    "split": {
+      "seed": 273,
+      "tuned_on": 9,
+      "holdout": 7,
+      "spot_checks": 10,
+      "tune_ids": [
+        "c014",
+        "c012",
+        "c009",
+        "c021",
+        "c006",
+        "c007",
+        "c019",
+        "c011",
+        "c015"
+      ],
+      "holdout_ids": [
+        "c013",
+        "c004",
+        "c002",
+        "c024",
+        "c017",
+        "c025",
+        "c008"
+      ],
+      "spot_ids": [
+        "c001",
+        "c003",
+        "c005",
+        "c010",
+        "c018",
+        "c020",
+        "c022",
+        "c023",
+        "c026",
+        "c027"
+      ]
+    },
+    "headline": {
+      "weighted": false,
+      "precision": null,
+      "recall": null,
+      "counts_only": true,
+      "agree": 9,
+      "judged": 16,
+      "held_out": 17,
+      "withheld_because": "Held-out set is 17, under 30. No face percentage. Pooling more days of face pairs is the path to a real rate."
+    },
+    "bands": [
+      {
+        "band": "B1",
+        "share": 0.1111,
+        "matched": 2,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 1,
+        "true_negative": 1,
+        "precision": null,
+        "recall": 0.0
+      },
+      {
+        "band": "B2",
+        "share": 0.2963,
+        "matched": 5,
+        "true_positive": 1,
+        "false_positive": 0,
+        "false_negative": 2,
+        "true_negative": 2,
+        "precision": 1.0,
+        "recall": 0.3333
+      },
+      {
+        "band": "B3",
+        "share": 0.5185,
+        "matched": 8,
+        "true_positive": 1,
+        "false_positive": 1,
+        "false_negative": 2,
+        "true_negative": 4,
+        "precision": 0.5,
+        "recall": 0.3333
+      },
+      {
+        "band": "B4",
+        "share": 0.0741,
+        "matched": 1,
+        "true_positive": 0,
+        "false_positive": 0,
+        "false_negative": 1,
+        "true_negative": 0,
+        "precision": null,
+        "recall": 0.0
+      }
+    ],
+    "matched": 16,
+    "unmatched": 1,
+    "sample_mix_not_headline": {
+      "precision": 0.6667,
+      "recall": 0.25,
+      "note": "Raw sample mix. Not the headline. The sample does not match each band's real share."
+    },
+    "labels": {
+      "yes_no_rows": 26,
+      "unsure_excluded": 1,
+      "planet_leak_excluded": 0,
+      "missing_population_bands": [],
+      "band_shares": {
+        "B0": 0.0,
+        "B1": 0.111111,
+        "B2": 0.296296,
+        "B3": 0.518519,
+        "B4": 0.074074
+      }
+    }
+  },
+  "kind_recall": {
+    "gate": "titles_alike or centroid cosine >= 0.90",
+    "kinds": [
+      {
+        "kind": "greeting",
+        "label": "Greeting/chit-chat planets (#288)",
+        "total": 11,
+        "flagged": 0,
+        "unmatched": 0,
+        "pairs": [
+          {
+            "pair_id": "p002",
+            "left_title": "Good Day",
+            "right_title": "Hope For The Day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.4166
+          },
+          {
+            "pair_id": "p007",
+            "left_title": "Good Day",
+            "right_title": "Great Time",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0819
+          },
+          {
+            "pair_id": "p010",
+            "left_title": "Great Day",
+            "right_title": "Happy Sunday",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3911
+          },
+          {
+            "pair_id": "p028",
+            "left_title": "Good Morning",
+            "right_title": "Happy Sunday",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.245
+          },
+          {
+            "pair_id": "p030",
+            "left_title": "Good Morning",
+            "right_title": "Hope For The Day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.4769
+          },
+          {
+            "pair_id": "p031",
+            "left_title": "Good Morning",
+            "right_title": "wonderful day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.6384
+          },
+          {
+            "pair_id": "p033",
+            "left_title": "Good Day",
+            "right_title": "Great Day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.4355
+          },
+          {
+            "pair_id": "p040",
+            "left_title": "Good Day",
+            "right_title": "wonderful day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3093
+          },
+          {
+            "pair_id": "p045",
+            "left_title": "Great Day",
+            "right_title": "wonderful day",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.5081
+          },
+          {
+            "pair_id": "p049",
+            "left_title": "wonderful day",
+            "right_title": "Happy Sunday",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3101
+          },
+          {
+            "pair_id": "p051",
+            "left_title": "Hope For The Day",
+            "right_title": "Happy Sunday",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1514
+          }
+        ],
+        "near_zero": true,
+        "tracker": "The nightly check can't track this fix. The kind count uses per-post agreement, not a greeting-title list."
+      },
+      {
+        "kind": "same_story",
+        "label": "Same-story fragments (#287)",
+        "total": 9,
+        "flagged": 1,
+        "unmatched": 0,
+        "pairs": [
+          {
+            "pair_id": "p009",
+            "left_title": "US Iran War",
+            "right_title": "US Unreliable",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0222
+          },
+          {
+            "pair_id": "p011",
+            "left_title": "AI Control",
+            "right_title": "AI Adoption",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0
+          },
+          {
+            "pair_id": "p015",
+            "left_title": "Billionaire Power",
+            "right_title": "Ultra Rich",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0533
+          },
+          {
+            "pair_id": "p019",
+            "left_title": "Thirty Thousand",
+            "right_title": "The Article",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0177
+          },
+          {
+            "pair_id": "p038",
+            "left_title": "Radical Professors",
+            "right_title": "College Republicans",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.2798
+          },
+          {
+            "pair_id": "p041",
+            "left_title": "AI Control",
+            "right_title": "AI bots",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0628
+          },
+          {
+            "pair_id": "p048",
+            "left_title": "US Ukraine War",
+            "right_title": "US Iran War",
+            "flagged": true,
+            "titles_alike": true,
+            "centroid_cosine": 0.1957
+          },
+          {
+            "pair_id": "p050",
+            "left_title": "Musk Accountability",
+            "right_title": "Trump Corruption",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1374
+          },
+          {
+            "pair_id": "p058",
+            "left_title": "Climate Crisis",
+            "right_title": "Fires",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0501
+          }
+        ],
+        "near_zero": true,
+        "tracker": "The nightly check can't track this fix. The kind count uses shared surface entities, not stems."
+      },
+      {
+        "kind": "paraphrase_face",
+        "label": "Paraphrase faces (#286)",
+        "total": 13,
+        "flagged": 0,
+        "unmatched": 0,
+        "pairs": [
+          {
+            "pair_id": "c001",
+            "left_title": "High Oil",
+            "right_title": "Oil Prices",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0991
+          },
+          {
+            "pair_id": "c003",
+            "left_title": "Thirty Thousand",
+            "right_title": "Debt Impact",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.098
+          },
+          {
+            "pair_id": "c006",
+            "left_title": "Hair Preferences",
+            "right_title": "Hair Remarks",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3702
+          },
+          {
+            "pair_id": "c007",
+            "left_title": "Show Quality",
+            "right_title": "Show Enjoyment",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.2912
+          },
+          {
+            "pair_id": "c008",
+            "left_title": "Stream Plans",
+            "right_title": "Burnout",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3392
+          },
+          {
+            "pair_id": "c011",
+            "left_title": "Voice Care",
+            "right_title": "Voice Acting",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3338
+          },
+          {
+            "pair_id": "c015",
+            "left_title": "School Medication",
+            "right_title": "School Medical Care",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1593
+          },
+          {
+            "pair_id": "c017",
+            "left_title": "ADHD Struggles",
+            "right_title": "ADHD Effects",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1512
+          },
+          {
+            "pair_id": "c018",
+            "left_title": "Asthma Fatal",
+            "right_title": "Asthma Ban",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1549
+          },
+          {
+            "pair_id": "c019",
+            "left_title": "Wrestling Appeal",
+            "right_title": "Wrestle Dream",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.1126
+          },
+          {
+            "pair_id": "c023",
+            "left_title": "AI Art Rejected",
+            "right_title": "Bad Writing",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.0925
+          },
+          {
+            "pair_id": "c024",
+            "left_title": "Account Suspensions",
+            "right_title": "Account Deletions",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.3585
+          },
+          {
+            "pair_id": "c025",
+            "left_title": "Twitter Sucks",
+            "right_title": "Bluesky vs Twitter",
+            "flagged": false,
+            "titles_alike": false,
+            "centroid_cosine": 0.4128
+          }
+        ],
+        "near_zero": true,
+        "tracker": "The nightly check can't track this fix. The kind count uses per-post agreement, not the face centroid."
+      },
+      {
+        "kind": "other",
+        "label": "Other",
+        "total": 0,
+        "flagged": 0,
+        "unmatched": 0,
+        "pairs": [],
+        "near_zero": false,
+        "tracker": null
+      }
+    ]
+  },
+  "kind_counts": {
+    "report_only": true,
+    "changes_edition": false,
+    "independent_of_fixes": true,
+    "greeting_titles": {
+      "count": 11,
+      "planets": [
+        {
+          "scope": "Business",
+          "name": "The Article",
+          "post_count": 11
+        },
+        {
+          "scope": "Culture",
+          "name": "Tax Movie Titles",
+          "post_count": 177
+        },
+        {
+          "scope": "Culture",
+          "name": "Tax Purposes",
+          "post_count": 25
+        },
+        {
+          "scope": "Other",
+          "name": "Good Day",
+          "post_count": 23
+        },
+        {
+          "scope": "Other",
+          "name": "Good Morning",
+          "post_count": 22
+        },
+        {
+          "scope": "Other",
+          "name": "Great Day",
+          "post_count": 16
+        },
+        {
+          "scope": "Other",
+          "name": "Great Time",
+          "post_count": 8
+        },
+        {
+          "scope": "Other",
+          "name": "Happy Sunday",
+          "post_count": 6
+        },
+        {
+          "scope": "Other",
+          "name": "Hope For The Day",
+          "post_count": 14
+        },
+        {
+          "scope": "Other",
+          "name": "wonderful day",
+          "post_count": 8
+        },
+        {
+          "scope": "World",
+          "name": "Trump Krasnov Link",
+          "post_count": 6
+        }
+      ],
+      "thresholds": {
+        "min_sparse": 0.6,
+        "min_agreement": 0.12,
+        "max_median_words": 16
+      },
+      "rule": "A planet whose posts are sparse, or whose own posts agree and are short. Not the greeting matcher or a title list."
+    },
+    "fragments": {
+      "count": 16,
+      "pairs": [
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI Art",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI bots",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI Control",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI Creative Effort",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Adoption",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Art",
+          "right_title": "AI bots",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Art",
+          "right_title": "AI Control",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Art",
+          "right_title": "AI Creative Effort",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Art",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI bots",
+          "right_title": "AI Control",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI bots",
+          "right_title": "AI Creative Effort",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI bots",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Control",
+          "right_title": "AI Creative Effort",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Control",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Technology",
+          "left_title": "AI Creative Effort",
+          "right_title": "AI Generated Articles",
+          "left_posts": 5,
+          "right_posts": 5,
+          "shared_entities": [
+            "ai"
+          ]
+        },
+        {
+          "scope": "Sports",
+          "left_title": "PS5 Compatibility",
+          "right_title": "Sony PS5",
+          "left_posts": 6,
+          "right_posts": 5,
+          "shared_entities": [
+            "ps5"
+          ]
+        }
+      ],
+      "thresholds": {
+        "min_shared_entities": 1,
+        "max_posts": 12
+      },
+      "rule": "Same-section pairs whose titles share an acronym or a digit token, both at or under the tuned post cap. Not stems."
+    },
+    "stance_agreement": {
+      "count": 21,
+      "pairs": [
+        {
+          "scope": "catalog",
+          "planet": "Good Morning",
+          "left_title": "Good Wishes",
+          "right_title": "Night Time",
+          "post_agreement": 0.2457
+        },
+        {
+          "scope": "World",
+          "planet": "US Iran War",
+          "left_title": "Iran War",
+          "right_title": "Iran Attacks Ships",
+          "post_agreement": 0.1298
+        },
+        {
+          "scope": "Business",
+          "planet": "Thirty Thousand",
+          "left_title": "Thirty Thousand",
+          "right_title": "Debt Impact",
+          "post_agreement": 0.1178
+        },
+        {
+          "scope": "Business",
+          "planet": "Ultra Rich",
+          "left_title": "Ultra Rich",
+          "right_title": "Fundraising Progress",
+          "post_agreement": 0.1642
+        },
+        {
+          "scope": "Business",
+          "planet": "Brent Oil Prices",
+          "left_title": "High Oil",
+          "right_title": "Oil Prices",
+          "post_agreement": 0.1354
+        },
+        {
+          "scope": "Technology",
+          "planet": "AI Art",
+          "left_title": "AI Art Rejected",
+          "right_title": "Bad Writing",
+          "post_agreement": 0.1041
+        },
+        {
+          "scope": "Technology",
+          "planet": "Twitter Exodus",
+          "left_title": "Twitter Sucks",
+          "right_title": "Bluesky vs Twitter",
+          "post_agreement": 0.1433
+        },
+        {
+          "scope": "Technology",
+          "planet": "Account Security",
+          "left_title": "Account Suspensions",
+          "right_title": "Account Deletions",
+          "post_agreement": 0.1215
+        },
+        {
+          "scope": "Sports",
+          "planet": "Brewers Dodgers",
+          "left_title": "Brewers Success",
+          "right_title": "Dodgers Performance",
+          "post_agreement": 0.1462
+        },
+        {
+          "scope": "Sports",
+          "planet": "AEW WrestleDream",
+          "left_title": "Wrestling Appeal",
+          "right_title": "Wrestle Dream",
+          "post_agreement": 0.2003
+        },
+        {
+          "scope": "Sports",
+          "planet": "PS5 Compatibility",
+          "left_title": "PS6 Release",
+          "right_title": "PS5 Compatibility",
+          "post_agreement": 0.11
+        },
+        {
+          "scope": "Culture",
+          "planet": "Twitch Streamers",
+          "left_title": "Stream Plans",
+          "right_title": "Burnout",
+          "post_agreement": 0.2644
+        },
+        {
+          "scope": "Culture",
+          "planet": "The Show",
+          "left_title": "Show Quality",
+          "right_title": "Show Enjoyment",
+          "post_agreement": 0.1719
+        },
+        {
+          "scope": "Culture",
+          "planet": "Hair Preferences",
+          "left_title": "Hair Preferences",
+          "right_title": "Hair Remarks",
+          "post_agreement": 0.2887
+        },
+        {
+          "scope": "Culture",
+          "planet": "Voice Training",
+          "left_title": "Voice Care",
+          "right_title": "Great Voice",
+          "post_agreement": 0.1129
+        },
+        {
+          "scope": "Culture",
+          "planet": "Voice Training",
+          "left_title": "Voice Care",
+          "right_title": "Voice Acting",
+          "post_agreement": 0.26
+        },
+        {
+          "scope": "Culture",
+          "planet": "French Protests",
+          "left_title": "French Protests",
+          "right_title": "French Stereotypes",
+          "post_agreement": 0.1718
+        },
+        {
+          "scope": "Health",
+          "planet": "Asthma Attacks",
+          "left_title": "Asthma Fatal",
+          "right_title": "Asthma Ban",
+          "post_agreement": 0.1583
+        },
+        {
+          "scope": "Health",
+          "planet": "ADHD Struggles",
+          "left_title": "ADHD Struggles",
+          "right_title": "ADHD Effects",
+          "post_agreement": 0.1213
+        },
+        {
+          "scope": "Environment",
+          "planet": "Cold Weather",
+          "left_title": "Weather Changes",
+          "right_title": "Weather Reports",
+          "post_agreement": 0.2661
+        },
+        {
+          "scope": "Education",
+          "planet": "School Surgeries",
+          "left_title": "School Medication",
+          "right_title": "School Medical Care",
+          "post_agreement": 0.1314
+        }
+      ],
+      "thresholds": {
+        "min_post_cosine": 0.1
+      },
+      "rule": "Within-planet face pairs whose closest posts agree. Not the face centroid and not the stance fold."
+    },
+    "weekly_blind_sample": {
+      "enabled": false,
+      "seed": 27343,
+      "planet_pairs": [],
+      "face_pairs": [],
+      "cost": {
+        "enabled": false,
+        "planet_pairs": 20,
+        "face_pairs": 10,
+        "input_tokens": 21600,
+        "tokens_per_pair": 720,
+        "price_per_million_input_tokens": "0.042",
+        "price_as_of": "2026-10-08",
+        "usd_per_week": "0.000907",
+        "usd_per_day": "0.000130",
+        "daily_budget_low": "0.25",
+        "daily_budget_high": "0.30",
+        "paid_calls": 0
+      },
+      "note": "Off. A second model does not label this sample until Michael turns it on."
+    },
+    "labeled": {
+      "seed": 273,
+      "note": "Tuned on two-thirds of each band. Recall is the held-out third plus spot-check ids.",
+      "greeting_titles": {
+        "yes": 6,
+        "flagged_yes": 6,
+        "no": 16,
+        "false_flags": 0,
+        "flagged_yes_ids": [
+          "p028",
+          "p051",
+          "p033",
+          "p010",
+          "p002",
+          "p007"
+        ],
+        "false_flag_ids": [],
+        "recall": "6 of 6",
+        "thresholds": {
+          "min_sparse": 0.6,
+          "min_agreement": 0.12,
+          "max_median_words": 16
+        },
+        "tuned_on": 31,
+        "holdout": 19,
+        "spot_checks": 8,
+        "seed": 273
+      },
+      "fragments": {
+        "yes": 5,
+        "flagged_yes": 1,
+        "no": 16,
+        "false_flags": 0,
+        "flagged_yes_ids": [
+          "p011"
+        ],
+        "false_flag_ids": [],
+        "recall": "1 of 5",
+        "thresholds": {
+          "min_shared_entities": 1,
+          "max_posts": 12
+        },
+        "tuned_on": 31,
+        "holdout": 19,
+        "spot_checks": 8,
+        "seed": 273
+      },
+      "stance_agreement": {
+        "yes": 8,
+        "flagged_yes": 8,
+        "no": 9,
+        "false_flags": 7,
+        "flagged_yes_ids": [
+          "c006",
+          "c007",
+          "c011",
+          "c008",
+          "c001",
+          "c003",
+          "c018",
+          "c023"
+        ],
+        "false_flag_ids": [
+          "c004",
+          "c021",
+          "c005",
+          "c010",
+          "c020",
+          "c026",
+          "c027"
+        ],
+        "recall": "8 of 8",
+        "thresholds": {
+          "min_post_cosine": 0.1
+        },
+        "tuned_on": 9,
+        "holdout": 7,
+        "spot_checks": 10,
+        "seed": 273
+      }
+    }
+  }
+}

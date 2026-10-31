@@ -716,6 +716,12 @@ A bucket that fails `_fragment_bucket` is not a generic fragment. It still publi
 **Alternatives:** Let reviewers commit fixes as part of review (rejected because it leaves unreviewed code). Always re-review the whole PR (heavier than needed).
 **Revisit:** If review rounds get noticeably slower, or if reviewer-written commits keep needing a second pass anyway.
 
+### 2026-10-20: Fix the pipeline stage that caused a bad planet; do not clean it up afterward
+**Decision:** A bad grouping or a bad perspective is fixed at the stage that produced it (ingest, clustering/attach, faces/stance, or labeling). A later pass does not hide, rewrite, or drop the planet to make the edition look finished. The edition self-check (#273) is a detector only. Each failure names the stage that should change.
+**Why:** Michael (Factory room, 2026-10-20 9:50 AM CT) said to fix root causes rather than cleaning up bad groupings or perspectives afterward.
+**Alternatives:** Keep publishing, then rewrite titles or drop planets in a cleanup step (rejected).
+**Revisit:** If a detector failure cannot be traced to one of those four stages.
+
 ### 2026-10-20: Planet floor raised to 30 posts (supersedes #79; partly supersedes #77)
 - **Decision:** A planet, including a face split off into its own planet, is published only if it has at least 30 posts. Planets under the floor are left out of the edition, and their posts are not reassigned. The next-ranked candidate fills the freed slot. The generic thin-fragment hold (`_THIN_FRAGMENT_POSTS = 8`) is unchanged.
 - **Why:** Michael (2026-10-20): small planets were mostly grab-bag junk that looks off to a newcomer; he chose a plain minimum-posts floor over a conditional grab-bag rule, and picked 30 after seeing the 5/8/10/15/20 replay on Oct 19. At 30, the Oct 19 edition drops 53 of 107 planets and 548 of 12,201 posts, with 0 split-caused losses.
