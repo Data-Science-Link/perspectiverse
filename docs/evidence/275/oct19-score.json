@@ -1,0 +1,2317 @@
+{
+  "labels": "docs/evidence/275/oct19-pairs-labeled.csv",
+  "label_model_on_file": "composer-2.5",
+  "scorer": "awaiting grok-4.7",
+  "guards": "off",
+  "paid_calls_usd": 0,
+  "runtime_seconds": 17.833,
+  "face_labels": "census",
+  "face_label_note": "Face rates use oct19-face-census.csv, the 27 within-planet pairs, labeled on the same-viewpoint definition. The 60-row face sample in oct19-pairs.csv leaked cross-planet pairs and is not scored.",
+  "face_sample_leak": {
+    "sampled_face_rows": 60,
+    "within_planet_rows": 9,
+    "cross_planet_rows": 51,
+    "exact_planet_row_copies": [
+      "f008",
+      "f018",
+      "f019",
+      "f025",
+      "f038",
+      "f042"
+    ]
+  },
+  "formula": "Planet band rate = labeled planet rows in that band of the stratified sample, divided by the sample count in the band. Headline = sum of band rate times that band's share of all 480 same-section planet pairs. Face rates are the census: each band's share is its count of the 27 within-planet pairs, and the band rate is the labeled rate in that band. unsure is reported alone, held out of yes, and included in yes_or_unsure.",
+  "planets_before": {
+    "level": "planet",
+    "before_yes": 0.15587,
+    "before_yes_or_unsure": 0.167849,
+    "before_unsure": 0.011979,
+    "after_yes": 0.15587,
+    "after_yes_or_unsure": 0.167849,
+    "after_unsure": 0.011979,
+    "before_pairs_per_section_yes": 6.8016,
+    "before_pairs_per_section_yes_or_unsure": 7.3243,
+    "after_pairs_per_section_yes": 6.8016,
+    "after_pairs_per_section_yes_or_unsure": 7.3243,
+    "before_bands": [
+      {
+        "band": "B0",
+        "share": 0.735417,
+        "population_pairs": 353,
+        "n": 17,
+        "yes": 1,
+        "unsure": 0,
+        "no": 16,
+        "yes_rate": 0.058823529411764705,
+        "yes_or_unsure_rate": 0.058823529411764705,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.04326,
+        "contribution_yes_or_unsure": 0.04326,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B1",
+        "share": 0.1125,
+        "population_pairs": 54,
+        "n": 17,
+        "yes": 4,
+        "unsure": 0,
+        "no": 13,
+        "yes_rate": 0.23529411764705882,
+        "yes_or_unsure_rate": 0.23529411764705882,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.026471,
+        "contribution_yes_or_unsure": 0.026471,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B2",
+        "share": 0.095833,
+        "population_pairs": 46,
+        "n": 16,
+        "yes": 7,
+        "unsure": 2,
+        "no": 7,
+        "yes_rate": 0.4375,
+        "yes_or_unsure_rate": 0.5625,
+        "unsure_rate": 0.125,
+        "contribution_yes": 0.041927,
+        "contribution_yes_or_unsure": 0.053906,
+        "contribution_unsure": 0.011979
+      },
+      {
+        "band": "B3",
+        "share": 0.054167,
+        "population_pairs": 26,
+        "n": 9,
+        "yes": 7,
+        "unsure": 0,
+        "no": 2,
+        "yes_rate": 0.7777777777777778,
+        "yes_or_unsure_rate": 0.7777777777777778,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.04213,
+        "contribution_yes_or_unsure": 0.04213,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B4",
+        "share": 0.002083,
+        "population_pairs": 1,
+        "n": 1,
+        "yes": 1,
+        "unsure": 0,
+        "no": 0,
+        "yes_rate": 1.0,
+        "yes_or_unsure_rate": 1.0,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.002083,
+        "contribution_yes_or_unsure": 0.002083,
+        "contribution_unsure": 0.0
+      }
+    ],
+    "after_bands": [
+      {
+        "band": "B0",
+        "share": 0.735417,
+        "population_pairs": 353,
+        "n": 17,
+        "yes": 1,
+        "unsure": 0,
+        "no": 16,
+        "yes_rate": 0.058823529411764705,
+        "yes_or_unsure_rate": 0.058823529411764705,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.04326,
+        "contribution_yes_or_unsure": 0.04326,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B1",
+        "share": 0.1125,
+        "population_pairs": 54,
+        "n": 17,
+        "yes": 4,
+        "unsure": 0,
+        "no": 13,
+        "yes_rate": 0.23529411764705882,
+        "yes_or_unsure_rate": 0.23529411764705882,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.026471,
+        "contribution_yes_or_unsure": 0.026471,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B2",
+        "share": 0.095833,
+        "population_pairs": 46,
+        "n": 16,
+        "yes": 7,
+        "unsure": 2,
+        "no": 7,
+        "yes_rate": 0.4375,
+        "yes_or_unsure_rate": 0.5625,
+        "unsure_rate": 0.125,
+        "contribution_yes": 0.041927,
+        "contribution_yes_or_unsure": 0.053906,
+        "contribution_unsure": 0.011979
+      },
+      {
+        "band": "B3",
+        "share": 0.054167,
+        "population_pairs": 26,
+        "n": 9,
+        "yes": 7,
+        "unsure": 0,
+        "no": 2,
+        "yes_rate": 0.7777777777777778,
+        "yes_or_unsure_rate": 0.7777777777777778,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.04213,
+        "contribution_yes_or_unsure": 0.04213,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B4",
+        "share": 0.002083,
+        "population_pairs": 1,
+        "n": 1,
+        "yes": 1,
+        "unsure": 0,
+        "no": 0,
+        "yes_rate": 1.0,
+        "yes_or_unsure_rate": 1.0,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.002083,
+        "contribution_yes_or_unsure": 0.002083,
+        "contribution_unsure": 0.0
+      }
+    ]
+  },
+  "faces_before": {
+    "level": "face",
+    "before_yes": 0.481481,
+    "before_yes_or_unsure": 0.518519,
+    "before_unsure": 0.037037,
+    "after_yes": 0.481481,
+    "after_yes_or_unsure": 0.518519,
+    "after_unsure": 0.037037,
+    "before_pairs_per_planet_yes": 0.1215,
+    "before_pairs_per_planet_yes_or_unsure": 0.1308,
+    "after_pairs_per_planet_yes": 0.1215,
+    "after_pairs_per_planet_yes_or_unsure": 0.1308,
+    "before_bands": [
+      {
+        "band": "B0",
+        "share": 0.0,
+        "population_pairs": 0,
+        "n": 0,
+        "yes": 0,
+        "unsure": 0,
+        "no": 0,
+        "yes_rate": null,
+        "yes_or_unsure_rate": null,
+        "unsure_rate": null,
+        "contribution_yes": 0.0,
+        "contribution_yes_or_unsure": 0.0,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B1",
+        "share": 0.1111111111111111,
+        "population_pairs": 3,
+        "n": 3,
+        "yes": 1,
+        "unsure": 0,
+        "no": 2,
+        "yes_rate": 0.3333333333333333,
+        "yes_or_unsure_rate": 0.3333333333333333,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.037037,
+        "contribution_yes_or_unsure": 0.037037,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B2",
+        "share": 0.2962962962962963,
+        "population_pairs": 8,
+        "n": 8,
+        "yes": 3,
+        "unsure": 0,
+        "no": 5,
+        "yes_rate": 0.375,
+        "yes_or_unsure_rate": 0.375,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.111111,
+        "contribution_yes_or_unsure": 0.111111,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B3",
+        "share": 0.5185185185185185,
+        "population_pairs": 14,
+        "n": 14,
+        "yes": 8,
+        "unsure": 1,
+        "no": 5,
+        "yes_rate": 0.5714285714285714,
+        "yes_or_unsure_rate": 0.6428571428571429,
+        "unsure_rate": 0.07142857142857142,
+        "contribution_yes": 0.296296,
+        "contribution_yes_or_unsure": 0.333333,
+        "contribution_unsure": 0.037037
+      },
+      {
+        "band": "B4",
+        "share": 0.07407407407407407,
+        "population_pairs": 2,
+        "n": 2,
+        "yes": 1,
+        "unsure": 0,
+        "no": 1,
+        "yes_rate": 0.5,
+        "yes_or_unsure_rate": 0.5,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.037037,
+        "contribution_yes_or_unsure": 0.037037,
+        "contribution_unsure": 0.0
+      }
+    ],
+    "after_bands": [
+      {
+        "band": "B0",
+        "share": 0.0,
+        "population_pairs": 0,
+        "n": 0,
+        "yes": 0,
+        "unsure": 0,
+        "no": 0,
+        "yes_rate": null,
+        "yes_or_unsure_rate": null,
+        "unsure_rate": null,
+        "contribution_yes": 0.0,
+        "contribution_yes_or_unsure": 0.0,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B1",
+        "share": 0.1111111111111111,
+        "population_pairs": 3,
+        "n": 3,
+        "yes": 1,
+        "unsure": 0,
+        "no": 2,
+        "yes_rate": 0.3333333333333333,
+        "yes_or_unsure_rate": 0.3333333333333333,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.037037,
+        "contribution_yes_or_unsure": 0.037037,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B2",
+        "share": 0.2962962962962963,
+        "population_pairs": 8,
+        "n": 8,
+        "yes": 3,
+        "unsure": 0,
+        "no": 5,
+        "yes_rate": 0.375,
+        "yes_or_unsure_rate": 0.375,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.111111,
+        "contribution_yes_or_unsure": 0.111111,
+        "contribution_unsure": 0.0
+      },
+      {
+        "band": "B3",
+        "share": 0.5185185185185185,
+        "population_pairs": 14,
+        "n": 14,
+        "yes": 8,
+        "unsure": 1,
+        "no": 5,
+        "yes_rate": 0.5714285714285714,
+        "yes_or_unsure_rate": 0.6428571428571429,
+        "unsure_rate": 0.07142857142857142,
+        "contribution_yes": 0.296296,
+        "contribution_yes_or_unsure": 0.333333,
+        "contribution_unsure": 0.037037
+      },
+      {
+        "band": "B4",
+        "share": 0.07407407407407407,
+        "population_pairs": 2,
+        "n": 2,
+        "yes": 1,
+        "unsure": 0,
+        "no": 1,
+        "yes_rate": 0.5,
+        "yes_or_unsure_rate": 0.5,
+        "unsure_rate": 0.0,
+        "contribution_yes": 0.037037,
+        "contribution_yes_or_unsure": 0.037037,
+        "contribution_unsure": 0.0
+      }
+    ]
+  },
+  "proxy_cutoff_0.70": {
+    "under_call_ids": [
+      "p007",
+      "p009",
+      "p011",
+      "p015",
+      "p019",
+      "p028",
+      "p038",
+      "p040",
+      "p041",
+      "p048",
+      "p050",
+      "p058",
+      "c001",
+      "c003",
+      "c018",
+      "c023"
+    ],
+    "over_call_ids": [
+      "p001",
+      "p043",
+      "c005",
+      "c010",
+      "c020",
+      "c022",
+      "c026",
+      "c027"
+    ],
+    "planet_under": 12,
+    "planet_over": 2,
+    "face_under": 4,
+    "face_over": 6
+  },
+  "fixes": {
+    "fix1_paraphrase_face": {
+      "resolved_pair_ids": [
+        "c007",
+        "c008",
+        "c016",
+        "c024",
+        "c027"
+      ],
+      "detail": [
+        {
+          "pair_id": "c001",
+          "cosine": 0.5773,
+          "band": "B2",
+          "label": "yes",
+          "titles": "High Oil | Oil Prices",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c002",
+          "cosine": 0.6229,
+          "band": "B2",
+          "label": "no",
+          "titles": "Tesla Fails | Tesla SpaceX Merger",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c003",
+          "cosine": 0.479,
+          "band": "B1",
+          "label": "yes",
+          "titles": "Thirty Thousand | Debt Impact",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c004",
+          "cosine": 0.5647,
+          "band": "B2",
+          "label": "no",
+          "titles": "Ultra Rich | Fundraising Progress",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c005",
+          "cosine": 0.7319,
+          "band": "B3",
+          "label": "no",
+          "titles": "French Protests | French Stereotypes",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c006",
+          "cosine": 0.7734,
+          "band": "B3",
+          "label": "yes",
+          "titles": "Hair Preferences | Hair Remarks",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c007",
+          "cosine": 0.8488,
+          "band": "B3",
+          "label": "yes",
+          "titles": "Show Quality | Show Enjoyment",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": true
+        },
+        {
+          "pair_id": "c008",
+          "cosine": 0.8954,
+          "band": "B4",
+          "label": "yes",
+          "titles": "Stream Plans | Burnout",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": true
+        },
+        {
+          "pair_id": "c009",
+          "cosine": 0.66,
+          "band": "B2",
+          "label": "no",
+          "titles": "Great Voice | Voice Acting",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c010",
+          "cosine": 0.7603,
+          "band": "B3",
+          "label": "no",
+          "titles": "Voice Care | Great Voice",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c011",
+          "cosine": 0.7817,
+          "band": "B3",
+          "label": "yes",
+          "titles": "Voice Care | Voice Acting",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c012",
+          "cosine": 0.6382,
+          "band": "B2",
+          "label": "no",
+          "titles": "College Indoctrination | Voting Matters",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c013",
+          "cosine": 0.5477,
+          "band": "B1",
+          "label": "no",
+          "titles": "Education Politics | Curricular Changes",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c014",
+          "cosine": 0.4256,
+          "band": "B1",
+          "label": "no",
+          "titles": "School Medical Care | Media Literacy",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c015",
+          "cosine": 0.7569,
+          "band": "B3",
+          "label": "yes",
+          "titles": "School Medication | School Medical Care",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c016",
+          "cosine": 0.8181,
+          "band": "B3",
+          "label": "unsure",
+          "titles": "Weather Changes | Weather Reports",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": true
+        },
+        {
+          "pair_id": "c017",
+          "cosine": 0.7983,
+          "band": "B3",
+          "label": "yes",
+          "titles": "ADHD Struggles | ADHD Effects",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c018",
+          "cosine": 0.6906,
+          "band": "B2",
+          "label": "yes",
+          "titles": "Asthma Fatal | Asthma Ban",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c019",
+          "cosine": 0.7343,
+          "band": "B3",
+          "label": "yes",
+          "titles": "Wrestling Appeal | Wrestle Dream",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c020",
+          "cosine": 0.715,
+          "band": "B3",
+          "label": "no",
+          "titles": "Brewers Success | Dodgers Performance",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c021",
+          "cosine": 0.6198,
+          "band": "B2",
+          "label": "no",
+          "titles": "PS6 Release | PS5 Compatibility",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c022",
+          "cosine": 0.7156,
+          "band": "B3",
+          "label": "no",
+          "titles": "PS6 Pricing | PS3 Nostalgia",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c023",
+          "cosine": 0.6066,
+          "band": "B2",
+          "label": "yes",
+          "titles": "AI Art Rejected | Bad Writing",
+          "disagree": false,
+          "lexicon_fold": false,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c024",
+          "cosine": 0.824,
+          "band": "B3",
+          "label": "yes",
+          "titles": "Account Suspensions | Account Deletions",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": true
+        },
+        {
+          "pair_id": "c025",
+          "cosine": 0.732,
+          "band": "B3",
+          "label": "yes",
+          "titles": "Twitter Sucks | Bluesky vs Twitter",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c026",
+          "cosine": 0.7557,
+          "band": "B3",
+          "label": "no",
+          "titles": "Iran War | Iran Attacks Ships",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": false
+        },
+        {
+          "pair_id": "c027",
+          "cosine": 0.8562,
+          "band": "B4",
+          "label": "no",
+          "titles": "Good Wishes | Night Time",
+          "disagree": false,
+          "lexicon_fold": true,
+          "paraphrase_bar": true
+        }
+      ],
+      "planets": {
+        "level": "planet",
+        "before_yes": 0.15587,
+        "before_yes_or_unsure": 0.167849,
+        "before_unsure": 0.011979,
+        "after_yes": 0.15587,
+        "after_yes_or_unsure": 0.167849,
+        "after_unsure": 0.011979,
+        "before_pairs_per_section_yes": 6.8016,
+        "before_pairs_per_section_yes_or_unsure": 7.3243,
+        "after_pairs_per_section_yes": 6.8016,
+        "after_pairs_per_section_yes_or_unsure": 7.3243,
+        "before_bands": [
+          {
+            "band": "B0",
+            "share": 0.735417,
+            "population_pairs": 353,
+            "n": 17,
+            "yes": 1,
+            "unsure": 0,
+            "no": 16,
+            "yes_rate": 0.058823529411764705,
+            "yes_or_unsure_rate": 0.058823529411764705,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04326,
+            "contribution_yes_or_unsure": 0.04326,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1125,
+            "population_pairs": 54,
+            "n": 17,
+            "yes": 4,
+            "unsure": 0,
+            "no": 13,
+            "yes_rate": 0.23529411764705882,
+            "yes_or_unsure_rate": 0.23529411764705882,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.026471,
+            "contribution_yes_or_unsure": 0.026471,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.095833,
+            "population_pairs": 46,
+            "n": 16,
+            "yes": 7,
+            "unsure": 2,
+            "no": 7,
+            "yes_rate": 0.4375,
+            "yes_or_unsure_rate": 0.5625,
+            "unsure_rate": 0.125,
+            "contribution_yes": 0.041927,
+            "contribution_yes_or_unsure": 0.053906,
+            "contribution_unsure": 0.011979
+          },
+          {
+            "band": "B3",
+            "share": 0.054167,
+            "population_pairs": 26,
+            "n": 9,
+            "yes": 7,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.7777777777777778,
+            "yes_or_unsure_rate": 0.7777777777777778,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04213,
+            "contribution_yes_or_unsure": 0.04213,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.002083,
+            "population_pairs": 1,
+            "n": 1,
+            "yes": 1,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": 1.0,
+            "yes_or_unsure_rate": 1.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.002083,
+            "contribution_yes_or_unsure": 0.002083,
+            "contribution_unsure": 0.0
+          }
+        ],
+        "after_bands": [
+          {
+            "band": "B0",
+            "share": 0.735417,
+            "population_pairs": 353,
+            "n": 17,
+            "yes": 1,
+            "unsure": 0,
+            "no": 16,
+            "yes_rate": 0.058823529411764705,
+            "yes_or_unsure_rate": 0.058823529411764705,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04326,
+            "contribution_yes_or_unsure": 0.04326,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1125,
+            "population_pairs": 54,
+            "n": 17,
+            "yes": 4,
+            "unsure": 0,
+            "no": 13,
+            "yes_rate": 0.23529411764705882,
+            "yes_or_unsure_rate": 0.23529411764705882,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.026471,
+            "contribution_yes_or_unsure": 0.026471,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.095833,
+            "population_pairs": 46,
+            "n": 16,
+            "yes": 7,
+            "unsure": 2,
+            "no": 7,
+            "yes_rate": 0.4375,
+            "yes_or_unsure_rate": 0.5625,
+            "unsure_rate": 0.125,
+            "contribution_yes": 0.041927,
+            "contribution_yes_or_unsure": 0.053906,
+            "contribution_unsure": 0.011979
+          },
+          {
+            "band": "B3",
+            "share": 0.054167,
+            "population_pairs": 26,
+            "n": 9,
+            "yes": 7,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.7777777777777778,
+            "yes_or_unsure_rate": 0.7777777777777778,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04213,
+            "contribution_yes_or_unsure": 0.04213,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.002083,
+            "population_pairs": 1,
+            "n": 1,
+            "yes": 1,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": 1.0,
+            "yes_or_unsure_rate": 1.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.002083,
+            "contribution_yes_or_unsure": 0.002083,
+            "contribution_unsure": 0.0
+          }
+        ]
+      },
+      "faces": {
+        "level": "face",
+        "before_yes": 0.481481,
+        "before_yes_or_unsure": 0.518519,
+        "before_unsure": 0.037037,
+        "after_yes": 0.37037,
+        "after_yes_or_unsure": 0.37037,
+        "after_unsure": 0.0,
+        "before_pairs_per_planet_yes": 0.1215,
+        "before_pairs_per_planet_yes_or_unsure": 0.1308,
+        "after_pairs_per_planet_yes": 0.0935,
+        "after_pairs_per_planet_yes_or_unsure": 0.0935,
+        "before_bands": [
+          {
+            "band": "B0",
+            "share": 0.0,
+            "population_pairs": 0,
+            "n": 0,
+            "yes": 0,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": null,
+            "yes_or_unsure_rate": null,
+            "unsure_rate": null,
+            "contribution_yes": 0.0,
+            "contribution_yes_or_unsure": 0.0,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1111111111111111,
+            "population_pairs": 3,
+            "n": 3,
+            "yes": 1,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.3333333333333333,
+            "yes_or_unsure_rate": 0.3333333333333333,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.2962962962962963,
+            "population_pairs": 8,
+            "n": 8,
+            "yes": 3,
+            "unsure": 0,
+            "no": 5,
+            "yes_rate": 0.375,
+            "yes_or_unsure_rate": 0.375,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.111111,
+            "contribution_yes_or_unsure": 0.111111,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B3",
+            "share": 0.5185185185185185,
+            "population_pairs": 14,
+            "n": 14,
+            "yes": 8,
+            "unsure": 1,
+            "no": 5,
+            "yes_rate": 0.5714285714285714,
+            "yes_or_unsure_rate": 0.6428571428571429,
+            "unsure_rate": 0.07142857142857142,
+            "contribution_yes": 0.296296,
+            "contribution_yes_or_unsure": 0.333333,
+            "contribution_unsure": 0.037037
+          },
+          {
+            "band": "B4",
+            "share": 0.07407407407407407,
+            "population_pairs": 2,
+            "n": 2,
+            "yes": 1,
+            "unsure": 0,
+            "no": 1,
+            "yes_rate": 0.5,
+            "yes_or_unsure_rate": 0.5,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          }
+        ],
+        "after_bands": [
+          {
+            "band": "B0",
+            "share": 0.0,
+            "population_pairs": 0,
+            "n": 0,
+            "yes": 0,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": null,
+            "yes_or_unsure_rate": null,
+            "unsure_rate": null,
+            "contribution_yes": 0.0,
+            "contribution_yes_or_unsure": 0.0,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1111111111111111,
+            "population_pairs": 3,
+            "n": 3,
+            "yes": 1,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.3333333333333333,
+            "yes_or_unsure_rate": 0.3333333333333333,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.2962962962962963,
+            "population_pairs": 8,
+            "n": 8,
+            "yes": 3,
+            "unsure": 0,
+            "no": 5,
+            "yes_rate": 0.375,
+            "yes_or_unsure_rate": 0.375,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.111111,
+            "contribution_yes_or_unsure": 0.111111,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B3",
+            "share": 0.5185185185185185,
+            "population_pairs": 14,
+            "n": 14,
+            "yes": 6,
+            "unsure": 0,
+            "no": 8,
+            "yes_rate": 0.42857142857142855,
+            "yes_or_unsure_rate": 0.42857142857142855,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.222222,
+            "contribution_yes_or_unsure": 0.222222,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.07407407407407407,
+            "population_pairs": 2,
+            "n": 2,
+            "yes": 0,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.0,
+            "yes_or_unsure_rate": 0.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.0,
+            "contribution_yes_or_unsure": 0.0,
+            "contribution_unsure": 0.0
+          }
+        ]
+      },
+      "note": "Within-planet census pairs with representative cosine >= 0.80 whose posts do not trip local_faces_disagree. Pairs from 0.48 to 0.69 are not resolved."
+    },
+    "fix2_attach_stem": {
+      "resolved_pair_ids": [
+        "p041"
+      ],
+      "unsafe_raw_stem_ids": [
+        "p010",
+        "p013",
+        "p038",
+        "p046"
+      ],
+      "detail": [
+        {
+          "pair_id": "p006",
+          "cosine": 0.588,
+          "band": "B2",
+          "label": "unsure",
+          "titles": "Great Time | Happy Sunday",
+          "posts": [
+            8,
+            6
+          ],
+          "shared": [
+            "good"
+          ],
+          "both_under_20": true,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p007",
+          "cosine": 0.6749,
+          "band": "B2",
+          "label": "yes",
+          "titles": "Good Day | Great Time",
+          "posts": [
+            23,
+            8
+          ],
+          "shared": [
+            "good"
+          ],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p009",
+          "cosine": 0.4957,
+          "band": "B1",
+          "label": "yes",
+          "titles": "US Iran War | US Unreliable",
+          "posts": [
+            155,
+            5
+          ],
+          "shared": [
+            "traitor"
+          ],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p010",
+          "cosine": 0.8524,
+          "band": "B4",
+          "label": "yes",
+          "titles": "Great Day | Happy Sunday",
+          "posts": [
+            16,
+            6
+          ],
+          "shared": [
+            "alli",
+            "good",
+            "happy",
+            "morn",
+            "sunday"
+          ],
+          "both_under_20": true,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": true
+        },
+        {
+          "pair_id": "p011",
+          "cosine": 0.53,
+          "band": "B1",
+          "label": "yes",
+          "titles": "AI Control | AI Adoption",
+          "posts": [
+            5,
+            5
+          ],
+          "shared": [
+            "ai"
+          ],
+          "both_under_20": true,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p013",
+          "cosine": 0.566,
+          "band": "B2",
+          "label": "no",
+          "titles": "Radical Professors | School Medical Care",
+          "posts": [
+            19,
+            8
+          ],
+          "shared": [
+            "dumb"
+          ],
+          "both_under_20": true,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": true
+        },
+        {
+          "pair_id": "p015",
+          "cosine": 0.577,
+          "band": "B2",
+          "label": "yes",
+          "titles": "Billionaire Power | Ultra Rich",
+          "posts": [
+            151,
+            11
+          ],
+          "shared": [
+            "doesn",
+            "wealth"
+          ],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p019",
+          "cosine": 0.1482,
+          "band": "B0",
+          "label": "yes",
+          "titles": "Thirty Thousand | The Article",
+          "posts": [
+            150,
+            11
+          ],
+          "shared": [],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p028",
+          "cosine": 0.6847,
+          "band": "B2",
+          "label": "yes",
+          "titles": "Good Morning | Happy Sunday",
+          "posts": [
+            22,
+            6
+          ],
+          "shared": [
+            "good",
+            "morn"
+          ],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p038",
+          "cosine": 0.6467,
+          "band": "B2",
+          "label": "yes",
+          "titles": "Radical Professors | College Republicans",
+          "posts": [
+            19,
+            5
+          ],
+          "shared": [
+            "colleg",
+            "student",
+            "suppos",
+            "year"
+          ],
+          "both_under_20": true,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": true
+        },
+        {
+          "pair_id": "p040",
+          "cosine": 0.6138,
+          "band": "B2",
+          "label": "yes",
+          "titles": "Good Day | wonderful day",
+          "posts": [
+            23,
+            8
+          ],
+          "shared": [
+            "good"
+          ],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p041",
+          "cosine": 0.6401,
+          "band": "B2",
+          "label": "yes",
+          "titles": "AI Control | AI bots",
+          "posts": [
+            5,
+            5
+          ],
+          "shared": [
+            "ai"
+          ],
+          "both_under_20": true,
+          "fix2_ai_allowlist": true,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p046",
+          "cosine": 0.5772,
+          "band": "B2",
+          "label": "no",
+          "titles": "Radical Professors | Voucher Program",
+          "posts": [
+            19,
+            6
+          ],
+          "shared": [
+            "stat",
+            "student"
+          ],
+          "both_under_20": true,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": true
+        },
+        {
+          "pair_id": "p048",
+          "cosine": 0.6019,
+          "band": "B2",
+          "label": "yes",
+          "titles": "US Ukraine War | US Iran War",
+          "posts": [
+            1038,
+            155
+          ],
+          "shared": [
+            "iran"
+          ],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p050",
+          "cosine": 0.478,
+          "band": "B1",
+          "label": "yes",
+          "titles": "Musk Accountability | Trump Corruption",
+          "posts": [
+            378,
+            148
+          ],
+          "shared": [],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p058",
+          "cosine": 0.4159,
+          "band": "B1",
+          "label": "yes",
+          "titles": "Climate Crisis | Fires",
+          "posts": [
+            50,
+            8
+          ],
+          "shared": [],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        },
+        {
+          "pair_id": "p060",
+          "cosine": 0.5769,
+          "band": "B2",
+          "label": "unsure",
+          "titles": "US Iran War | Russia Sanctions",
+          "posts": [
+            155,
+            6
+          ],
+          "shared": [],
+          "both_under_20": false,
+          "fix2_ai_allowlist": false,
+          "raw_stem_join_not_used": false
+        }
+      ],
+      "planets": {
+        "level": "planet",
+        "before_yes": 0.15587,
+        "before_yes_or_unsure": 0.167849,
+        "before_unsure": 0.011979,
+        "after_yes": 0.149881,
+        "after_yes_or_unsure": 0.16186,
+        "after_unsure": 0.011979,
+        "before_pairs_per_section_yes": 6.8016,
+        "before_pairs_per_section_yes_or_unsure": 7.3243,
+        "after_pairs_per_section_yes": 6.5403,
+        "after_pairs_per_section_yes_or_unsure": 7.063,
+        "before_bands": [
+          {
+            "band": "B0",
+            "share": 0.735417,
+            "population_pairs": 353,
+            "n": 17,
+            "yes": 1,
+            "unsure": 0,
+            "no": 16,
+            "yes_rate": 0.058823529411764705,
+            "yes_or_unsure_rate": 0.058823529411764705,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04326,
+            "contribution_yes_or_unsure": 0.04326,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1125,
+            "population_pairs": 54,
+            "n": 17,
+            "yes": 4,
+            "unsure": 0,
+            "no": 13,
+            "yes_rate": 0.23529411764705882,
+            "yes_or_unsure_rate": 0.23529411764705882,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.026471,
+            "contribution_yes_or_unsure": 0.026471,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.095833,
+            "population_pairs": 46,
+            "n": 16,
+            "yes": 7,
+            "unsure": 2,
+            "no": 7,
+            "yes_rate": 0.4375,
+            "yes_or_unsure_rate": 0.5625,
+            "unsure_rate": 0.125,
+            "contribution_yes": 0.041927,
+            "contribution_yes_or_unsure": 0.053906,
+            "contribution_unsure": 0.011979
+          },
+          {
+            "band": "B3",
+            "share": 0.054167,
+            "population_pairs": 26,
+            "n": 9,
+            "yes": 7,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.7777777777777778,
+            "yes_or_unsure_rate": 0.7777777777777778,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04213,
+            "contribution_yes_or_unsure": 0.04213,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.002083,
+            "population_pairs": 1,
+            "n": 1,
+            "yes": 1,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": 1.0,
+            "yes_or_unsure_rate": 1.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.002083,
+            "contribution_yes_or_unsure": 0.002083,
+            "contribution_unsure": 0.0
+          }
+        ],
+        "after_bands": [
+          {
+            "band": "B0",
+            "share": 0.735417,
+            "population_pairs": 353,
+            "n": 17,
+            "yes": 1,
+            "unsure": 0,
+            "no": 16,
+            "yes_rate": 0.058823529411764705,
+            "yes_or_unsure_rate": 0.058823529411764705,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04326,
+            "contribution_yes_or_unsure": 0.04326,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1125,
+            "population_pairs": 54,
+            "n": 17,
+            "yes": 4,
+            "unsure": 0,
+            "no": 13,
+            "yes_rate": 0.23529411764705882,
+            "yes_or_unsure_rate": 0.23529411764705882,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.026471,
+            "contribution_yes_or_unsure": 0.026471,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.095833,
+            "population_pairs": 46,
+            "n": 16,
+            "yes": 6,
+            "unsure": 2,
+            "no": 8,
+            "yes_rate": 0.375,
+            "yes_or_unsure_rate": 0.5,
+            "unsure_rate": 0.125,
+            "contribution_yes": 0.035937,
+            "contribution_yes_or_unsure": 0.047917,
+            "contribution_unsure": 0.011979
+          },
+          {
+            "band": "B3",
+            "share": 0.054167,
+            "population_pairs": 26,
+            "n": 9,
+            "yes": 7,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.7777777777777778,
+            "yes_or_unsure_rate": 0.7777777777777778,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04213,
+            "contribution_yes_or_unsure": 0.04213,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.002083,
+            "population_pairs": 1,
+            "n": 1,
+            "yes": 1,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": 1.0,
+            "yes_or_unsure_rate": 1.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.002083,
+            "contribution_yes_or_unsure": 0.002083,
+            "contribution_unsure": 0.0
+          }
+        ]
+      },
+      "faces": {
+        "level": "face",
+        "before_yes": 0.481481,
+        "before_yes_or_unsure": 0.518519,
+        "before_unsure": 0.037037,
+        "after_yes": 0.481481,
+        "after_yes_or_unsure": 0.518519,
+        "after_unsure": 0.037037,
+        "before_pairs_per_planet_yes": 0.1215,
+        "before_pairs_per_planet_yes_or_unsure": 0.1308,
+        "after_pairs_per_planet_yes": 0.1215,
+        "after_pairs_per_planet_yes_or_unsure": 0.1308,
+        "before_bands": [
+          {
+            "band": "B0",
+            "share": 0.0,
+            "population_pairs": 0,
+            "n": 0,
+            "yes": 0,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": null,
+            "yes_or_unsure_rate": null,
+            "unsure_rate": null,
+            "contribution_yes": 0.0,
+            "contribution_yes_or_unsure": 0.0,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1111111111111111,
+            "population_pairs": 3,
+            "n": 3,
+            "yes": 1,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.3333333333333333,
+            "yes_or_unsure_rate": 0.3333333333333333,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.2962962962962963,
+            "population_pairs": 8,
+            "n": 8,
+            "yes": 3,
+            "unsure": 0,
+            "no": 5,
+            "yes_rate": 0.375,
+            "yes_or_unsure_rate": 0.375,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.111111,
+            "contribution_yes_or_unsure": 0.111111,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B3",
+            "share": 0.5185185185185185,
+            "population_pairs": 14,
+            "n": 14,
+            "yes": 8,
+            "unsure": 1,
+            "no": 5,
+            "yes_rate": 0.5714285714285714,
+            "yes_or_unsure_rate": 0.6428571428571429,
+            "unsure_rate": 0.07142857142857142,
+            "contribution_yes": 0.296296,
+            "contribution_yes_or_unsure": 0.333333,
+            "contribution_unsure": 0.037037
+          },
+          {
+            "band": "B4",
+            "share": 0.07407407407407407,
+            "population_pairs": 2,
+            "n": 2,
+            "yes": 1,
+            "unsure": 0,
+            "no": 1,
+            "yes_rate": 0.5,
+            "yes_or_unsure_rate": 0.5,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          }
+        ],
+        "after_bands": [
+          {
+            "band": "B0",
+            "share": 0.0,
+            "population_pairs": 0,
+            "n": 0,
+            "yes": 0,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": null,
+            "yes_or_unsure_rate": null,
+            "unsure_rate": null,
+            "contribution_yes": 0.0,
+            "contribution_yes_or_unsure": 0.0,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1111111111111111,
+            "population_pairs": 3,
+            "n": 3,
+            "yes": 1,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.3333333333333333,
+            "yes_or_unsure_rate": 0.3333333333333333,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.2962962962962963,
+            "population_pairs": 8,
+            "n": 8,
+            "yes": 3,
+            "unsure": 0,
+            "no": 5,
+            "yes_rate": 0.375,
+            "yes_or_unsure_rate": 0.375,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.111111,
+            "contribution_yes_or_unsure": 0.111111,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B3",
+            "share": 0.5185185185185185,
+            "population_pairs": 14,
+            "n": 14,
+            "yes": 8,
+            "unsure": 1,
+            "no": 5,
+            "yes_rate": 0.5714285714285714,
+            "yes_or_unsure_rate": 0.6428571428571429,
+            "unsure_rate": 0.07142857142857142,
+            "contribution_yes": 0.296296,
+            "contribution_yes_or_unsure": 0.333333,
+            "contribution_unsure": 0.037037
+          },
+          {
+            "band": "B4",
+            "share": 0.07407407407407407,
+            "population_pairs": 2,
+            "n": 2,
+            "yes": 1,
+            "unsure": 0,
+            "no": 1,
+            "yes_rate": 0.5,
+            "yes_or_unsure_rate": 0.5,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          }
+        ]
+      },
+      "note": "Measured fix: both planets under 20 posts, cosine >= 0.55, shared stem ai. A raw specific_stems intersection also joins labeled no pairs; those ids are unsafe_raw_stem_ids and are not removed from the rate."
+    },
+    "fix3_keep_dropped_face_posts": {
+      "resolved_pair_ids": [],
+      "planets": {
+        "level": "planet",
+        "before_yes": 0.15587,
+        "before_yes_or_unsure": 0.167849,
+        "before_unsure": 0.011979,
+        "after_yes": 0.15587,
+        "after_yes_or_unsure": 0.167849,
+        "after_unsure": 0.011979,
+        "before_pairs_per_section_yes": 6.8016,
+        "before_pairs_per_section_yes_or_unsure": 7.3243,
+        "after_pairs_per_section_yes": 6.8016,
+        "after_pairs_per_section_yes_or_unsure": 7.3243,
+        "before_bands": [
+          {
+            "band": "B0",
+            "share": 0.735417,
+            "population_pairs": 353,
+            "n": 17,
+            "yes": 1,
+            "unsure": 0,
+            "no": 16,
+            "yes_rate": 0.058823529411764705,
+            "yes_or_unsure_rate": 0.058823529411764705,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04326,
+            "contribution_yes_or_unsure": 0.04326,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1125,
+            "population_pairs": 54,
+            "n": 17,
+            "yes": 4,
+            "unsure": 0,
+            "no": 13,
+            "yes_rate": 0.23529411764705882,
+            "yes_or_unsure_rate": 0.23529411764705882,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.026471,
+            "contribution_yes_or_unsure": 0.026471,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.095833,
+            "population_pairs": 46,
+            "n": 16,
+            "yes": 7,
+            "unsure": 2,
+            "no": 7,
+            "yes_rate": 0.4375,
+            "yes_or_unsure_rate": 0.5625,
+            "unsure_rate": 0.125,
+            "contribution_yes": 0.041927,
+            "contribution_yes_or_unsure": 0.053906,
+            "contribution_unsure": 0.011979
+          },
+          {
+            "band": "B3",
+            "share": 0.054167,
+            "population_pairs": 26,
+            "n": 9,
+            "yes": 7,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.7777777777777778,
+            "yes_or_unsure_rate": 0.7777777777777778,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04213,
+            "contribution_yes_or_unsure": 0.04213,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.002083,
+            "population_pairs": 1,
+            "n": 1,
+            "yes": 1,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": 1.0,
+            "yes_or_unsure_rate": 1.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.002083,
+            "contribution_yes_or_unsure": 0.002083,
+            "contribution_unsure": 0.0
+          }
+        ],
+        "after_bands": [
+          {
+            "band": "B0",
+            "share": 0.735417,
+            "population_pairs": 353,
+            "n": 17,
+            "yes": 1,
+            "unsure": 0,
+            "no": 16,
+            "yes_rate": 0.058823529411764705,
+            "yes_or_unsure_rate": 0.058823529411764705,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04326,
+            "contribution_yes_or_unsure": 0.04326,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1125,
+            "population_pairs": 54,
+            "n": 17,
+            "yes": 4,
+            "unsure": 0,
+            "no": 13,
+            "yes_rate": 0.23529411764705882,
+            "yes_or_unsure_rate": 0.23529411764705882,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.026471,
+            "contribution_yes_or_unsure": 0.026471,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.095833,
+            "population_pairs": 46,
+            "n": 16,
+            "yes": 7,
+            "unsure": 2,
+            "no": 7,
+            "yes_rate": 0.4375,
+            "yes_or_unsure_rate": 0.5625,
+            "unsure_rate": 0.125,
+            "contribution_yes": 0.041927,
+            "contribution_yes_or_unsure": 0.053906,
+            "contribution_unsure": 0.011979
+          },
+          {
+            "band": "B3",
+            "share": 0.054167,
+            "population_pairs": 26,
+            "n": 9,
+            "yes": 7,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.7777777777777778,
+            "yes_or_unsure_rate": 0.7777777777777778,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04213,
+            "contribution_yes_or_unsure": 0.04213,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.002083,
+            "population_pairs": 1,
+            "n": 1,
+            "yes": 1,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": 1.0,
+            "yes_or_unsure_rate": 1.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.002083,
+            "contribution_yes_or_unsure": 0.002083,
+            "contribution_unsure": 0.0
+          }
+        ]
+      },
+      "faces": {
+        "level": "face",
+        "before_yes": 0.481481,
+        "before_yes_or_unsure": 0.518519,
+        "before_unsure": 0.037037,
+        "after_yes": 0.481481,
+        "after_yes_or_unsure": 0.518519,
+        "after_unsure": 0.037037,
+        "before_pairs_per_planet_yes": 0.1215,
+        "before_pairs_per_planet_yes_or_unsure": 0.1308,
+        "after_pairs_per_planet_yes": 0.1215,
+        "after_pairs_per_planet_yes_or_unsure": 0.1308,
+        "before_bands": [
+          {
+            "band": "B0",
+            "share": 0.0,
+            "population_pairs": 0,
+            "n": 0,
+            "yes": 0,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": null,
+            "yes_or_unsure_rate": null,
+            "unsure_rate": null,
+            "contribution_yes": 0.0,
+            "contribution_yes_or_unsure": 0.0,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1111111111111111,
+            "population_pairs": 3,
+            "n": 3,
+            "yes": 1,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.3333333333333333,
+            "yes_or_unsure_rate": 0.3333333333333333,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.2962962962962963,
+            "population_pairs": 8,
+            "n": 8,
+            "yes": 3,
+            "unsure": 0,
+            "no": 5,
+            "yes_rate": 0.375,
+            "yes_or_unsure_rate": 0.375,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.111111,
+            "contribution_yes_or_unsure": 0.111111,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B3",
+            "share": 0.5185185185185185,
+            "population_pairs": 14,
+            "n": 14,
+            "yes": 8,
+            "unsure": 1,
+            "no": 5,
+            "yes_rate": 0.5714285714285714,
+            "yes_or_unsure_rate": 0.6428571428571429,
+            "unsure_rate": 0.07142857142857142,
+            "contribution_yes": 0.296296,
+            "contribution_yes_or_unsure": 0.333333,
+            "contribution_unsure": 0.037037
+          },
+          {
+            "band": "B4",
+            "share": 0.07407407407407407,
+            "population_pairs": 2,
+            "n": 2,
+            "yes": 1,
+            "unsure": 0,
+            "no": 1,
+            "yes_rate": 0.5,
+            "yes_or_unsure_rate": 0.5,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          }
+        ],
+        "after_bands": [
+          {
+            "band": "B0",
+            "share": 0.0,
+            "population_pairs": 0,
+            "n": 0,
+            "yes": 0,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": null,
+            "yes_or_unsure_rate": null,
+            "unsure_rate": null,
+            "contribution_yes": 0.0,
+            "contribution_yes_or_unsure": 0.0,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1111111111111111,
+            "population_pairs": 3,
+            "n": 3,
+            "yes": 1,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.3333333333333333,
+            "yes_or_unsure_rate": 0.3333333333333333,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.2962962962962963,
+            "population_pairs": 8,
+            "n": 8,
+            "yes": 3,
+            "unsure": 0,
+            "no": 5,
+            "yes_rate": 0.375,
+            "yes_or_unsure_rate": 0.375,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.111111,
+            "contribution_yes_or_unsure": 0.111111,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B3",
+            "share": 0.5185185185185185,
+            "population_pairs": 14,
+            "n": 14,
+            "yes": 8,
+            "unsure": 1,
+            "no": 5,
+            "yes_rate": 0.5714285714285714,
+            "yes_or_unsure_rate": 0.6428571428571429,
+            "unsure_rate": 0.07142857142857142,
+            "contribution_yes": 0.296296,
+            "contribution_yes_or_unsure": 0.333333,
+            "contribution_unsure": 0.037037
+          },
+          {
+            "band": "B4",
+            "share": 0.07407407407407407,
+            "population_pairs": 2,
+            "n": 2,
+            "yes": 1,
+            "unsure": 0,
+            "no": 1,
+            "yes_rate": 0.5,
+            "yes_or_unsure_rate": 0.5,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.037037,
+            "contribution_yes_or_unsure": 0.037037,
+            "contribution_unsure": 0.0
+          }
+        ]
+      },
+      "note": "Unpublished stayed-off posts are not rows in the census. The pair rate does not move."
+    },
+    "daypart_planet_gate": {
+      "resolved_pair_ids": [
+        "p002",
+        "p005",
+        "p006",
+        "p010",
+        "p016",
+        "p028",
+        "p029",
+        "p030",
+        "p031",
+        "p040",
+        "p045",
+        "p049",
+        "p051"
+      ],
+      "planets": {
+        "level": "planet",
+        "before_yes": 0.15587,
+        "before_yes_or_unsure": 0.167849,
+        "before_unsure": 0.011979,
+        "after_yes": 0.105697,
+        "after_yes_or_unsure": 0.111686,
+        "after_unsure": 0.00599,
+        "before_pairs_per_section_yes": 6.8016,
+        "before_pairs_per_section_yes_or_unsure": 7.3243,
+        "after_pairs_per_section_yes": 4.6122,
+        "after_pairs_per_section_yes_or_unsure": 4.8736,
+        "before_bands": [
+          {
+            "band": "B0",
+            "share": 0.735417,
+            "population_pairs": 353,
+            "n": 17,
+            "yes": 1,
+            "unsure": 0,
+            "no": 16,
+            "yes_rate": 0.058823529411764705,
+            "yes_or_unsure_rate": 0.058823529411764705,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04326,
+            "contribution_yes_or_unsure": 0.04326,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1125,
+            "population_pairs": 54,
+            "n": 17,
+            "yes": 4,
+            "unsure": 0,
+            "no": 13,
+            "yes_rate": 0.23529411764705882,
+            "yes_or_unsure_rate": 0.23529411764705882,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.026471,
+            "contribution_yes_or_unsure": 0.026471,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.095833,
+            "population_pairs": 46,
+            "n": 16,
+            "yes": 7,
+            "unsure": 2,
+            "no": 7,
+            "yes_rate": 0.4375,
+            "yes_or_unsure_rate": 0.5625,
+            "unsure_rate": 0.125,
+            "contribution_yes": 0.041927,
+            "contribution_yes_or_unsure": 0.053906,
+            "contribution_unsure": 0.011979
+          },
+          {
+            "band": "B3",
+            "share": 0.054167,
+            "population_pairs": 26,
+            "n": 9,
+            "yes": 7,
+            "unsure": 0,
+            "no": 2,
+            "yes_rate": 0.7777777777777778,
+            "yes_or_unsure_rate": 0.7777777777777778,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04213,
+            "contribution_yes_or_unsure": 0.04213,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.002083,
+            "population_pairs": 1,
+            "n": 1,
+            "yes": 1,
+            "unsure": 0,
+            "no": 0,
+            "yes_rate": 1.0,
+            "yes_or_unsure_rate": 1.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.002083,
+            "contribution_yes_or_unsure": 0.002083,
+            "contribution_unsure": 0.0
+          }
+        ],
+        "after_bands": [
+          {
+            "band": "B0",
+            "share": 0.735417,
+            "population_pairs": 353,
+            "n": 17,
+            "yes": 1,
+            "unsure": 0,
+            "no": 16,
+            "yes_rate": 0.058823529411764705,
+            "yes_or_unsure_rate": 0.058823529411764705,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.04326,
+            "contribution_yes_or_unsure": 0.04326,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B1",
+            "share": 0.1125,
+            "population_pairs": 54,
+            "n": 17,
+            "yes": 4,
+            "unsure": 0,
+            "no": 13,
+            "yes_rate": 0.23529411764705882,
+            "yes_or_unsure_rate": 0.23529411764705882,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.026471,
+            "contribution_yes_or_unsure": 0.026471,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B2",
+            "share": 0.095833,
+            "population_pairs": 46,
+            "n": 16,
+            "yes": 5,
+            "unsure": 1,
+            "no": 10,
+            "yes_rate": 0.3125,
+            "yes_or_unsure_rate": 0.375,
+            "unsure_rate": 0.0625,
+            "contribution_yes": 0.029948,
+            "contribution_yes_or_unsure": 0.035937,
+            "contribution_unsure": 0.00599
+          },
+          {
+            "band": "B3",
+            "share": 0.054167,
+            "population_pairs": 26,
+            "n": 9,
+            "yes": 1,
+            "unsure": 0,
+            "no": 8,
+            "yes_rate": 0.1111111111111111,
+            "yes_or_unsure_rate": 0.1111111111111111,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.006019,
+            "contribution_yes_or_unsure": 0.006019,
+            "contribution_unsure": 0.0
+          },
+          {
+            "band": "B4",
+            "share": 0.002083,
+            "population_pairs": 1,
+            "n": 1,
+            "yes": 0,
+            "unsure": 0,
+            "no": 1,
+            "yes_rate": 0.0,
+            "yes_or_unsure_rate": 0.0,
+            "unsure_rate": 0.0,
+            "contribution_yes": 0.0,
+            "contribution_yes_or_unsure": 0.0,
+            "contribution_unsure": 0.0
+          }
+        ]
+      },
+      "note": "Either planet is a daypart-majority ball, so the pair is not published."
+    }
+  },
+  "greeting_census": {
+    "oct19": {
+      "edition": "2026-10-19",
+      "rule": "Drop the ball when at least half of its representative posts have a daypart greeting in the first 8 words, are at most 60 words, and do not trip _news, _work_topic, or _GREETING_HARD_TOPIC_RE. The tail allowlist is not consulted.",
+      "planets": [
+        {
+          "section": "global",
+          "name": "Good Morning",
+          "posts": 383,
+          "reps": 43,
+          "daypart_share": 0.6047,
+          "already_pleasantry": 17,
+          "junk_filter": "40% of the posts are social gestures in a large cluster",
+          "daypart_gate_drops": true,
+          "new_cards": [
+            "Good morning Marcie my dear friend and happy Sunday. I slept like a baby last night. I am feeling good but it's so cold out I am staying inside this morning until much later. Have ",
+            "Good night everynyan! I had a very fun and relaxing weekend, hopefully you all did too! Should be another good work week ahead. Take care and have a good night, sleep well! I'll se",
+            "Good morning Kelly. It\u2019s going to be a relaxing day today. It\u2019s chilly outside this morning probably our first little frost of the fall. \ufffc"
+          ]
+        },
+        {
+          "section": "Technology",
+          "name": "Account Security",
+          "posts": 93,
+          "reps": 59,
+          "daypart_share": 0.0169,
+          "already_pleasantry": 0,
+          "junk_filter": null,
+          "daypart_gate_drops": false,
+          "new_cards": [
+            "Good morning! I\u2019m baaaaaack! My account was apparently hacked and was suspended for several hours but has since been reactivated."
+          ]
+        },
+        {
+          "section": "Environment",
+          "name": "Pretty Flowers",
+          "posts": 6,
+          "reps": 3,
+          "daypart_share": 0.3333,
+          "already_pleasantry": 0,
+          "junk_filter": null,
+          "daypart_gate_drops": false,
+          "new_cards": [
+            "Good morning, beautiful Stella! I got one more gorgeous bloom off my beloved Abe Lincoln rose \ud83c\udf39 bush yesterday. They smell so lovely & velvety red. Possible frost up here in Michig"
+          ]
+        },
+        {
+          "section": "Other",
+          "name": "Good Morning",
+          "posts": 22,
+          "reps": 15,
+          "daypart_share": 0.8,
+          "already_pleasantry": 12,
+          "junk_filter": "80% of the posts are chit-chat",
+          "daypart_gate_drops": true,
+          "new_cards": [
+            "Good morning from Kinmo the cat. #cats of threads",
+            "Good morning Gillian (plays some music for you to dance to)"
+          ]
+        },
+        {
+          "section": "Other",
+          "name": "Great Day",
+          "posts": 16,
+          "reps": 12,
+          "daypart_share": 0.4167,
+          "already_pleasantry": 9,
+          "junk_filter": "75% of the posts are chit-chat",
+          "daypart_gate_drops": false,
+          "new_cards": []
+        },
+        {
+          "section": "Other",
+          "name": "Hope For The Day",
+          "posts": 14,
+          "reps": 5,
+          "daypart_share": 0.6,
+          "already_pleasantry": 3,
+          "junk_filter": "60% of the posts are chit-chat",
+          "daypart_gate_drops": true,
+          "new_cards": []
+        },
+        {
+          "section": "Other",
+          "name": "wonderful day",
+          "posts": 8,
+          "reps": 3,
+          "daypart_share": 1.0,
+          "already_pleasantry": 2,
+          "junk_filter": "67% of the posts are chit-chat",
+          "daypart_gate_drops": true,
+          "new_cards": [
+            "Good morning, Steve! Have a wonderful Sunday too, thanks! And thank you for the BlueBrewBooks submission. We\u2019ll look forward to hearing what you think of it!"
+          ]
+        },
+        {
+          "section": "Other",
+          "name": "Happy Sunday",
+          "posts": 6,
+          "reps": 5,
+          "daypart_share": 1.0,
+          "already_pleasantry": 4,
+          "junk_filter": "80% of the posts are chit-chat",
+          "daypart_gate_drops": true,
+          "new_cards": [
+            "HAPPY Monday AFTER the #NoKings #4 March.\u2665\ufe0f"
+          ]
+        }
+      ]
+    },
+    "oct20": {
+      "edition": "2026-10-20",
+      "rule": "Drop the ball when at least half of its representative posts have a daypart greeting in the first 8 words, are at most 60 words, and do not trip _news, _work_topic, or _GREETING_HARD_TOPIC_RE. The tail allowlist is not consulted.",
+      "planets": [
+        {
+          "section": "global",
+          "name": "Good Sunday",
+          "posts": 349,
+          "reps": 12,
+          "daypart_share": 0.6667,
+          "already_pleasantry": 0,
+          "junk_filter": null,
+          "daypart_gate_drops": true,
+          "new_cards": [
+            "Good morning Kelly. It\u2019s going to be a relaxing day today. It\u2019s chilly outside this morning probably our first little frost of the fall. \ufffc",
+            "Good night everynyan! I had a very fun and relaxing weekend, hopefully you all did too! Should be another good work week ahead. Take care and have a good night, sleep well! I'll se",
+            "Good morning, Seima!\ud83c\udf1e\u2615\ufe0f\ud83d\udc99\u262e\ufe0f I hope you have a serene and relaxing Sunday!"
+          ]
+        },
+        {
+          "section": "Environment",
+          "name": "Fall Foliage Season",
+          "posts": 47,
+          "reps": 28,
+          "daypart_share": 0.0357,
+          "already_pleasantry": 0,
+          "junk_filter": null,
+          "daypart_gate_drops": false,
+          "new_cards": [
+            "Good morning North Carolinians \u2026 please bring your outside plants in\u2026 fall is here Thank you for your attention to this matter"
+          ]
+        }
+      ]
+    }
+  }
+}
