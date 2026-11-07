@@ -7,6 +7,8 @@ object only when R2 accepts the whole body, so a dropped connection leaves
 the previous object in place.
 
 ``data.json`` is not stored here. Pages keeps publishing that file from git.
+Dossier briefings are separate objects under ``dossiers/``. They are not
+published and they are not written under ``public/``.
 """
 
 from __future__ import annotations
@@ -360,7 +362,14 @@ def _close(response) -> None:
         close()
 
 
-def _signed_request(config: R2Config, method: str, payload: bytes) -> urllib.request.Request:
+def _signed_request(
+    config: R2Config,
+    method: str,
+    payload: bytes,
+    *,
+    object_key: str | None = None,
+    content_type: str | None = None,
+) -> urllib.request.Request:
     payload_hash = hashlib.sha256(payload).hexdigest()
     amz_date = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     host = urllib.parse.urlparse(config.endpoint).hostname or ""
@@ -370,10 +379,11 @@ def _signed_request(config: R2Config, method: str, payload: bytes) -> urllib.req
         "x-amz-content-sha256": payload_hash,
     }
     if method == "PUT":
-        headers["Content-Type"] = "application/octet-stream"
+        headers["Content-Type"] = content_type or "application/octet-stream"
+    canonical = _canonical_uri(config, object_key)
     signed = _authorization_header(
         method=method,
-        canonical_uri=_canonical_uri(config),
+        canonical_uri=canonical,
         signed_headers=headers,
         payload_hash=payload_hash,
         access_key_id=config.access_key_id,
@@ -382,13 +392,110 @@ def _signed_request(config: R2Config, method: str, payload: bytes) -> urllib.req
         amz_date=amz_date,
     )
     headers["Authorization"] = signed
-    url = f"{config.endpoint}{_canonical_uri(config)}"
+    url = f"{config.endpoint}{canonical}"
     data = payload if method == "PUT" else None
     return urllib.request.Request(url, data=data, headers=headers, method=method)
 
 
-def _canonical_uri(config: R2Config) -> str:
-    return "/" + _quote_segment(config.bucket) + "/" + _quote_segment(config.object_key)
+def _canonical_uri(config: R2Config, object_key: str | None = None) -> str:
+    key = config.object_key if object_key is None else object_key
+    return "/" + _quote_segment(config.bucket) + "/" + _quote_key(key)
+
+
+def _quote_key(value: str) -> str:
+    """Quote each path segment and keep the slashes between them."""
+    return "/".join(_quote_segment(part) for part in str(value).split("/"))
+
+
+# Private briefing objects. Never the corpus key, never a public site path.
+_DOSSIER_KEY = re.compile(r"dossiers(?:/[A-Za-z0-9][A-Za-z0-9._-]{0,80}){1,6}\Z")
+
+
+def assert_dossier_key(key: str) -> None:
+    """Reject a key that could replace the corpus or leave the private prefix."""
+    text = str(key or "")
+    if (
+        not text
+        or text.startswith("/")
+        or "\\" in text
+        or ".." in text
+        or "//" in text
+        or text.endswith(".db")
+        or "live_corpus" in text
+        or "/public/" in f"/{text}/"
+        or not _DOSSIER_KEY.fullmatch(text)
+    ):
+        raise RuntimeError(f"Refusing a dossier key: {text!r}")
+
+
+def put_private_object(
+    key: str,
+    payload: bytes,
+    *,
+    config: R2Config | None = None,
+    opener=None,
+    environ: dict[str, str] | None = None,
+    content_type: str = "text/plain; charset=utf-8",
+) -> str:
+    """PUT one private object. Returns ``uploaded`` or ``unconfigured``.
+
+    Does not record a storage size. The corpus HEAD is the bucket measurement
+    the ledger uses; a dossier byte count must not replace it.
+    """
+    assert_dossier_key(key)
+    resolved = _resolve(config, environ)
+    if resolved is None:
+        return "unconfigured"
+    request = _signed_request(
+        resolved,
+        "PUT",
+        payload,
+        object_key=key,
+        content_type=content_type,
+    )
+    response = _exchange(request, resolved.timeout, opener)
+    try:
+        status = _status(response)
+        response.read()
+        if status != 200:
+            if status != 401:
+                _remember_r2(class_a=1)
+            raise RuntimeError(f"R2 upload failed with HTTP {status}")
+    finally:
+        _close(response)
+    _remember_r2(class_a=1)
+    return "uploaded"
+
+
+def get_private_object(
+    key: str,
+    *,
+    config: R2Config | None = None,
+    opener=None,
+    environ: dict[str, str] | None = None,
+) -> bytes | None:
+    """GET one private object. ``None`` is a 404 or an unconfigured bucket."""
+    assert_dossier_key(key)
+    resolved = _resolve(config, environ)
+    if resolved is None:
+        return None
+    request = _signed_request(resolved, "GET", b"", object_key=key)
+    response = _exchange(request, resolved.timeout, opener)
+    try:
+        status = _status(response)
+        if status != 401:
+            _remember_r2(class_b=1)
+        if status == 404:
+            return None
+        if status != 200:
+            raise RuntimeError(f"R2 download failed with HTTP {status}")
+        expected = _content_length(response)
+        body = response.read()
+        if expected is not None and len(body) != expected:
+            raise RuntimeError(f"R2 download ended early ({len(body)} bytes of {expected})")
+        return body
+    finally:
+        _close(response)
 
 
 def _quote_segment(value: str) -> str:
